@@ -30,6 +30,11 @@
   --color-sport-rugby: var(--color-accent);
   --color-sport-basketball: #3b82f6;
 
+  /* Fantasy league brand accents */
+  --color-league-upl: #16a34a;
+  --color-league-nile: #7f1d1d;
+  --color-league-nbl: #1d4ed8;
+
   /* Text */
   --color-text-primary: #ffffff;
   --color-text-secondary: #a5a0ba;
