@@ -1,0 +1,40 @@
+:root {
+  /* Backgrounds */
+  --color-bg: #0a0713;
+  --color-bg-elevated: #0f0a1d;
+  --color-card-bg: #160f2b;
+  --color-card-hover: #1f1640;
+
+  /* Borders */
+  --color-border: #2b2344;
+  --color-border-hover: var(--color-primary);
+
+  /* Primary accent — violet/purple */
+  --color-primary: #7c3aed;
+  --color-primary-light: #a855f7;
+  --color-primary-dark: #5b21b6;
+
+  /* Secondary accent — orange/red */
+  --color-accent: #f97316;
+  --color-accent-light: #fb923c;
+  --color-accent-alt: #ef4444;
+
+  /* Status colors */
+  --color-live: #dc2626;
+  --color-open: #22c55e;
+  --color-yes: var(--color-primary);
+  --color-no: var(--color-accent);
+
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a5a0ba;
+  --color-text-muted: #6f6a82;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  --gradient-accent: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt));
+  --gradient-hero-text: linear-gradient(90deg, var(--color-accent), #ec4899, var(--color-primary-light));
+
+  /* Typography */
+  --font-family-base: 'Inter', Arial, sans-serif;
+}
