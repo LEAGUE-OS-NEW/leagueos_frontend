@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react';
 import App from './App';
 
 describe('App', () => {
-  it('renders without crashing', () => {
+  it('renders the landing page without crashing', () => {
     render(<App />);
-    expect(screen.getByText(/Landing Page Coming Soon/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /every game/i })).toBeInTheDocument();
   });
 });
