@@ -90,16 +90,6 @@ function Hero() {
               </li>
             ))}
           </ul>
-
-          <div className="hero-badge">
-            <span className="hero-badge-flag">
-              <PlaceholderIcon />
-            </span>
-            <span className="hero-badge-text">
-              <strong>Proudly Ugandan.</strong>
-              Built in Uganda. Ready for Africa.
-            </span>
-          </div>
         </div>
       </div>
     </section>
