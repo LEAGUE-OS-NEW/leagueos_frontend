@@ -48,18 +48,6 @@
   color: #fff;
 }
 
-.sport-football {
-  background-color: var(--color-sport-football);
-}
-
-.sport-rugby {
-  background-color: var(--color-sport-rugby);
-}
-
-.sport-basketball {
-  background-color: var(--color-sport-basketball);
-}
-
 .market-status {
   display: inline-flex;
   align-items: center;

@@ -51,3 +51,15 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+.sport-football {
+  background-color: var(--color-sport-football);
+}
+
+.sport-rugby {
+  background-color: var(--color-sport-rugby);
+}
+
+.sport-basketball {
+  background-color: var(--color-sport-basketball);
+}
