@@ -1,24 +1,56 @@
 .hero {
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at 80% 15%, rgba(124, 58, 237, 0.25), transparent 60%), var(--color-bg);
-  padding: clamp(32px, 6vw, 64px) 0 clamp(48px, 8vw, 80px);
+  min-height: clamp(520px, 80vh, 720px);
+  display: flex;
+  align-items: center;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.hero-background {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: clamp(16px, 8vw, 120px);
+}
+
+.hero-background-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 220px;
+  text-align: center;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(10, 7, 19, 0.94) 0%,
+    rgba(10, 7, 19, 0.8) 35%,
+    rgba(10, 7, 19, 0.45) 65%,
+    rgba(10, 7, 19, 0.2) 100%
+  );
 }
 
 .hero-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 40px);
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: clamp(32px, 6vw, 56px);
-  align-items: center;
+  padding: clamp(32px, 6vw, 64px) clamp(16px, 4vw, 40px);
 }
 
-@media (min-width: 960px) {
-  .hero-inner {
-    grid-template-columns: 1.1fr 0.9fr;
-  }
+.hero-content {
+  max-width: 640px;
 }
 
 .hero-eyebrow {
@@ -103,7 +135,7 @@
 
 .hero-features {
   list-style: none;
-  margin: 0;
+  margin: 0 0 32px;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -146,21 +178,6 @@
   color: var(--color-text-secondary);
 }
 
-.hero-visual {
-  position: relative;
-  min-height: 320px;
-  border-radius: 20px;
-  background-color: var(--color-card-bg);
-  border: 1px dashed var(--color-border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 20px;
-  overflow: hidden;
-}
-
 .hero-visual-icon {
   width: 56px;
   height: 56px;
@@ -179,10 +196,7 @@
 }
 
 .hero-badge {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
   background-color: rgba(10, 7, 19, 0.75);
@@ -216,6 +230,24 @@
 .hero-badge-text strong {
   color: var(--color-text-primary);
   font-size: 0.85rem;
+}
+
+@media (max-width: 767px) {
+  .hero-background-placeholder {
+    display: none;
+  }
+
+  .hero-overlay {
+    background: rgba(10, 7, 19, 0.85);
+  }
+}
+
+@media (min-width: 960px) {
+  .hero-badge {
+    position: absolute;
+    right: clamp(16px, 4vw, 40px);
+    bottom: clamp(24px, 4vw, 40px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

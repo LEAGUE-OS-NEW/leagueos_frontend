@@ -42,6 +42,16 @@ const FEATURES: Feature[] = [
 function Hero() {
   return (
     <section className="hero">
+      <div className="hero-background" aria-hidden="true">
+        <div className="hero-background-placeholder">
+          <span className="hero-visual-icon">
+            <ImagePlaceholderIcon />
+          </span>
+          <p className="hero-visual-caption">Stadium / athletes background placeholder</p>
+        </div>
+      </div>
+      <div className="hero-overlay" aria-hidden="true" />
+
       <div className="hero-inner">
         <div className="hero-content">
           <p className="hero-eyebrow">Uganda-First Sports Platform</p>
@@ -80,13 +90,6 @@ function Hero() {
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="hero-visual">
-          <span className="hero-visual-icon">
-            <ImagePlaceholderIcon />
-          </span>
-          <p className="hero-visual-caption">Hero image placeholder</p>
 
           <div className="hero-badge">
             <span className="hero-badge-flag">
