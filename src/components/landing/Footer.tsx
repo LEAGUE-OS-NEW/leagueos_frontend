@@ -117,8 +117,7 @@ function Footer() {
         <div className="footer-columns">
           <div className="footer-brand">
             <Link to="/" className="footer-logo">
-              <span className="footer-logo-league">LEAGUE</span>
-              <span className="footer-logo-os">OS</span>
+              <img src="/logos/logo.png" alt="League OS" className="footer-logo-image" />
             </Link>
             <p className="footer-tagline">Your game. Your community. Your win.</p>
             <p className="footer-tagline">Built in Uganda. Ready for Africa.</p>

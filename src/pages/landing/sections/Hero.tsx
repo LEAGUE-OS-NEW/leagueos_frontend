@@ -22,16 +22,6 @@ function ArrowIcon() {
   );
 }
 
-function ImagePlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <rect x="4" y="4" width="40" height="40" rx="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" />
-      <circle cx="17" cy="17" r="4" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 34l10-10 8 8 6-6 8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 const FEATURES: Feature[] = [
   { title: 'Uganda-First', subtitle: 'Built for our fans' },
   { title: 'Web & Mobile', subtitle: 'Play anywhere' },
@@ -42,14 +32,7 @@ const FEATURES: Feature[] = [
 function Hero() {
   return (
     <section className="hero">
-      <div className="hero-background" aria-hidden="true">
-        <div className="hero-background-placeholder">
-          <span className="hero-visual-icon">
-            <ImagePlaceholderIcon />
-          </span>
-          <p className="hero-visual-caption">Stadium / athletes background placeholder</p>
-        </div>
-      </div>
+      <img className="hero-background-image" src="/images/auth-stadium-bg.png" alt="" aria-hidden="true" />
       <div className="hero-overlay" aria-hidden="true" />
 
       <div className="hero-inner">

@@ -1,6 +1,7 @@
-import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
+import Navbar from '../../components/landing/Navbar';
+import Footer from '../../components/landing/Footer';
 import Hero from './sections/Hero';
+import FeaturedMarkets from './sections/FeaturedMarkets';
 import './Landing.css';
 
 function Landing() {
@@ -9,6 +10,7 @@ function Landing() {
       <Navbar />
       <main className="landing">
         <Hero />
+        <FeaturedMarkets />
       </main>
       <Footer />
     </>

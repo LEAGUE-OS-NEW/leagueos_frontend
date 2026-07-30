@@ -165,8 +165,7 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
     <header className="navbar">
       <div className="navbar-inner">
         <Link to="/" className="navbar-logo">
-          <span className="navbar-logo-league">LEAGUE</span>
-          <span className="navbar-logo-os">OS</span>
+          <img src="/logos/logo.png" alt="League OS" className="navbar-logo-image" />
         </Link>
 
         <nav className="navbar-links" aria-label="Primary">

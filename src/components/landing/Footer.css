@@ -31,21 +31,14 @@
 
 .footer-logo {
   display: flex;
-  align-items: baseline;
-  gap: 2px;
-  text-decoration: none;
-  font-weight: 800;
-  font-size: 1.1rem;
+  align-items: center;
   cursor: pointer;
   width: fit-content;
 }
 
-.footer-logo-league {
-  color: var(--color-text-primary);
-}
-
-.footer-logo-os {
-  color: var(--color-accent);
+.footer-logo-image {
+  height: 28px;
+  width: auto;
 }
 
 .footer-tagline {

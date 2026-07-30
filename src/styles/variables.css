@@ -25,6 +25,11 @@
   --color-yes: var(--color-primary);
   --color-no: var(--color-accent);
 
+  /* Sport category tags */
+  --color-sport-football: var(--color-primary);
+  --color-sport-rugby: var(--color-accent);
+  --color-sport-basketball: #3b82f6;
+
   /* Text */
   --color-text-primary: #ffffff;
   --color-text-secondary: #a5a0ba;
