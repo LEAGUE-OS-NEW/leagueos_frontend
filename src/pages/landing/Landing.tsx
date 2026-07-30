@@ -4,6 +4,7 @@ import Hero from './sections/Hero';
 import FeaturedMarkets from './sections/FeaturedMarkets';
 import LiveScores from './sections/LiveScores';
 import FantasyLeagues from './sections/FantasyLeagues';
+import FeaturedClubs from './sections/FeaturedClubs';
 import './Landing.css';
 
 function Landing() {
@@ -15,6 +16,7 @@ function Landing() {
         <FeaturedMarkets />
         <LiveScores />
         <FantasyLeagues />
+        <FeaturedClubs />
       </main>
       <Footer />
     </>
