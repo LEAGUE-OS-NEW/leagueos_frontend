@@ -29,29 +29,6 @@ function MapPlaceholderIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M16.7 12.4c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-1.5 2.6-.4 6.4 1 8.5.7 1 1.5 2.2 2.6 2.1 1-.1 1.4-.7 2.7-.7 1.3 0 1.6.7 2.7.6 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.1-.8-2.2-3.4z"
-        fill="currentColor"
-      />
-      <path
-        d="M14.8 5.6c.6-.7 1-1.7.9-2.6-.8 0-1.9.5-2.5 1.2-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M6 4.5v15l14-7.5-14-7.5z" fill="currentColor" />
-    </svg>
-  );
-}
-
 function BuiltInUganda() {
   return (
     <section className="built-in-uganda">
@@ -85,26 +62,6 @@ function BuiltInUganda() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="built-in-uganda-download">
-            <p className="download-label">Download the app</p>
-            <div className="download-badges">
-              <button type="button" className="store-badge">
-                <AppleIcon />
-                <span>
-                  Download on the
-                  <strong>App Store</strong>
-                </span>
-              </button>
-              <button type="button" className="store-badge">
-                <PlayIcon />
-                <span>
-                  GET IT ON
-                  <strong>Google Play</strong>
-                </span>
-              </button>
             </div>
           </div>
         </div>
