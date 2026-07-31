@@ -5,6 +5,7 @@ import FeaturedMarkets from './sections/FeaturedMarkets';
 import LiveScores from './sections/LiveScores';
 import FantasyLeagues from './sections/FantasyLeagues';
 import FeaturedClubs from './sections/FeaturedClubs';
+import HowItWorks from './sections/HowItWorks';
 import './Landing.css';
 
 function Landing() {
@@ -17,6 +18,7 @@ function Landing() {
         <LiveScores />
         <FantasyLeagues />
         <FeaturedClubs />
+        <HowItWorks />
       </main>
       <Footer />
     </>
