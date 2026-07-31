@@ -19,7 +19,7 @@ import {
   CalendarClock,
   Gamepad2,
 } from 'lucide-react';
-import './AboutUs.css';
+import './Aboutus.css';
 
 const AboutUs = () => {
   return (
