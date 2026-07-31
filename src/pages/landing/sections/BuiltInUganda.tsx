@@ -1,33 +1,19 @@
+import type { ReactNode } from 'react';
+import { FiFlag, FiAward, FiUsers, FiGlobe } from 'react-icons/fi';
 import './BuiltInUganda.css';
 
 type Stat = {
   value: string;
   label: string;
   sublabel: string;
+  icon: ReactNode;
 };
 
 const STATS: Stat[] = [
-  { value: '1+', label: 'Countries', sublabel: 'Starting in Uganda' },
-  { value: '50+', label: 'Leagues', sublabel: 'And growing' },
-  { value: '10K+', label: 'Fans', sublabel: 'And counting' },
+  { value: '1+', label: 'Countries', sublabel: 'Starting in Uganda', icon: <FiFlag /> },
+  { value: '50+', label: 'Leagues', sublabel: 'And growing', icon: <FiAward /> },
+  { value: '10K+', label: 'Fans', sublabel: 'And counting', icon: <FiUsers /> },
 ];
-
-function PlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.4" strokeDasharray="3 3" />
-    </svg>
-  );
-}
-
-function MapPlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <rect x="4" y="4" width="40" height="40" rx="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" />
-      <circle cx="24" cy="24" r="3" fill="currentColor" />
-    </svg>
-  );
-}
 
 function BuiltInUganda() {
   return (
@@ -35,7 +21,7 @@ function BuiltInUganda() {
       <div className="built-in-uganda-inner">
         <div className="built-in-uganda-panel">
           <span className="built-in-uganda-map" aria-hidden="true">
-            <MapPlaceholderIcon />
+            <FiGlobe />
           </span>
 
           <div className="built-in-uganda-content">
@@ -52,9 +38,7 @@ function BuiltInUganda() {
             <div className="built-in-uganda-stats">
               {STATS.map((stat) => (
                 <div className="stat-item" key={stat.label}>
-                  <span className="stat-icon">
-                    <PlaceholderIcon />
-                  </span>
+                  <span className="stat-icon">{stat.icon}</span>
                   <div>
                     <p className="stat-value">{stat.value}</p>
                     <p className="stat-label">{stat.label}</p>

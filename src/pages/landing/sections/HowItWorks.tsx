@@ -1,33 +1,21 @@
 import { Fragment } from 'react';
+import type { ReactNode } from 'react';
+import { FiHeart, FiTrendingUp, FiArrowRight } from 'react-icons/fi';
+import { GiTrophyCup, GiTicket } from 'react-icons/gi';
 import './HowItWorks.css';
 
 type Step = {
   title: string;
   description: string;
+  icon: ReactNode;
 };
 
 const STEPS: Step[] = [
-  { title: 'Follow Clubs', description: 'Stay updated and support your teams.' },
-  { title: 'Join Fantasy', description: 'Create your dream team and compete.' },
-  { title: 'Trade Markets', description: 'Predict outcomes and trade your views.' },
-  { title: 'Get Tickets', description: 'Buy tickets & memberships to live events.' },
+  { title: 'Follow Clubs', description: 'Stay updated and support your teams.', icon: <FiHeart /> },
+  { title: 'Join Fantasy', description: 'Create your dream team and compete.', icon: <GiTrophyCup /> },
+  { title: 'Trade Markets', description: 'Predict outcomes and trade your views.', icon: <FiTrendingUp /> },
+  { title: 'Get Tickets', description: 'Buy tickets & memberships to live events.', icon: <GiTicket /> },
 ];
-
-function PlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.4" strokeDasharray="3 3" />
-    </svg>
-  );
-}
-
-function StepArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function HowItWorks() {
   return (
@@ -48,15 +36,13 @@ function HowItWorks() {
             {STEPS.map((step, index) => (
               <Fragment key={step.title}>
                 <div className="how-step">
-                  <span className="how-step-icon">
-                    <PlaceholderIcon />
-                  </span>
+                  <span className="how-step-icon">{step.icon}</span>
                   <p className="how-step-title">{step.title}</p>
                   <p className="how-step-desc">{step.description}</p>
                 </div>
                 {index < STEPS.length - 1 && (
                   <span className="how-step-arrow" aria-hidden="true">
-                    <StepArrowIcon />
+                    <FiArrowRight />
                   </span>
                 )}
               </Fragment>

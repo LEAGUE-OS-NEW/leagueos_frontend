@@ -1,32 +1,19 @@
 import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { FiShield, FiSmartphone, FiClock, FiActivity, FiArrowRight } from 'react-icons/fi';
 import './Hero.css';
 
 type Feature = {
   title: string;
   subtitle: string;
+  icon: ReactNode;
 };
 
-function PlaceholderIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.4" strokeDasharray="3 3" />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 const FEATURES: Feature[] = [
-  { title: 'Uganda-First', subtitle: 'Built for our fans' },
-  { title: 'Web & Mobile', subtitle: 'Play anywhere' },
-  { title: 'Live Scores', subtitle: 'Real-time action' },
-  { title: 'Real-time Updates', subtitle: 'Instant & accurate' },
+  { title: 'Uganda-First', subtitle: 'Built for our fans', icon: <FiShield /> },
+  { title: 'Web & Mobile', subtitle: 'Play anywhere', icon: <FiSmartphone /> },
+  { title: 'Live Scores', subtitle: 'Real-time action', icon: <FiClock /> },
+  { title: 'Real-time Updates', subtitle: 'Instant & accurate', icon: <FiActivity /> },
 ];
 
 function Hero() {
@@ -53,7 +40,7 @@ function Hero() {
           <div className="hero-cta-row">
             <Link to="/markets" className="hero-btn hero-btn-primary">
               Explore Markets
-              <ArrowIcon />
+              <FiArrowRight />
             </Link>
             <Link to="/fantasy" className="hero-btn hero-btn-accent">
               Play Fantasy
@@ -63,9 +50,7 @@ function Hero() {
           <ul className="hero-features">
             {FEATURES.map((feature) => (
               <li className="hero-feature" key={feature.title}>
-                <span className="hero-feature-icon">
-                  <PlaceholderIcon />
-                </span>
+                <span className="hero-feature-icon">{feature.icon}</span>
                 <span className="hero-feature-text">
                   <span className="hero-feature-title">{feature.title}</span>
                   <span className="hero-feature-subtitle">{feature.subtitle}</span>

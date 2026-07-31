@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FiUsers, FiCalendar, FiArrowRight } from 'react-icons/fi';
 import './FantasyLeagues.css';
 
 type FantasyCard = {
@@ -41,38 +42,6 @@ const FANTASY_CARDS: FantasyCard[] = [
   },
 ];
 
-function PeopleIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <circle cx="7" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="14" cy="8" r="1.8" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M2.5 16c0-2.8 2-4.5 4.5-4.5s4.5 1.7 4.5 4.5M12.5 16c0-2-1.3-3.6-3-4.2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <rect x="3" y="4.5" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M3 8h14M7 2.5v3M13 2.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function FantasyLeagues() {
   return (
     <section className="fantasy-leagues">
@@ -84,7 +53,7 @@ function FantasyLeagues() {
           </div>
           <Link to="/fantasy" className="section-link">
             View all leagues
-            <ArrowIcon />
+            <FiArrowRight />
           </Link>
         </div>
 
@@ -106,18 +75,18 @@ function FantasyLeagues() {
 
                 <div className="fantasy-card-stats">
                   <span className="fantasy-card-stat">
-                    <PeopleIcon />
+                    <FiUsers />
                     {card.managers} Managers
                   </span>
                   <span className="fantasy-card-stat">
-                    <CalendarIcon />
+                    <FiCalendar />
                     {card.gameweek} Next Gameweek
                   </span>
                 </div>
 
                 <Link to="/fantasy" className="fantasy-card-btn">
                   Join League
-                  <ArrowIcon />
+                  <FiArrowRight />
                 </Link>
               </div>
             </div>

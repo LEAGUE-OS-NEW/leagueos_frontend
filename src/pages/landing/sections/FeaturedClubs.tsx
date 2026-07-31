@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import './FeaturedClubs.css';
 
 type Club = {
@@ -49,30 +50,6 @@ function ClubCrest({ src, name }: { src?: string; name: string }) {
   );
 }
 
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function FeaturedClubs() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
@@ -103,7 +80,7 @@ function FeaturedClubs() {
           </div>
           <Link to="/clubs" className="section-link">
             View all clubs
-            <ArrowIcon />
+            <FiArrowRight />
           </Link>
         </div>
 
@@ -114,7 +91,7 @@ function FeaturedClubs() {
             aria-label="Scroll clubs left"
             onClick={() => scrollByAmount(-320)}
           >
-            <ChevronLeftIcon />
+            <FiChevronLeft />
           </button>
 
           <div className="clubs-track" ref={trackRef}>
@@ -146,7 +123,7 @@ function FeaturedClubs() {
             aria-label="Scroll clubs right"
             onClick={() => scrollByAmount(320)}
           >
-            <ChevronRightIcon />
+            <FiChevronRight />
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FiArrowRight } from 'react-icons/fi';
 import './LiveScores.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
@@ -114,14 +115,6 @@ function CrestPlaceholder() {
   );
 }
 
-function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function TeamCrest({ src, name, className }: { src?: string; name: string; className: string }) {
   if (!src) {
     return (
@@ -149,7 +142,7 @@ function LiveScores() {
           </div>
           <Link to="/live" className="section-link">
             View all live
-            <ArrowIcon />
+            <FiArrowRight />
           </Link>
         </div>
 
