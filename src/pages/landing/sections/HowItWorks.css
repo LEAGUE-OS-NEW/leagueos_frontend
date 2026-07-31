@@ -1,17 +1,7 @@
 .how-it-works {
   position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.how-it-works::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
 }
 
 .how-it-works-inner {
@@ -41,7 +31,7 @@
 
 .how-it-works-eyebrow {
   margin: 0 0 8px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -59,7 +49,7 @@
 .how-it-works-subtext {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   line-height: 1.5;
 }
 
@@ -80,6 +70,9 @@
   border-radius: 14px;
   padding: 16px;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
   transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -113,7 +106,7 @@
 
 .how-step-desc {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.83rem;
   color: var(--color-text-secondary);
   line-height: 1.4;
 }

@@ -1,17 +1,7 @@
 .fantasy-leagues {
   position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.fantasy-leagues::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
 }
 
 .fantasy-leagues-inner {

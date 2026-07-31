@@ -173,12 +173,12 @@ function FeaturedMarkets() {
               </div>
 
               <div className="market-actions">
-                <button type="button" className="market-btn market-btn-yes">
+                <Link to="/markets" className="market-btn market-btn-yes">
                   YES <span>{market.yesOdds}</span>
-                </button>
-                <button type="button" className="market-btn market-btn-no">
+                </Link>
+                <Link to="/markets" className="market-btn market-btn-no">
                   NO <span>{market.noOdds}</span>
-                </button>
+                </Link>
               </div>
             </div>
           ))}

@@ -4,6 +4,28 @@
   overflow-x: hidden;
 }
 
+.stadium-backdrop {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.stadium-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+}
+
+@media (max-width: 767px) {
+  .stadium-backdrop {
+    background-attachment: scroll;
+  }
+}
+
 .section-heading-row {
   display: flex;
   flex-wrap: wrap;

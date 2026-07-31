@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { FiShield, FiSmartphone, FiClock, FiActivity, FiArrowRight } from 'react-icons/fi';
+import { FiShield, FiSmartphone, FiClock, FiActivity } from 'react-icons/fi';
 import './Hero.css';
 
 type Feature = {
@@ -10,7 +10,7 @@ type Feature = {
 };
 
 const FEATURES: Feature[] = [
-  { title: 'Uganda-First', subtitle: 'Built for our fans', icon: <FiShield /> },
+  { title: 'Africa-First', subtitle: 'Built for our fans', icon: <FiShield /> },
   { title: 'Web & Mobile', subtitle: 'Play anywhere', icon: <FiSmartphone /> },
   { title: 'Live Scores', subtitle: 'Real-time action', icon: <FiClock /> },
   { title: 'Real-time Updates', subtitle: 'Instant & accurate', icon: <FiActivity /> },
@@ -39,7 +39,6 @@ function Hero() {
           <div className="hero-cta-row">
             <Link to="/markets" className="hero-btn hero-btn-primary">
               Explore Markets
-              <FiArrowRight />
             </Link>
             <Link to="/fantasy" className="hero-btn hero-btn-accent">
               Play Fantasy

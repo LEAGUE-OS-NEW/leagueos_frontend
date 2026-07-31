@@ -1,17 +1,7 @@
 .featured-markets {
   position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.featured-markets::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
 }
 
 .featured-markets-inner {
@@ -85,7 +75,7 @@
 .market-status-meta {
   font-weight: 600;
   text-transform: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   background: none;
   padding: 0;
 }
@@ -143,7 +133,7 @@
 }
 
 .market-team-name {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--color-text-secondary);
   text-align: center;
   white-space: nowrap;
@@ -153,7 +143,7 @@
 }
 
 .market-vs {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-text-muted);
   flex-shrink: 0;
@@ -174,7 +164,7 @@
 }
 
 .market-stat-label {
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   color: var(--color-text-muted);
 }
 

@@ -22,7 +22,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Fantasy', route: '/fantasy' },
       { label: 'Clubs', route: '/clubs' },
       { label: 'Tickets', route: '/tickets' },
-      { label: 'Memberships', route: '/memberships' },
       { label: 'Store', route: '/store' },
     ],
   },
@@ -41,7 +40,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: 'About Us', route: '/about' },
       { label: 'Careers', route: '/careers' },
-      { label: 'Press', route: '/press' },
       { label: 'Partners', route: '/partners' },
       { label: 'Terms & Conditions', route: '/terms' },
       { label: 'Privacy Policy', route: '/privacy' },

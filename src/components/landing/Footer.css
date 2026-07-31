@@ -37,23 +37,23 @@
 }
 
 .footer-logo-image {
-  height: 28px;
+  height: 32px;
   width: auto;
 }
 
 .footer-tagline {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   line-height: 1.5;
 }
 
 .footer-heading {
   margin: 0 0 14px;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
@@ -69,7 +69,7 @@
 .footer-link {
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   transition: color 0.2s ease;
   cursor: pointer;
   border-radius: 3px;
@@ -134,7 +134,7 @@
 .footer-disclaimer {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.86rem;
 }
 
 .footer-disclaimer-link {

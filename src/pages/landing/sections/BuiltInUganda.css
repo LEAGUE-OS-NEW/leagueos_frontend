@@ -1,17 +1,7 @@
 .built-in-uganda {
   position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.built-in-uganda::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
 }
 
 .built-in-uganda-inner {
@@ -62,7 +52,7 @@
   margin: 0 0 22px;
   max-width: 48ch;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   line-height: 1.6;
 }
 
@@ -108,7 +98,7 @@
 
 .stat-sublabel {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--color-text-muted);
 }
 

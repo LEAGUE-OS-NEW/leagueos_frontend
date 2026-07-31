@@ -1,17 +1,7 @@
 .featured-clubs {
   position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.featured-clubs::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
 }
 
 .featured-clubs-inner {
@@ -102,7 +92,7 @@
 
 .club-meta {
   margin: 0 0 10px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--color-text-muted);
 }
 
