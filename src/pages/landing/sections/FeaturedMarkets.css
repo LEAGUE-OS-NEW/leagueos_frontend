@@ -217,11 +217,11 @@
 }
 
 .market-btn-yes {
-  background-color: var(--color-yes);
+  background: var(--gradient-primary);
 }
 
 .market-btn-no {
-  background-color: var(--color-no);
+  background: var(--gradient-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

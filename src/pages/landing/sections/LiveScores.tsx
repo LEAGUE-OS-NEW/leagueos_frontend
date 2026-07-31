@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { FiArrowRight } from 'react-icons/fi';
 import './LiveScores.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
@@ -142,7 +141,6 @@ function LiveScores() {
           </div>
           <Link to="/live" className="section-link">
             View all live
-            <FiArrowRight />
           </Link>
         </div>
 

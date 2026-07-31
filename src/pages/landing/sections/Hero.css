@@ -40,15 +40,6 @@
   max-width: 640px;
 }
 
-.hero-eyebrow {
-  margin: 0 0 14px;
-  color: var(--color-primary-light);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
 .hero-heading {
   margin: 0 0 20px;
   text-transform: uppercase;
@@ -70,8 +61,9 @@
 .hero-subtext {
   margin: 0 0 28px;
   max-width: 52ch;
-  color: var(--color-text-secondary);
-  font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
   line-height: 1.6;
 }
 
@@ -87,7 +79,7 @@
   align-items: center;
   gap: 8px;
   padding: 13px 24px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-weight: 700;
   font-size: 0.95rem;
   text-decoration: none;

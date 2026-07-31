@@ -24,7 +24,6 @@ function Hero() {
 
       <div className="hero-inner">
         <div className="hero-content">
-          <p className="hero-eyebrow">Uganda-First Sports Platform</p>
           <h1 className="hero-heading">
             Every Game.
             <br />
@@ -34,7 +33,7 @@ function Hero() {
           </h1>
           <p className="hero-subtext">
             League OS brings together markets, fantasy, clubs, tickets, memberships, merchandise, and live
-            engagement for Uganda&apos;s fans. Real-time. Real communities. Real rewards.
+            engagement for African fans. Real-time. Real communities. Real rewards.
           </p>
 
           <div className="hero-cta-row">

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import './FeaturedClubs.css';
 
 type Club = {
@@ -80,7 +80,6 @@ function FeaturedClubs() {
           </div>
           <Link to="/clubs" className="section-link">
             View all clubs
-            <FiArrowRight />
           </Link>
         </div>
 

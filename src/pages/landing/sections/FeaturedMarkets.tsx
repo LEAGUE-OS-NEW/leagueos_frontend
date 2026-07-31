@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { FiArrowRight } from 'react-icons/fi';
 import './FeaturedMarkets.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
@@ -134,7 +133,6 @@ function FeaturedMarkets() {
           </div>
           <Link to="/markets" className="section-link">
             View all markets
-            <FiArrowRight />
           </Link>
         </div>
 
