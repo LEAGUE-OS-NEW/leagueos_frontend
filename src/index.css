@@ -1,0 +1,26 @@
+@import './styles/fonts.css';
+@import './styles/variables.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-family-heading);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.1;
+  margin: 0;
+}

@@ -1,0 +1,101 @@
+.built-in-uganda {
+  padding: clamp(32px, 5vw, 56px) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.built-in-uganda-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+
+.built-in-uganda-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.built-in-uganda-map {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  color: var(--color-text-muted);
+}
+
+.built-in-uganda-map svg {
+  width: 100%;
+  height: 100%;
+}
+
+.built-in-uganda-content {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+.built-in-uganda-heading {
+  margin: 0 0 10px;
+  font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
+.built-in-uganda-text {
+  margin: 0 0 22px;
+  max-width: 48ch;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.built-in-uganda-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.stat-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary-light);
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.stat-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--color-primary-light);
+  line-height: 1.2;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.stat-sublabel {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
