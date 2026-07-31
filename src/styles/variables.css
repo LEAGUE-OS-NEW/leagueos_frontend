@@ -45,6 +45,9 @@
   --gradient-accent: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt));
   --gradient-hero-text: linear-gradient(90deg, var(--color-accent), #ec4899, var(--color-primary-light));
 
+  /* Section background image tint */
+  --overlay-section: rgba(10, 7, 19, 0.85);
+
   /* Typography */
   --font-family-heading: 'Shentox', Impact, sans-serif;
   --font-family-base: 'Shentox', Arial, sans-serif;

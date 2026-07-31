@@ -19,7 +19,7 @@ const FEATURES: Feature[] = [
 function Hero() {
   return (
     <section className="hero">
-      <img className="hero-background-image" src="/images/auth-stadium-bg.png" alt="" aria-hidden="true" />
+      <img className="hero-background-image" src="/images/hero.png" alt="" aria-hidden="true" />
       <div className="hero-overlay" aria-hidden="true" />
 
       <div className="hero-inner">
