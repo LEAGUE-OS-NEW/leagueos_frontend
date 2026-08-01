@@ -42,7 +42,7 @@
 
 .built-in-uganda-heading {
   margin: 0 0 10px;
-  font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+  font-size: clamp(1.45rem, 2.8vw, 1.9rem);
   text-transform: uppercase;
   color: var(--color-text-primary);
   text-wrap: balance;
@@ -52,14 +52,15 @@
   margin: 0 0 22px;
   max-width: 48ch;
   color: var(--color-text-secondary);
-  font-size: 0.92rem;
+  font-size: 1rem;
   line-height: 1.6;
 }
 
 .built-in-uganda-stats {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  flex-direction: column;
+  flex: 1 1 200px;
+  gap: 20px;
 }
 
 .stat-item {
@@ -83,7 +84,7 @@
 
 .stat-value {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--color-primary-light);
   line-height: 1.2;
@@ -91,14 +92,14 @@
 
 .stat-label {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .stat-sublabel {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
 }
 
