@@ -64,6 +64,17 @@ type TrendingMarket = {
   fireCount: string;
 };
 
+type ClosedMarketRow = {
+  id: string;
+  sport: Sport;
+  teamA: string;
+  teamB: string;
+  question: string;
+  result: 'Yes' | 'No';
+  volume: string;
+  closedAgo: string;
+};
+
 const SPORT_META: Record<Sport, { icon: IconType; markets: string; live: string; className: string }> = {
   Football: { icon: GiSoccerBall, markets: '1,284 markets', live: '87', className: 'football' },
   Rugby: { icon: GiRugbyConversion, markets: '342 markets', live: '18', className: 'rugby' },
@@ -186,6 +197,39 @@ const TRENDING_MARKETS: TrendingMarket[] = [
   { sport: 'Basketball', teamA: 'City Oilers', teamB: 'UCU Canons', question: 'Will City Oilers score 80+?', fireCount: '756' },
   { sport: 'Football', teamA: 'SC Villa', teamB: 'BUL FC', question: 'Will SC Villa score first?', fireCount: '642' },
   { sport: 'Rugby', teamA: 'Black Pirates', teamB: 'Rams', question: 'Will Black Pirates win?', fireCount: '521' },
+];
+
+const CLOSED_MARKETS: ClosedMarketRow[] = [
+  {
+    id: 'vipers-express-closed',
+    sport: 'Football',
+    teamA: 'Vipers SC',
+    teamB: 'Express FC',
+    question: 'Did Vipers SC win?',
+    result: 'Yes',
+    volume: '892',
+    closedAgo: '2h ago',
+  },
+  {
+    id: 'kobs-pirates-closed',
+    sport: 'Rugby',
+    teamA: 'KOBS',
+    teamB: 'Black Pirates',
+    question: 'Did KOBS win by 7+ points?',
+    result: 'No',
+    volume: '634',
+    closedAgo: '5h ago',
+  },
+  {
+    id: 'oilers-patriots-closed',
+    sport: 'Basketball',
+    teamA: 'City Oilers',
+    teamB: 'Patriots BC',
+    question: 'Did City Oilers score 80+?',
+    result: 'Yes',
+    volume: '1.1K',
+    closedAgo: '1d ago',
+  },
 ];
 
 const HOW_IT_WORKS_STEPS: { icon: IconType; title: string; description: string; accent: 'purple' | 'orange' | 'blue' }[] = [
@@ -333,7 +377,6 @@ function Markets() {
             </div>
             <Link to="/markets" className="market-view-link">
               View all markets
-              <FiArrowRight />
             </Link>
           </div>
 
@@ -395,7 +438,6 @@ function Markets() {
                 <h2 id="open-markets-heading">Open Markets</h2>
                 <Link to="/markets" className="market-view-link">
                   View all markets
-                  <FiArrowRight />
                 </Link>
               </div>
 
@@ -458,9 +500,81 @@ function Markets() {
                 <FiArrowRight />
               </Link>
             </section>
+
+            <section className="market-panel closed-markets-panel" aria-labelledby="closed-markets-heading">
+              <div className="market-panel-heading">
+                <h2 id="closed-markets-heading">Closed Markets</h2>
+                <Link to="/markets" className="market-view-link">
+                  View all markets
+                </Link>
+              </div>
+
+              <div className="open-markets-table" role="table" aria-label="Closed market list">
+                <div className="open-market-row closed-market-labels open-market-labels" role="row">
+                  <span>Event</span>
+                  <span>Market Question</span>
+                  <span>Result</span>
+                  <span>Volume</span>
+                  <span>Closed</span>
+                </div>
+
+                {CLOSED_MARKETS.map((market) => (
+                  <article className="open-market-row closed-market-row" role="row" key={market.id}>
+                    <div className="open-market-event" role="cell">
+                      <span className={`sport-tag ${SPORT_META[market.sport].className}`}>{market.sport}</span>
+                      <span className="open-market-teams">
+                        {market.teamA} vs {market.teamB}
+                      </span>
+                    </div>
+                    <p role="cell" className="open-market-question">
+                      {market.question}
+                    </p>
+                    <div role="cell" className={`closed-market-result closed-market-result--${market.result.toLowerCase()}`}>
+                      {market.result}
+                    </div>
+                    <div role="cell" className="open-market-volume">
+                      {market.volume}
+                    </div>
+                    <div role="cell" className="open-market-closes">
+                      {market.closedAgo}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
           </div>
 
           <aside className="markets-aside">
+            <section className="market-panel trending-panel" aria-labelledby="trending-heading">
+              <div className="market-panel-heading">
+                <h2 id="trending-heading">
+                  <FiZap /> Trending Markets
+                </h2>
+                <Link to="/markets" className="market-view-link">
+                  View all
+                </Link>
+              </div>
+
+              <div className="trending-list">
+                {TRENDING_MARKETS.map((market) => (
+                  <div className="trending-item" key={`${market.teamA}-${market.teamB}`}>
+                    <span className={`trending-icon ${SPORT_META[market.sport].className}`}>
+                      <SportIcon sport={market.sport} />
+                    </span>
+                    <div className="trending-copy">
+                      <b>
+                        {market.teamA} vs {market.teamB}
+                      </b>
+                      <span>{market.question}</span>
+                    </div>
+                    <span className="trending-count">
+                      <FiZap /> {market.fireCount}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             <section className="market-panel starting-soon-panel" aria-labelledby="starting-soon-heading">
               <div className="market-panel-heading">
                 <h2 id="starting-soon-heading">
@@ -505,36 +619,6 @@ function Markets() {
                 View full calendar
                 <FiArrowRight />
               </Link>
-            </section>
-
-            <section className="market-panel trending-panel" aria-labelledby="trending-heading">
-              <div className="market-panel-heading">
-                <h2 id="trending-heading">
-                  <FiZap /> Trending Markets
-                </h2>
-                <Link to="/markets" className="market-view-link">
-                  View all
-                </Link>
-              </div>
-
-              <div className="trending-list">
-                {TRENDING_MARKETS.map((market) => (
-                  <div className="trending-item" key={`${market.teamA}-${market.teamB}`}>
-                    <span className={`trending-icon ${SPORT_META[market.sport].className}`}>
-                      <SportIcon sport={market.sport} />
-                    </span>
-                    <div className="trending-copy">
-                      <b>
-                        {market.teamA} vs {market.teamB}
-                      </b>
-                      <span>{market.question}</span>
-                    </div>
-                    <span className="trending-count">
-                      <FiZap /> {market.fireCount}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </section>
           </aside>
         </section>
@@ -616,9 +700,7 @@ function Markets() {
             <div>
               <h3>Need support?</h3>
               <p>Visit our Help Centre for tools and resources.</p>
-              <a href="#support">
-                Learn more <FiArrowRight />
-              </a>
+              <a href="#support">Learn more</a>
             </div>
           </aside>
         </section>

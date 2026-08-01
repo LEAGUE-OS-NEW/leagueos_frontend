@@ -5,12 +5,37 @@
 }
 
 .markets-main {
+  position: relative;
   max-width: 1440px;
   margin: 0 auto;
   padding: 0 clamp(16px, 4vw, 40px) clamp(40px, 6vw, 64px);
   display: flex;
   flex-direction: column;
   gap: clamp(28px, 4vw, 40px);
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.markets-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.markets-main > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 767px) {
+  .markets-main {
+    background-attachment: scroll;
+  }
 }
 
 /* Hero */
@@ -544,8 +569,17 @@
   grid-template-columns: 1.6fr 1.8fr 0.7fr 0.7fr 0.6fr 0.7fr;
   gap: 12px;
   align-items: center;
-  padding: 14px 0;
+  padding: 14px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
   border-top: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.open-market-row:not(.open-market-labels):hover {
+  background-color: var(--color-card-hover);
+  transform: scale(1.01);
 }
 
 .open-market-labels {
@@ -606,6 +640,29 @@
   font-weight: 600;
 }
 
+.closed-market-row,
+.closed-market-labels {
+  grid-template-columns: 1.6fr 1.8fr 0.6fr 0.6fr 0.6fr;
+}
+
+.closed-market-row .open-market-closes {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.closed-market-result {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.closed-market-result--yes {
+  color: var(--color-primary-light);
+}
+
+.closed-market-result--no {
+  color: var(--color-accent-light);
+}
+
 .open-markets-empty {
   padding: 24px 0;
   margin: 0;
@@ -643,13 +700,22 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 12px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
   border-top: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
 }
 
 .starting-soon-item:first-child {
   border-top: none;
   padding-top: 0;
+}
+
+.starting-soon-item:hover {
+  background-color: var(--color-card-hover);
+  transform: scale(1.01);
 }
 
 .starting-soon-icon {
@@ -771,8 +837,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 12px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
   border-top: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.trending-item:hover {
+  background-color: var(--color-card-hover);
+  transform: scale(1.01);
 }
 
 .trending-item:first-child {
@@ -1231,7 +1306,10 @@
   .market-view-link,
   .open-markets-explore-link,
   .starting-soon-view-full,
-  .starting-soon-meta button {
+  .starting-soon-meta button,
+  .open-market-row,
+  .starting-soon-item,
+  .trending-item {
     transition: none;
   }
 }
