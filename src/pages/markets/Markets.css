@@ -6,12 +6,6 @@
 
 .markets-main {
   position: relative;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 40px) clamp(40px, 6vw, 64px);
-  display: flex;
-  flex-direction: column;
-  gap: clamp(28px, 4vw, 40px);
   background-image: url('/images/stadium-bg.png');
   background-size: cover;
   background-position: center;
@@ -27,9 +21,15 @@
   z-index: 0;
 }
 
-.markets-main > * {
+.markets-main-inner {
   position: relative;
   z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px) clamp(40px, 6vw, 64px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4vw, 40px);
 }
 
 @media (max-width: 767px) {

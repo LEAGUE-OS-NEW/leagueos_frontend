@@ -326,6 +326,7 @@ function Markets() {
       <Navbar />
 
       <main className="markets-main">
+        <div className="markets-main-inner">
         <section className="markets-hero">
           <img className="markets-hero-image" src="/images/hero.png" alt="" aria-hidden="true" />
           <div className="markets-hero-overlay" aria-hidden="true" />
@@ -704,6 +705,7 @@ function Markets() {
             </div>
           </aside>
         </section>
+        </div>
       </main>
 
       <Footer />
