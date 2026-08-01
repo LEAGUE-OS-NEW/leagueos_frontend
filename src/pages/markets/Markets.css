@@ -1130,6 +1130,16 @@
   align-items: center;
   gap: 16px;
   padding: clamp(18px, 3vw, 24px);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.support-card:hover {
+  transform: scale(1.01);
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
 }
 
 .support-card > svg {
@@ -1151,19 +1161,13 @@
   line-height: 1.4;
 }
 
-.support-card a {
+.support-card-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: var(--color-primary-light);
-  text-decoration: none;
   font-size: 0.85rem;
   font-weight: 700;
-  cursor: pointer;
-}
-
-.support-card a:hover {
-  color: var(--color-accent);
 }
 
 /* Responsive */
@@ -1264,7 +1268,8 @@
   .starting-soon-meta button,
   .open-market-row,
   .starting-soon-item,
-  .trending-item {
+  .trending-item,
+  .support-card {
     transition: none;
   }
 }

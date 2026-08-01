@@ -6,6 +6,7 @@ import {
   FiBarChart2,
   FiBell,
   FiClock,
+  FiAlertCircle,
   FiHelpCircle,
   FiRepeat,
   FiSearch,
@@ -686,7 +687,7 @@ function Markets() {
                 </p>
               </article>
               <article>
-                <FiHelpCircle />
+                <FiAlertCircle />
                 <p>
                   Trading involves risk.
                   <br />
@@ -696,14 +697,14 @@ function Markets() {
             </div>
           </div>
 
-          <aside className="support-card">
+          <Link to="/help" className="support-card">
             <FiHelpCircle aria-hidden="true" />
             <div>
               <h3>Need support?</h3>
               <p>Visit our Help Centre for tools and resources.</p>
-              <a href="#support">Learn more</a>
+              <span className="support-card-link">Learn more</span>
             </div>
-          </aside>
+          </Link>
         </section>
         </div>
       </main>
