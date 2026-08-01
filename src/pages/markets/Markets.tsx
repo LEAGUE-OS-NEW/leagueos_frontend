@@ -687,9 +687,9 @@ function Markets() {
               <article>
                 <FiHelpCircle />
                 <p>
-                  Get help if you
+                  Trading involves risk.
                   <br />
-                  need it.
+                  Prices can go up or down. 18+ only.
                 </p>
               </article>
             </div>
@@ -703,15 +703,6 @@ function Markets() {
               <a href="#support">Learn more</a>
             </div>
           </aside>
-        </section>
-
-        <section className="markets-disclaimer">
-          <FiShield aria-hidden="true" />
-          <b>Play responsibly.</b>
-          <span>Trading involves risk. Prices can go up or down. 18+ only.</span>
-          <a href="#learn-more">
-            Learn more <FiArrowRight />
-          </a>
         </section>
       </main>
 
