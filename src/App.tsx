@@ -26,7 +26,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         {/* <Route path="/personalize" element={<Personalize />} /> */}
-        
+
       </Routes>
     </Router>
   );

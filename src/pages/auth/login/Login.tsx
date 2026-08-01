@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -23,6 +23,8 @@ import {
 import {
     getDefaultDashboardRoute as getRoleDefaultDashboardRoute,
 } from '../../../utils/roleRoutes.ts';
+import { useAuthStore } from '../../../store/authStore.ts';
+import { fetchCurrentUser } from '../../../services/authServices.ts';
 import type { AuthenticatedUser } from '../../../types/dashboardAccess.ts';
 import './login.css';
 
@@ -148,6 +150,10 @@ export default function Login() {
     const navigate = useNavigate();
     const { login } = useAuth();
 
+    const accessStatus = useAuthStore((state) => state.accessStatus);
+    const cachedUser = useAuthStore((state) => state.user);
+    const setHydratedUser = useAuthStore((state) => state.setHydratedUser);
+
     const [showPassword, setShowPassword] = useState(false);
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -165,6 +171,51 @@ export default function Login() {
     // entitlements are cached, not that they're current — e.g. this tab
     // could have been hydrated before an admin permission was granted —
     // so refresh from the backend before deciding where to send them.
+    useEffect(() => {
+        if (accessStatus !== 'ready') {
+            return;
+        }
+
+        let isMounted = true;
+
+        (async () => {
+            let freshUser: AuthenticatedUser | null = cachedUser;
+
+            try {
+                const response = await fetchCurrentUser();
+
+                if (isMounted) {
+                    setHydratedUser(response.data);
+                }
+
+                freshUser = response.data;
+            } catch {
+                // Refresh failed (offline, backend hiccup, etc.) — freshUser
+                // stays as the cached value already assigned above, so the
+                // user isn't stranded on the login form.
+            }
+
+            if (!isMounted) {
+                return;
+            }
+
+            const redirectRoute = resolvePostLoginRoute(
+                { user: freshUser },
+                postLoginRedirect,
+            );
+
+            navigate(redirectRoute, { replace: true });
+        })();
+
+        return () => {
+            isMounted = false;
+        };
+        // This should only run once, when we discover on mount (or once
+        // hydration finishes) that a session is already authenticated —
+        // not on every render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accessStatus]);
+
     const clearError = (field: keyof LoginErrors) => {
         setErrors((current) => ({
             ...current,
@@ -253,6 +304,14 @@ export default function Login() {
             setIsSubmitting(false);
         }
     };
+
+    // While a stored session is still being restored (accessStatus ===
+    // 'loading'), or once we've detected an already-authenticated user
+    // above and are in the middle of redirecting them away (accessStatus
+    // === 'ready'), don't flash the sign-in form.
+    if (accessStatus === 'loading' || accessStatus === 'ready') {
+        return null;
+    }
 
     return (
         <div className="login-page">

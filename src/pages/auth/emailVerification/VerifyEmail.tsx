@@ -7,14 +7,9 @@ import {
   clearPendingOnboardingSession,
 } from '../../../utils/onboardingSession.ts';
 import { getSafeAuthRedirect, LOGIN_ROUTE, PERSONALIZE_ROUTE } from '../../../utils/authFlow.ts';
-import leagueWordmark from '../../../assets/league-os-wordmark.svg';
+const leagueWordmark = '/logos/league-os-horizontal.png';
 import './verify-email.css';
 
-// This page is self-contained: it renders the League OS wordmark directly
-// (rather than the shared <LeagueLogo> from components/site/LeagueUI.js)
-// and its stylesheet (verify-email.css) defines every rule it needs under
-// `otp-` prefixed classes with no @import of another page's CSS. It can be
-// moved or restyled without touching, or being touched by, any other page.
 
 type LocationState = { email?: string; message?: string; postLoginRedirect?: string };
 

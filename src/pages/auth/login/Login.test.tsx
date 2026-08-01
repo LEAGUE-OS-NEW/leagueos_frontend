@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
-import Login from './Login.js'
+import Login from './Login.tsx'
 import { useAuthStore } from '../../../store/authStore.ts'
 
 const navigateMock = vi.hoisted(() => vi.fn())
@@ -35,11 +35,7 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-// NOTE: this path must resolve to the SAME absolute file that Login.tsx /
-// useAuth.ts actually import (src/services/authService.ts), or Vitest will
-// never intercept the real calls. From src/pages/auth/login/, that's three
-// levels up to src/, matching the useAuthStore import above.
-vi.mock('../../../services/authService.ts', () => ({
+vi.mock('../../../services/authServices.ts', () => ({
   login: authMocks.login,
   fetchCurrentUser: authMocks.fetchCurrentUser,
 }))

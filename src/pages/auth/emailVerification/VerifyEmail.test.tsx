@@ -9,7 +9,7 @@ const verifyOtpMock = vi.hoisted(() => vi.fn());
 const resendOtpMock = vi.hoisted(() => vi.fn());
 const loginMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../services/authService.ts', () => ({
+vi.mock('../../../services/authServices.ts', () => ({
   verifyOtp: verifyOtpMock,
   resendOtp: resendOtpMock,
 }));

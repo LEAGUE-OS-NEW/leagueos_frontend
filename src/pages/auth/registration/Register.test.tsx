@@ -34,12 +34,6 @@ vi.mock('@zxcvbn-ts/core', () => ({
   },
 }))
 
-// NOTE: this must match the exact specifier Register.tsx imports from —
-// it imports `register as registerAccount` from
-// '../../../services/authServices.ts' (plural, .ts). The previous
-// mock pointed at '../../../services/authService.js' (singular, .js),
-// which doesn't exist in the repo, so vi.mock never intercepted the
-// real import and registerMock was never called.
 vi.mock('../../../services/authServices.ts', () => ({
     register: registerMock,
 }))
