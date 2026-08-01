@@ -1,9 +1,12 @@
 .live-scores {
+  position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  border-top: 1px solid var(--color-border);
 }
 
 .live-scores-inner {
+  position: relative;
+  z-index: 1;
   max-width: 1440px;
   margin: 0 auto;
   padding: 0 clamp(16px, 4vw, 40px);
@@ -21,6 +24,9 @@
   border-radius: 14px;
   padding: 16px;
   cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
   transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -111,7 +117,7 @@
 }
 
 .score-team-name {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   text-align: center;
@@ -136,7 +142,7 @@
 
 .score-meta p {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.83rem;
   color: var(--color-text-muted);
   line-height: 1.5;
 }
@@ -158,7 +164,22 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 0;
+  padding: 12px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.score-list-match:hover {
+  background-color: var(--color-card-hover);
+}
+
+.score-list-match:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: -2px;
 }
 
 .score-list-match:not(:first-child) {
@@ -192,7 +213,7 @@
 }
 
 .score-list-name {
-  font-size: 0.82rem;
+  font-size: 0.86rem;
   color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -209,7 +230,7 @@
 }
 
 .score-list-badge {
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--color-text-muted);
   flex-shrink: 0;

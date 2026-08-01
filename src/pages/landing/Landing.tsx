@@ -15,12 +15,14 @@ function Landing() {
       <Navbar />
       <main className="landing">
         <Hero />
-        <FeaturedMarkets />
-        <LiveScores />
-        <FantasyLeagues />
-        <FeaturedClubs />
-        <HowItWorks />
-        <BuiltInUganda />
+        <div className="stadium-backdrop">
+          <FeaturedMarkets />
+          <LiveScores />
+          <FantasyLeagues />
+          <FeaturedClubs />
+          <HowItWorks />
+          <BuiltInUganda />
+        </div>
       </main>
       <Footer />
     </>

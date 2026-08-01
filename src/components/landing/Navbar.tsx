@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { FiMenu, FiX, FiChevronDown, FiUsers, FiShield, FiShoppingCart, FiFileText, FiInfo, FiTrendingUp } from 'react-icons/fi';
+import { FiMenu, FiX, FiChevronDown, FiUsers, FiShoppingCart, FiFileText, FiInfo, FiTrendingUp } from 'react-icons/fi';
 import { GiTrophyCup, GiTicket } from 'react-icons/gi';
 import './Navbar.css';
 
@@ -21,7 +21,6 @@ const DEFAULT_LINKS: NavbarLink[] = [
   { label: 'Fantasy', route: '/fantasy' },
   { label: 'Clubs', route: '/clubs' },
   { label: 'Tickets', route: '/tickets' },
-  { label: 'Memberships', route: '/memberships' },
   { label: 'Store', route: '/store' },
   { label: 'News', route: '/news' },
   { label: 'About', route: '/about' },
@@ -32,7 +31,6 @@ const LINK_ICONS: Record<string, ReactNode> = {
   Fantasy: <GiTrophyCup />,
   Clubs: <FiUsers />,
   Tickets: <GiTicket />,
-  Memberships: <FiShield />,
   Store: <FiShoppingCart />,
   News: <FiFileText />,
   About: <FiInfo />,

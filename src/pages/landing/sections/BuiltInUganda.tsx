@@ -34,19 +34,19 @@ function BuiltInUganda() {
               League OS is proudly built for Ugandan fans, designed to connect communities, elevate sport, and
               compete on the world stage.
             </p>
+          </div>
 
-            <div className="built-in-uganda-stats">
-              {STATS.map((stat) => (
-                <div className="stat-item" key={stat.label}>
-                  <span className="stat-icon">{stat.icon}</span>
-                  <div>
-                    <p className="stat-value">{stat.value}</p>
-                    <p className="stat-label">{stat.label}</p>
-                    <p className="stat-sublabel">{stat.sublabel}</p>
-                  </div>
+          <div className="built-in-uganda-stats">
+            {STATS.map((stat) => (
+              <div className="stat-item" key={stat.label}>
+                <span className="stat-icon">{stat.icon}</span>
+                <div>
+                  <p className="stat-value">{stat.value}</p>
+                  <p className="stat-label">{stat.label}</p>
+                  <p className="stat-sublabel">{stat.sublabel}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

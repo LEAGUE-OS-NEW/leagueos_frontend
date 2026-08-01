@@ -53,7 +53,6 @@ function FantasyLeagues() {
           </div>
           <Link to="/fantasy" className="section-link">
             View all leagues
-            <FiArrowRight />
           </Link>
         </div>
 

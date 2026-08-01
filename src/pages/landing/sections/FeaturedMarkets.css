@@ -1,9 +1,12 @@
 .featured-markets {
+  position: relative;
+  z-index: 1;
   padding: clamp(32px, 5vw, 56px) 0;
-  border-top: 1px solid var(--color-border);
 }
 
 .featured-markets-inner {
+  position: relative;
+  z-index: 1;
   max-width: 1440px;
   margin: 0 auto;
   padding: 0 clamp(16px, 4vw, 40px);
@@ -72,7 +75,7 @@
 .market-status-meta {
   font-weight: 600;
   text-transform: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   background: none;
   padding: 0;
 }
@@ -130,7 +133,7 @@
 }
 
 .market-team-name {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--color-text-secondary);
   text-align: center;
   white-space: nowrap;
@@ -140,7 +143,7 @@
 }
 
 .market-vs {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-text-muted);
   flex-shrink: 0;
@@ -161,7 +164,7 @@
 }
 
 .market-stat-label {
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   color: var(--color-text-muted);
 }
 
@@ -190,6 +193,7 @@
   color: #fff;
   cursor: pointer;
   min-height: 44px;
+  text-decoration: none;
   transition: transform 0.15s ease, filter 0.2s ease;
 }
 
@@ -204,11 +208,11 @@
 }
 
 .market-btn-yes {
-  background-color: var(--color-yes);
+  background: var(--gradient-primary);
 }
 
 .market-btn-no {
-  background-color: var(--color-no);
+  background: var(--gradient-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
