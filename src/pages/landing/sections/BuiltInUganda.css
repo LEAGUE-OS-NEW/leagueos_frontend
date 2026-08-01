@@ -58,9 +58,10 @@
 
 .built-in-uganda-stats {
   display: flex;
-  flex-direction: column;
-  flex: 1 1 200px;
-  gap: 20px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  flex: 1 1 280px;
+  gap: 24px;
 }
 
 .stat-item {

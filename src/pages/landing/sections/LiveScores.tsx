@@ -177,7 +177,7 @@ function LiveScores() {
 
           <div className="score-list-card">
             {LIST_MATCHES.map((match) => (
-              <div className="score-list-match" key={`${match.teamA}-${match.teamB}`}>
+              <Link to="/live" className="score-list-match" key={`${match.teamA}-${match.teamB}`}>
                 <div className="score-list-teams">
                   <div className="score-list-row">
                     <TeamCrest src={match.crestA} name={match.teamA} className="score-list-crest" />
@@ -191,7 +191,7 @@ function LiveScores() {
                   </div>
                 </div>
                 <span className={`score-list-badge${match.isLive ? ' live' : ''}`}>{match.status}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
