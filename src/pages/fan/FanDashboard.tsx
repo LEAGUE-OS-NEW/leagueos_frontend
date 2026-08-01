@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../../components/fan/Sidebar';
 import Topbar from '../../components/fan/Topbar';
+import Footer from '../../components/landing/Footer';
 import WelcomeStats from './sections/WelcomeStats';
 import UpcomingFixtures from './sections/UpcomingFixtures';
 import MarketUpdate from './sections/MarketUpdate';
@@ -52,6 +53,7 @@ function FanDashboard() {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     </div>
   );

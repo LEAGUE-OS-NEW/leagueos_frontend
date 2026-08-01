@@ -1,4 +1,6 @@
 .welcome-stats {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -56,8 +58,7 @@
 }
 
 .stat-card.highlighted {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary), 0 0 28px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 28px rgba(124, 58, 237, 0.35);
 }
 
 .stat-card-header {

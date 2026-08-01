@@ -10,12 +10,32 @@
 }
 
 .fan-dashboard-content {
+  position: relative;
   padding: clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px);
   max-width: 1600px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.fan-dashboard-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+@media (max-width: 767px) {
+  .fan-dashboard-content {
+    background-attachment: scroll;
+  }
 }
 
 .dashboard-card-heading-row {
@@ -64,6 +84,8 @@
 }
 
 .dashboard-columns {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
