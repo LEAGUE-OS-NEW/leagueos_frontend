@@ -344,7 +344,6 @@ function Markets() {
             <div className="markets-hero-actions">
               <Link to="/signup" className="markets-cta markets-cta--primary">
                 Sign Up Now
-                <FiArrowRight />
               </Link>
               <a href="#how-markets-work" className="markets-cta markets-cta--accent">
                 How It Works
