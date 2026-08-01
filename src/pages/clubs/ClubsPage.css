@@ -1,0 +1,305 @@
+/* =========================================================
+   League OS — Clubs Page
+   ========================================================= */
+.clubs-page {
+  --bg: #060612;
+  --surface: #0d1020;
+  --surface-alt: #11152a;
+  --text-primary: #ffffff;
+  --text-secondary: #b8bfd8;
+  --text-muted: #7d84a3;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --gradient-brand: linear-gradient(135deg, #6d5efc 0%, #9d7bff 100%);
+
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  background-image:
+    linear-gradient(rgba(6, 6, 12, 0.55), rgba(6, 6, 12, 0.65)),
+    url("/images/stadium-bg.png");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.clubs-page * {
+  box-sizing: border-box;
+}
+
+/* ── Hero ── */
+.clubs-hero {
+  padding: 72px 24px 56px;
+  text-align: center;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.clubs-hero__eyebrow {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9d7bff;
+  background: rgba(109, 94, 252, 0.15);
+  border: 1px solid rgba(109, 94, 252, 0.3);
+  border-radius: 20px;
+  padding: 5px 14px;
+  margin-bottom: 20px;
+}
+
+.clubs-hero__title {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 16px;
+}
+
+.clubs-hero__title span {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.clubs-hero__sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* ── Filters ── */
+.clubs-filters {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 24px 48px;
+}
+
+.clubs-filter-btn {
+  padding: 8px 22px;
+  border-radius: 24px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clubs-filter-btn:hover {
+  border-color: #9d7bff;
+  color: #fff;
+}
+
+.clubs-filter-btn.active {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ── Sport group label ── */
+.clubs-group {
+  max-width: 1200px;
+  margin: 0 auto 56px;
+  padding: 0 24px;
+}
+
+.clubs-group__label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.clubs-group__label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+/* ── Grid ── */
+.clubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+/* ── Club card ── */
+.club-info-card {
+  background: rgba(13, 16, 32, 0.85);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 28px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.club-info-card:hover {
+  border-color: rgba(109, 94, 252, 0.45);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.club-info-card__crest {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 8px;
+  object-fit: contain;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.club-info-card__crest-placeholder {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.club-info-card__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 4px;
+}
+
+.club-info-card__sport-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.club-info-card__sport-badge--football {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.club-info-card__sport-badge--rugby {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.25);
+}
+
+.club-info-card__sport-badge--basketball {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.club-info-card__divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-soft);
+  margin-bottom: 14px;
+}
+
+.club-info-card__meta {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.club-info-card__meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.club-info-card__meta-label {
+  color: var(--text-muted);
+}
+
+.club-info-card__meta-value {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: right;
+}
+
+.club-info-card__desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+
+.club-info-card__btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(109, 94, 252, 0.4);
+  background: transparent;
+  color: #9d7bff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  margin-top: auto;
+}
+
+.club-info-card__btn:hover {
+  background: rgba(109, 94, 252, 0.2);
+  color: #fff;
+}
+
+/* ── Empty state ── */
+.clubs-empty {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .clubs-hero {
+    padding: 48px 20px 40px;
+  }
+
+  .clubs-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .club-info-card {
+    padding: 20px 14px 18px;
+  }
+
+  .club-info-card__crest {
+    width: 58px;
+    height: 58px;
+  }
+}
