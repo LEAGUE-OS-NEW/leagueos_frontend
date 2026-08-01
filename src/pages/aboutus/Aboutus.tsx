@@ -400,7 +400,7 @@ const AboutUs = () => {
               Whether you are a fan, club, league, sponsor, or technology partner, League OS is
               creating the digital home for African sport.
             </p>
-            <a href="/signup" className="about-btn about-btn--light">
+            <a href="/signup" className="about-btn about-btn--primary">
               Get Started
             </a>
           </div>
