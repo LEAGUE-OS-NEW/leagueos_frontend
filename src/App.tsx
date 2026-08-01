@@ -5,6 +5,7 @@ import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import Markets from './pages/markets/Markets';
+import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
@@ -20,6 +21,7 @@ function App() {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
         <Route path="/markets" element={<Markets />} />
+        <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/fandashboard" element={<FanDashboard />} />
         <Route path="/register" element={<Register />} />
         <Route path="/signup" element={<Navigate to="/register" replace />} />
