@@ -4,6 +4,8 @@ import WelcomeStats from './sections/WelcomeStats';
 import UpcomingFixtures from './sections/UpcomingFixtures';
 import MarketUpdate from './sections/MarketUpdate';
 import MyTickets from './sections/MyTickets';
+import MyFantasyTeam from './sections/MyFantasyTeam';
+import LatestNews from './sections/LatestNews';
 import './FanDashboard.css';
 
 function FanDashboard() {
@@ -21,6 +23,10 @@ function FanDashboard() {
                 <MarketUpdate />
                 <MyTickets />
               </div>
+            </div>
+            <div className="dashboard-column">
+              <MyFantasyTeam />
+              <LatestNews />
             </div>
           </div>
         </div>
