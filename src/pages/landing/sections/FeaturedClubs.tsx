@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
 import './FeaturedClubs.css';
 
 type Club = {
@@ -52,23 +52,30 @@ function ClubCrest({ src, name }: { src?: string; name: string }) {
 
 function FeaturedClubs() {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [followed, setFollowed] = useState<Set<string>>(new Set());
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
 
-  const toggleFollow = (name: string) => {
-    setFollowed((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
-  };
+  const closePrompt = () => setIsPromptOpen(false);
 
   const scrollByAmount = (amount: number) => {
     trackRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    document.body.style.overflow = isPromptOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isPromptOpen]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsPromptOpen(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <section className="featured-clubs">
@@ -94,26 +101,18 @@ function FeaturedClubs() {
           </button>
 
           <div className="clubs-track" ref={trackRef}>
-            {CLUBS.map((club) => {
-              const isFollowing = followed.has(club.name);
-              return (
-                <div className="club-card" key={club.name}>
-                  <ClubCrest src={club.crest} name={club.name} />
-                  <p className="club-name">{club.name}</p>
-                  <p className="club-meta">
-                    {club.sport} · {club.league}
-                  </p>
-                  <button
-                    type="button"
-                    className={`club-follow-btn${isFollowing ? ' following' : ''}`}
-                    aria-pressed={isFollowing}
-                    onClick={() => toggleFollow(club.name)}
-                  >
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </button>
-                </div>
-              );
-            })}
+            {CLUBS.map((club) => (
+              <div className="club-card" key={club.name}>
+                <ClubCrest src={club.crest} name={club.name} />
+                <p className="club-name">{club.name}</p>
+                <p className="club-meta">
+                  {club.sport} · {club.league}
+                </p>
+                <button type="button" className="club-follow-btn" onClick={() => setIsPromptOpen(true)}>
+                  Follow
+                </button>
+              </div>
+            ))}
           </div>
 
           <button
@@ -126,6 +125,24 @@ function FeaturedClubs() {
           </button>
         </div>
       </div>
+
+      {isPromptOpen && (
+        <>
+          <div className="signup-prompt-backdrop" onClick={closePrompt} aria-hidden="true" />
+          <div className="signup-prompt" role="dialog" aria-modal="true" aria-label="Sign up to follow clubs">
+            <button type="button" className="signup-prompt-close" aria-label="Close" onClick={closePrompt}>
+              <FiX />
+            </button>
+            <h3 className="signup-prompt-title">Sign up to follow clubs</h3>
+            <p className="signup-prompt-text">
+              Create a free League OS account to follow clubs and get real-time updates on your favorite teams.
+            </p>
+            <Link to="/signup" className="signup-prompt-btn" onClick={closePrompt}>
+              Sign Up
+            </Link>
+          </div>
+        </>
+      )}
     </section>
   );
 }

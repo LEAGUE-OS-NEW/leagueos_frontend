@@ -47,9 +47,13 @@
   font-weight: 500;
   white-space: nowrap;
   padding: 6px 2px;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, transform 0.2s ease;
   cursor: pointer;
   border-radius: 4px;
+}
+
+.navbar-link:hover {
+  transform: scale(1.05);
 }
 
 .navbar-link::after {
