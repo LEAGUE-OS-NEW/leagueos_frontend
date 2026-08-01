@@ -11,7 +11,7 @@ type SidebarLink = {
 };
 
 const PRIMARY_LINKS: SidebarLink[] = [
-  { label: 'Home', route: '/dashboard', icon: <FiHome /> },
+  { label: 'Home', route: '/fandashboard', icon: <FiHome /> },
   { label: 'Markets', route: '/markets', icon: <FiTrendingUp /> },
   { label: 'Fantasy', route: '/fantasy', icon: <GiTrophyCup /> },
   { label: 'Clubs', route: '/clubs', icon: <FiShield /> },
@@ -30,7 +30,7 @@ const SECONDARY_LINKS: SidebarLink[] = [
 function Sidebar() {
   return (
     <aside className="fan-sidebar">
-      <Link to="/dashboard" className="fan-sidebar-logo">
+      <Link to="/fandashboard" className="fan-sidebar-logo">
         <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-logo-image" />
       </Link>
 

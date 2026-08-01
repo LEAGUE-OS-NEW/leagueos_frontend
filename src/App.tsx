@@ -13,7 +13,7 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
-        <Route path="/dashboard" element={<FanDashboard />} />
+        <Route path="/fandashboard" element={<FanDashboard />} />
       </Routes>
     </Router>
   );
