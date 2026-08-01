@@ -123,7 +123,7 @@ function UpcomingFixtures() {
 
             <span className={`fixture-watch-btn fixture-watch-btn--${fixture.sport}`}>
               <FiPlayCircle />
-              Watch Live
+              View Match Details
             </span>
           </Link>
         ))}

@@ -27,7 +27,7 @@
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.15s ease;
 }
 
 .ticket-row:not(:first-child) {
@@ -36,6 +36,7 @@
 
 .ticket-row:hover {
   background-color: var(--color-card-hover);
+  transform: scale(1.01);
 }
 
 .ticket-date {
