@@ -114,13 +114,18 @@
   line-height: 1.6;
 }
 
+.markets-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
 .markets-cta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 13px 24px;
   border-radius: 8px;
-  background: var(--gradient-primary);
   color: #ffffff;
   font-weight: 700;
   font-size: 0.95rem;
@@ -128,6 +133,14 @@
   cursor: pointer;
   min-height: 44px;
   transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.markets-cta--primary {
+  background: var(--gradient-primary);
+}
+
+.markets-cta--accent {
+  background: var(--gradient-accent);
 }
 
 .markets-cta:hover {

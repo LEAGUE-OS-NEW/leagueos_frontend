@@ -341,10 +341,15 @@ function Markets() {
             <p className="markets-subtext">
               Explore open sports markets across football, rugby and basketball in Uganda.
             </p>
-            <Link to="/signup" className="markets-cta">
-              Sign Up Now
-              <FiArrowRight />
-            </Link>
+            <div className="markets-hero-actions">
+              <Link to="/signup" className="markets-cta markets-cta--primary">
+                Sign Up Now
+                <FiArrowRight />
+              </Link>
+              <a href="#how-markets-work" className="markets-cta markets-cta--accent">
+                How It Works
+              </a>
+            </div>
           </div>
         </section>
 
