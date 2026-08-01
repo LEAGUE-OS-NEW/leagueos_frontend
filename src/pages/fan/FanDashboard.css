@@ -13,10 +13,9 @@
   padding: 28px 32px;
   max-width: 1600px;
   margin: 0 auto;
-}
-
-.dashboard-section {
-  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .dashboard-card-heading-row {

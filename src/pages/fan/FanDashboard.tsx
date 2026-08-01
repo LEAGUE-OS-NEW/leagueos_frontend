@@ -2,6 +2,8 @@ import Sidebar from '../../components/fan/Sidebar';
 import Topbar from '../../components/fan/Topbar';
 import WelcomeStats from './sections/WelcomeStats';
 import UpcomingFixtures from './sections/UpcomingFixtures';
+import MarketUpdate from './sections/MarketUpdate';
+import MyTickets from './sections/MyTickets';
 import './FanDashboard.css';
 
 function FanDashboard() {
@@ -12,7 +14,15 @@ function FanDashboard() {
         <Topbar />
         <div className="fan-dashboard-content">
           <WelcomeStats />
-          <UpcomingFixtures />
+          <div className="dashboard-columns">
+            <div className="dashboard-column">
+              <UpcomingFixtures />
+              <div className="dashboard-two-col">
+                <MarketUpdate />
+                <MyTickets />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

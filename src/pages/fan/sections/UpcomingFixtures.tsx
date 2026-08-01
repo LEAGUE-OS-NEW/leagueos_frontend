@@ -86,7 +86,7 @@ function FixtureCrest({ src, name }: { src?: string; name: string }) {
 
 function UpcomingFixtures() {
   return (
-    <div className="upcoming-fixtures dashboard-section">
+    <div className="upcoming-fixtures">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Upcoming Fixtures</h2>
         <Link to="/markets" className="dashboard-card-link">
