@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { FiHome, FiTrendingUp, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings, FiX } from 'react-icons/fi';
 import { GiTrophyCup } from 'react-icons/gi';
+import HomeLogo from '../landing/HomeLogo';
 import './Sidebar.css';
 
 type SidebarLink = {
@@ -39,9 +40,7 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside className={`fan-sidebar${isOpen ? ' open' : ''}`}>
         <div className="fan-sidebar-top">
-          <Link to="/fandashboard" className="fan-sidebar-logo" onClick={onClose}>
-            <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-logo-image" />
-          </Link>
+          <HomeLogo className="fan-sidebar-logo" imageClassName="fan-sidebar-logo-image" onClick={onClose} />
           <button type="button" className="fan-sidebar-close" aria-label="Close menu" onClick={onClose}>
             <FiX />
           </button>
