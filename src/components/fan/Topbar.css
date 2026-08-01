@@ -90,11 +90,16 @@
   background-color: var(--color-card-bg);
   color: var(--color-text-primary);
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
 }
 
 .fan-topbar-bell:hover {
   border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-bell:active {
+  transform: scale(0.94);
   background-color: var(--color-card-hover);
 }
 
@@ -130,11 +135,16 @@
   border: 1px solid var(--color-border);
   background-color: var(--color-card-bg);
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
 }
 
 .fan-topbar-user:hover {
   border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-user:active {
+  transform: scale(0.98);
   background-color: var(--color-card-hover);
 }
 
@@ -175,5 +185,12 @@
 
   .fan-topbar-user-name {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-topbar-bell,
+  .fan-topbar-user {
+    transition: none;
   }
 }

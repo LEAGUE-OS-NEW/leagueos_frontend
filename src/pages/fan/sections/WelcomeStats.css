@@ -74,7 +74,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  color: var(--color-text-primary);
 }
 
 .stat-card-icon {
