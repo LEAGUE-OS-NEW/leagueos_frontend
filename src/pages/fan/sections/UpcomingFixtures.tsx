@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { FiPlayCircle } from 'react-icons/fi';
 import './UpcomingFixtures.css';
 
 type Sport = 'football' | 'rugby' | 'basketball';
@@ -122,7 +121,6 @@ function UpcomingFixtures() {
             </p>
 
             <span className={`fixture-watch-btn fixture-watch-btn--${fixture.sport}`}>
-              <FiPlayCircle />
               View Match Details
             </span>
           </Link>

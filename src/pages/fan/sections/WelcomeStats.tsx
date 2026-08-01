@@ -37,6 +37,7 @@ const STAT_CARDS: StatCard[] = [
     sublabel: 'Top 18%',
     positive: true,
     highlighted: true,
+    showChevron: true,
     icon: <FiAward />,
     iconClassName: 'stat-card-icon-purple',
   },
