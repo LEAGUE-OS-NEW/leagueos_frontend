@@ -329,7 +329,7 @@ function Markets() {
       <main className="markets-main">
         <div className="markets-main-inner">
         <section className="markets-hero">
-          <img className="markets-hero-image" src="/images/hero.png" alt="" aria-hidden="true" />
+          <img className="markets-hero-image" src="/images/fantasy1.png" alt="" aria-hidden="true" />
           <div className="markets-hero-overlay" aria-hidden="true" />
           <div className="markets-hero-inner">
             <p className="markets-eyebrow">Live Sports Markets</p>
