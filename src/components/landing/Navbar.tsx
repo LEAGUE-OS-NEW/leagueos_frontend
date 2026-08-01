@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { FiMenu, FiX, FiChevronDown, FiUsers, FiShoppingCart, FiFileText, FiInfo, FiTrendingUp } from 'react-icons/fi';
 import { GiTrophyCup, GiTicket } from 'react-icons/gi';
+import HomeLogo from './HomeLogo';
 import './Navbar.css';
 
 export type NavbarLink = {
@@ -75,9 +76,7 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   return (
     <header className="navbar">
       <div className="navbar-inner">
-        <Link to="/" className="navbar-logo">
-          <img src="/logos/logo.png" alt="League OS" className="navbar-logo-image" />
-        </Link>
+        <HomeLogo className="navbar-logo" imageClassName="navbar-logo-image" />
 
         <nav className="navbar-links" aria-label="Primary">
           {links.map((link) => (
@@ -131,9 +130,7 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         aria-hidden={!isMenuOpen}
       >
         <div className="navbar-mobile-header">
-          <Link to="/" className="navbar-logo" onClick={closeMenu}>
-            <img src="/logos/logo.png" alt="League OS" className="navbar-logo-image" />
-          </Link>
+          <HomeLogo className="navbar-logo" imageClassName="navbar-logo-image" onClick={closeMenu} />
           <button
             type="button"
             ref={closeButtonRef}

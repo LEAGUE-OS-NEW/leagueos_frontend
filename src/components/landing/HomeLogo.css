@@ -1,0 +1,37 @@
+.home-logo-link {
+  position: relative;
+}
+
+.home-logo-tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+}
+
+.home-logo-tooltip--top {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+.home-logo-link:hover .home-logo-tooltip {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-logo-tooltip {
+    transition: none;
+  }
+}

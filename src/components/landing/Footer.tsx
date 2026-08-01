@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { FaFacebook, FaInstagram, FaYoutube } from 'react-icons/fa';
 import { FaTiktok, FaXTwitter } from 'react-icons/fa6';
+import HomeLogo from './HomeLogo';
 import './Footer.css';
 
 type FooterLink = {
@@ -69,9 +70,7 @@ function Footer() {
       <div className="footer-inner">
         <div className="footer-columns">
           <div className="footer-brand">
-            <Link to="/" className="footer-logo">
-              <img src="/logos/logo.png" alt="League OS" className="footer-logo-image" />
-            </Link>
+            <HomeLogo className="footer-logo" imageClassName="footer-logo-image" tooltipPosition="top" />
             <p className="footer-tagline">Your game. Your community. Your win.</p>
             <p className="footer-tagline">Built in Uganda. Ready for Africa.</p>
           </div>
