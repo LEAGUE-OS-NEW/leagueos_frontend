@@ -1,0 +1,16 @@
+.fan-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.fan-dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-dashboard-content {
+  padding: 28px 32px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
