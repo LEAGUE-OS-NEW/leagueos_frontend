@@ -587,6 +587,19 @@ button {
   font-size: 13px;
   font-weight: 600;
   color: var(--purple-light);
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.view-all-link:hover {
+  color: var(--orange);
+  transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-all-link {
+    transition: none;
+  }
 }
 
 /* Newsletter */

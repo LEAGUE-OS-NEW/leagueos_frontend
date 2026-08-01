@@ -1,0 +1,146 @@
+.tickets-count {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+
+.tickets-count strong {
+  margin-right: 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.ticket-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 8px;
+  margin: 0 -8px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.ticket-row:not(:first-child) {
+  border-top: 1px solid var(--color-border);
+}
+
+.ticket-row:hover {
+  background-color: var(--color-card-hover);
+  transform: scale(1.01);
+}
+
+.ticket-date {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.ticket-date-month {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.ticket-date-day {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.ticket-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticket-details-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ticket-match {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.ticket-time {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.ticket-competition {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.ticket-seat {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.ticket-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--color-primary-light);
+}
+
+.tickets-manage-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary-light);
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.tickets-manage-btn:hover {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  transform: scale(1.02);
+}
+
+.tickets-manage-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickets-manage-btn,
+  .ticket-row {
+    transition: none;
+  }
+}

@@ -1,0 +1,133 @@
+.fan-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.fan-dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-dashboard-content {
+  position: relative;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px);
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.fan-dashboard-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+@media (max-width: 767px) {
+  .fan-dashboard-content {
+    background-attachment: scroll;
+  }
+}
+
+.dashboard-card-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-card-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.dashboard-card-link {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-primary-light);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-card-link:hover {
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.dashboard-card-link:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.dashboard-card {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(14px, 3vw, 20px);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: scale(1.01);
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.dashboard-columns {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card,
+  .dashboard-card-link {
+    transition: none;
+  }
+}

@@ -1,0 +1,196 @@
+.fan-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 32px;
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fan-topbar-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.fan-topbar-menu:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-menu:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fan-topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  max-width: 420px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  cursor: text;
+}
+
+.fan-topbar-search-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  width: 16px;
+  height: 16px;
+}
+
+.fan-topbar-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.fan-topbar-search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.fan-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.fan-topbar-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+
+.fan-topbar-bell:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-bell:active {
+  transform: scale(0.94);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-bell:focus-visible,
+.fan-topbar-user:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fan-topbar-bell-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background-color: var(--color-accent-alt);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fan-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+
+.fan-topbar-user:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-user:active {
+  transform: scale(0.98);
+  background-color: var(--color-card-hover);
+}
+
+.fan-topbar-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.fan-topbar-user-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.fan-topbar-user-chevron {
+  color: var(--color-text-muted);
+  width: 14px;
+  height: 14px;
+}
+
+@media (min-width: 960px) {
+  .fan-topbar-menu {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fan-topbar {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .fan-topbar-search {
+    padding: 9px 12px;
+  }
+
+  .fan-topbar-user-name {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-topbar-bell,
+  .fan-topbar-user {
+    transition: none;
+  }
+}

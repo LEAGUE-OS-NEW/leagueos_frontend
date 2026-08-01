@@ -55,7 +55,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, transform 0.2s ease;
   white-space: nowrap;
 }
 
@@ -65,7 +65,8 @@
 }
 
 .section-link:hover {
-  color: var(--color-primary);
+  color: var(--color-accent);
+  transform: scale(1.05);
 }
 
 .section-link:focus-visible {
@@ -84,4 +85,10 @@
 
 .sport-basketball {
   background-color: var(--color-sport-basketball);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-link {
+    transition: none;
+  }
 }

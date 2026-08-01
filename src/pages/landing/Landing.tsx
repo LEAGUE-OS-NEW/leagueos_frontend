@@ -6,7 +6,6 @@ import LiveScores from './sections/LiveScores';
 import FantasyLeagues from './sections/FantasyLeagues';
 import FeaturedClubs from './sections/FeaturedClubs';
 import HowItWorks from './sections/HowItWorks';
-import BuiltInUganda from './sections/BuiltInUganda';
 import './Landing.css';
 
 function Landing() {
@@ -21,7 +20,6 @@ function Landing() {
           <FantasyLeagues />
           <FeaturedClubs />
           <HowItWorks />
-          <BuiltInUganda />
         </div>
       </main>
       <Footer />
