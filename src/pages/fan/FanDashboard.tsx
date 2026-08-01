@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Sidebar from '../../components/fan/Sidebar';
 import Topbar from '../../components/fan/Topbar';
 import WelcomeStats from './sections/WelcomeStats';
@@ -9,11 +10,32 @@ import LatestNews from './sections/LatestNews';
 import './FanDashboard.css';
 
 function FanDashboard() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const closeSidebar = () => setIsSidebarOpen(false);
+
+  useEffect(() => {
+    document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="fan-dashboard">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       <div className="fan-dashboard-main">
-        <Topbar />
+        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-dashboard-content">
           <WelcomeStats />
           <div className="dashboard-columns">

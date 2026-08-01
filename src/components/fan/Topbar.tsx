@@ -1,9 +1,17 @@
-import { FiSearch, FiBell, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiBell, FiChevronDown, FiMenu } from 'react-icons/fi';
 import './Topbar.css';
 
-function Topbar() {
+type TopbarProps = {
+  onMenuClick: () => void;
+};
+
+function Topbar({ onMenuClick }: TopbarProps) {
   return (
     <header className="fan-topbar">
+      <button type="button" className="fan-topbar-menu" aria-label="Open menu" onClick={onMenuClick}>
+        <FiMenu />
+      </button>
+
       <label className="fan-topbar-search">
         <FiSearch className="fan-topbar-search-icon" />
         <input type="text" placeholder="Search games, teams, markets..." className="fan-topbar-search-input" />

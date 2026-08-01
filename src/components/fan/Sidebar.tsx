@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { FiHome, FiTrendingUp, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings } from 'react-icons/fi';
+import { FiHome, FiTrendingUp, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings, FiX } from 'react-icons/fi';
 import { GiTrophyCup } from 'react-icons/gi';
 import './Sidebar.css';
 
@@ -8,6 +8,11 @@ type SidebarLink = {
   label: string;
   route: string;
   icon: ReactNode;
+};
+
+type SidebarProps = {
+  isOpen: boolean;
+  onClose: () => void;
 };
 
 const PRIMARY_LINKS: SidebarLink[] = [
@@ -27,54 +32,65 @@ const SECONDARY_LINKS: SidebarLink[] = [
   { label: 'Settings', route: '/settings', icon: <FiSettings /> },
 ];
 
-function Sidebar() {
+function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
-    <aside className="fan-sidebar">
-      <Link to="/fandashboard" className="fan-sidebar-logo">
-        <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-logo-image" />
-      </Link>
+    <>
+      <div className={`fan-sidebar-backdrop${isOpen ? ' open' : ''}`} onClick={onClose} aria-hidden="true" />
 
-      <nav className="fan-sidebar-nav" aria-label="Primary">
-        {PRIMARY_LINKS.map((link) => (
-          <NavLink
-            key={link.route}
-            to={link.route}
-            className={({ isActive }) => `fan-sidebar-link${isActive ? ' active' : ''}`}
-          >
-            <span className="fan-sidebar-link-icon">{link.icon}</span>
-            {link.label}
-          </NavLink>
-        ))}
-      </nav>
+      <aside className={`fan-sidebar${isOpen ? ' open' : ''}`}>
+        <div className="fan-sidebar-top">
+          <Link to="/fandashboard" className="fan-sidebar-logo" onClick={onClose}>
+            <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-logo-image" />
+          </Link>
+          <button type="button" className="fan-sidebar-close" aria-label="Close menu" onClick={onClose}>
+            <FiX />
+          </button>
+        </div>
 
-      <div className="fan-sidebar-divider" />
+        <nav className="fan-sidebar-nav" aria-label="Primary">
+          {PRIMARY_LINKS.map((link) => (
+            <NavLink
+              key={link.route}
+              to={link.route}
+              onClick={onClose}
+              className={({ isActive }) => `fan-sidebar-link${isActive ? ' active' : ''}`}
+            >
+              <span className="fan-sidebar-link-icon">{link.icon}</span>
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
 
-      <nav className="fan-sidebar-nav" aria-label="Account">
-        {SECONDARY_LINKS.map((link) => (
-          <NavLink
-            key={link.route}
-            to={link.route}
-            className={({ isActive }) => `fan-sidebar-link${isActive ? ' active' : ''}`}
-          >
-            <span className="fan-sidebar-link-icon">{link.icon}</span>
-            {link.label}
-          </NavLink>
-        ))}
-      </nav>
+        <div className="fan-sidebar-divider" />
 
-      <div className="fan-sidebar-promo">
-        <img src="/images/stadium-bg.png" alt="" className="fan-sidebar-promo-image" aria-hidden="true" />
-        <div className="fan-sidebar-promo-overlay" aria-hidden="true" />
-        <p className="fan-sidebar-promo-text">
-          Every Game.
-          <br />
-          Every Fan.
-          <br />
-          <span className="fan-sidebar-promo-accent">One Platform.</span>
-        </p>
-        <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-promo-logo" />
-      </div>
-    </aside>
+        <nav className="fan-sidebar-nav" aria-label="Account">
+          {SECONDARY_LINKS.map((link) => (
+            <NavLink
+              key={link.route}
+              to={link.route}
+              onClick={onClose}
+              className={({ isActive }) => `fan-sidebar-link${isActive ? ' active' : ''}`}
+            >
+              <span className="fan-sidebar-link-icon">{link.icon}</span>
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="fan-sidebar-promo">
+          <img src="/images/stadium-bg.png" alt="" className="fan-sidebar-promo-image" aria-hidden="true" />
+          <div className="fan-sidebar-promo-overlay" aria-hidden="true" />
+          <p className="fan-sidebar-promo-text">
+            Every Game.
+            <br />
+            Every Fan.
+            <br />
+            <span className="fan-sidebar-promo-accent">One Platform.</span>
+          </p>
+          <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-promo-logo" />
+        </div>
+      </aside>
+    </>
   );
 }
 
