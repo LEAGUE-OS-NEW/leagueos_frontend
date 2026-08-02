@@ -13,6 +13,7 @@ import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
+import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/tickets" element={<Tickets />} />
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
       </Routes>
