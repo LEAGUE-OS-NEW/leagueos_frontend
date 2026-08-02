@@ -14,12 +14,6 @@ import { normalizeCodeInput } from './forgotPasswordUtils.js';
 import './forgotpassword.css';
 import { usePasswordValidation } from '../../../hooks/usePasswordValidation.js';
 
-// This page is intentionally self-contained: it does not use the shared
-// LeagueUI components (PageShell, GlassCard, TopNav, AuthTopBar) and its
-// stylesheet does not import any other page's CSS. Every class below is
-// prefixed `fp-` and defined locally in forgotpassword.css, so this page
-// can be moved, restyled, or deleted without affecting (or depending on)
-// the login or register pages.
 
 const features = [
   {

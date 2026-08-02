@@ -1,0 +1,1556 @@
+.tickets-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image:
+    linear-gradient(rgba(4, 8, 24, 0.84), rgba(4, 8, 24, 0.88)),
+    url('../../../public/images/cta-banner.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-color: #050816;
+  color: #ffffff;
+  font-family: var(--font-body);
+}
+
+.tickets-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 28%, rgba(255, 255, 255, 0.14), transparent 7%),
+    radial-gradient(circle at 18% 34%, rgba(139, 53, 255, 0.2), transparent 24%),
+    radial-gradient(circle at 93% 26%, rgba(255, 255, 255, 0.16), transparent 8%),
+    radial-gradient(circle at 83% 42%, rgba(139, 53, 255, 0.16), transparent 25%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.72));
+}
+
+.tickets-main,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+.tickets-main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 4rem;
+}
+
+.tickets-page-actions {
+  position: absolute;
+  top: auto;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.signup-btn {
+  min-height: 2.55rem;
+  padding: 0 1.35rem;
+  border: 1px solid rgba(139, 53, 255, 0.52);
+  border-radius: 0.45rem;
+  background: linear-gradient(135deg, #8b35ff, #7c3aed);
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.25);
+}
+
+.tickets-auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tickets-auth-actions button {
+  min-height: 2.55rem;
+  padding: 0 1rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(139, 53, 255, 0.42);
+  background: rgba(12, 16, 38, 0.78);
+  color: #ffffff;
+  font-size: 0.83rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tickets-hero-panel {
+  width: 100%;
+  margin: 0;
+  padding: 3.35rem 2.35rem 1.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 6% 50%, rgba(255, 255, 255, 0.18), transparent 6%),
+    radial-gradient(circle at 18% 44%, rgba(137, 53, 255, 0.22), transparent 24%),
+    radial-gradient(circle at 92% 30%, rgba(255, 255, 255, 0.18), transparent 8%),
+    radial-gradient(circle at 82% 46%, rgba(137, 53, 255, 0.16), transparent 26%),
+    linear-gradient(180deg, rgba(5, 12, 34, 0.88), rgba(5, 12, 34, 0.7));
+}
+
+.tickets-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.15rem;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.tickets-breadcrumb button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  cursor: pointer;
+  font: inherit;
+}
+
+.tickets-breadcrumb button:hover {
+  color: #ffffff;
+}
+
+.tickets-header h1 {
+  max-width: 56rem;
+  margin: 0;
+  color: #ffffff;
+  font-family: 'League Spartan', 'Space Grotesk', sans-serif;
+  font-size: clamp(3.4rem, 6.4vw, 5.35rem);
+  font-style: italic;
+  font-weight: 950;
+  line-height: 0.88;
+  letter-spacing: -0.065em;
+  text-transform: capitalize;
+  text-shadow: 0 16px 38px rgba(0, 0, 0, 0.42);
+}
+
+.tickets-header-plain,
+.tickets-header-accent {
+  color: #ffffff;
+}
+
+.tickets-header p {
+  max-width: 56rem;
+  margin: 1rem 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
+.tickets-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.35rem;
+  align-items: center;
+  margin-top: 1.15rem;
+}
+
+.tickets-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.tickets-hero-meta span::before {
+  content: '♢';
+  color: #a855f7;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.tickets-hero-meta strong {
+  color: #ffffff;
+  font-weight: 950;
+}
+
+.tickets-browse-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 32rem);
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1.25rem 2.35rem 0;
+  margin: 0;
+}
+
+.tickets-filters {
+  min-width: 0;
+}
+
+.league-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(139, 53, 255, 0.24);
+  border-radius: 0.45rem;
+  background: rgba(6, 10, 26, 0.78);
+  backdrop-filter: blur(14px);
+}
+
+.league-btn {
+  min-width: 8.6rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 0;
+  border-right: 1px solid rgba(139, 53, 255, 0.2);
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.86rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.league-btn:last-child {
+  border-right: 0;
+}
+
+.league-btn:hover,
+.league-btn-active {
+  background: linear-gradient(135deg, #8b35ff, #ff7a1a);
+  color: #ffffff;
+}
+
+.ticket-search-panel {
+  min-width: 0;
+}
+
+.ticket-search-panel label {
+  display: grid;
+  gap: 0.42rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-search-panel input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(139, 53, 255, 0.28);
+  border-radius: 0.45rem;
+  outline: 0;
+  background: rgba(8, 12, 30, 0.82);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ticket-search-panel input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ticket-search-panel input:focus {
+  border-color: rgba(139, 53, 255, 0.82);
+  box-shadow: 0 0 0 3px rgba(139, 53, 255, 0.17);
+}
+
+.tickets-results-count {
+  margin: 0;
+  padding: 1rem 2.35rem 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr));
+  gap: 1.15rem;
+  align-items: stretch;
+  padding: 0.9rem 2.35rem 3.5rem;
+}
+
+.match-card {
+  display: flex;
+  min-height: 22rem;
+  flex-direction: column;
+  padding: 1.15rem;
+  border: 1px solid rgba(139, 53, 255, 0.22);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 10% 4%, rgba(255, 122, 26, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgba(139, 53, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(14, 18, 42, 0.94), rgba(5, 9, 26, 0.92));
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.26);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.match-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(139, 53, 255, 0.72);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 122, 26, 0.1);
+}
+
+.match-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.match-league,
+.match-date-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 0.72rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.match-date-pill {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: none;
+}
+
+.match-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  margin: 0.6rem 0 1rem;
+}
+
+.team-badge {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.team-logo,
+.team-logo-placeholder {
+  width: 4rem;
+  height: 4rem;
+}
+
+.team-logo {
+  object-fit: contain;
+}
+
+.team-logo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(139, 53, 255, 0.38);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(255, 122, 26, 0.18), transparent 32%),
+    rgba(139, 53, 255, 0.18);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.team-name {
+  width: 100%;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.vs-label {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.match-card-details {
+  display: grid;
+  gap: 0.42rem;
+  justify-items: center;
+  margin: 0.5rem 0 0.95rem;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.ticket-preview-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.ticket-preview-item,
+.ticket-preview-empty {
+  display: flex;
+  min-height: 2.6rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.72rem;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.ticket-preview-item strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.ticket-preview-empty {
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.58);
+  text-align: center;
+}
+
+.match-buy-row {
+  display: grid;
+  gap: 0.72rem;
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.match-buy-seats {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.buy-btn {
+  border: 0;
+  font-weight: 950;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.buy-btn-ordinary {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 1.4rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, #8b35ff, #7c3aed);
+  color: #ffffff;
+  font-size: 0.98rem;
+  box-shadow: 0 14px 28px rgba(124, 58, 237, 0.28);
+}
+
+.buy-btn-ordinary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 38px rgba(124, 58, 237, 0.34);
+}
+
+.buy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.buy-btn:disabled:hover {
+  transform: none;
+}
+
+.tickets-empty-state {
+  margin: 1.25rem 2.35rem;
+  padding: 1.2rem 1.25rem;
+  border: 1px solid rgba(139, 53, 255, 0.22);
+  border-radius: 0.9rem;
+  background: rgba(8, 12, 30, 0.82);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+}
+
+.modal-card {
+  position: relative;
+  width: min(100%, 27rem);
+  padding: 2.4rem 2rem;
+  border: 1px solid rgba(139, 53, 255, 0.42);
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(139, 53, 255, 0.2), transparent 38%),
+    #101226;
+  text-align: center;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.modal-logo {
+  width: 8.75rem;
+  height: auto;
+  margin-bottom: 1.2rem;
+  object-fit: contain;
+}
+
+.modal-title {
+  margin: 0 0 0.75rem;
+  color: #ffffff;
+  font-size: 1.45rem;
+  font-weight: 950;
+}
+
+.modal-body {
+  margin: 0 0 1.55rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  min-height: 2.7rem;
+  padding: 0 1.35rem;
+  border-radius: 0.7rem;
+  font-size: 0.92rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.btn-primary {
+  border: 0;
+  background: linear-gradient(135deg, #8b35ff, #7c3aed);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(139, 53, 255, 0.45);
+  background: transparent;
+  color: #c4b5fd;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  opacity: 0.88;
+}
+
+.modal-footnote {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ticket-market-summary,
+.tickets-hero-stats,
+.tickets-summary-grid,
+.tickets-stat-grid,
+.ticket-stats,
+.ticket-summary-cards {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  .tickets-hero-panel {
+    padding: 2.85rem 1.25rem 1.25rem;
+  }
+
+  .tickets-browse-bar {
+    grid-template-columns: 1fr;
+    padding: 1.15rem 1.25rem 0;
+  }
+
+  .tickets-results-count {
+    padding-inline: 1.25rem;
+  }
+
+  .match-grid {
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    padding-inline: 1.25rem;
+  }
+
+  .tickets-empty-state {
+    margin-inline: 1.25rem;
+  }
+
+  .league-filters {
+    width: 100%;
+  }
+
+  .league-btn {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .tickets-hero-panel {
+    padding: 2.45rem 1rem 1.1rem;
+  }
+
+  .tickets-header h1 {
+    font-size: clamp(2.85rem, 16vw, 4.25rem);
+  }
+
+  .tickets-header p {
+    font-size: 0.92rem;
+  }
+
+  .tickets-hero-meta {
+    gap: 0.85rem;
+  }
+
+  .tickets-hero-meta span {
+    flex: 1 1 100%;
+  }
+
+  .tickets-browse-bar {
+    padding-inline: 1rem;
+  }
+
+  .tickets-results-count {
+    padding-inline: 1rem;
+  }
+
+  .match-grid {
+    grid-template-columns: 1fr;
+    padding-inline: 1rem;
+  }
+
+  .match-card {
+    min-height: auto;
+  }
+
+  .match-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .match-date-pill {
+    width: fit-content;
+  }
+
+  .match-teams {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-label {
+    margin: 0.15rem auto;
+  }
+
+  .tickets-empty-state {
+    margin-inline: 1rem;
+  }
+
+  .league-btn {
+    flex-basis: 100%;
+    border-right: 0;
+    border-bottom: 1px solid rgba(139, 53, 255, 0.18);
+  }
+
+  .league-btn:last-child {
+    border-bottom: 0;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+
+.tickets-page .tickets-main {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 0 4rem !important;
+}
+
+.tickets-page .tickets-page-actions {
+  display: none !important;
+}
+
+.tickets-page .tickets-hero-panel {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 3.15rem 2.35rem 1.25rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0 !important;
+  background:
+    radial-gradient(circle at 6% 48%, rgba(255, 255, 255, 0.2), transparent 6%),
+    radial-gradient(circle at 18% 44%, rgba(137, 53, 255, 0.24), transparent 22%),
+    radial-gradient(circle at 92% 30%, rgba(255, 255, 255, 0.2), transparent 8%),
+    radial-gradient(circle at 82% 46%, rgba(137, 53, 255, 0.18), transparent 26%),
+    linear-gradient(180deg, rgba(5, 12, 34, 0.9), rgba(5, 12, 34, 0.72)) !important;
+  box-shadow: none !important;
+}
+
+.tickets-page .tickets-breadcrumb {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin: 0 0 1.1rem !important;
+  color: rgba(255, 255, 255, 0.64) !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+}
+
+.tickets-page .tickets-breadcrumb button {
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.76) !important;
+  cursor: pointer !important;
+  font: inherit !important;
+}
+
+.tickets-page .tickets-breadcrumb button:hover {
+  color: #ffffff !important;
+}
+
+.tickets-page .tickets-hero-eyebrow {
+  display: none !important;
+}
+
+.tickets-page .tickets-header h1 {
+  max-width: 56rem !important;
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-family: "League Spartan", "Space Grotesk", sans-serif !important;
+  font-size: clamp(3.4rem, 6.4vw, 5.35rem) !important;
+  font-style: italic !important;
+  font-weight: 950 !important;
+  line-height: 0.88 !important;
+  letter-spacing: -0.065em !important;
+  text-transform: capitalize !important;
+  text-shadow: 0 16px 38px rgba(0, 0, 0, 0.42) !important;
+}
+
+.tickets-page .tickets-header-plain,
+.tickets-page .tickets-header-accent {
+  color: #ffffff !important;
+}
+
+.tickets-page .tickets-header p {
+  max-width: 56rem !important;
+  margin: 1rem 0 0 !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: 1rem !important;
+  font-weight: 650 !important;
+  line-height: 1.65 !important;
+}
+
+.tickets-page .tickets-hero-meta {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 1.35rem !important;
+  align-items: center !important;
+  margin-top: 1.15rem !important;
+}
+
+.tickets-page .tickets-hero-meta span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.42rem !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: 0.86rem !important;
+  font-weight: 850 !important;
+}
+
+.tickets-page .tickets-hero-meta span::before {
+  content: "♢" !important;
+  color: #a855f7 !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
+}
+
+.tickets-page .tickets-hero-meta strong {
+  color: #ffffff !important;
+  font-weight: 950 !important;
+}
+
+.tickets-page .tickets-browse-bar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 32rem) !important;
+  gap: 1.25rem !important;
+  align-items: center !important;
+  padding: 1.25rem 2.35rem 0 !important;
+  margin: 0 !important;
+}
+
+.tickets-page .tickets-filters {
+  min-width: 0 !important;
+}
+
+.tickets-page .league-filters {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 0 !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(139, 53, 255, 0.24) !important;
+  border-radius: 0.45rem !important;
+  background: rgba(6, 10, 26, 0.78) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+.tickets-page .league-btn {
+  min-width: 8.6rem !important;
+  min-height: 2.75rem !important;
+  padding: 0 1rem !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(139, 53, 255, 0.2) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.74) !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+}
+
+.tickets-page .league-btn:last-child {
+  border-right: 0 !important;
+}
+
+.tickets-page .league-btn:hover,
+.tickets-page .league-btn-active {
+  background: linear-gradient(135deg, #8b35ff, #ff7a1a) !important;
+  color: #ffffff !important;
+}
+
+.tickets-page .ticket-search-panel {
+  min-width: 0 !important;
+}
+
+.tickets-page .ticket-search-panel label {
+  display: grid !important;
+  gap: 0.42rem !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 0.72rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.tickets-page .ticket-search-panel input {
+  width: 100% !important;
+  min-height: 2.75rem !important;
+  padding: 0 1rem !important;
+  border: 1px solid rgba(139, 53, 255, 0.28) !important;
+  border-radius: 0.45rem !important;
+  outline: 0 !important;
+  background: rgba(8, 12, 30, 0.82) !important;
+  color: #ffffff !important;
+  font-size: 0.9rem !important;
+  font-weight: 800 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.tickets-page .ticket-search-panel input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.tickets-page .tickets-results-count {
+  margin: 0 !important;
+  padding: 1rem 2.35rem 0 !important;
+  color: rgba(255, 255, 255, 0.68) !important;
+  font-size: 0.86rem !important;
+  font-weight: 850 !important;
+}
+
+.tickets-page .match-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr)) !important;
+  gap: 1.15rem !important;
+  align-items: stretch !important;
+  padding: 0.9rem 2.35rem 3.5rem !important;
+}
+
+.tickets-page .match-card {
+  display: flex !important;
+  min-height: 22rem !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 0 !important;
+  padding: 1.15rem !important;
+  border: 1px solid rgba(139, 53, 255, 0.22) !important;
+  border-radius: 1rem !important;
+  background:
+    radial-gradient(circle at 10% 4%, rgba(255, 122, 26, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgba(139, 53, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(14, 18, 42, 0.94), rgba(5, 9, 26, 0.92)) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.26) !important;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease !important;
+}
+
+.tickets-page .match-card:hover {
+  transform: translateY(-6px) !important;
+  border-color: rgba(139, 53, 255, 0.72) !important;
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 122, 26, 0.1) !important;
+}
+
+.tickets-page .match-card-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 0.85rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.tickets-page .match-league,
+.tickets-page .match-date-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 1.85rem !important;
+  padding: 0 0.75rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  font-size: 0.72rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+.tickets-page .match-date-pill {
+  flex-shrink: 0 !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  text-transform: none !important;
+}
+
+.tickets-page .match-teams {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  gap: 0.8rem !important;
+  align-items: center !important;
+  margin: 0.6rem 0 1rem !important;
+}
+
+.tickets-page .team-badge {
+  display: grid !important;
+  justify-items: center !important;
+  gap: 0.55rem !important;
+  min-width: 0 !important;
+}
+
+.tickets-page .team-logo,
+.tickets-page .team-logo-placeholder {
+  width: 4rem !important;
+  height: 4rem !important;
+}
+
+.tickets-page .team-logo {
+  object-fit: contain !important;
+}
+
+.tickets-page .team-logo-placeholder {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(139, 53, 255, 0.38) !important;
+  border-radius: 999px !important;
+  background:
+    radial-gradient(circle at 25% 18%, rgba(255, 122, 26, 0.18), transparent 32%),
+    rgba(139, 53, 255, 0.18) !important;
+  color: #ffffff !important;
+  font-size: 0.95rem !important;
+  font-weight: 950 !important;
+}
+
+.tickets-page .team-name {
+  width: 100% !important;
+  color: #ffffff !important;
+  font-size: 0.92rem !important;
+  font-weight: 900 !important;
+  line-height: 1.25 !important;
+  text-align: center !important;
+}
+
+.tickets-page .vs-label {
+  display: inline-flex !important;
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 0.72rem !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.08em !important;
+}
+
+.tickets-page .match-card-details {
+  display: grid !important;
+  gap: 0.42rem !important;
+  justify-items: center !important;
+  margin: 0.5rem 0 0.95rem !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+}
+
+.tickets-page .ticket-preview-list {
+  display: grid !important;
+  gap: 0.5rem !important;
+  margin-top: auto !important;
+}
+
+.tickets-page .ticket-preview-item,
+.tickets-page .ticket-preview-empty {
+  display: flex !important;
+  min-height: 2.6rem !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.8rem !important;
+  padding: 0 0.8rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0.72rem !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  color: rgba(255, 255, 255, 0.74) !important;
+  font-size: 0.82rem !important;
+  font-weight: 850 !important;
+}
+
+.tickets-page .ticket-preview-item strong {
+  color: #ffffff !important;
+  font-size: 0.86rem !important;
+  font-weight: 950 !important;
+  white-space: nowrap !important;
+}
+
+.tickets-page .ticket-preview-empty {
+  justify-content: center !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  text-align: center !important;
+}
+
+.tickets-page .match-buy-row {
+  display: grid !important;
+  gap: 0.72rem !important;
+  margin-top: 0.9rem !important;
+  padding-top: 0.85rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+.tickets-page .match-buy-seats {
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 0.82rem !important;
+  font-weight: 850 !important;
+  text-align: center !important;
+}
+
+.tickets-page .buy-btn {
+  border: 0 !important;
+  font-weight: 950 !important;
+  cursor: pointer !important;
+}
+
+.tickets-page .buy-btn-ordinary {
+  width: 100% !important;
+  min-height: 3rem !important;
+  padding: 0 1.4rem !important;
+  border-radius: 0.85rem !important;
+  background: linear-gradient(135deg, #8b35ff, #7c3aed) !important;
+  color: #ffffff !important;
+  font-size: 0.98rem !important;
+  box-shadow: 0 14px 28px rgba(124, 58, 237, 0.28) !important;
+}
+
+.tickets-page .buy-btn-ordinary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 18px 38px rgba(124, 58, 237, 0.34) !important;
+}
+
+.tickets-page .buy-btn:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+  box-shadow: none !important;
+}
+
+.tickets-page .tickets-empty-state {
+  margin: 1.25rem 2.35rem !important;
+  padding: 1.2rem 1.25rem !important;
+  border: 1px solid rgba(139, 53, 255, 0.22) !important;
+  border-radius: 0.9rem !important;
+  background: rgba(8, 12, 30, 0.82) !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  font-size: 0.92rem !important;
+  font-weight: 800 !important;
+}
+
+@media (max-width: 980px) {
+  .tickets-page .tickets-hero-panel {
+    padding: 2.85rem 1.25rem 1.25rem !important;
+  }
+
+  .tickets-page .tickets-browse-bar {
+    grid-template-columns: 1fr !important;
+    padding: 1.15rem 1.25rem 0 !important;
+  }
+
+  .tickets-page .tickets-results-count {
+    padding-inline: 1.25rem !important;
+  }
+
+  .tickets-page .match-grid {
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)) !important;
+    padding-inline: 1.25rem !important;
+  }
+
+  .tickets-page .league-filters {
+    width: 100% !important;
+  }
+
+  .tickets-page .league-btn {
+    flex: 1 1 50% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .tickets-page .tickets-hero-panel {
+    padding: 2.45rem 1rem 1.1rem !important;
+  }
+
+  .tickets-page .tickets-header h1 {
+    font-size: clamp(2.85rem, 16vw, 4.25rem) !important;
+  }
+
+  .tickets-page .tickets-header p {
+    font-size: 0.92rem !important;
+  }
+
+  .tickets-page .tickets-hero-meta {
+    gap: 0.85rem !important;
+  }
+
+  .tickets-page .tickets-hero-meta span {
+    flex: 1 1 100% !important;
+  }
+
+  .tickets-page .tickets-browse-bar {
+    padding-inline: 1rem !important;
+  }
+
+  .tickets-page .tickets-results-count {
+    padding-inline: 1rem !important;
+  }
+
+  .tickets-page .match-grid {
+    grid-template-columns: 1fr !important;
+    padding-inline: 1rem !important;
+  }
+
+  .tickets-page .match-card {
+    min-height: auto !important;
+  }
+
+  .tickets-page .match-card-header {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .tickets-page .match-date-pill {
+    width: fit-content !important;
+  }
+
+  .tickets-page .match-teams {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tickets-page .vs-label {
+    margin: 0.15rem auto !important;
+  }
+
+  .tickets-page .league-btn {
+    flex-basis: 100% !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(139, 53, 255, 0.18) !important;
+  }
+
+  .tickets-page .league-btn:last-child {
+    border-bottom: 0 !important;
+  }
+}
+
+.tickets-page .tickets-header h1 {
+  font-family: "Shentox", "League Spartan", "Space Grotesk", sans-serif !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+  text-transform: none !important;
+}
+
+.tickets-page .tickets-hero-meta {
+  display: none !important;
+}
+
+.tickets-page .tickets-hero-panel {
+  padding-bottom: 1rem !important;
+}
+
+.tickets-page .tickets-header p {
+  margin-bottom: 0 !important;
+}
+
+.tickets-page .league-filters {
+  background: rgba(6, 10, 26, 0.88) !important;
+  border: 1px solid rgba(139, 53, 255, 0.32) !important;
+}
+
+.tickets-page .league-btn {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  border-right: 1px solid rgba(139, 53, 255, 0.22) !important;
+}
+
+.tickets-page .league-btn:hover,
+.tickets-page .league-btn-active {
+  background: #8b35ff !important;
+  color: #ffffff !important;
+}
+
+.tickets-page .ticket-search-panel input {
+  border-color: rgba(139, 53, 255, 0.35) !important;
+  background: rgba(8, 12, 30, 0.92) !important;
+}
+
+.tickets-page .ticket-search-panel input:focus {
+  border-color: #8b35ff !important;
+  box-shadow: 0 0 0 3px rgba(139, 53, 255, 0.16) !important;
+}
+
+@font-face {
+  font-family: "Shentox Bold Italic";
+  src: url("/fonts/shentox-bold-italic.woff2") format("woff2");
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+.tickets-page .tickets-header h1,
+.tickets-page .tickets-header h1 span {
+  font-family: "Shentox Bold Italic", "League Spartan", "Space Grotesk", sans-serif !important;
+  font-style: italic !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.035em !important;
+  text-transform: none !important;
+}
+
+.tickets-page .tickets-hero-meta {
+  display: none !important;
+}
+
+.tickets-page .tickets-hero-panel {
+  padding-bottom: 1.05rem !important;
+}
+
+.tickets-page .league-filters {
+  background: rgba(6, 10, 26, 0.88) !important;
+  border-color: rgba(139, 53, 255, 0.35) !important;
+}
+
+.tickets-page .league-btn {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  border-right: 1px solid rgba(139, 53, 255, 0.22) !important;
+}
+
+.tickets-page .league-btn:hover,
+.tickets-page .league-btn-active {
+  background: #8b35ff !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.tickets-page .ticket-search-panel input:focus {
+  border-color: #8b35ff !important;
+  box-shadow: 0 0 0 3px rgba(139, 53, 255, 0.16) !important;
+}
+
+
+/* -------------------------------------------------
+   FINAL /TICKETS CARD WIDTH + RESPONSIVE FIX
+   Prevents filtered ticket cards from stretching too wide.
+------------------------------------------------- */
+
+.tickets-page .match-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 22.75rem)) !important;
+  justify-content: start !important;
+  gap: 1.15rem !important;
+  align-items: stretch !important;
+  padding: 0.9rem 2.35rem 3.5rem !important;
+}
+
+/* Keep ticket cards attractive and consistent */
+.tickets-page .match-card {
+  width: 100% !important;
+  min-height: 22rem !important;
+  max-width: 22.75rem !important;
+}
+
+/* When only one or two matches are shown, do not stretch them */
+.tickets-page .match-grid:has(.match-card:only-child) {
+  grid-template-columns: minmax(20rem, 22.75rem) !important;
+}
+
+.tickets-page .match-card-header {
+  gap: 0.75rem !important;
+}
+
+.tickets-page .match-league {
+  max-width: 13rem !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.tickets-page .match-date-pill {
+  white-space: nowrap !important;
+}
+
+.tickets-page .match-teams {
+  min-height: 6.8rem !important;
+}
+
+.tickets-page .team-name {
+  min-height: 2.3rem !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+}
+
+/* Tablet: allow two balanced cards */
+@media (max-width: 1100px) {
+  .tickets-page .match-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    justify-content: stretch !important;
+    padding-inline: 1.25rem !important;
+  }
+
+  .tickets-page .match-card {
+    max-width: none !important;
+  }
+}
+
+/* Mobile: one card per row */
+@media (max-width: 720px) {
+  .tickets-page .match-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.95rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  .tickets-page .match-card {
+    max-width: none !important;
+    min-height: auto !important;
+  }
+
+  .tickets-page .match-league {
+    max-width: 100% !important;
+  }
+
+  .tickets-page .match-teams {
+    min-height: auto !important;
+  }
+}
+
+
+/* Center small filtered ticket result sets on wide screens */
+@media (min-width: 1200px) {
+  .tickets-page .match-grid:has(.match-card:nth-child(1):nth-last-child(1)),
+  .tickets-page .match-grid:has(.match-card:nth-child(2):nth-last-child(1)),
+  .tickets-page .match-grid:has(.match-card:nth-child(3):nth-last-child(1)) {
+    justify-content: start !important;
+  }
+}
+
+
+/* -------------------------------------------------
+   FINAL /TICKETS 4-COLUMN GRID OVERRIDE
+   Makes ticket cards use the normal grid layout:
+   4 cards per row on large screens, then 3, 2, 1.
+------------------------------------------------- */
+
+.tickets-page .match-grid,
+.tickets-page .match-grid:has(.match-card:only-child) {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 1.15rem !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  width: 100% !important;
+  padding: 0.9rem 2.35rem 3.5rem !important;
+}
+
+.tickets-page .match-card {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 22rem !important;
+}
+
+/* Prevent long league names from breaking the card layout */
+.tickets-page .match-card-header {
+  min-width: 0 !important;
+}
+
+.tickets-page .match-league {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.tickets-page .match-date-pill {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Slightly tighten cards so 4 fit nicely */
+.tickets-page .match-card {
+  padding: 1rem !important;
+}
+
+.tickets-page .team-logo,
+.tickets-page .team-logo-placeholder {
+  width: 3.75rem !important;
+  height: 3.75rem !important;
+}
+
+.tickets-page .team-name {
+  font-size: 0.86rem !important;
+}
+
+.tickets-page .ticket-preview-item,
+.tickets-page .ticket-preview-empty {
+  padding-inline: 0.7rem !important;
+}
+
+.tickets-page .buy-btn-ordinary {
+  min-height: 2.85rem !important;
+}
+
+/* 3 cards per row on smaller desktops */
+@media (max-width: 1500px) {
+  .tickets-page .match-grid,
+  .tickets-page .match-grid:has(.match-card:only-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* 2 cards per row on tablets */
+@media (max-width: 1100px) {
+  .tickets-page .match-grid,
+  .tickets-page .match-grid:has(.match-card:only-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    padding-inline: 1.25rem !important;
+  }
+
+  .tickets-page .match-card {
+    padding: 1rem !important;
+  }
+}
+
+/* 1 card per row on mobile */
+@media (max-width: 720px) {
+  .tickets-page .match-grid,
+  .tickets-page .match-grid:has(.match-card:only-child) {
+    grid-template-columns: 1fr !important;
+    gap: 0.95rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  .tickets-page .match-card {
+    min-height: auto !important;
+    padding: 1rem !important;
+  }
+
+  .tickets-page .team-logo,
+  .tickets-page .team-logo-placeholder {
+    width: 4rem !important;
+    height: 4rem !important;
+  }
+}
+
