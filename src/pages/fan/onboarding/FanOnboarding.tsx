@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -6,8 +7,6 @@ import {
   FiCheck,
   FiCheckCircle,
   FiSearch,
-  FiAlertTriangle,
-  FiRefreshCw,
   FiX,
 } from "react-icons/fi";
 import "./FanOnboarding.css";
@@ -27,7 +26,7 @@ interface Country {
 interface Sport {
   id: SportId;
   name: string;
-  emoji: string;
+  
 }
 
 interface Competition {
@@ -43,8 +42,8 @@ interface Club {
   initials: string;
 }
 
-/** The six screens of the wizard, in order. */
-type StepId = 0 | 1 | 2 | 3 | 4 | 5;
+/** The seven screens of the flow, in order. */
+type StepId = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const STEP_WELCOME: StepId = 0;
 const STEP_COUNTRY: StepId = 1;
@@ -52,8 +51,9 @@ const STEP_SPORTS: StepId = 2;
 const STEP_COMPETITIONS: StepId = 3;
 const STEP_CLUBS: StepId = 4;
 const STEP_SUMMARY: StepId = 5;
+const STEP_SUCCESS: StepId = 6;
 
-/** Labels for the 5 "personalization" steps shown in the progress bar (Welcome is not counted). */
+/** Labels for the 5 "personalization" steps shown in the progress bar. Welcome and Success aren't counted. */
 const PROGRESS_LABELS = ["Country", "Sports", "Competitions", "Clubs", "Summary"];
 
 const DASHBOARD_ROUTE = "/fandashboard";
@@ -65,17 +65,17 @@ const DASHBOARD_ROUTE = "/fandashboard";
    ============================================================================= */
 
 const COUNTRIES: Country[] = [
-  { code: "UG", name: "Uganda", flag: "🇺🇬" },
-  { code: "KE", name: "Kenya", flag: "🇰🇪" },
-  { code: "TZ", name: "Tanzania", flag: "🇹🇿" },
-  { code: "RW", name: "Rwanda", flag: "🇷🇼" },
-  { code: "SS", name: "South Sudan", flag: "🇸🇸" },
+  { code: "UG", name: "Uganda", flag: "/flags/uganda.png" },
+  { code: "KE", name: "Kenya", flag: "/flags/kenya.png" },
+  { code: "TZ", name: "Tanzania", flag: "/flags/tanzania.png" },
+  { code: "RW", name: "Rwanda", flag: "/flags/rwanda.png" },
+  { code: "SS", name: "South Sudan", flag: "/flags/south-sudan.png" },
 ];
 
 const SPORTS: Sport[] = [
-  { id: "football", name: "Football", emoji: "⚽" },
-  { id: "rugby", name: "Rugby", emoji: "🏉" },
-  { id: "basketball", name: "Basketball", emoji: "🏀" },
+  { id: "football", name: "Football" },
+  { id: "rugby", name: "Rugby" },
+  { id: "basketball", name: "Basketball"},
 ];
 
 const COMPETITIONS: Competition[] = [
@@ -98,49 +98,10 @@ const CLUBS: Club[] = [
 ];
 
 /* =============================================================================
-   SMALL SHARED PIECES
-   Kept as internal components so the whole feature stays in one file.
+   SHARED: Chip
+   Removable pill used to show a selected item outside the dropdown panel.
    ============================================================================= */
 
-/** Friendly "nothing here" placeholder built from CSS shapes, not plain text. */
-const EmptyState = ({ title, hint }: { title: string; hint?: string }) => (
-  <div className="empty-state">
-    <div className="empty-illustration">
-      <span className="empty-ring empty-ring--1" />
-      <span className="empty-ring empty-ring--2" />
-      <FiSearch size={20} className="empty-icon" />
-    </div>
-    <p className="empty-title">{title}</p>
-    {hint && <p className="empty-hint">{hint}</p>}
-  </div>
-);
-
-/** Inline error state with a retry action — used when a "fetch" simulation fails. */
-const ErrorState = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <div className="error-state" role="alert">
-    <FiAlertTriangle size={20} className="error-icon" />
-    <p className="error-message">{message}</p>
-    <button type="button" className="btn btn--secondary btn--small" onClick={onRetry}>
-      <FiRefreshCw size={14} />
-      Retry
-    </button>
-  </div>
-);
-
-/** Pulsing placeholder cards shown while a step's data is "loading". */
-const SkeletonGrid = ({ count }: { count: number }) => (
-  <div className="card-grid" aria-hidden="true">
-    {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="skeleton-card">
-        <span className="skeleton-avatar" />
-        <span className="skeleton-line skeleton-line--wide" />
-        <span className="skeleton-line skeleton-line--narrow" />
-      </div>
-    ))}
-  </div>
-);
-
-/** Removable orange chip used for competitions and in the summary review. */
 const Chip = ({ label, onRemove }: { label: string; onRemove: () => void }) => (
   <span className="chip">
     {label}
@@ -149,6 +110,167 @@ const Chip = ({ label, onRemove }: { label: string; onRemove: () => void }) => (
     </button>
   </span>
 );
+
+/* =============================================================================
+   SHARED: SearchableSelect
+   A dropdown with a built-in search/filter field. Options are toggled with a
+   single click (no Ctrl/Cmd needed) — works for both single-select
+   (`multiple={false}`, e.g. Country) and multi-select (`multiple={true}`,
+   e.g. Sports/Competitions/Clubs). Designed to stay usable with long lists.
+   ============================================================================= */
+interface ComboboxOption {
+  value: string;
+  label: string;
+  image?: string;
+}
+
+interface SearchableSelectProps {
+  id: string;
+  options: ComboboxOption[];
+  selectedValues: string[];
+  onToggle: (value: string) => void;
+  multiple: boolean;
+  placeholder: string;
+  emptyMessage?: string;
+}
+
+const SearchableSelect = ({
+  id,
+  options,
+  selectedValues,
+  onToggle,
+  multiple,
+  placeholder,
+  emptyMessage = "No results found.",
+}: SearchableSelectProps) => {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close the panel on outside click.
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [query, options]);
+
+  const selectedOptions = options.filter((o) => selectedValues.includes(o.value));
+
+  const handleSelect = (value: string) => {
+    onToggle(value);
+    if (!multiple) {
+      // Single-select: pick, close, and reset the search field.
+      setIsOpen(false);
+      setQuery("");
+    }
+  };
+
+  const handleFocus = () => {
+    setIsOpen(true);
+    if (!multiple) setQuery("");
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setIsOpen(false);
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === "Enter" && filtered.length > 0) {
+      e.preventDefault();
+      handleSelect(filtered[0].value);
+    } else if (e.key === "ArrowDown") {
+      setIsOpen(true);
+    }
+  };
+
+  // Single-select shows the chosen label once closed; otherwise it behaves
+  // like a normal search box.
+  const inputValue = !multiple && !isOpen && selectedOptions[0] ? selectedOptions[0].label : query;
+
+  return (
+    <div className="combobox" ref={wrapperRef}>
+      {multiple && selectedOptions.length > 0 && (
+        <div className="chip-row">
+          {selectedOptions.map((o) => (
+            <Chip key={o.value} label={o.label} onRemove={() => onToggle(o.value)} />
+          ))}
+        </div>
+      )}
+
+      <div className="combobox-input-wrap">
+        {!multiple && selectedOptions[0]?.image && !isOpen ? (
+  <img
+    src={selectedOptions[0].image}
+    alt="flag"
+    className="combobox-selected-flag"
+  />
+) : (
+  <FiSearch size={16} className="combobox-icon" aria-hidden="true" />
+)}
+        <input
+          id={id}
+          type="text"
+          className="combobox-input"
+          value={inputValue}
+          placeholder={placeholder}
+          onFocus={handleFocus}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-controls={`${id}-panel`}
+          autoComplete="off"
+        />
+      </div>
+
+      {isOpen && (
+        <div className="combobox-panel" id={`${id}-panel`} role="listbox">
+          {filtered.length === 0 ? (
+            <p className="combobox-empty">{emptyMessage}</p>
+          ) : (
+            filtered.map((option) => {
+              const isSelected = selectedValues.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={"combobox-option" + (isSelected ? " combobox-option--selected" : "")}
+                  onClick={() => handleSelect(option.value)}
+                  role="option"
+                  aria-selected={isSelected}
+                >
+                  <span className="option-content">
+  {option.image && (
+    <img
+      src={option.image}
+      alt={`${option.label} flag`}
+      className="option-flag"
+    />
+  )}
+  {option.label}
+</span>
+                  {isSelected && <FiCheck size={14} />}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* =============================================================================
    PROGRESS BAR
@@ -178,7 +300,7 @@ const ProgressBar = ({ currentPersonalizationStep }: ProgressBarProps) => {
 };
 
 /* =============================================================================
-   STEP 1: WELCOME
+   STEP 1: WELCOME  (unchanged — kept exactly as before)
    ============================================================================= */
 
 interface StepWelcomeProps {
@@ -199,7 +321,7 @@ const StepWelcome = ({ onGetStarted, onSkip }: StepWelcomeProps) => (
         Get Started
         <FiArrowRight size={16} />
       </button>
-      <button type="button" className="btn btn--ghost" onClick={onSkip}>
+      <button type="button" className="btn btn--ghost1" onClick={onSkip}>
         Skip for now
       </button>
     </div>
@@ -207,22 +329,21 @@ const StepWelcome = ({ onGetStarted, onSkip }: StepWelcomeProps) => (
 );
 
 /* =============================================================================
-   STEP 2: COUNTRY SELECTION
+   STEP 2: COUNTRY
    ============================================================================= */
 
 interface StepCountryProps {
-  selected: string | null;
-  onSelect: (code: string) => void;
+  country: string | null;
+  toggleCountry: (code: string) => void;
+  showValidation: boolean;
 }
 
-const StepCountry = ({ selected, onSelect }: StepCountryProps) => {
-  const [query, setQuery] = useState("");
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return COUNTRIES;
-    return COUNTRIES.filter((c) => c.name.toLowerCase().includes(q));
-  }, [query]);
+const StepCountry = ({ country, toggleCountry, showValidation }: StepCountryProps) => {
+  const options: ComboboxOption[] = COUNTRIES.map((c) => ({
+  value: c.code,
+  label: c.name,
+  image: c.flag,
+}));
 
   return (
     <div className="step-panel">
@@ -230,199 +351,118 @@ const StepCountry = ({ selected, onSelect }: StepCountryProps) => {
         <h2>Where do you follow sport from?</h2>
         <p>This helps us prioritize your local leagues and kickoff times.</p>
       </header>
-
-      <div className="search-input">
-        <FiSearch size={16} className="search-icon" aria-hidden="true" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search countries…"
-          aria-label="Search countries"
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState title="No countries found" hint="Try a different spelling." />
-      ) : (
-        <div className="list-grid">
-          {filtered.map((country) => (
-            <button
-              key={country.code}
-              type="button"
-              className={"list-chip" + (selected === country.code ? " list-chip--selected" : "")}
-              onClick={() => onSelect(country.code)}
-              aria-pressed={selected === country.code}
-            >
-              <span className="list-chip__flag">{country.flag}</span>
-              {country.name}
-              {selected === country.code && <FiCheck size={16} className="list-chip__check" />}
-            </button>
-          ))}
-        </div>
+      <SearchableSelect
+        id="country-select"
+        options={options}
+        selectedValues={country ? [country] : []}
+        onToggle={toggleCountry}
+        multiple={false}
+        placeholder="Search countries…"
+        emptyMessage="No countries found."
+      />
+      {showValidation && !country && (
+        <p className="field-error">Please select your country to continue.</p>
       )}
     </div>
   );
 };
 
 /* =============================================================================
-   STEP 3: SPORTS SELECTION
+   STEP 3: SPORTS
    ============================================================================= */
 
 interface StepSportsProps {
-  selected: SportId[];
-  onToggle: (id: SportId) => void;
+  sports: SportId[];
+  toggleSport: (id: SportId) => void;
+  showValidation: boolean;
 }
 
-const StepSports = ({ selected, onToggle }: StepSportsProps) => (
-  <div className="step-panel">
-    <header className="step-header">
-      <h2>Which sports do you follow?</h2>
-      <p>Pick as many as you like — your dashboard and news feed will follow suit.</p>
-    </header>
+const StepSports = ({ sports, toggleSport, showValidation }: StepSportsProps) => {
+  const options: ComboboxOption[] = SPORTS.map((s) => ({ value: s.id, label: ` ${s.name}` }));
 
-    <div className="sport-grid">
-      {SPORTS.map((sport) => {
-        const isSelected = selected.includes(sport.id);
-        return (
-          <button
-            key={sport.id}
-            type="button"
-            className={"sport-card" + (isSelected ? " sport-card--selected" : "")}
-            onClick={() => onToggle(sport.id)}
-            aria-pressed={isSelected}
-          >
-            <span className="sport-card__emoji">{sport.emoji}</span>
-            <span className="sport-card__name">{sport.name}</span>
-            <span className="sport-card__check">
-              <FiCheck size={14} />
-            </span>
-          </button>
-        );
-      })}
+  return (
+    <div className="step-panel">
+      <header className="step-header">
+        <h2>Which sports do you follow?</h2>
+        <p>Pick at least one — your dashboard and news feed will follow suit.</p>
+      </header>
+      <SearchableSelect
+        id="sports-select"
+        options={options}
+        selectedValues={sports}
+        onToggle={(value) => toggleSport(value as SportId)}
+        multiple
+        placeholder="Search sports…"
+        emptyMessage="No sports found."
+      />
+      <p className="dropdown-hint">Click to select — click again to remove.</p>
+      {showValidation && sports.length === 0 && (
+        <p className="field-error">Please select at least one sport to continue.</p>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 /* =============================================================================
-   STEP 4: COMPETITION SELECTION
+   STEP 4: COMPETITIONS
+   Locked behind Sports — only competitions for the chosen sport(s) are shown.
    ============================================================================= */
 
 interface StepCompetitionsProps {
-  sportsFilter: SportId[];
-  selected: string[];
-  onToggle: (id: string) => void;
+  sports: SportId[];
+  competitions: string[];
+  toggleCompetition: (id: string) => void;
+  showValidation: boolean;
 }
 
-const StepCompetitions = ({ sportsFilter, selected, onToggle }: StepCompetitionsProps) => {
-  const [query, setQuery] = useState("");
-  const relevantSports = sportsFilter.length > 0 ? sportsFilter : SPORTS.map((s) => s.id);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return COMPETITIONS.filter((c) => {
-      const inSport = relevantSports.includes(c.sport);
-      const matchesQuery = !q || c.name.toLowerCase().includes(q);
-      return inSport && matchesQuery;
-    });
-  }, [query, relevantSports]);
-
-  const selectedCompetitions = COMPETITIONS.filter((c) => selected.includes(c.id));
+const StepCompetitions = ({ sports, competitions, toggleCompetition, showValidation }: StepCompetitionsProps) => {
+  const availableCompetitions = useMemo(
+    () => (sports.length > 0 ? COMPETITIONS.filter((c) => sports.includes(c.sport)) : COMPETITIONS),
+    [sports]
+  );
+  const options: ComboboxOption[] = availableCompetitions.map((c) => ({ value: c.id, label: c.name }));
 
   return (
     <div className="step-panel">
       <header className="step-header">
         <h2>Favorite competitions</h2>
-        <p>Choose the competitions you follow closely.</p>
+        <p>Based on the sports you picked — choose the competitions you follow closely.</p>
       </header>
-
-      <div className="search-input">
-        <FiSearch size={16} className="search-icon" aria-hidden="true" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search competitions…"
-          aria-label="Search competitions"
-        />
-      </div>
-
-      {selectedCompetitions.length > 0 && (
-        <div className="chip-row">
-          {selectedCompetitions.map((c) => (
-            <Chip key={c.id} label={c.name} onRemove={() => onToggle(c.id)} />
-          ))}
-        </div>
-      )}
-
-      {filtered.length === 0 ? (
-        <EmptyState title="No competitions found" hint="Try another name or a different sport." />
-      ) : (
-        <div className="list-grid">
-          {filtered.map((comp) => {
-            const isSelected = selected.includes(comp.id);
-            return (
-              <button
-                key={comp.id}
-                type="button"
-                className={"list-chip" + (isSelected ? " list-chip--selected" : "")}
-                onClick={() => onToggle(comp.id)}
-                aria-pressed={isSelected}
-              >
-                {comp.name}
-                {isSelected && <FiCheck size={16} className="list-chip__check" />}
-              </button>
-            );
-          })}
-        </div>
+      <SearchableSelect
+        id="competitions-select"
+        options={options}
+        selectedValues={competitions}
+        onToggle={toggleCompetition}
+        multiple
+        placeholder="Search competitions…"
+        emptyMessage="No competitions found."
+      />
+      <p className="dropdown-hint">Click to select — click again to remove.</p>
+      {showValidation && competitions.length === 0 && (
+        <p className="field-error">Please select at least one competition to continue.</p>
       )}
     </div>
   );
 };
 
 /* =============================================================================
-   STEP 5: CLUB SELECTION
-   Includes a simulated async load: the first fetch attempt "fails" to
-   demonstrate the error + retry state, and a short delay to demonstrate the
-   loading skeleton. Retrying always succeeds.
+   STEP 5: CLUBS
+   Also locked behind Sports for the same reason as Competitions.
    ============================================================================= */
 
 interface StepClubsProps {
-  sportsFilter: SportId[];
-  selected: string[];
-  onToggle: (id: string) => void;
+  sports: SportId[];
+  clubs: string[];
+  toggleClub: (id: string) => void;
+  showValidation: boolean;
 }
 
-const StepClubs = ({ sportsFilter, selected, onToggle }: StepClubsProps) => {
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-
-  // Simulate an API call for the club list every time "attempt" changes.
-  useEffect(() => {
-    setLoading(true);
-    setHasError(false);
-    const timer = setTimeout(() => {
-      if (attempt === 0) {
-        // First attempt "fails" so the error + retry UI is reachable/demoable.
-        setHasError(true);
-      }
-      setLoading(false);
-    }, 700);
-    return () => clearTimeout(timer);
-  }, [attempt]);
-
-  const relevantSports = sportsFilter.length > 0 ? sportsFilter : SPORTS.map((s) => s.id);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return CLUBS.filter((c) => {
-      const inSport = relevantSports.includes(c.sport);
-      const matchesQuery = !q || c.name.toLowerCase().includes(q);
-      return inSport && matchesQuery;
-    });
-  }, [query, relevantSports]);
+const StepClubs = ({ sports, clubs, toggleClub, showValidation }: StepClubsProps) => {
+  const availableClubs = useMemo(
+    () => (sports.length > 0 ? CLUBS.filter((c) => sports.includes(c.sport)) : CLUBS),
+    [sports]
+  );
+  const options: ComboboxOption[] = availableClubs.map((c) => ({ value: c.id, label: `${c.initials} — ${c.name}` }));
 
   return (
     <div className="step-panel">
@@ -430,55 +470,18 @@ const StepClubs = ({ sportsFilter, selected, onToggle }: StepClubsProps) => {
         <h2>Favorite clubs</h2>
         <p>Pick the clubs you never miss.</p>
       </header>
-
-      <div className="search-input">
-        <FiSearch size={16} className="search-icon" aria-hidden="true" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search clubs…"
-          aria-label="Search clubs"
-          disabled={loading || hasError}
-        />
-      </div>
-
-      {loading && <SkeletonGrid count={6} />}
-
-      {!loading && hasError && (
-        <ErrorState
-          message="Unable to load clubs. Please check your connection and try again."
-          onRetry={() => setAttempt((a) => a + 1)}
-        />
-      )}
-
-      {!loading && !hasError && filtered.length === 0 && (
-        <EmptyState title="No clubs found" hint="Try a different club name." />
-      )}
-
-      {!loading && !hasError && filtered.length > 0 && (
-        <div className="card-grid">
-          {filtered.map((club) => {
-            const isSelected = selected.includes(club.id);
-            return (
-              <button
-                key={club.id}
-                type="button"
-                className={"club-card" + (isSelected ? " club-card--selected" : "")}
-                onClick={() => onToggle(club.id)}
-                aria-pressed={isSelected}
-              >
-                <span className="club-card__logo">{club.initials}</span>
-                <span className="club-card__name">{club.name}</span>
-                {isSelected && (
-                  <span className="club-card__badge">
-                    <FiCheck size={13} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+      <SearchableSelect
+        id="clubs-select"
+        options={options}
+        selectedValues={clubs}
+        onToggle={toggleClub}
+        multiple
+        placeholder="Search clubs…"
+        emptyMessage="No clubs found."
+      />
+      <p className="dropdown-hint">Click to select — click again to remove.</p>
+      {showValidation && clubs.length === 0 && (
+        <p className="field-error">Please select at least one club to continue.</p>
       )}
     </div>
   );
@@ -493,14 +496,13 @@ interface StepSummaryProps {
   sports: SportId[];
   competitions: string[];
   clubs: string[];
+  onComplete: () => void;
 }
 
-const StepSummary = ({ country, sports, competitions, clubs }: StepSummaryProps) => {
+const StepSummary = ({ country, sports, competitions, clubs, onComplete }: StepSummaryProps) => {
   const countryData = COUNTRIES.find((c) => c.code === country);
   const sportNames = SPORTS.filter((s) => sports.includes(s.id)).map((s) => s.name);
-  const competitionNames = COMPETITIONS.filter((c) => competitions.includes(c.id)).map(
-    (c) => c.name
-  );
+  const competitionNames = COMPETITIONS.filter((c) => competitions.includes(c.id)).map((c) => c.name);
   const clubNames = CLUBS.filter((c) => clubs.includes(c.id)).map((c) => c.name);
 
   return (
@@ -510,35 +512,76 @@ const StepSummary = ({ country, sports, competitions, clubs }: StepSummaryProps)
         <p>Here's what we'll use to personalize League OS for you.</p>
       </header>
 
-      <div className="summary-grid">
-        <div className="summary-card">
-          <h3>Country</h3>
-          <p>{countryData ? `${countryData.flag} ${countryData.name}` : "Not set"}</p>
-        </div>
-
-        <div className="summary-card">
-          <h3>Sports</h3>
-          <p>{sportNames.length > 0 ? sportNames.join(", ") : "Not set"}</p>
-        </div>
-
-        <div className="summary-card">
-          <h3>Competitions</h3>
-          <p>{competitionNames.length > 0 ? competitionNames.join(", ") : "Not set"}</p>
-        </div>
-
-        <div className="summary-card">
-          <h3>Clubs</h3>
-          <p>{clubNames.length > 0 ? clubNames.join(", ") : "Not set"}</p>
-        </div>
+      <div className="summary-card">
+        <h3>Your Preferences</h3>
+        <p>
+  <strong>Country:</strong>
+  {countryData ? (
+    <span className="summary-country">
+      <img
+        src={countryData.flag}
+        alt={`${countryData.name} flag`}
+        className="summary-country-flag"
+      />
+      {countryData.name}
+    </span>
+  ) : (
+    "Not set"
+  )}
+</p>
+        <p>
+          <strong>Sports:</strong> {sportNames.length > 0 ? sportNames.join(", ") : "Not set"}
+        </p>
+        <p>
+          <strong>Competitions:</strong>{" "}
+          {competitionNames.length > 0 ? competitionNames.join(", ") : "Not set"}
+        </p>
+        <p>
+          <strong>Clubs:</strong> {clubNames.length > 0 ? clubNames.join(", ") : "Not set"}
+        </p>
       </div>
 
       <div className="summary-footnote">
         <FiCheckCircle size={16} />
         <span>You can update any of this later from your profile settings.</span>
       </div>
+
+      <div className="personalization-actions">
+        <button type="button" className="btn btn--primary btn--large" onClick={onComplete}>
+          Complete Setup
+          <FiCheck size={16} />
+        </button>
+      </div>
     </div>
   );
 };
+
+/* =============================================================================
+   STEP 7: SUCCESS CONFIRMATION
+   ============================================================================= */
+
+interface StepSuccessProps {
+  onGoToDashboard: () => void;
+}
+
+const StepSuccess = ({ onGoToDashboard }: StepSuccessProps) => (
+  <div className="step-panel step-panel--centered">
+    <div className="success-icon" aria-hidden="true">
+      <FiCheckCircle size={40} />
+    </div>
+    <h1 className="welcome-title">You're All Set!</h1>
+    <p className="welcome-description">
+      Your League OS dashboard, fixtures, and news feed are now personalized to your picks.
+      You can fine-tune any of this later from your profile settings.
+    </p>
+    <div className="welcome-actions">
+      <button type="button" className="btn btn--primary btn--large" onClick={onGoToDashboard}>
+        Go to Dashboard
+        <FiArrowRight size={16} />
+      </button>
+    </div>
+  </div>
+);
 
 /* =============================================================================
    MAIN WIZARD
@@ -552,9 +595,14 @@ const FanOnboarding = () => {
   const [sports, setSports] = useState<SportId[]>([]);
   const [competitions, setCompetitions] = useState<string[]>([]);
   const [clubs, setClubs] = useState<string[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
 
   const isWelcome = step === STEP_WELCOME;
   const isSummary = step === STEP_SUMMARY;
+  const isSuccess = step === STEP_SUCCESS;
+  const showChrome = !isWelcome && !isSuccess;
+
+  const toggleCountry = (code: string) => setCountry((prev) => (prev === code ? null : code));
 
   const toggleSport = (id: SportId) =>
     setSports((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
@@ -565,53 +613,107 @@ const FanOnboarding = () => {
   const toggleClub = (id: string) =>
     setClubs((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
 
-  const goBack = () => setStep((prev) => (prev > STEP_WELCOME ? ((prev - 1) as StepId) : prev));
-  const goNext = () => setStep((prev) => (prev < STEP_SUMMARY ? ((prev + 1) as StepId) : prev));
+  // Whenever the sport selection narrows, drop any competition/club picks
+  // that no longer belong to a currently-selected sport — they were only
+  // reachable because a sport that's now deselected made them visible.
+  useEffect(() => {
+    if (sports.length === 0) return;
+    setCompetitions((prev) =>
+      prev.filter((id) => {
+        const comp = COMPETITIONS.find((c) => c.id === id);
+        return comp && sports.includes(comp.sport);
+      })
+    );
+    setClubs((prev) =>
+      prev.filter((id) => {
+        const club = CLUBS.find((c) => c.id === id);
+        return club && sports.includes(club.sport);
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sports]);
 
-  const handleComplete = () => navigate(DASHBOARD_ROUTE);
+  /** Whether the given step's required selection has been made. Steps not
+   *  listed here (Welcome, Summary, Success) have no gating requirement. */
+  const isStepComplete = (s: StepId): boolean => {
+    switch (s) {
+      case STEP_COUNTRY:
+        return country !== null;
+      case STEP_SPORTS:
+        return sports.length > 0;
+      case STEP_COMPETITIONS:
+        return competitions.length > 0;
+      case STEP_CLUBS:
+        return clubs.length > 0;
+      default:
+        return true;
+    }
+  };
+
+  const goBack = () => {
+    setShowValidation(false);
+    setStep((prev) => (prev > STEP_WELCOME ? ((prev - 1) as StepId) : prev));
+  };
+
+  const goNext = () => {
+    // Related-item gating: block advancing until the current step (and thus
+    // everything it depends on, e.g. Sports before Competitions/Clubs) is
+    // actually complete.
+    if (!isStepComplete(step)) {
+      setShowValidation(true);
+      return;
+    }
+    setShowValidation(false);
+    setStep((prev) => (prev < STEP_SUMMARY ? ((prev + 1) as StepId) : prev));
+  };
+
+  const handleGetStarted = () => setStep(STEP_COUNTRY);
+  const handleCompleteSetup = () => setStep(STEP_SUCCESS);
+  const handleGoToDashboard = () => navigate(DASHBOARD_ROUTE);
   const handleSkipAll = () => navigate(DASHBOARD_ROUTE);
+
+  const currentPersonalizationStep = step >= STEP_COUNTRY && step <= STEP_SUMMARY ? step : 0;
 
   return (
     <div className="onboarding-page">
-      {/* Ambient purple/orange glow layers — decorative depth only */}
+      {/* Ambient purple glow layer — decorative depth only */}
       <div className="onboarding-glow onboarding-glow--purple" aria-hidden="true" />
-      <div className="onboarding-glow onboarding-glow--orange" aria-hidden="true" />
 
       <div className="onboarding-shell">
-        {!isWelcome && (
+        {showChrome && (
           <header className="onboarding-topbar">
             <div className="onboarding-brand">
-  <img 
-    src="/logos/logo.png" 
-    alt="League OS logo" 
-    className="onboarding-logo"
-  />
-  
-</div>
-            <button type="button" className="btn btn--ghost" onClick={handleSkipAll}>
+              <img src="/logos/logo.png" alt="League OS logo" className="onboarding-logo" />
+            </div>
+            <button type="button" className="btn btn--ghost1" onClick={handleSkipAll}>
               Complete later
             </button>
           </header>
         )}
 
-        {!isWelcome && <ProgressBar currentPersonalizationStep={step} />}
+        {showChrome && <ProgressBar currentPersonalizationStep={currentPersonalizationStep} />}
 
         <div className="onboarding-stage">
           <div key={step} className="step-transition">
             {step === STEP_WELCOME && (
-              <StepWelcome onGetStarted={goNext} onSkip={handleSkipAll} />
+              <StepWelcome onGetStarted={handleGetStarted} onSkip={handleSkipAll} />
             )}
-            {step === STEP_COUNTRY && <StepCountry selected={country} onSelect={setCountry} />}
-            {step === STEP_SPORTS && <StepSports selected={sports} onToggle={toggleSport} />}
+            {step === STEP_COUNTRY && (
+              <StepCountry country={country} toggleCountry={toggleCountry} showValidation={showValidation} />
+            )}
+            {step === STEP_SPORTS && (
+              <StepSports sports={sports} toggleSport={toggleSport} showValidation={showValidation} />
+            )}
             {step === STEP_COMPETITIONS && (
               <StepCompetitions
-                sportsFilter={sports}
-                selected={competitions}
-                onToggle={toggleCompetition}
+                sports={sports}
+                competitions={competitions}
+                toggleCompetition={toggleCompetition}
+                showValidation={showValidation}
               />
             )}
             {step === STEP_CLUBS && (
-              <StepClubs sportsFilter={sports} selected={clubs} onToggle={toggleClub} />
+              <StepClubs sports={sports} clubs={clubs} toggleClub={toggleClub} showValidation={showValidation} />
             )}
             {step === STEP_SUMMARY && (
               <StepSummary
@@ -619,12 +721,14 @@ const FanOnboarding = () => {
                 sports={sports}
                 competitions={competitions}
                 clubs={clubs}
+                onComplete={handleCompleteSetup}
               />
             )}
+            {step === STEP_SUCCESS && <StepSuccess onGoToDashboard={handleGoToDashboard} />}
           </div>
         </div>
 
-        {!isWelcome && (
+        {showChrome && !isSummary && (
           <footer className="onboarding-footer">
             <button type="button" className="btn btn--secondary" onClick={goBack}>
               <FiArrowLeft size={16} />
@@ -632,20 +736,20 @@ const FanOnboarding = () => {
             </button>
 
             <div className="onboarding-footer-right">
-              {!isSummary && (
-                <button type="button" className="btn btn--ghost" onClick={goNext}>
-                  Skip
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={isSummary ? handleComplete : goNext}
-              >
-                {isSummary ? "Complete Setup" : "Continue"}
-                {isSummary ? <FiCheck size={16} /> : <FiArrowRight size={16} />}
+              <button type="button" className="btn btn--primary" onClick={goNext}>
+                Continue
+                <FiArrowRight size={16} />
               </button>
             </div>
+          </footer>
+        )}
+
+        {showChrome && isSummary && (
+          <footer className="onboarding-footer">
+            <button type="button" className="btn btn--secondary" onClick={goBack}>
+              <FiArrowLeft size={16} />
+              Back
+            </button>
           </footer>
         )}
       </div>

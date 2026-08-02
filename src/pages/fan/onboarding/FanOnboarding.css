@@ -1,22 +1,16 @@
 /* =============================================================================
    FanOnboarding.css
-   Mobile-first styles for the League OS fan onboarding wizard.
+   Mobile-first styles for the League OS fan onboarding flow.
    Sections:
      1. Design tokens (League OS palette)
      2. Page shell + ambient glow
      3. Topbar / brand
-     4. Progress bar
-     5. Step transitions
-     6. Buttons
-     7. Search input
-     8. Country / competition list chips
-     9. Sport cards
-    10. Club cards
-    11. Chips
-    12. Empty / error / skeleton states
-    13. Summary step
-    14. Welcome step
-    15. Sticky mobile footer + responsive breakpoints
+     4. Step transitions
+     5. Buttons
+     6. Personalization dropdowns
+     7. Summary card
+     8. Welcome step
+     9. Responsive breakpoints
    ============================================================================= */
 
 /* -----------------------------------------------------------------------
@@ -62,7 +56,7 @@
 }
 
 /* -----------------------------------------------------------------------
-   2. Page shell — dark blue base with purple + orange ambient glow
+   2. Page shell — dark blue base with purple ambient glow
 ----------------------------------------------------------------------- */
 .onboarding-page {
   position: relative;
@@ -72,10 +66,9 @@
   color: var(--text-primary);
   display: flex;
   justify-content: center;
-  padding: 0 16px 90px;
+  padding: 0 16px 48px;
 
-
-   background-image:
+  background-image:
     linear-gradient(
       rgba(6, 6, 12, 0.473),
       rgba(6, 6, 12, 0.548)
@@ -104,14 +97,6 @@
   background: var(--purple-glow);
 }
 
-.onboarding-glow--orange {
-  width: 380px;
-  height: 380px;
-  bottom: -120px;
-  right: -100px;
-  background: var(--orange-glow);
-}
-
 .onboarding-shell {
   position: relative;
   z-index: 1;
@@ -119,8 +104,10 @@
   max-width: 640px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 20px;
+  padding-top: 24px;
 }
+
 /* -----------------------------------------------------------------------
    3. Topbar
 ----------------------------------------------------------------------- */
@@ -147,43 +134,10 @@
 }
 
 /* -----------------------------------------------------------------------
-   4. Progress bar — orange → purple gradient fill, smooth transition
------------------------------------------------------------------------ */
-.progress-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.progress-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.progress-track {
-  height: 8px;
-  width: 100%;
-  border-radius: 999px;
-  background: var(--navy-700);
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--orange-500), var(--purple-500));
-  transition: width 450ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* -----------------------------------------------------------------------
-   5. Step transitions
+   4. Step transitions
 ----------------------------------------------------------------------- */
 .onboarding-stage {
   position: relative;
-  min-height: 320px;
 }
 
 .step-transition {
@@ -223,7 +177,7 @@
 }
 
 /* -----------------------------------------------------------------------
-   6. Buttons — accessible, min 48px tall on touch, press animation
+   5. Buttons — accessible, min 48px tall on touch, press animation
 ----------------------------------------------------------------------- */
 .btn {
   display: inline-flex;
@@ -250,12 +204,6 @@
   transform: scale(0.96);
 }
 
-.btn--small {
-  min-height: 38px;
-  padding: 0 14px;
-  font-size: 0.82rem;
-}
-
 .btn--large {
   min-height: 54px;
   padding: 0 28px;
@@ -263,12 +211,28 @@
 }
 
 .btn--primary {
-  background: linear-gradient(120deg, var(--orange-600), var(--orange-400));
-  color: var(--navy-900);
-  box-shadow: 0 8px 20px var(--orange-glow);
+  background: linear-gradient(120deg, var(--purple-700), var(--purple-500));
+  color: white;
 }
 .btn--primary:hover {
   filter: brightness(1.06);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn--ghost:hover {
+  color: var(--text-primary);
+}
+
+.btn--ghost1 {
+  background: transparent;
+  color: var(--orange-600);
+  font-size: 16px;
+}
+.btn--ghost1:hover {
+  color: var(--purple-300);
 }
 
 .btn--secondary {
@@ -281,19 +245,66 @@
   background: var(--navy-600);
 }
 
-.btn--ghost {
-  background: transparent;
-  color: var(--text-secondary);
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
-.btn--ghost:hover {
-  color: var(--text-primary);
+.btn:disabled:hover {
+  filter: none;
+}
+.btn:disabled:active {
+  transform: none;
 }
 
+/* -----------------------------------------------------------------------
+   5b. Progress bar — purple gradient fill, smooth transition
+----------------------------------------------------------------------- */
+.progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.progress-track {
+  height: 8px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--navy-700);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--orange-600), var(--orange-400));
+  transition: width 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* -----------------------------------------------------------------------
+   5c. Footer — Back / Continue navigation
+----------------------------------------------------------------------- */
 .onboarding-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: rgba(7, 26, 47, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .onboarding-footer-right {
@@ -302,23 +313,120 @@
   gap: 12px;
 }
 
+/* Room at the bottom of the page so content never sits under the sticky
+   mobile footer. */
+.onboarding-page {
+  padding-bottom: 90px;
+}
+
 /* -----------------------------------------------------------------------
-   7. Search input
+   5d. Field validation message
 ----------------------------------------------------------------------- */
-.search-input {
+.field-error {
+  margin: 2px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--orange-400);
+  font-size: 0.82rem;
+  font-weight: 600;
+  animation: fieldErrorIn 200ms ease both;
+}
+
+@keyframes fieldErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -----------------------------------------------------------------------
+   5e. Success screen
+----------------------------------------------------------------------- */
+.success-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--purple-700), var(--purple-500));
+  color: white;
+  box-shadow: 0 0 0 8px rgba(124, 58, 237, 0.15);
+  animation: successPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes successPop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* -----------------------------------------------------------------------
+   6. Personalization dropdowns
+----------------------------------------------------------------------- */
+.personalization-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdown-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dropdown-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+/* Searchable combobox — replaces the native <select>. Works for both
+   single-select (Country) and multi-select (Sports/Competitions/Clubs). */
+.combobox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.combobox-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-icon {
+.combobox-icon {
   position: absolute;
   left: 14px;
   color: var(--text-muted);
   pointer-events: none;
 }
 
-.search-input input {
+.combobox-input {
   width: 100%;
   min-height: 46px;
   padding: 0 14px 0 42px;
@@ -327,227 +435,79 @@
   background: var(--navy-800);
   color: var(--text-primary);
   font-size: 0.92rem;
+  font-family: var(--font-body);
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.search-input input::placeholder {
+.combobox-input::placeholder {
   color: var(--text-muted);
 }
 
-.search-input input:focus {
+.combobox-input:focus {
   border-color: var(--purple-500);
   box-shadow: 0 0 0 3px var(--purple-glow);
 }
 
-.search-input input:disabled {
-  opacity: 0.5;
-}
+/* Dropdown panel — floats above surrounding content, scrolls once long. */
+.combobox-panel {
+  position: relative;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
-/* -----------------------------------------------------------------------
-   8. Country / competition list chips
------------------------------------------------------------------------ */
-.list-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
+  gap: 2px;
 
-.list-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 14px;
+  padding: 6px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-  background: var(--navy-800);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-}
-
-.list-chip:hover {
-  transform: translateY(-1px);
-  border-color: var(--border-strong);
-  background: var(--navy-700);
-}
-
-.list-chip:active {
-  transform: scale(0.99);
-}
-
-.list-chip--selected {
-  border-color: var(--purple-500);
-  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
-  box-shadow: 0 0 0 1px var(--purple-500);
-}
-
-.list-chip__flag {
-  font-size: 1.1rem;
-}
-
-.list-chip__check {
-  margin-left: auto;
-  color: var(--orange-400);
-}
-
-/* -----------------------------------------------------------------------
-   9. Sport cards — purple border + orange glow + pop animation when selected
------------------------------------------------------------------------ */
-.sport-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.sport-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 64px;
-  padding: 14px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--navy-800);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
-}
-
-.sport-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
-}
-
-.sport-card:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.sport-card--selected {
-  border-color: var(--purple-500);
-  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
-  box-shadow: 0 0 0 1px var(--purple-500), 0 0 28px var(--orange-glow);
-  animation: sportSelectPop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes sportSelectPop {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.03);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.sport-card__emoji {
-  font-size: 1.6rem;
-}
-
-.sport-card__name {
-  font-weight: 600;
-  font-size: 0.98rem;
-}
-
-.sport-card__check {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
   border: 1px solid var(--border-strong);
-  color: transparent;
-  margin-left: auto;
-  flex-shrink: 0;
-  transition: all 160ms ease;
+  background: var(--navy-700);
+  box-shadow: 0 16px 40px rgba(2, 6, 16, 0.55);
 }
 
-.sport-card--selected .sport-card__check {
-  background: var(--orange-500);
-  border-color: var(--orange-500);
-  color: var(--navy-900);
-}
-
-/* -----------------------------------------------------------------------
-   10. Club cards — responsive grid, logo placeholder, check badge
------------------------------------------------------------------------ */
-.card-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.club-card {
-  position: relative;
+.combobox-option {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--navy-800);
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
+  font-size: 0.88rem;
   text-align: left;
   cursor: pointer;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  transition: background 120ms ease;
 }
 
-.club-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-strong);
+.combobox-option:hover {
+  background: var(--navy-600);
 }
 
-.club-card:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.club-card--selected {
-  border-color: var(--orange-500);
-  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
-  box-shadow: 0 0 0 1px var(--orange-500), 0 0 24px var(--orange-glow);
-}
-
-.club-card__logo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, var(--purple-700), var(--navy-600));
+.combobox-option--selected {
+  background: linear-gradient(135deg, var(--navy-600), var(--purple-900));
   color: var(--text-primary);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.82rem;
 }
 
-.club-card__name {
-  font-weight: 600;
-  font-size: 0.92rem;
-  flex: 1;
-}
-
-.club-card__badge {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--orange-500);
-  color: var(--navy-900);
+.combobox-option--selected svg {
+  color: var(--orange-400);
   flex-shrink: 0;
 }
 
-/* -----------------------------------------------------------------------
-   11. Chips (removable — competitions step + summary)
------------------------------------------------------------------------ */
+.combobox-empty {
+  margin: 0;
+  padding: 14px 10px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+/* Selected-item chips shown above a multi-select combobox's input. */
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -599,149 +559,32 @@
   transform: scale(0.85);
 }
 
-/* -----------------------------------------------------------------------
-   12. Empty / error / skeleton states
------------------------------------------------------------------------ */
-.empty-state,
-.error-state {
+.personalization-actions {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-  padding: 32px 20px;
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--border-subtle);
-  background: var(--navy-800);
+  justify-content: center;
+  padding-top: 4px;
 }
 
-.empty-illustration {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 8px;
-}
-
-.empty-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid var(--border-subtle);
-}
-
-.empty-ring--1 {
-  width: 56px;
-  height: 56px;
-}
-
-.empty-ring--2 {
-  width: 38px;
-  height: 38px;
-  border-color: var(--border-strong);
-}
-
-.empty-icon {
-  position: relative;
-  color: var(--text-muted);
-}
-
-.empty-title {
-  margin: 0;
-  font-weight: 600;
-  font-size: 0.92rem;
-}
-
-.empty-hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-}
-
-.error-state {
-  border-style: solid;
-  border-color: rgba(234, 88, 12, 0.35);
-  background: rgba(234, 88, 12, 0.08);
-}
-
-.error-icon {
-  color: var(--orange-500);
-}
-
-.error-message {
-  margin: 0 0 4px;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-}
-
-.skeleton-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 64px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--navy-800);
-}
-
-.skeleton-avatar,
-.skeleton-line {
-  display: block;
-  border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    var(--navy-700) 0%,
-    var(--navy-600) 50%,
-    var(--navy-700) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeletonPulse 1.3s ease-in-out infinite;
-}
-
-.skeleton-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-}
-
-.skeleton-line--wide {
-  width: 70%;
-  height: 12px;
-}
-
-.skeleton-line--narrow {
-  width: 40%;
-  height: 10px;
-}
-
-@keyframes skeletonPulse {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+.personalization-actions .btn--large {
+  width: 100%;
+  max-width: 320px;
 }
 
 /* -----------------------------------------------------------------------
-   13. Summary step
+   7. Summary card
 ----------------------------------------------------------------------- */
-.summary-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
 .summary-card {
   padding: 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--navy-800);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .summary-card h3 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -751,9 +594,14 @@
 
 .summary-card p {
   margin: 0;
-  font-size: 0.98rem;
-  font-weight: 600;
+  font-size: 0.92rem;
   color: var(--text-primary);
+}
+
+.summary-card p strong {
+  color: var(--orange-400);
+  font-weight: 700;
+  margin-right: 6px;
 }
 
 .summary-footnote {
@@ -776,7 +624,7 @@
 }
 
 /* -----------------------------------------------------------------------
-   14. Welcome step
+   8. Welcome step
 ----------------------------------------------------------------------- */
 .step-panel--centered {
   align-items: center;
@@ -791,13 +639,11 @@
   display: block;
 }
 
-
- .welcome-logo img {
+.welcome-logo img {
   width: 120%;
   height: 120%;
   object-fit: contain;
 }
-
 
 .welcome-title {
   margin: 0 0 10px;
@@ -829,21 +675,90 @@
 }
 
 /* -----------------------------------------------------------------------
-   15. Sticky mobile footer + responsive breakpoints
+   9. Responsive breakpoints
+   Small mobile → mobile → tablet → desktop → large desktop.
+   Everything above this section is the small-mobile / mobile baseline
+   (mobile-first); each breakpoint below only adjusts what needs to change.
 ----------------------------------------------------------------------- */
 
-/* Mobile (<768px, default): full-screen experience, no sidebar/footer chrome,
-   sticky bottom action bar so Back/Skip/Continue are always reachable. */
-.onboarding-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: rgba(7, 26, 47, 0.92);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--border-subtle);
+/* Small mobile (≤ 380px): tighten spacing/type so nothing crowds narrow
+   phones (e.g. iPhone SE) or clips at the edges. */
+@media (max-width: 380px) {
+  .onboarding-page {
+    padding: 0 12px 40px;
+  }
+
+  .onboarding-shell {
+    gap: 16px;
+    padding-top: 16px;
+  }
+
+  .onboarding-logo {
+    width: 76px;
+    height: 76px;
+  }
+
+  .welcome-logo {
+    width: 96px;
+  }
+
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+
+  .welcome-description {
+    font-size: 0.88rem;
+  }
+
+  .step-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .btn {
+    padding: 0 16px;
+    font-size: 0.86rem;
+  }
+
+  .btn--large {
+    padding: 0 20px;
+  }
+
+  .combobox-panel {
+    max-height: 180px;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+}
+
+/* Short viewports in landscape (e.g. phone rotated): trim vertical rhythm
+   so the primary action stays reachable without excessive scrolling. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .onboarding-page {
+    padding-bottom: 24px;
+  }
+
+  .onboarding-shell {
+    padding-top: 12px;
+    gap: 12px;
+  }
+
+  .step-panel--centered {
+    padding: 12px 8px 8px;
+  }
+
+  .welcome-logo {
+    width: 72px;
+  }
+
+  .welcome-description {
+    margin-bottom: 14px;
+  }
+
+  .combobox-panel {
+    max-height: 160px;
+  }
 }
 
 /* Tablet (768px–1023px) */
@@ -857,13 +772,22 @@
     max-width: 700px;
   }
 
-  .card-grid,
-  .sport-grid {
+  .personalization-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .welcome-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .welcome-actions .btn--large {
+    width: auto;
+    min-width: 200px;
+  }
+
+  .combobox-panel {
+    max-height: 260px;
   }
 
   /* Above mobile, the footer returns to being part of the normal flow
@@ -881,7 +805,7 @@
   }
 }
 
-/* Desktop (1024px+): centered card, rounded corners, purple glow frame */
+/* Desktop (1024px–1279px): centered card, rounded corners, purple glow frame */
 @media (min-width: 1024px) {
   .onboarding-shell {
     max-width: 760px;
@@ -892,11 +816,88 @@
     box-shadow: 0 30px 80px rgba(76, 29, 149, 0.35), 0 0 0 1px rgba(124, 58, 237, 0.12);
   }
 
-  .card-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .welcome-title {
+    font-size: 2rem;
   }
 
-  .sport-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .step-header h2 {
+    font-size: 1.55rem;
   }
+}
+
+/* Large desktop (1280px+): a bit more breathing room and a wider card so
+   the layout doesn't feel squeezed on big monitors. */
+@media (min-width: 1280px) {
+  .onboarding-page {
+    padding: 56px 24px 64px;
+  }
+
+  .onboarding-shell {
+    max-width: 860px;
+    padding: 48px 56px;
+  }
+
+  .personalization-grid {
+    gap: 20px;
+  }
+
+  .welcome-description {
+    max-width: 480px;
+    font-size: 1rem;
+  }
+
+  .summary-card {
+    padding: 20px;
+  }
+}
+
+/* Respect reduced-motion preferences across every breakpoint. */
+@media (prefers-reduced-motion: reduce) {
+  .step-transition,
+  .chip,
+  .btn,
+  .combobox-input,
+  .combobox-option {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.option-content{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-flag{
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.combobox-selected-flag {
+  position: absolute;
+  left: 14px;
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.summary-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+}
+
+.summary-country-flag {
+  width: 20px;
+  height: 12px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
