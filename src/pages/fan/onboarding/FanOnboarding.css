@@ -1,0 +1,902 @@
+/* =============================================================================
+   FanOnboarding.css
+   Mobile-first styles for the League OS fan onboarding wizard.
+   Sections:
+     1. Design tokens (League OS palette)
+     2. Page shell + ambient glow
+     3. Topbar / brand
+     4. Progress bar
+     5. Step transitions
+     6. Buttons
+     7. Search input
+     8. Country / competition list chips
+     9. Sport cards
+    10. Club cards
+    11. Chips
+    12. Empty / error / skeleton states
+    13. Summary step
+    14. Welcome step
+    15. Sticky mobile footer + responsive breakpoints
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------
+   1. Design tokens — League OS palette
+----------------------------------------------------------------------- */
+:root {
+  /* Dark blue */
+  --navy-900: #071a2f;
+  --navy-800: #0b2447;
+  --navy-700: #102c57;
+  --navy-600: #123a66;
+
+  /* Purple */
+  --purple-900: #4c1d95;
+  --purple-700: #5b21b6;
+  --purple-500: #7c3aed;
+  --purple-300: #a78bfa;
+
+  /* Orange */
+  --orange-600: #ea580c;
+  --orange-500: #f97316;
+  --orange-400: #fb923c;
+
+  /* Text */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* Derived glows / borders */
+  --purple-glow: rgba(124, 58, 237, 0.4);
+  --orange-glow: rgba(249, 115, 22, 0.4);
+  --border-subtle: rgba(248, 250, 252, 0.09);
+  --border-strong: rgba(248, 250, 252, 0.18);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  color-scheme: dark;
+}
+
+/* -----------------------------------------------------------------------
+   2. Page shell — dark blue base with purple + orange ambient glow
+----------------------------------------------------------------------- */
+.onboarding-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 90px;
+
+
+   background-image:
+    linear-gradient(
+      rgba(6, 6, 12, 0.473),
+      rgba(6, 6, 12, 0.548)
+    ),
+    url("/images/stadium-bg.png");
+
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.onboarding-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.onboarding-glow--purple {
+  width: 460px;
+  height: 460px;
+  top: -140px;
+  left: -120px;
+  background: var(--purple-glow);
+}
+
+.onboarding-glow--orange {
+  width: 380px;
+  height: 380px;
+  bottom: -120px;
+  right: -100px;
+  background: var(--orange-glow);
+}
+
+.onboarding-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* -----------------------------------------------------------------------
+   3. Topbar
+----------------------------------------------------------------------- */
+.onboarding-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+}
+
+.onboarding-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+}
+
+/* -----------------------------------------------------------------------
+   4. Progress bar — orange → purple gradient fill, smooth transition
+----------------------------------------------------------------------- */
+.progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.progress-track {
+  height: 8px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--navy-700);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--orange-500), var(--purple-500));
+  transition: width 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* -----------------------------------------------------------------------
+   5. Step transitions
+----------------------------------------------------------------------- */
+.onboarding-stage {
+  position: relative;
+  min-height: 320px;
+}
+
+.step-transition {
+  animation: stepFadeSlide 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes stepFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.step-header h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.step-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* -----------------------------------------------------------------------
+   6. Buttons — accessible, min 48px tall on touch, press animation
+----------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 120ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--purple-300);
+  outline-offset: 2px;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn--small {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+}
+
+.btn--large {
+  min-height: 54px;
+  padding: 0 28px;
+  font-size: 0.98rem;
+}
+
+.btn--primary {
+  background: linear-gradient(120deg, var(--orange-600), var(--orange-400));
+  color: var(--navy-900);
+  box-shadow: 0 8px 20px var(--orange-glow);
+}
+.btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+.btn--secondary {
+  background: var(--navy-700);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+.btn--secondary:hover {
+  border-color: var(--border-strong);
+  background: var(--navy-600);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn--ghost:hover {
+  color: var(--text-primary);
+}
+
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* -----------------------------------------------------------------------
+   7. Search input
+----------------------------------------------------------------------- */
+.search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px 0 42px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.search-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input input:focus {
+  border-color: var(--purple-500);
+  box-shadow: 0 0 0 3px var(--purple-glow);
+}
+
+.search-input input:disabled {
+  opacity: 0.5;
+}
+
+/* -----------------------------------------------------------------------
+   8. Country / competition list chips
+----------------------------------------------------------------------- */
+.list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.list-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  background: var(--navy-700);
+}
+
+.list-chip:active {
+  transform: scale(0.99);
+}
+
+.list-chip--selected {
+  border-color: var(--purple-500);
+  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
+  box-shadow: 0 0 0 1px var(--purple-500);
+}
+
+.list-chip__flag {
+  font-size: 1.1rem;
+}
+
+.list-chip__check {
+  margin-left: auto;
+  color: var(--orange-400);
+}
+
+/* -----------------------------------------------------------------------
+   9. Sport cards — purple border + orange glow + pop animation when selected
+----------------------------------------------------------------------- */
+.sport-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.sport-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.sport-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.sport-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.sport-card--selected {
+  border-color: var(--purple-500);
+  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
+  box-shadow: 0 0 0 1px var(--purple-500), 0 0 28px var(--orange-glow);
+  animation: sportSelectPop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sportSelectPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sport-card__emoji {
+  font-size: 1.6rem;
+}
+
+.sport-card__name {
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.sport-card__check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  color: transparent;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: all 160ms ease;
+}
+
+.sport-card--selected .sport-card__check {
+  background: var(--orange-500);
+  border-color: var(--orange-500);
+  color: var(--navy-900);
+}
+
+/* -----------------------------------------------------------------------
+   10. Club cards — responsive grid, logo placeholder, check badge
+----------------------------------------------------------------------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.club-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.club-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.club-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.club-card--selected {
+  border-color: var(--orange-500);
+  background: linear-gradient(135deg, var(--navy-700), var(--purple-900));
+  box-shadow: 0 0 0 1px var(--orange-500), 0 0 24px var(--orange-glow);
+}
+
+.club-card__logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--purple-700), var(--navy-600));
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.club-card__name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  flex: 1;
+}
+
+.club-card__badge {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--orange-500);
+  color: var(--navy-900);
+  flex-shrink: 0;
+}
+
+/* -----------------------------------------------------------------------
+   11. Chips (removable — competitions step + summary)
+----------------------------------------------------------------------- */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--orange-600), var(--orange-500));
+  color: var(--navy-900);
+  font-size: 0.82rem;
+  font-weight: 600;
+  animation: chipIn 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes chipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.chip-remove {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(7, 26, 47, 0.25);
+  color: var(--navy-900);
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.chip-remove:hover {
+  background: rgba(7, 26, 47, 0.45);
+}
+
+.chip-remove:active {
+  transform: scale(0.85);
+}
+
+/* -----------------------------------------------------------------------
+   12. Empty / error / skeleton states
+----------------------------------------------------------------------- */
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 32px 20px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+  background: var(--navy-800);
+}
+
+.empty-illustration {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+}
+
+.empty-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+}
+
+.empty-ring--1 {
+  width: 56px;
+  height: 56px;
+}
+
+.empty-ring--2 {
+  width: 38px;
+  height: 38px;
+  border-color: var(--border-strong);
+}
+
+.empty-icon {
+  position: relative;
+  color: var(--text-muted);
+}
+
+.empty-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.empty-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.error-state {
+  border-style: solid;
+  border-color: rgba(234, 88, 12, 0.35);
+  background: rgba(234, 88, 12, 0.08);
+}
+
+.error-icon {
+  color: var(--orange-500);
+}
+
+.error-message {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+}
+
+.skeleton-avatar,
+.skeleton-line {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--navy-700) 0%,
+    var(--navy-600) 50%,
+    var(--navy-700) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.3s ease-in-out infinite;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.skeleton-line--wide {
+  width: 70%;
+  height: 12px;
+}
+
+.skeleton-line--narrow {
+  width: 40%;
+  height: 10px;
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* -----------------------------------------------------------------------
+   13. Summary step
+----------------------------------------------------------------------- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.summary-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+}
+
+.summary-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.summary-card p {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summary-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.summary-footnote svg {
+  color: var(--purple-300);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* -----------------------------------------------------------------------
+   14. Welcome step
+----------------------------------------------------------------------- */
+.step-panel--centered {
+  align-items: center;
+  text-align: center;
+  padding: 32px 8px 12px;
+}
+
+.welcome-logo {
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+
+ .welcome-logo img {
+  width: 120%;
+  height: 120%;
+  object-fit: contain;
+}
+
+
+.welcome-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.welcome-description {
+  margin: 0 0 26px;
+  max-width: 420px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.welcome-actions .btn--large {
+  width: 100%;
+  max-width: 280px;
+}
+
+/* -----------------------------------------------------------------------
+   15. Sticky mobile footer + responsive breakpoints
+----------------------------------------------------------------------- */
+
+/* Mobile (<768px, default): full-screen experience, no sidebar/footer chrome,
+   sticky bottom action bar so Back/Skip/Continue are always reachable. */
+.onboarding-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: rgba(7, 26, 47, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Tablet (768px–1023px) */
+@media (min-width: 768px) {
+  .onboarding-page {
+    padding: 36px 24px 48px;
+    align-items: flex-start;
+  }
+
+  .onboarding-shell {
+    max-width: 700px;
+  }
+
+  .card-grid,
+  .sport-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Above mobile, the footer returns to being part of the normal flow
+     inside the centered card rather than sticking to the viewport edge. */
+  .onboarding-footer {
+    position: static;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    border-top: none;
+  }
+
+  .onboarding-page {
+    padding-bottom: 48px;
+  }
+}
+
+/* Desktop (1024px+): centered card, rounded corners, purple glow frame */
+@media (min-width: 1024px) {
+  .onboarding-shell {
+    max-width: 760px;
+    padding: 40px 44px;
+    background: rgba(11, 36, 71, 0.55);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 30px 80px rgba(76, 29, 149, 0.35), 0 0 0 1px rgba(124, 58, 237, 0.12);
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sport-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
