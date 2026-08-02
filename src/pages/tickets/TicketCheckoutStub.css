@@ -1,0 +1,106 @@
+.checkout-stub-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.checkout-stub-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(40px, 8vw, 80px) clamp(16px, 4vw, 40px);
+}
+
+.checkout-stub-card {
+  width: 100%;
+  max-width: 440px;
+  padding: clamp(28px, 4vw, 40px);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background-color: var(--color-card-bg);
+  text-align: center;
+}
+
+.checkout-stub-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  font-size: 1.6rem;
+}
+
+.checkout-stub-card h1 {
+  margin: 0 0 10px;
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  text-transform: uppercase;
+}
+
+.checkout-stub-card > p {
+  margin: 0 0 24px;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.checkout-stub-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-bg-elevated);
+}
+
+.checkout-stub-summary b {
+  font-size: 1rem;
+}
+
+.checkout-stub-summary span {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.checkout-stub-price {
+  margin-top: 6px;
+  font-weight: 700;
+  color: var(--color-primary-light);
+}
+
+.checkout-stub-disabled-btn {
+  width: 100%;
+  padding: 13px;
+  margin-bottom: 18px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: not-allowed;
+  min-height: 44px;
+}
+
+.checkout-stub-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary-light);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.checkout-stub-back-link:hover {
+  color: var(--color-accent);
+}
