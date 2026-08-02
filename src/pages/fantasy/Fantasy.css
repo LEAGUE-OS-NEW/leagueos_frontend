@@ -1,0 +1,126 @@
+.fantasy-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.fantasy-main {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.fantasy-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.fantasy-main-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px) clamp(40px, 6vw, 64px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4vw, 40px);
+}
+
+@media (max-width: 767px) {
+  .fantasy-main {
+    background-attachment: scroll;
+  }
+}
+
+/* Shared panel chrome, reused by every section under sections/ */
+
+.fantasy-panel {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.fantasy-panel-heading {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.fantasy-panel-heading h2 {
+  margin: 0 0 4px;
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  text-transform: uppercase;
+}
+
+.fantasy-panel-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.fantasy-view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary-light);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.fantasy-view-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fantasy-view-link:hover {
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.fantasy-view-link:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Two-column section rows */
+
+.fantasy-two-col {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: clamp(16px, 3vw, 24px);
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .fantasy-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fantasy-cta,
+  .fantasy-view-link,
+  .league-card,
+  .league-card-join,
+  .gameweek-row,
+  .leaderboard-row,
+  .leaderboard-cta-btn,
+  .tip-card--clickable {
+    transition: none;
+  }
+}

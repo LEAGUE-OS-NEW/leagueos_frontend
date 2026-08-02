@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import Sidebar from '../../components/fan/Sidebar';
-import Topbar from '../../components/fan/Topbar';
-import Footer from '../../components/landing/Footer';
-import WelcomeStats from './sections/WelcomeStats';
-import UpcomingFixtures from './sections/UpcomingFixtures';
-import MarketUpdate from './sections/MarketUpdate';
-import MyTickets from './sections/MyTickets';
-import MyFantasyTeam from './sections/MyFantasyTeam';
-import LatestNews from './sections/LatestNews';
+import Sidebar from '../../../components/fan/Sidebar';
+import Topbar from './Topbar';
+import Footer from '../../../components/landing/Footer';
+import WelcomeStats from './WelcomeStats';
+import UpcomingFixtures from './UpcomingFixtures';
+import MarketUpdate from './MarketUpdate';
+import MyTickets from './MyTickets';
+import MyFantasyTeam from './MyFantasyTeam';
+import LatestNews from './LatestNews';
 import './FanDashboard.css';
 
 function FanDashboard() {
