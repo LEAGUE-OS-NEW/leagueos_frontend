@@ -5,6 +5,8 @@ import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import Markets from './pages/markets/Markets';
+import TicketsPage from './pages/tickets/TicketsPage';
+import TicketCheckoutStub from './pages/tickets/TicketCheckoutStub';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -21,6 +23,8 @@ function App() {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
         <Route path="/markets" element={<Markets />} />
+        <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets/:id/checkout" element={<TicketCheckoutStub />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/fandashboard" element={<FanDashboard />} />
         <Route path="/register" element={<Register />} />
