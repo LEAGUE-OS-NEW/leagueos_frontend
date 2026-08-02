@@ -604,8 +604,29 @@ const FanOnboarding = () => {
 
   const toggleCountry = (code: string) => setCountry((prev) => (prev === code ? null : code));
 
-  const toggleSport = (id: SportId) =>
-    setSports((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  const toggleSport = (id: SportId) => {
+  setSports((prev) => {
+    const updatedSports = prev.includes(id)
+      ? prev.filter((s) => s !== id)
+      : [...prev, id];
+
+    setCompetitions((current) =>
+      current.filter((compId) => {
+        const comp = COMPETITIONS.find((c) => c.id === compId);
+        return comp && updatedSports.includes(comp.sport);
+      })
+    );
+
+    setClubs((current) =>
+      current.filter((clubId) => {
+        const club = CLUBS.find((c) => c.id === clubId);
+        return club && updatedSports.includes(club.sport);
+      })
+    );
+
+    return updatedSports;
+  });
+};
 
   const toggleCompetition = (id: string) =>
     setCompetitions((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
@@ -616,22 +637,7 @@ const FanOnboarding = () => {
   // Whenever the sport selection narrows, drop any competition/club picks
   // that no longer belong to a currently-selected sport — they were only
   // reachable because a sport that's now deselected made them visible.
-  useEffect(() => {
-    if (sports.length === 0) return;
-    setCompetitions((prev) =>
-      prev.filter((id) => {
-        const comp = COMPETITIONS.find((c) => c.id === id);
-        return comp && sports.includes(comp.sport);
-      })
-    );
-    setClubs((prev) =>
-      prev.filter((id) => {
-        const club = CLUBS.find((c) => c.id === id);
-        return club && sports.includes(club.sport);
-      })
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sports]);
+ 
 
   /** Whether the given step's required selection has been made. Steps not
    *  listed here (Welcome, Summary, Success) have no gating requirement. */
