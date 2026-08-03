@@ -1,0 +1,1102 @@
+import React, { useMemo, useState } from "react";
+import DashboardSidebar from '../../../components/generaladmin/Sidebar';
+import DashboardTopbar from '../sections/Topbar';
+import "./ComplianceAdmin.css";
+
+/* ============================================================
+   TYPES
+   ============================================================ */
+
+export type QueueType =
+  | "KYC"
+  | "Fraud"
+  | "Duplicate"
+  | "Self-Exclusion"
+  | "Restriction";
+
+export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
+
+export type CaseStatus = "Pending" | "Under Review" | "Escalated" | "Resolved";
+
+export type CompliancePermission =
+  | "REQUEST_INFO"
+  | "APPROVE_KYC"
+  | "REJECT_KYC"
+  | "RESTRICT_ACCOUNT"
+  | "SUSPEND_ACCOUNT"
+  | "ESCALATE_CASE";
+
+export interface RelatedAccount {
+  id: string;
+  name: string;
+  sharedPhone: boolean;
+  sharedEmailDomain: boolean;
+  sharedDevice: boolean;
+  sharedPaymentMethod: boolean;
+}
+
+export interface RelatedTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  currency: string;
+  date: string;
+  status: "Completed" | "Pending" | "Reversed" | "Flagged";
+  riskIndicator: RiskLevel;
+}
+
+export interface EvidenceItem {
+  id: string;
+  kind: "Document" | "ID Image" | "Transaction Screenshot" | "Device/Location" | "Note";
+  label: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  timestamp: string;
+  adminUser: string;
+  action: string;
+  note?: string;
+}
+
+export interface Restriction {
+  id: string;
+  type: "Spending Limit" | "Trading Limit" | "Account Restriction" | "Suspension";
+  appliedBy: string;
+  appliedAt: string;
+  active: boolean;
+}
+
+export interface SelfExclusionCase {
+  requested: boolean;
+  coolingOff: boolean;
+  breachAttempts: number;
+}
+
+export interface UserProfile {
+  fullName: string;
+  email: string;
+  phone: string;
+  country: string;
+  registrationDate: string;
+  verificationTier: "Unverified" | "Tier 1" | "Tier 2" | "Tier 3";
+}
+
+export interface ComplianceCase {
+  id: string;
+  queueType: QueueType;
+  user: UserProfile;
+  riskLevel: RiskLevel;
+  riskScore: number;
+  createdAt: string;
+  assignedTo: string;
+  status: CaseStatus;
+  summary: string;
+  relatedAccounts: RelatedAccount[];
+  relatedTransactions: RelatedTransaction[];
+  evidence: EvidenceItem[];
+  auditHistory: AuditEvent[];
+  restrictions: Restriction[];
+  selfExclusion?: SelfExclusionCase;
+}
+
+/* ============================================================
+   MOCK DATA
+   ============================================================ */
+
+const currentUserPermissions: CompliancePermission[] = [
+  "REQUEST_INFO",
+  "APPROVE_KYC",
+  "ESCALATE_CASE",
+];
+
+const mockComplianceCases: ComplianceCase[] = [
+  {
+    id: "COMP-2026-0142",
+    queueType: "KYC",
+    user: {
+      fullName: "Marcus Webb",
+      email: "marcus.webb@mailbox.com",
+      phone: "+1 (415) 555-0142",
+      country: "United States",
+      registrationDate: "2026-01-04",
+      verificationTier: "Tier 1",
+    },
+    riskLevel: "Medium",
+    riskScore: 54,
+    createdAt: "2026-07-29T09:12:00Z",
+    assignedTo: "Aisha Nolan",
+    status: "Pending",
+    summary: "Submitted ID document does not match registration name. Address mismatch flagged by automated OCR check.",
+    relatedAccounts: [
+      { id: "ACC-88214", name: "M. Webb Jr.", sharedPhone: true, sharedEmailDomain: false, sharedDevice: false, sharedPaymentMethod: false },
+    ],
+    relatedTransactions: [],
+    evidence: [
+      { id: "EV-1", kind: "ID Image", label: "Driver's license (front)", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:10:00Z" },
+      { id: "EV-2", kind: "Document", label: "Proof of address - utility bill", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:11:00Z" },
+    ],
+    auditHistory: [
+      { id: "A-1", timestamp: "2026-07-29T09:12:00Z", adminUser: "System", action: "Case created", note: "Auto-flagged by KYC OCR mismatch rule" },
+    ],
+    restrictions: [],
+  },
+  {
+    id: "COMP-2026-0188",
+    queueType: "Fraud",
+    user: {
+      fullName: "Priya Chandrasekaran",
+      email: "priya.c@fastmail.io",
+      phone: "+44 7700 900188",
+      country: "United Kingdom",
+      registrationDate: "2025-11-18",
+      verificationTier: "Tier 2",
+    },
+    riskLevel: "High",
+    riskScore: 81,
+    createdAt: "2026-07-30T14:45:00Z",
+    assignedTo: "Daniel Ruiz",
+    status: "Under Review",
+    summary: "Suspicious high-value transfer routed through three linked wallets within 40 minutes of account creation on the receiving side.",
+    relatedAccounts: [
+      { id: "ACC-51092", name: "Wallet Relay A", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
+      { id: "ACC-51093", name: "Wallet Relay B", sharedPhone: false, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: false },
+    ],
+    relatedTransactions: [
+      { id: "TXN-90211", type: "Transfer Out", amount: 12500, currency: "USD", date: "2026-07-30T14:20:00Z", status: "Flagged", riskIndicator: "High" },
+      { id: "TXN-90212", type: "Transfer Out", amount: 8300, currency: "USD", date: "2026-07-30T14:32:00Z", status: "Flagged", riskIndicator: "High" },
+    ],
+    evidence: [
+      { id: "EV-3", kind: "Transaction Screenshot", label: "Wallet relay chain diagram", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:02:00Z" },
+      { id: "EV-4", kind: "Note", label: "Pattern matches known layering scheme #4", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:05:00Z" },
+    ],
+    auditHistory: [
+      { id: "A-2", timestamp: "2026-07-30T14:45:00Z", adminUser: "System", action: "Case created", note: "Velocity + relay pattern detected" },
+      { id: "A-3", timestamp: "2026-07-30T15:06:00Z", adminUser: "Daniel Ruiz", action: "Information requested", note: "Requested source-of-funds documentation" },
+    ],
+    restrictions: [
+      { id: "R-1", type: "Trading Limit", appliedBy: "Daniel Ruiz", appliedAt: "2026-07-30T15:07:00Z", active: true },
+    ],
+  },
+  {
+    id: "COMP-2026-0211",
+    queueType: "Duplicate",
+    user: {
+      fullName: "Tomasz Nowicki",
+      email: "t.nowicki@protonhub.net",
+      phone: "+48 512 340 211",
+      country: "Poland",
+      registrationDate: "2026-03-22",
+      verificationTier: "Tier 1",
+    },
+    riskLevel: "Medium",
+    riskScore: 62,
+    createdAt: "2026-07-28T11:00:00Z",
+    assignedTo: "Unassigned",
+    status: "Pending",
+    summary: "Cluster of four accounts sharing a device fingerprint and payment method registered within the same week.",
+    relatedAccounts: [
+      { id: "ACC-33210", name: "T. Nowicki", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
+      { id: "ACC-33211", name: "Anna Nowicka", sharedPhone: true, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
+      { id: "ACC-33212", name: "T. Novak", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: false },
+    ],
+    relatedTransactions: [],
+    evidence: [
+      { id: "EV-5", kind: "Device/Location", label: "Shared device fingerprint report", uploadedBy: "System", uploadedAt: "2026-07-28T11:01:00Z" },
+    ],
+    auditHistory: [
+      { id: "A-4", timestamp: "2026-07-28T11:00:00Z", adminUser: "System", action: "Case created", note: "Duplicate cluster detection triggered" },
+    ],
+    restrictions: [],
+  },
+  {
+    id: "COMP-2026-0227",
+    queueType: "Self-Exclusion",
+    user: {
+      fullName: "Renee Castellano",
+      email: "renee.castellano@gmail.com",
+      phone: "+1 (312) 555-0227",
+      country: "United States",
+      registrationDate: "2024-09-02",
+      verificationTier: "Tier 3",
+    },
+    riskLevel: "Critical",
+    riskScore: 93,
+    createdAt: "2026-07-31T08:15:00Z",
+    assignedTo: "Aisha Nolan",
+    status: "Escalated",
+    summary: "User attempted to access platform three times during an active self-exclusion period using a secondary account.",
+    relatedAccounts: [
+      { id: "ACC-70091", name: "R. Castellano (secondary)", sharedPhone: true, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: true },
+    ],
+    relatedTransactions: [],
+    evidence: [
+      { id: "EV-6", kind: "Note", label: "Login attempt log during exclusion window", uploadedBy: "Aisha Nolan", uploadedAt: "2026-07-31T08:20:00Z" },
+    ],
+    auditHistory: [
+      { id: "A-5", timestamp: "2026-07-31T08:15:00Z", adminUser: "System", action: "Case created", note: "Self-exclusion breach attempt detected" },
+      { id: "A-6", timestamp: "2026-07-31T08:40:00Z", adminUser: "Aisha Nolan", action: "Escalation performed", note: "Escalated to senior compliance for review" },
+    ],
+    restrictions: [
+      { id: "R-2", type: "Account Restriction", appliedBy: "Aisha Nolan", appliedAt: "2026-07-31T08:41:00Z", active: true },
+    ],
+    selfExclusion: { requested: true, coolingOff: false, breachAttempts: 3 },
+  },
+  {
+    id: "COMP-2026-0254",
+    queueType: "Fraud",
+    user: {
+      fullName: "Kenji Watanabe",
+      email: "kenji.w@heliomail.com",
+      phone: "+81 90 1234 0254",
+      country: "Japan",
+      registrationDate: "2025-06-11",
+      verificationTier: "Tier 2",
+    },
+    riskLevel: "High",
+    riskScore: 76,
+    createdAt: "2026-08-01T02:30:00Z",
+    assignedTo: "Daniel Ruiz",
+    status: "Under Review",
+    summary: "Excessive trading velocity: 412 trades executed within 90 minutes, well beyond the user's historical pattern.",
+    relatedAccounts: [],
+    relatedTransactions: [
+      { id: "TXN-90401", type: "Trade", amount: 460, currency: "USD", date: "2026-08-01T02:05:00Z", status: "Completed", riskIndicator: "Medium" },
+      { id: "TXN-90402", type: "Trade", amount: 520, currency: "USD", date: "2026-08-01T02:06:00Z", status: "Completed", riskIndicator: "Medium" },
+      { id: "TXN-90403", type: "Trade", amount: 610, currency: "USD", date: "2026-08-01T02:07:00Z", status: "Flagged", riskIndicator: "High" },
+    ],
+    evidence: [
+      { id: "EV-7", kind: "Transaction Screenshot", label: "Trade velocity chart", uploadedBy: "System", uploadedAt: "2026-08-01T02:35:00Z" },
+    ],
+    auditHistory: [
+      { id: "A-7", timestamp: "2026-08-01T02:30:00Z", adminUser: "System", action: "Case created", note: "Velocity threshold exceeded (412 trades/90min)" },
+    ],
+    restrictions: [],
+  },
+];
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function riskBadgeClass(level: RiskLevel): string {
+  switch (level) {
+    case "Low": return "badge badge-low";
+    case "Medium": return "badge badge-medium";
+    case "High": return "badge badge-high";
+    case "Critical": return "badge badge-critical";
+  }
+}
+
+function statusPillClass(status: CaseStatus): string {
+  switch (status) {
+    case "Pending": return "status-pill pending";
+    case "Under Review": return "status-pill review";
+    case "Escalated": return "status-pill escalated";
+    case "Resolved": return "status-pill resolved";
+  }
+}
+
+function hasPermission(perms: CompliancePermission[], required: CompliancePermission): boolean {
+  return perms.includes(required);
+}
+
+/* ============================================================
+   QUEUE SUMMARY CARDS
+   ============================================================ */
+
+interface QueueCardConfig {
+  title: string;
+  icon: string;
+  color: string;
+  primaryValue: number;
+  primaryLabel: string;
+  secondaryValue: number;
+  secondaryLabel: string;
+  actionLabel: string;
+}
+
+const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => void }> = ({ config, onAction }) => (
+  <div className="queue-card">
+    <div className="queue-card__top">
+      <div className="queue-card__icon" style={{ background: `${config.color}22`, color: config.color }}>
+        {config.icon}
+      </div>
+      <p className="queue-card__title">{config.title}</p>
+    </div>
+    <div className="queue-card__metrics">
+      <div className="queue-card__metric">
+        <span className="queue-card__metric-value">{config.primaryValue}</span>
+        <span className="queue-card__metric-label">{config.primaryLabel}</span>
+      </div>
+      <div className="queue-card__metric">
+        <span className="queue-card__metric-value is-warning">{config.secondaryValue}</span>
+        <span className="queue-card__metric-label">{config.secondaryLabel}</span>
+      </div>
+    </div>
+    <button className="btn btn-gradient queue-card__action" onClick={onAction}>
+      {config.actionLabel}
+    </button>
+  </div>
+);
+
+/* ============================================================
+   RISK QUEUE TABLE (with filters, search, pagination)
+   ============================================================ */
+
+const PAGE_SIZE = 5;
+
+const ComplianceRiskQueue: React.FC<{
+  cases: ComplianceCase[];
+  onSelect: (c: ComplianceCase) => void;
+}> = ({ cases, onSelect }) => {
+  const [search, setSearch] = useState("");
+  const [queueFilter, setQueueFilter] = useState<QueueType | "All">("All");
+  const [riskFilter, setRiskFilter] = useState<RiskLevel | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<CaseStatus | "All">("All");
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    return cases
+      .filter((c) => (queueFilter === "All" ? true : c.queueType === queueFilter))
+      .filter((c) => (riskFilter === "All" ? true : c.riskLevel === riskFilter))
+      .filter((c) => (statusFilter === "All" ? true : c.status === statusFilter))
+      .filter((c) => {
+        const q = search.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          c.id.toLowerCase().includes(q) ||
+          c.user.fullName.toLowerCase().includes(q) ||
+          c.user.email.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [cases, search, queueFilter, riskFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  return (
+    <div className="panel">
+      <div className="panel__header">
+        <div>
+          <h2>Risk Queue</h2>
+          <p>All open compliance cases across every queue type</p>
+        </div>
+      </div>
+
+      <div className="filters-row">
+        <input
+          type="text"
+          placeholder="Search case ID, name, or email…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+        <select
+          value={queueFilter}
+          onChange={(e) => {
+            setQueueFilter(e.target.value as QueueType | "All");
+            setPage(1);
+          }}
+        >
+          <option value="All">All queue types</option>
+          <option value="KYC">KYC</option>
+          <option value="Fraud">Fraud</option>
+          <option value="Duplicate">Duplicate</option>
+          <option value="Self-Exclusion">Self-Exclusion</option>
+          <option value="Restriction">Restriction</option>
+        </select>
+        <select
+          value={riskFilter}
+          onChange={(e) => {
+            setRiskFilter(e.target.value as RiskLevel | "All");
+            setPage(1);
+          }}
+        >
+          <option value="All">All risk levels</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value as CaseStatus | "All");
+            setPage(1);
+          }}
+        >
+          <option value="All">All statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Escalated">Escalated</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </div>
+
+      <div className="table-scroll">
+        <table className="risk-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Queue Type</th>
+              <th>User</th>
+              <th>Risk Level</th>
+              <th>Created</th>
+              <th>Assigned To</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageItems.map((c) => (
+              <tr key={c.id} onClick={() => onSelect(c)}>
+                <td>{c.id}</td>
+                <td>{c.queueType}</td>
+                <td>
+                  <div className="cell-user__name">{c.user.fullName}</div>
+                  <div className="cell-user__email">{c.user.email}</div>
+                </td>
+                <td><span className={riskBadgeClass(c.riskLevel)}>{c.riskLevel}</span></td>
+                <td>{formatDateTime(c.createdAt)}</td>
+                <td>{c.assignedTo}</td>
+                <td><span className={statusPillClass(c.status)}>{c.status}</span></td>
+                <td>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(c);
+                    }}
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {pageItems.length === 0 && (
+              <tr>
+                <td colSpan={8} style={{ textAlign: "center", color: "var(--text-secondary)", padding: "24px 0" }}>
+                  No cases match the current filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination">
+        <span>
+          Showing {pageItems.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+          {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} cases
+        </span>
+        <div className="pagination__controls">
+          <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Prev
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
+   CONFIRMATION MODAL (two-step high-impact confirmation)
+   ============================================================ */
+
+interface PendingAction {
+  label: string;
+  confirmWord: string;
+  impact: string;
+  onConfirm: (reason: string) => void;
+}
+
+const ComplianceConfirmationModal: React.FC<{
+  action: PendingAction;
+  caseData: ComplianceCase;
+  onClose: () => void;
+}> = ({ action, caseData, onClose }) => {
+  const [reason, setReason] = useState("");
+  const [checked, setChecked] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
+  const canConfirm =
+    reason.trim().length > 0 && checked && confirmText.trim().toUpperCase() === action.confirmWord;
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__header">
+          <div className="modal__icon">⚠</div>
+          <h3>{action.label}</h3>
+        </div>
+
+        <div className="kv-grid" style={{ marginTop: 14, marginBottom: 4 }}>
+          <div className="kv-item">
+            <span className="k">User</span>
+            <span className="v">{caseData.user.fullName}</span>
+          </div>
+          <div className="kv-item">
+            <span className="k">Account ID</span>
+            <span className="v">{caseData.id}</span>
+          </div>
+          <div className="kv-item">
+            <span className="k">Current Status</span>
+            <span className="v">{caseData.status}</span>
+          </div>
+          <div className="kv-item">
+            <span className="k">Risk Level</span>
+            <span className="v">{caseData.riskLevel}</span>
+          </div>
+        </div>
+
+        <p className="modal__impact">{action.impact}</p>
+
+        <label className="field-label" htmlFor="reason">Reason (required)</label>
+        <textarea
+          id="reason"
+          rows={3}
+          placeholder="Explain why this action is being taken…"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+
+        <label className="modal-checkbox">
+          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+          I understand this action will immediately restrict the user from accessing platform services.
+        </label>
+
+        <label className="field-label" htmlFor="confirmText">
+          Type {action.confirmWord} to continue
+        </label>
+        <input
+          id="confirmText"
+          type="text"
+          placeholder={action.confirmWord}
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+        />
+
+        <div className="modal__footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button
+            className="btn btn-danger"
+            disabled={!canConfirm}
+            onClick={() => {
+              action.onConfirm(reason);
+              onClose();
+            }}
+          >
+            {action.label}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
+   DECISION CONTROL PANEL
+   ============================================================ */
+
+const ComplianceDecisionPanel: React.FC<{
+  caseData: ComplianceCase;
+  permissions: CompliancePermission[];
+  onLowImpact: (action: string) => void;
+  onMediumImpact: (action: string) => void;
+  onRequestHighImpact: (action: PendingAction) => void;
+}> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact }) => {
+  const PermButton: React.FC<{
+    label: string;
+    permission: CompliancePermission;
+    variant?: "ghost" | "gradient" | "danger";
+    onClick: () => void;
+  }> = ({ label, permission, variant = "ghost", onClick }) => {
+    const allowed = hasPermission(permissions, permission);
+    const cls =
+      variant === "gradient" ? "btn btn-gradient btn-sm" : variant === "danger" ? "btn btn-danger btn-sm" : "btn btn-ghost btn-sm";
+    return (
+      <div className="perm-btn-wrap">
+        <button className={cls} disabled={!allowed} onClick={onClick}>
+          {label}
+        </button>
+        {!allowed && <span className="perm-tooltip">Insufficient permission</span>}
+      </div>
+    );
+  };
+
+  return (
+    <div className="panel">
+      <div className="panel__header">
+        <div>
+          <h2>Decision Controls</h2>
+          <p>Actions are enabled based on your current compliance permissions</p>
+        </div>
+      </div>
+
+      <div className="decision-groups">
+        <div>
+          <p className="decision-group__label">Low impact</p>
+          <div className="decision-group__buttons">
+            <PermButton label="Request Information" permission="REQUEST_INFO" onClick={() => onLowImpact("Request Information")} />
+            <PermButton label="Add Internal Note" permission="REQUEST_INFO" onClick={() => onLowImpact("Add Internal Note")} />
+            <PermButton label="Assign Investigator" permission="REQUEST_INFO" onClick={() => onLowImpact("Assign Investigator")} />
+          </div>
+        </div>
+
+        <div>
+          <p className="decision-group__label">Medium impact</p>
+          <div className="decision-group__buttons">
+            <PermButton label="Approve Verification" permission="APPROVE_KYC" variant="gradient" onClick={() => onMediumImpact("Approve Verification")} />
+            <PermButton label="Reject Verification" permission="REJECT_KYC" onClick={() => onMediumImpact("Reject Verification")} />
+            <PermButton label="Apply Participation Limit" permission="RESTRICT_ACCOUNT" onClick={() => onMediumImpact("Apply Participation Limit")} />
+          </div>
+        </div>
+
+        <div>
+          <p className="decision-group__label">High impact — requires strong confirmation</p>
+          <div className="decision-group__buttons">
+            <PermButton
+              label="Restrict Account"
+              permission="RESTRICT_ACCOUNT"
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Restrict Account",
+                  confirmWord: "RESTRICT",
+                  impact: "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
+                  onConfirm: () => {},
+                })
+              }
+            />
+            <PermButton
+              label="Suspend Account"
+              permission="SUSPEND_ACCOUNT"
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Suspend Account",
+                  confirmWord: "SUSPEND",
+                  impact: "This will immediately suspend the user's access to all platform services pending investigation.",
+                  onConfirm: () => {},
+                })
+              }
+            />
+            <PermButton
+              label="Freeze Trading Activity"
+              permission="RESTRICT_ACCOUNT"
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Freeze Trading Activity",
+                  confirmWord: "FREEZE",
+                  impact: "This will halt all trading activity on this account immediately, without affecting login access.",
+                  onConfirm: () => {},
+                })
+              }
+            />
+            <PermButton
+              label="Escalate to Senior Compliance"
+              permission="ESCALATE_CASE"
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Escalate to Senior Compliance",
+                  confirmWord: "ESCALATE",
+                  impact: "This will route the case to senior compliance for final review and pause any pending automated actions.",
+                  onConfirm: () => {},
+                })
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
+   CASE DETAIL DRAWER
+   ============================================================ */
+
+const ComplianceCaseDetail: React.FC<{
+  caseData: ComplianceCase;
+  permissions: CompliancePermission[];
+  onClose: () => void;
+  onMutate: (updated: ComplianceCase) => void;
+}> = ({ caseData, permissions, onClose, onMutate }) => {
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+
+  const appendAudit = (action: string, note?: string) => {
+    const event: AuditEvent = {
+      id: `A-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      adminUser: "You",
+      action,
+      note,
+    };
+    onMutate({ ...caseData, auditHistory: [...caseData.auditHistory, event] });
+  };
+
+  const handleHighImpactConfirm = (action: PendingAction, reason: string) => {
+    appendAudit(action.label, reason);
+  };
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="drawer__header">
+          <div>
+            <h2>{caseData.id}</h2>
+            <span className={riskBadgeClass(caseData.riskLevel)} style={{ marginRight: 8 }}>{caseData.riskLevel}</span>
+            <span className={statusPillClass(caseData.status)}>{caseData.status}</span>
+          </div>
+          <button className="drawer__close" onClick={onClose} aria-label="Close case detail">✕</button>
+        </div>
+
+        <div className="drawer__body">
+          {/* Case Summary */}
+          <div className="drawer-section">
+            <h3>Case Summary</h3>
+            <div className="kv-grid">
+              <div className="kv-item"><span className="k">Queue Type</span><span className="v">{caseData.queueType}</span></div>
+              <div className="kv-item"><span className="k">Risk Score</span><span className="v">{caseData.riskScore}/100</span></div>
+              <div className="kv-item"><span className="k">Assigned Investigator</span><span className="v">{caseData.assignedTo}</span></div>
+              <div className="kv-item"><span className="k">Created</span><span className="v">{formatDateTime(caseData.createdAt)}</span></div>
+            </div>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.55, marginTop: 12 }}>
+              {caseData.summary}
+            </p>
+          </div>
+
+          {/* User Profile */}
+          <div className="drawer-section">
+            <h3>User Profile</h3>
+            <div className="kv-grid">
+              <div className="kv-item"><span className="k">Full Name</span><span className="v">{caseData.user.fullName}</span></div>
+              <div className="kv-item"><span className="k">Email</span><span className="v">{caseData.user.email}</span></div>
+              <div className="kv-item"><span className="k">Phone</span><span className="v">{caseData.user.phone}</span></div>
+              <div className="kv-item"><span className="k">Country</span><span className="v">{caseData.user.country}</span></div>
+              <div className="kv-item"><span className="k">Registered</span><span className="v">{caseData.user.registrationDate}</span></div>
+              <div className="kv-item"><span className="k">Verification Tier</span><span className="v">{caseData.user.verificationTier}</span></div>
+            </div>
+          </div>
+
+          {/* Related Accounts */}
+          {caseData.relatedAccounts.length > 0 && (
+            <div className="drawer-section">
+              <h3>Related Accounts</h3>
+              {caseData.relatedAccounts.map((ra) => (
+                <div key={ra.id} className="related-item">
+                  <div>
+                    <div className="related-item__value">{ra.name}</div>
+                    <div className="related-item__label">{ra.id}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {ra.sharedPhone && <span className="badge badge-medium">Shared Phone</span>}
+                    {ra.sharedEmailDomain && <span className="badge badge-medium">Shared Email Domain</span>}
+                    {ra.sharedDevice && <span className="badge badge-high">Shared Device</span>}
+                    {ra.sharedPaymentMethod && <span className="badge badge-high">Shared Payment</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Related Transactions */}
+          {caseData.relatedTransactions.length > 0 && (
+            <div className="drawer-section">
+              <h3>Related Transactions</h3>
+              {caseData.relatedTransactions.map((tx) => (
+                <div key={tx.id} className="tx-row">
+                  <div>
+                    <div className="tx-row__id">{tx.id}</div>
+                    <div className="tx-row__meta">{tx.type} · {formatDateTime(tx.date)}</div>
+                  </div>
+                  <div className="tx-row__meta">{tx.currency} {tx.amount.toLocaleString()}</div>
+                  <div className="tx-row__meta">{tx.status}</div>
+                  <span className={riskBadgeClass(tx.riskIndicator)}>{tx.riskIndicator}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Evidence */}
+          {caseData.evidence.length > 0 && (
+            <div className="drawer-section">
+              <h3>Evidence</h3>
+              <div className="timeline">
+                {caseData.evidence.map((ev) => (
+                  <div className="timeline-item" key={ev.id}>
+                    <div className="evidence-item">
+                      <div className="evidence-item__icon">
+                        {ev.kind === "ID Image" ? "🪪" : ev.kind === "Document" ? "📄" : ev.kind === "Transaction Screenshot" ? "🖼" : ev.kind === "Device/Location" ? "📍" : "📝"}
+                      </div>
+                      <div>
+                        <p className="timeline-item__title">{ev.label}</p>
+                        <p className="timeline-item__meta">{ev.uploadedBy} · {formatDateTime(ev.uploadedAt)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Audit History */}
+          <div className="drawer-section">
+            <h3>Audit History</h3>
+            <div className="timeline">
+              {caseData.auditHistory
+                .slice()
+                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                .map((ev) => (
+                  <div className="timeline-item" key={ev.id}>
+                    <p className="timeline-item__title">{ev.action}</p>
+                    <p className="timeline-item__meta">{ev.adminUser} · {formatDateTime(ev.timestamp)}</p>
+                    {ev.note && <p className="timeline-item__note">{ev.note}</p>}
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {/* Decision Panel */}
+          <ComplianceDecisionPanel
+            caseData={caseData}
+            permissions={permissions}
+            onLowImpact={(action) => appendAudit(action, "Logged via low-impact action")}
+            onMediumImpact={(action) => appendAudit(action, "Logged via medium-impact action")}
+            onRequestHighImpact={(action) =>
+              setPendingAction({
+                ...action,
+                onConfirm: (reason) => handleHighImpactConfirm(action, reason),
+              })
+            }
+          />
+        </div>
+
+        <div className="sticky-action-bar">
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Close</button>
+          <button
+            className="btn btn-gradient"
+            style={{ flex: 1 }}
+            disabled={!hasPermission(permissions, "ESCALATE_CASE")}
+            onClick={() =>
+              setPendingAction({
+                label: "Escalate to Senior Compliance",
+                confirmWord: "ESCALATE",
+                impact: "This will route the case to senior compliance for final review.",
+                onConfirm: (reason) => appendAudit("Escalate to Senior Compliance", reason),
+              })
+            }
+          >
+            Escalate
+          </button>
+        </div>
+      </div>
+
+      {pendingAction && (
+        <ComplianceConfirmationModal
+          action={pendingAction}
+          caseData={caseData}
+          onClose={() => setPendingAction(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ============================================================
+   MAIN DASHBOARD
+   ============================================================ */
+
+const ComplianceAdmin: React.FC = () => {
+  const [cases, setCases] = useState<ComplianceCase[]>(mockComplianceCases);
+  const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const kycCases = cases.filter((c) => c.queueType === "KYC");
+  const fraudCases = cases.filter((c) => c.queueType === "Fraud");
+  const duplicateCases = cases.filter((c) => c.queueType === "Duplicate");
+  const restrictionCases = cases.filter((c) => c.restrictions.some((r) => r.active));
+  const selfExclusionCases = cases.filter((c) => c.queueType === "Self-Exclusion");
+  const escalatedCases = cases.filter((c) => c.status === "Escalated");
+
+  const queueCardConfigs: { config: QueueCardConfig; targetQueue: QueueType | "restriction" | "escalated" }[] = [
+    {
+      config: {
+        title: "KYC Verification Queue",
+        icon: "🪪",
+        color: "#a855f7",
+        primaryValue: kycCases.length,
+        primaryLabel: "Pending reviews",
+        secondaryValue: kycCases.filter((c) => c.riskLevel === "High" || c.riskLevel === "Critical").length,
+        secondaryLabel: "High-risk",
+        actionLabel: "Review KYC",
+      },
+      targetQueue: "KYC",
+    },
+    {
+      config: {
+        title: "Unusual Transactions",
+        icon: "📉",
+        color: "#f97316",
+        primaryValue: fraudCases.length,
+        primaryLabel: "Suspicious transfers",
+        secondaryValue: fraudCases.filter((c) => c.relatedTransactions.some((t) => t.status === "Flagged")).length,
+        secondaryLabel: "Flagged trading",
+        actionLabel: "Investigate",
+      },
+      targetQueue: "Fraud",
+    },
+    {
+      config: {
+        title: "Duplicate Identity",
+        icon: "🧬",
+        color: "#2563eb",
+        primaryValue: duplicateCases.length,
+        primaryLabel: "Potential duplicates",
+        secondaryValue: duplicateCases.reduce((sum, c) => sum + c.relatedAccounts.filter((a) => a.sharedDevice).length, 0),
+        secondaryLabel: "Shared device matches",
+        actionLabel: "Review Matches",
+      },
+      targetQueue: "Duplicate",
+    },
+    {
+      config: {
+        title: "Restrictions & Limits",
+        icon: "🚧",
+        color: "#ef4444",
+        primaryValue: restrictionCases.length,
+        primaryLabel: "Active restrictions",
+        secondaryValue: cases.filter((c) => c.restrictions.some((r) => r.type === "Trading Limit" && r.active)).length,
+        secondaryLabel: "Trading limits",
+        actionLabel: "Manage Restrictions",
+      },
+      targetQueue: "restriction",
+    },
+    {
+      config: {
+        title: "Responsible Participation",
+        icon: "🛡",
+        color: "#22c55e",
+        primaryValue: selfExclusionCases.filter((c) => c.selfExclusion?.requested).length,
+        primaryLabel: "Self-exclusion requests",
+        secondaryValue: selfExclusionCases.reduce((sum, c) => sum + (c.selfExclusion?.breachAttempts ?? 0), 0),
+        secondaryLabel: "Breach attempts",
+        actionLabel: "Review Cases",
+      },
+      targetQueue: "Self-Exclusion",
+    },
+    {
+      config: {
+        title: "Escalated Investigations",
+        icon: "🚨",
+        color: "#f5f7ff",
+        primaryValue: escalatedCases.length,
+        primaryLabel: "Escalated cases",
+        secondaryValue: escalatedCases.filter((c) => c.riskLevel === "Critical").length,
+        secondaryLabel: "Critical severity",
+        actionLabel: "Open Escalations",
+      },
+      targetQueue: "escalated",
+    },
+  ];
+
+  const handleQueueCardAction = (targetQueue: QueueType | "restriction" | "escalated") => {
+    let next: ComplianceCase | undefined;
+    if (targetQueue === "restriction") {
+      next = restrictionCases[0];
+    } else if (targetQueue === "escalated") {
+      next = escalatedCases[0];
+    } else {
+      next = cases.find((c) => c.queueType === targetQueue);
+    }
+    if (next) setSelectedCase(next);
+  };
+
+  const handleMutateCase = (updated: ComplianceCase) => {
+    setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setSelectedCase(updated);
+  };
+
+  return (
+    <div className="compliance-root">
+      <div className="app-shell">
+        <aside className={`app-sidebar${sidebarOpen ? " is-open" : ""}`}>
+          <DashboardSidebar
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </aside>
+
+        {sidebarOpen && (
+          <div className="app-sidebar-scrim" onClick={() => setSidebarOpen(false)} />
+        )}
+
+        <div className="app-main">
+          <header className="app-topbar">
+            <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
+          </header>
+
+          <main className="compliance-content">
+            <div className="compliance-header">
+              <div>
+                <p className="compliance-header__eyebrow">Welcome back</p>
+                <h1>Compliance &amp; Trust Operations</h1>
+                <p>Central control for KYC reviews, fraud detection, restrictions, responsible participation, and platform safety.</p>
+              </div>
+              <div className="compliance-header__actions">
+                <span className="live-badge"><span className="live-badge__dot" />Live data</span>
+                <button className="btn btn-ghost">Export Dashboard</button>
+                <button className="btn btn-gradient">Compliance Settings</button>
+              </div>
+            </div>
+
+            <div className="queue-grid">
+              {queueCardConfigs.map((item) => (
+                <ComplianceQueueCard
+                  key={item.config.title}
+                  config={item.config}
+                  onAction={() => handleQueueCardAction(item.targetQueue)}
+                />
+              ))}
+            </div>
+
+            <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
+          </main>
+        </div>
+      </div>
+
+      {selectedCase && (
+        <ComplianceCaseDetail
+          caseData={selectedCase}
+          permissions={currentUserPermissions}
+          onClose={() => setSelectedCase(null)}
+          onMutate={handleMutateCase}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ComplianceAdmin;
