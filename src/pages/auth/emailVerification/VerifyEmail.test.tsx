@@ -163,4 +163,67 @@ describe('VerifyEmail page', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/new code has been sent/i);
   });
+
+  it('shows a 10 minute countdown that ticks down every second', () => {
+    vi.useFakeTimers();
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
+        <VerifyEmail />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('timer')).toHaveTextContent('10:00');
+
+    vi.advanceTimersByTime(1000);
+    expect(screen.getByRole('timer')).toHaveTextContent('09:59');
+
+    vi.useRealTimers();
+  });
+
+  it('disables the code once the countdown reaches zero and prompts for resend', async () => {
+    vi.useFakeTimers();
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
+        <VerifyEmail />
+      </MemoryRouter>,
+    );
+
+    vi.advanceTimersByTime(10 * 60 * 1000);
+
+    expect(screen.getByRole('timer')).toHaveTextContent(/expired/i);
+    expect(screen.getByRole('button', { name: /verify & continue/i })).toBeDisabled();
+    screen.getAllByRole('textbox', { name: /digit/i }).forEach((input) => {
+      expect(input).toBeDisabled();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('lets the user request a resend during the countdown, which restarts the timer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    resendOtpMock.mockResolvedValueOnce({ data: { message: 'A new OTP has been sent.' } });
+
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
+        <VerifyEmail />
+      </MemoryRouter>,
+    );
+
+    vi.advanceTimersByTime(30 * 1000);
+    expect(screen.getByRole('timer')).toHaveTextContent('09:30');
+
+    await user.click(screen.getByRole('button', { name: /didn't receive/i }));
+
+    await waitFor(() => {
+      expect(resendOtpMock).toHaveBeenCalledWith({ email: 'fan@example.com' });
+    });
+
+    expect(screen.getByRole('timer')).toHaveTextContent('10:00');
+    expect(screen.getByRole('button', { name: /verify & continue/i })).not.toBeDisabled();
+
+    vi.useRealTimers();
+  });
 });

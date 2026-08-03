@@ -13,7 +13,7 @@ import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
-// import Personalize from "./pages/personalize/Personalize";
+
 
 function App() {
   return (
@@ -24,6 +24,7 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
+        <Route path="/tickets" element={<Tickets />} />
 
          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
@@ -31,16 +32,19 @@ function App() {
         
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
+
+        {/* authentication routes */}
         <Route path="/register" element={<Register />} />
         <Route path="/signup" element={<Navigate to="/register" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/tickets" element={<Tickets />} />
+        
+       
 
         {/* Super Admin dashboard */}
         <Route path="/dashboard/super-admin" element={<SuperAdminDashboard />} />
-        {/* <Route path="/personalize" element={<Personalize />} /> */}
+       
 
       </Routes>
     </Router>
