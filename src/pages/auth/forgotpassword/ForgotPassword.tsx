@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { requestPasswordReset, resetPassword } from '../../../services/authServices.ts';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
@@ -35,6 +35,8 @@ const features = [
     icon: LockResetOutlinedIcon,
   },
 ];
+
+const OTP_EXPIRY_SECONDS = 600; // 10 minutes
 
 type RecoveryStep = 'request' | 'code' | 'password' | 'success';
 
@@ -97,7 +99,26 @@ export default function ForgotPassword() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [otpMsLeft, setOtpMsLeft] = useState(OTP_EXPIRY_SECONDS * 1000);
   const { validation, validatePassword, resetValidation } = usePasswordValidation();
+
+  useEffect(() => {
+    if (step !== 'code' || otpExpiresAt === null) return;
+
+    const tick = () => {
+      setOtpMsLeft(Math.max(0, otpExpiresAt - Date.now()));
+    };
+
+    tick();
+    // 100ms cadence gives a smooth tenths-of-a-second display without the
+    // overhead of a true millisecond-resolution timer.
+    const interval = window.setInterval(tick, 100);
+    return () => window.clearInterval(interval);
+  }, [step, otpExpiresAt]);
+
+  const isOtpExpired = step === 'code' && otpMsLeft <= 0;
+  const otpFormattedTime = `${Math.floor(otpMsLeft / 60000)}:${String(Math.floor((otpMsLeft % 60000) / 1000)).padStart(2, '0')}.${Math.floor((otpMsLeft % 1000) / 100)}`;
 
   const resetCodeStep = () => {
     setHasRequestedCode(false);
@@ -110,6 +131,8 @@ export default function ForgotPassword() {
     setSuccessMessage('');
     setErrorMessage('');
     setInfoMessage('');
+    setOtpExpiresAt(null);
+    setOtpMsLeft(OTP_EXPIRY_SECONDS * 1000);
     resetValidation();
   };
 
@@ -144,6 +167,8 @@ export default function ForgotPassword() {
 
       setHasRequestedCode(true);
       setStep('code');
+      setOtpMsLeft(OTP_EXPIRY_SECONDS * 1000);
+      setOtpExpiresAt(Date.now() + OTP_EXPIRY_SECONDS * 1000);
       setInfoMessage(
         typeof response.data?.message === 'string'
           ? response.data.message
@@ -165,6 +190,11 @@ export default function ForgotPassword() {
 
     setErrorMessage('');
     setInfoMessage('');
+
+    if (isOtpExpired) {
+      setErrorMessage('This code has expired. Click "Resend code" to get a new one.');
+      return;
+    }
 
     if (normalizedCode.length !== 6) {
       setErrorMessage('Enter the 6-digit reset code sent to your email.');
@@ -365,7 +395,21 @@ export default function ForgotPassword() {
                     </div>
                   </label>
 
-                  <button type="submit" className="fp-submit" disabled={isVerifyingCode}>
+                  {!isOtpExpired ? (
+                    <p className="fp-otp-timer">
+                      Code expires in <span>{otpFormattedTime}</span>
+                    </p>
+                  ) : (
+                    <p className="fp-otp-timer fp-otp-timer-expired">
+                      Your code has expired. Click "Resend code" below to get a new one.
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="fp-submit"
+                    disabled={isVerifyingCode || isOtpExpired}
+                  >
                     {isVerifyingCode ? 'Verifying...' : 'Verify Code'}
                   </button>
 

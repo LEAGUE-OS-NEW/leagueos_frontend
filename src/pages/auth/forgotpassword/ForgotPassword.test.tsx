@@ -1,13 +1,27 @@
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import ForgotPassword from './ForgotPassword'
 import { normalizeCodeInput } from './forgotPasswordUtils'
 
 const navigateMock = vi.hoisted(() => vi.fn())
 const requestPasswordResetMock = vi.hoisted(() => vi.fn())
 const resetPasswordMock = vi.hoisted(() => vi.fn())
+
+// `shouldAdvanceTime` lets real wall-clock time bleed into the fake clock
+// while a test awaits user.type/click/waitFor, so the displayed tenths (and
+// sometimes whole seconds) drift by an unpredictable amount. Matching a
+// countdown by proximity to the expected second, rather than an exact
+// "M:SS.t" string, keeps these assertions meaningful without being brittle.
+function nearCountdown(expectedSeconds: number, toleranceSeconds = 5) {
+  return (content: string) => {
+    const match = content.match(/^(\d+):(\d{2})\.\d$/)
+    if (!match) return false
+    const totalSeconds = Number(match[1]) * 60 + Number(match[2])
+    return Math.abs(totalSeconds - expectedSeconds) <= toleranceSeconds
+  }
+}
 
 vi.mock('../../../hooks/usePasswordValidation.ts', () => ({
   usePasswordValidation: () => ({
@@ -48,6 +62,13 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => navigateMock,
   }
+})
+
+afterEach(() => {
+  navigateMock.mockReset()
+  requestPasswordResetMock.mockReset()
+  resetPasswordMock.mockReset()
+  vi.restoreAllMocks()
 })
 
 describe('forgot password helpers', () => {
@@ -124,5 +145,81 @@ describe('ForgotPassword page', () => {
         message: 'Password reset successful. Please log in with your new password.',
       },
     })
+  }, 10000)
+
+  it('counts the reset code down from 10 minutes and disables verification once it expires', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    requestPasswordResetMock.mockResolvedValueOnce({ data: { ok: true } })
+
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
+
+    await waitFor(() => {
+      expect(requestPasswordResetMock).toHaveBeenCalledWith({ email: 'user@example.com' })
+    })
+
+    // Starts at ~10:00 and ticks down.
+    await waitFor(() => {
+      expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
+    })
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    expect(screen.getByText(nearCountdown(9 * 60))).toBeInTheDocument()
+
+    // Once the remaining 9 minutes elapse, the code is expired.
+    await vi.advanceTimersByTimeAsync(9 * 60 * 1000)
+
+    expect(screen.getByText(/your code has expired/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^verify code$/i })).toBeDisabled()
+
+    vi.useRealTimers()
+  }, 10000)
+
+  it('lets the user request a new code during the countdown by returning them to the request form', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    requestPasswordResetMock.mockResolvedValueOnce({ data: { ok: true } })
+    requestPasswordResetMock.mockResolvedValueOnce({ data: { ok: true } })
+
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
+
+    await waitFor(() => {
+      expect(requestPasswordResetMock).toHaveBeenCalledTimes(1)
+    })
+
+    await vi.advanceTimersByTimeAsync(90 * 1000)
+    expect(screen.getByText(nearCountdown(8 * 60 + 30))).toBeInTheDocument()
+
+    // "Resend code" mid-countdown takes the user back to the request form
+    // rather than silently firing off a new code.
+    await user.click(screen.getByRole('button', { name: /resend code/i }))
+
+    expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /send reset code/i })).toBeInTheDocument()
+    expect(screen.queryByText(/code expires in/i)).not.toBeInTheDocument()
+
+    // Submitting the request form again sends a fresh code and restarts the countdown.
+    await user.click(screen.getByRole('button', { name: /send reset code/i }))
+
+    await waitFor(() => {
+      expect(requestPasswordResetMock).toHaveBeenCalledTimes(2)
+    })
+
+    expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
+
+    vi.useRealTimers()
   }, 10000)
 })
