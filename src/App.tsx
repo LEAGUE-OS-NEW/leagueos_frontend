@@ -6,14 +6,13 @@ import ClubsPage from "./pages/clubs/ClubsPage";
 import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import Markets from './pages/markets/Markets';
-import TicketsPage from './pages/tickets/TicketsPage';
-import TicketCheckoutStub from './pages/tickets/TicketCheckoutStub';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -31,16 +30,16 @@ function App() {
         <Route path="/fandashboard" element={<FanDashboard />} />
         
         <Route path="/markets" element={<Markets />} />
-        <Route path="/tickets" element={<TicketsPage />} />
-        <Route path="/tickets/:id/checkout" element={<TicketCheckoutStub />} />
         <Route path="/fantasy" element={<Fantasy />} />
-        <Route path="/fandashboard" element={<FanDashboard />} />
         <Route path="/register" element={<Register />} />
         <Route path="/signup" element={<Navigate to="/register" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/tickets" element={<Tickets />} />
+
+        {/* Super Admin dashboard */}
+        <Route path="/dashboard/super-admin" element={<SuperAdminDashboard />} />
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
       </Routes>
