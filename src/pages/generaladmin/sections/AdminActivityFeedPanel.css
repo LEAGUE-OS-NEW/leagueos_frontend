@@ -1,0 +1,89 @@
+.activity-feed-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activity-feed-select svg {
+  width: 13px;
+  height: 13px;
+  color: var(--color-text-muted);
+}
+
+.activity-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-feed-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.activity-feed-list li:not(:first-child) {
+  border-top: 1px solid var(--color-border);
+}
+
+.activity-feed-time {
+  flex-shrink: 0;
+  padding-top: 8px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.activity-feed-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.activity-feed-avatar--purple {
+  background: var(--gradient-primary);
+}
+
+.activity-feed-avatar--blue {
+  background: linear-gradient(135deg, #2563eb, var(--color-sport-basketball));
+}
+
+.activity-feed-avatar--orange {
+  background: var(--gradient-accent);
+}
+
+.activity-feed-avatar--red {
+  background: linear-gradient(135deg, var(--color-live), var(--color-accent-alt));
+}
+
+.activity-feed-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.activity-feed-copy b {
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.activity-feed-copy span {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+}

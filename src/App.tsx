@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
+import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -40,6 +41,9 @@ function App() {
 
         {/* Super Admin dashboard */}
         <Route path="/dashboard/super-admin" element={<SuperAdminDashboard />} />
+
+        {/* General Admin dashboard */}
+        <Route path="/dashboard/general-admin" element={<GeneralAdminDashboard />} />
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
       </Routes>
