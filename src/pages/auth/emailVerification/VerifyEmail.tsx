@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type ClipboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resendOtp, verifyOtp } from '../../../services/authServices.ts';
 import { useAuth } from '../../../hooks/useAuth.ts';
@@ -12,6 +12,16 @@ import './verify-email.css';
 
 
 type LocationState = { email?: string; message?: string; postLoginRedirect?: string };
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+
+const formatCountdown = (msLeft: number) => {
+  const clamped = Math.max(0, msLeft);
+  const minutes = Math.floor(clamped / 60000).toString().padStart(2, '0');
+  const seconds = Math.floor((clamped % 60000) / 1000).toString().padStart(2, '0');
+  const tenths = Math.floor((clamped % 1000) / 100);
+  return `${minutes}:${seconds}.${tenths}`;
+};
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -28,9 +38,38 @@ export default function VerifyEmail() {
   const [statusMessage, setStatusMessage] = useState(state?.message ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(() => (state?.email ? Date.now() + OTP_TTL_MS : null));
+  const [msLeft, setMsLeft] = useState(OTP_TTL_MS);
+  const isExpired = Boolean(email) && msLeft <= 0;
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const focusSlot = (index: number) => inputRefs.current[index]?.focus();
+
+  // Countdown from 10 minutes to zero, recomputed from an absolute expiry
+  // timestamp every 100ms so the display can show tenths of a second.
+  // Once it hits zero the code is treated as expired: the inputs/submit
+  // are disabled and the user must press "Resend OTP" to request a fresh
+  // code and restart the countdown.
+  useEffect(() => {
+    if (!email || otpExpiresAt === null) return;
+
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const tick = () => {
+      const remaining = otpExpiresAt - Date.now();
+      if (remaining <= 0) {
+        setMsLeft(0);
+        clearInterval(intervalId);
+        return;
+      }
+      setMsLeft(remaining);
+    };
+
+    tick();
+    intervalId = setInterval(tick, 100);
+
+    return () => clearInterval(intervalId);
+  }, [email, otpExpiresAt]);
 
   const handleChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);
@@ -61,6 +100,10 @@ export default function VerifyEmail() {
     const code = digits.join('');
     if (!email) {
       setErrorMessage('We need your email address to verify this account. Return to login and try again.');
+      return;
+    }
+    if (isExpired) {
+      setErrorMessage("This code has expired. Click \"Resend OTP\" to get a new one.");
       return;
     }
     if (code.length !== 6) { setErrorMessage('Enter all 6 digits.'); return; }
@@ -124,6 +167,10 @@ export default function VerifyEmail() {
     try {
       await resendOtp({ email });
       setStatusMessage('A new code has been sent.');
+      setDigits(['', '', '', '', '', '']);
+      setMsLeft(OTP_TTL_MS);
+      setOtpExpiresAt(Date.now() + OTP_TTL_MS);
+      focusSlot(0);
     } catch {
       setErrorMessage('Could not resend the code. Please try again.');
     } finally {
@@ -143,6 +190,14 @@ export default function VerifyEmail() {
           Enter the 6-digit code sent to your email address to continue.
         </p>
 
+        {email && (
+          <p className={`otp-countdown${isExpired ? ' otp-countdown-expired' : ''}`} role="timer">
+            {isExpired
+              ? 'Your code has expired. Click "Resend OTP" below to get a new code.'
+              : `Code expires in ${formatCountdown(msLeft)}`}
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} noValidate>
           <div className="otp-boxes">
             {digits.map((d, i) => (
@@ -156,6 +211,7 @@ export default function VerifyEmail() {
                 value={d}
                 autoComplete={i === 0 ? 'one-time-code' : 'off'}
                 aria-label={`Digit ${i + 1}`}
+                disabled={isExpired}
                 onChange={(e) => handleChange(i, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
                 onPaste={handlePaste}
@@ -171,7 +227,7 @@ export default function VerifyEmail() {
             <p className="otp-message otp-success" role="status">{statusMessage}</p>
           )}
 
-          <button type="submit" className="otp-submit" disabled={isSubmitting || !email}>
+          <button type="submit" className="otp-submit" disabled={isSubmitting || !email || isExpired}>
             {isSubmitting ? 'Verifying...' : 'Verify & Continue'}
           </button>
         </form>

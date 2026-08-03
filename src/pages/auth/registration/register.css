@@ -567,6 +567,7 @@
   gap: 8px;
   background: #7c3aed;
   box-shadow: none;
+  border: none;
 }
 
 .register-submit .button-arrow {
@@ -582,8 +583,8 @@
 }
 
 .register-submit-empty:hover {
-  background: linear-gradient(135deg, #9f67ff, #ff9a4d);
-  box-shadow: 0 14px 28px rgba(124, 58, 237, 0.42);
+  background: #852f0a;
+  box-shadow: 0 14px 28px rgba(114, 53, 27, 0.42);
 }
 
 .register-submit:disabled {
