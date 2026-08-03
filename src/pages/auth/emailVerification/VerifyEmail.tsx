@@ -15,6 +15,8 @@ type LocationState = { email?: string; message?: string; postLoginRedirect?: str
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 
+const getOtpExpiry = () => Date.now() + OTP_TTL_MS;
+
 const formatCountdown = (msLeft: number) => {
   const clamped = Math.max(0, msLeft);
   const minutes = Math.floor(clamped / 60000).toString().padStart(2, '0');
@@ -38,7 +40,7 @@ export default function VerifyEmail() {
   const [statusMessage, setStatusMessage] = useState(state?.message ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(() => (state?.email ? Date.now() + OTP_TTL_MS : null));
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(() => (state?.email ? getOtpExpiry() : null));
   const [msLeft, setMsLeft] = useState(OTP_TTL_MS);
   const isExpired = Boolean(email) && msLeft <= 0;
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -53,8 +55,6 @@ export default function VerifyEmail() {
   useEffect(() => {
     if (!email || otpExpiresAt === null) return;
 
-    let intervalId: ReturnType<typeof setInterval>;
-
     const tick = () => {
       const remaining = otpExpiresAt - Date.now();
       if (remaining <= 0) {
@@ -65,8 +65,8 @@ export default function VerifyEmail() {
       setMsLeft(remaining);
     };
 
+    const intervalId = setInterval(tick, 100);
     tick();
-    intervalId = setInterval(tick, 100);
 
     return () => clearInterval(intervalId);
   }, [email, otpExpiresAt]);
@@ -169,7 +169,7 @@ export default function VerifyEmail() {
       setStatusMessage('A new code has been sent.');
       setDigits(['', '', '', '', '', '']);
       setMsLeft(OTP_TTL_MS);
-      setOtpExpiresAt(Date.now() + OTP_TTL_MS);
+      setOtpExpiresAt(getOtpExpiry());
       focusSlot(0);
     } catch {
       setErrorMessage('Could not resend the code. Please try again.');

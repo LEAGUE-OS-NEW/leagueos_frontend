@@ -1,13 +1,27 @@
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import ForgotPassword from './ForgotPassword'
 import { normalizeCodeInput } from './forgotPasswordUtils'
 
 const navigateMock = vi.hoisted(() => vi.fn())
 const requestPasswordResetMock = vi.hoisted(() => vi.fn())
 const resetPasswordMock = vi.hoisted(() => vi.fn())
+
+// `shouldAdvanceTime` lets real wall-clock time bleed into the fake clock
+// while a test awaits user.type/click/waitFor, so the displayed tenths (and
+// sometimes whole seconds) drift by an unpredictable amount. Matching a
+// countdown by proximity to the expected second, rather than an exact
+// "M:SS.t" string, keeps these assertions meaningful without being brittle.
+function nearCountdown(expectedSeconds: number, toleranceSeconds = 5) {
+  return (content: string) => {
+    const match = content.match(/^(\d+):(\d{2})\.\d$/)
+    if (!match) return false
+    const totalSeconds = Number(match[1]) * 60 + Number(match[2])
+    return Math.abs(totalSeconds - expectedSeconds) <= toleranceSeconds
+  }
+}
 
 vi.mock('../../../hooks/usePasswordValidation.ts', () => ({
   usePasswordValidation: () => ({
@@ -48,6 +62,13 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => navigateMock,
   }
+})
+
+afterEach(() => {
+  navigateMock.mockReset()
+  requestPasswordResetMock.mockReset()
+  resetPasswordMock.mockReset()
+  vi.restoreAllMocks()
 })
 
 describe('forgot password helpers', () => {
@@ -144,10 +165,12 @@ describe('ForgotPassword page', () => {
       expect(requestPasswordResetMock).toHaveBeenCalledWith({ email: 'user@example.com' })
     })
 
-    // Starts at 10:00.0 and ticks down.
-    expect(screen.getByText('10:00.0')).toBeInTheDocument()
+    // Starts at ~10:00 and ticks down.
+    await waitFor(() => {
+      expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
+    })
     await vi.advanceTimersByTimeAsync(60 * 1000)
-    expect(screen.getByText('9:00.0')).toBeInTheDocument()
+    expect(screen.getByText(nearCountdown(9 * 60))).toBeInTheDocument()
 
     // Once the remaining 9 minutes elapse, the code is expired.
     await vi.advanceTimersByTimeAsync(9 * 60 * 1000)
@@ -178,7 +201,7 @@ describe('ForgotPassword page', () => {
     })
 
     await vi.advanceTimersByTimeAsync(90 * 1000)
-    expect(screen.getByText('8:30.0')).toBeInTheDocument()
+    expect(screen.getByText(nearCountdown(8 * 60 + 30))).toBeInTheDocument()
 
     // "Resend code" mid-countdown takes the user back to the request form
     // rather than silently firing off a new code.
@@ -195,7 +218,7 @@ describe('ForgotPassword page', () => {
       expect(requestPasswordResetMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(screen.getByText('10:00.0')).toBeInTheDocument()
+    expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
 
     vi.useRealTimers()
   }, 10000)

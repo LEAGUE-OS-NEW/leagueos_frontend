@@ -1,0 +1,123 @@
+.ga-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.ga-header-title {
+  flex-shrink: 0;
+}
+
+.ga-header-welcome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.ga-header-welcome svg {
+  color: var(--color-open);
+  width: 15px;
+  height: 15px;
+}
+
+.ga-header-title h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+}
+
+.ga-header-subtext {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.ga-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ga-header-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ga-header-timestamp i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-open);
+}
+
+.ga-header-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.ga-header-export-btn:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.ga-header-configure-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.ga-header-configure-btn:hover {
+  transform: scale(1.03);
+  filter: brightness(1.1);
+}
+
+.ga-header-export-btn:focus-visible,
+.ga-header-configure-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ga-header-export-btn,
+  .ga-header-configure-btn {
+    transition: none;
+  }
+}
