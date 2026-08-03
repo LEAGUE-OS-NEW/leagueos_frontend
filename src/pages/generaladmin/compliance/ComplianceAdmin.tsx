@@ -314,6 +314,42 @@ function hasPermission(perms: CompliancePermission[], required: CompliancePermis
   return perms.includes(required);
 }
 
+
+const PermButton: React.FC<{
+  label: string;
+  permission: CompliancePermission;
+  permissions: CompliancePermission[];
+  variant?: "ghost" | "gradient" | "danger";
+  onClick: () => void;
+}> = ({ label, permission, permissions, variant = "ghost", onClick }) => {
+  const allowed = hasPermission(permissions, permission);
+
+  const cls =
+    variant === "gradient"
+      ? "btn btn-gradient btn-sm"
+      : variant === "danger"
+      ? "btn btn-danger btn-sm"
+      : "btn btn-ghost btn-sm";
+
+  return (
+    <div className="perm-btn-wrap">
+      <button 
+        className={cls}
+        disabled={!allowed}
+        onClick={onClick}
+      >
+        {label}
+      </button>
+
+      {!allowed && (
+        <span className="perm-tooltip">
+          Insufficient permission
+        </span>
+      )}
+    </div>
+  );
+};
+
 /* ============================================================
    QUEUE SUMMARY CARDS
    ============================================================ */
@@ -625,24 +661,7 @@ const ComplianceDecisionPanel: React.FC<{
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
 }> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact }) => {
-  const PermButton: React.FC<{
-    label: string;
-    permission: CompliancePermission;
-    variant?: "ghost" | "gradient" | "danger";
-    onClick: () => void;
-  }> = ({ label, permission, variant = "ghost", onClick }) => {
-    const allowed = hasPermission(permissions, permission);
-    const cls =
-      variant === "gradient" ? "btn btn-gradient btn-sm" : variant === "danger" ? "btn btn-danger btn-sm" : "btn btn-ghost btn-sm";
-    return (
-      <div className="perm-btn-wrap">
-        <button className={cls} disabled={!allowed} onClick={onClick}>
-          {label}
-        </button>
-        {!allowed && <span className="perm-tooltip">Insufficient permission</span>}
-      </div>
-    );
-  };
+  
 
   return (
     <div className="panel">
@@ -657,77 +676,127 @@ const ComplianceDecisionPanel: React.FC<{
         <div>
           <p className="decision-group__label">Low impact</p>
           <div className="decision-group__buttons">
-            <PermButton label="Request Information" permission="REQUEST_INFO" onClick={() => onLowImpact("Request Information")} />
-            <PermButton label="Add Internal Note" permission="REQUEST_INFO" onClick={() => onLowImpact("Add Internal Note")} />
-            <PermButton label="Assign Investigator" permission="REQUEST_INFO" onClick={() => onLowImpact("Assign Investigator")} />
-          </div>
-        </div>
+  <PermButton
+    label="Request Information"
+    permission="REQUEST_INFO"
+    permissions={permissions}
+    onClick={() => onLowImpact("Request Information")}
+  />
 
-        <div>
-          <p className="decision-group__label">Medium impact</p>
-          <div className="decision-group__buttons">
-            <PermButton label="Approve Verification" permission="APPROVE_KYC" variant="gradient" onClick={() => onMediumImpact("Approve Verification")} />
-            <PermButton label="Reject Verification" permission="REJECT_KYC" onClick={() => onMediumImpact("Reject Verification")} />
-            <PermButton label="Apply Participation Limit" permission="RESTRICT_ACCOUNT" onClick={() => onMediumImpact("Apply Participation Limit")} />
-          </div>
-        </div>
+  <PermButton
+    label="Add Internal Note"
+    permission="REQUEST_INFO"
+    permissions={permissions}
+    onClick={() => onLowImpact("Add Internal Note")}
+  />
 
-        <div>
-          <p className="decision-group__label">High impact — requires strong confirmation</p>
-          <div className="decision-group__buttons">
-            <PermButton
-              label="Restrict Account"
-              permission="RESTRICT_ACCOUNT"
-              variant="danger"
-              onClick={() =>
-                onRequestHighImpact({
-                  label: "Restrict Account",
-                  confirmWord: "RESTRICT",
-                  impact: "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
-                  onConfirm: () => {},
-                })
-              }
-            />
-            <PermButton
-              label="Suspend Account"
-              permission="SUSPEND_ACCOUNT"
-              variant="danger"
-              onClick={() =>
-                onRequestHighImpact({
-                  label: "Suspend Account",
-                  confirmWord: "SUSPEND",
-                  impact: "This will immediately suspend the user's access to all platform services pending investigation.",
-                  onConfirm: () => {},
-                })
-              }
-            />
-            <PermButton
-              label="Freeze Trading Activity"
-              permission="RESTRICT_ACCOUNT"
-              variant="danger"
-              onClick={() =>
-                onRequestHighImpact({
-                  label: "Freeze Trading Activity",
-                  confirmWord: "FREEZE",
-                  impact: "This will halt all trading activity on this account immediately, without affecting login access.",
-                  onConfirm: () => {},
-                })
-              }
-            />
-            <PermButton
-              label="Escalate to Senior Compliance"
-              permission="ESCALATE_CASE"
-              variant="danger"
-              onClick={() =>
-                onRequestHighImpact({
-                  label: "Escalate to Senior Compliance",
-                  confirmWord: "ESCALATE",
-                  impact: "This will route the case to senior compliance for final review and pause any pending automated actions.",
-                  onConfirm: () => {},
-                })
-              }
-            />
-          </div>
+  <PermButton
+    label="Assign Investigator"
+    permission="REQUEST_INFO"
+    permissions={permissions}
+    onClick={() => onLowImpact("Assign Investigator")}
+  />
+</div>
+</div>
+
+<div>
+  <p className="decision-group__label">Medium impact</p>
+  <div className="decision-group__buttons">
+    <PermButton
+      label="Approve Verification"
+      permission="APPROVE_KYC"
+      permissions={permissions}
+      variant="gradient"
+      onClick={() => onMediumImpact("Approve Verification")}
+    />
+
+    <PermButton
+      label="Reject Verification"
+      permission="REJECT_KYC"
+      permissions={permissions}
+      onClick={() => onMediumImpact("Reject Verification")}
+    />
+
+    <PermButton
+      label="Apply Participation Limit"
+      permission="RESTRICT_ACCOUNT"
+      permissions={permissions}
+      onClick={() => onMediumImpact("Apply Participation Limit")}
+    />
+  </div>
+</div>
+
+<div>
+  <p className="decision-group__label">
+    High impact — requires strong confirmation
+  </p>
+
+  <div className="decision-group__buttons">
+    <PermButton
+      label="Restrict Account"
+      permission="RESTRICT_ACCOUNT"
+      permissions={permissions}
+      variant="danger"
+      onClick={() =>
+        onRequestHighImpact({
+          label: "Restrict Account",
+          confirmWord: "RESTRICT",
+          impact:
+            "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
+          onConfirm: () => {},
+        })
+      }
+    />
+
+    <PermButton
+      label="Suspend Account"
+      permission="SUSPEND_ACCOUNT"
+      permissions={permissions}
+      variant="danger"
+      onClick={() =>
+        onRequestHighImpact({
+          label: "Suspend Account",
+          confirmWord: "SUSPEND",
+          impact:
+            "This will immediately suspend the user's access to all platform services pending investigation.",
+          onConfirm: () => {},
+        })
+      }
+    />
+
+    <PermButton
+      label="Freeze Trading Activity"
+      permission="RESTRICT_ACCOUNT"
+      permissions={permissions}
+      variant="danger"
+      onClick={() =>
+        onRequestHighImpact({
+          label: "Freeze Trading Activity",
+          confirmWord: "FREEZE",
+          impact:
+            "This will halt all trading activity on this account immediately, without affecting login access.",
+          onConfirm: () => {},
+        })
+      }
+    />
+
+    <PermButton
+      label="Escalate to Senior Compliance"
+      permission="ESCALATE_CASE"
+      permissions={permissions}
+      variant="danger"
+      onClick={() =>
+        onRequestHighImpact({
+          label: "Escalate to Senior Compliance",
+          confirmWord: "ESCALATE",
+          impact:
+            "This will route the case to senior compliance for final review and pause any pending automated actions.",
+          onConfirm: () => {},
+        })
+      }
+    />
+  </div>
+
         </div>
       </div>
     </div>
