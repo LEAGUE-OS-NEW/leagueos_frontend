@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import DashboardSidebar from '../../../components/generaladmin/Sidebar';
 import DashboardTopbar from '../sections/Topbar';
-import DashboardFooter from '../../../components/landing/Footer';
 import "./ComplianceAdmin.css";
 
 /* ============================================================
@@ -531,47 +530,6 @@ interface PendingAction {
   onConfirm: (reason: string) => void;
 }
 
-const PermButton: React.FC<{
-  label: string;
-  permission: CompliancePermission;
-  permissions: CompliancePermission[];
-  variant?: "ghost" | "gradient" | "danger";
-  onClick: () => void;
-}> = ({
-  label,
-  permission,
-  permissions,
-  variant = "ghost",
-  onClick,
-}) => {
-    const allowed = hasPermission(permissions, permission);
-
-    const cls =
-      variant === "gradient"
-        ? "btn btn-gradient btn-sm"
-        : variant === "danger"
-          ? "btn btn-danger btn-sm"
-          : "btn btn-ghost btn-sm";
-
-    return (
-      <div className="perm-btn-wrap">
-        <button
-          className={cls}
-          disabled={!allowed}
-          onClick={onClick}
-        >
-          {label}
-        </button>
-
-        {!allowed && (
-          <span className="perm-tooltip">
-            Insufficient permission
-          </span>
-        )}
-      </div>
-    );
-  };
-
 const ComplianceConfirmationModal: React.FC<{
   action: PendingAction;
   caseData: ComplianceCase;
@@ -667,7 +625,24 @@ const ComplianceDecisionPanel: React.FC<{
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
 }> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact }) => {
-
+  const PermButton: React.FC<{
+    label: string;
+    permission: CompliancePermission;
+    variant?: "ghost" | "gradient" | "danger";
+    onClick: () => void;
+  }> = ({ label, permission, variant = "ghost", onClick }) => {
+    const allowed = hasPermission(permissions, permission);
+    const cls =
+      variant === "gradient" ? "btn btn-gradient btn-sm" : variant === "danger" ? "btn btn-danger btn-sm" : "btn btn-ghost btn-sm";
+    return (
+      <div className="perm-btn-wrap">
+        <button className={cls} disabled={!allowed} onClick={onClick}>
+          {label}
+        </button>
+        {!allowed && <span className="perm-tooltip">Insufficient permission</span>}
+      </div>
+    );
+  };
 
   return (
     <div className="panel">
@@ -682,120 +657,73 @@ const ComplianceDecisionPanel: React.FC<{
         <div>
           <p className="decision-group__label">Low impact</p>
           <div className="decision-group__buttons">
-            <PermButton
-              label="Request Information"
-              permission="REQUEST_INFO"
-              permissions={permissions}
-              onClick={() => onLowImpact("Request Information")}
-            />
-
-            <PermButton
-              label="Add Internal Note"
-              permission="REQUEST_INFO"
-              permissions={permissions}
-              onClick={() => onLowImpact("Add Internal Note")}
-            />
-
-            <PermButton
-              label="Assign Investigator"
-              permission="REQUEST_INFO"
-              permissions={permissions}
-              onClick={() => onLowImpact("Assign Investigator")}
-            />
+            <PermButton label="Request Information" permission="REQUEST_INFO" onClick={() => onLowImpact("Request Information")} />
+            <PermButton label="Add Internal Note" permission="REQUEST_INFO" onClick={() => onLowImpact("Add Internal Note")} />
+            <PermButton label="Assign Investigator" permission="REQUEST_INFO" onClick={() => onLowImpact("Assign Investigator")} />
           </div>
         </div>
 
         <div>
           <p className="decision-group__label">Medium impact</p>
           <div className="decision-group__buttons">
-            <PermButton
-              label="Approve Verification"
-              permission="APPROVE_KYC"
-              variant="gradient"
-              permissions={permissions}
-              onClick={() => onMediumImpact("Approve Verification")}
-            />
-
-            <PermButton
-              label="Reject Verification"
-              permission="REJECT_KYC"
-              permissions={permissions}
-              onClick={() => onMediumImpact("Reject Verification")}
-            />
-
-            <PermButton
-              label="Apply Participation Limit"
-              permission="RESTRICT_ACCOUNT"
-              permissions={permissions}
-              onClick={() => onMediumImpact("Apply Participation Limit")}
-            />
+            <PermButton label="Approve Verification" permission="APPROVE_KYC" variant="gradient" onClick={() => onMediumImpact("Approve Verification")} />
+            <PermButton label="Reject Verification" permission="REJECT_KYC" onClick={() => onMediumImpact("Reject Verification")} />
+            <PermButton label="Apply Participation Limit" permission="RESTRICT_ACCOUNT" onClick={() => onMediumImpact("Apply Participation Limit")} />
           </div>
         </div>
 
         <div>
           <p className="decision-group__label">High impact — requires strong confirmation</p>
-
           <div className="decision-group__buttons">
             <PermButton
               label="Restrict Account"
               permission="RESTRICT_ACCOUNT"
               variant="danger"
-              permissions={permissions}
               onClick={() =>
                 onRequestHighImpact({
                   label: "Restrict Account",
                   confirmWord: "RESTRICT",
-                  impact:
-                    "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
-                  onConfirm: () => { },
+                  impact: "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
+                  onConfirm: () => {},
                 })
               }
             />
-
             <PermButton
               label="Suspend Account"
               permission="SUSPEND_ACCOUNT"
               variant="danger"
-              permissions={permissions}
               onClick={() =>
                 onRequestHighImpact({
                   label: "Suspend Account",
                   confirmWord: "SUSPEND",
-                  impact:
-                    "This will immediately suspend the user's access to all platform services pending investigation.",
-                  onConfirm: () => { },
+                  impact: "This will immediately suspend the user's access to all platform services pending investigation.",
+                  onConfirm: () => {},
                 })
               }
             />
-
             <PermButton
               label="Freeze Trading Activity"
               permission="RESTRICT_ACCOUNT"
               variant="danger"
-              permissions={permissions}
               onClick={() =>
                 onRequestHighImpact({
                   label: "Freeze Trading Activity",
                   confirmWord: "FREEZE",
-                  impact:
-                    "This will halt all trading activity on this account immediately, without affecting login access.",
-                  onConfirm: () => { },
+                  impact: "This will halt all trading activity on this account immediately, without affecting login access.",
+                  onConfirm: () => {},
                 })
               }
             />
-
             <PermButton
               label="Escalate to Senior Compliance"
               permission="ESCALATE_CASE"
               variant="danger"
-              permissions={permissions}
               onClick={() =>
                 onRequestHighImpact({
                   label: "Escalate to Senior Compliance",
                   confirmWord: "ESCALATE",
-                  impact:
-                    "This will route the case to senior compliance for final review and pause any pending automated actions.",
-                  onConfirm: () => { },
+                  impact: "This will route the case to senior compliance for final review and pause any pending automated actions.",
+                  onConfirm: () => {},
                 })
               }
             />
@@ -803,8 +731,6 @@ const ComplianceDecisionPanel: React.FC<{
         </div>
       </div>
     </div>
-
-
   );
 };
 
@@ -1115,43 +1041,51 @@ const ComplianceAdmin: React.FC = () => {
 
   return (
     <div className="compliance-root">
-      <DashboardSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <div className="app-shell">
+        <aside className={`app-sidebar${sidebarOpen ? " is-open" : ""}`}>
+          <DashboardSidebar
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </aside>
 
-      <DashboardTopbar
-        onMenuClick={() => setSidebarOpen(true)}
-      />
+        {sidebarOpen && (
+          <div className="app-sidebar-scrim" onClick={() => setSidebarOpen(false)} />
+        )}
 
-      <div className="compliance-content">
-        <div className="compliance-header">
-          <div>
-            <p className="compliance-header__eyebrow">Welcome back</p>
-            <h1>Compliance &amp; Trust Operations</h1>
-            <p>Central control for KYC reviews, fraud detection, restrictions, responsible participation, and platform safety.</p>
-          </div>
-          <div className="compliance-header__actions">
-            <span className="live-badge"><span className="live-badge__dot" />Live data</span>
-            <button className="btn btn-ghost">Export Dashboard</button>
-            <button className="btn btn-gradient">Compliance Settings</button>
-          </div>
+        <div className="app-main">
+          <header className="app-topbar">
+            <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
+          </header>
+
+          <main className="compliance-content">
+            <div className="compliance-header">
+              <div>
+                <p className="compliance-header__eyebrow">Welcome back</p>
+                <h1>Compliance &amp; Trust Operations</h1>
+                <p>Central control for KYC reviews, fraud detection, restrictions, responsible participation, and platform safety.</p>
+              </div>
+              <div className="compliance-header__actions">
+                <span className="live-badge"><span className="live-badge__dot" />Live data</span>
+                <button className="btn btn-ghost">Export Dashboard</button>
+                <button className="btn btn-gradient">Compliance Settings</button>
+              </div>
+            </div>
+
+            <div className="queue-grid">
+              {queueCardConfigs.map((item) => (
+                <ComplianceQueueCard
+                  key={item.config.title}
+                  config={item.config}
+                  onAction={() => handleQueueCardAction(item.targetQueue)}
+                />
+              ))}
+            </div>
+
+            <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
+          </main>
         </div>
-
-        <div className="queue-grid">
-          {queueCardConfigs.map((item) => (
-            <ComplianceQueueCard
-              key={item.config.title}
-              config={item.config}
-              onAction={() => handleQueueCardAction(item.targetQueue)}
-            />
-          ))}
-        </div>
-
-        <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
       </div>
-
-      <DashboardFooter />
 
       {selectedCase && (
         <ComplianceCaseDetail
