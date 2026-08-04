@@ -13,11 +13,23 @@
 }
 
 .super-admin-content {
+  position: relative;
   flex: 1;
   padding: clamp(16px, 3vw, 28px);
   display: flex;
   flex-direction: column;
   gap: 20px;
+  background-image: linear-gradient(var(--overlay-section), var(--overlay-section)), url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+@media (max-width: 767px) {
+  .super-admin-content {
+    background-attachment: scroll;
+  }
 }
 
 /* Shared panel chrome, reused by every section component */

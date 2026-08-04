@@ -23,7 +23,6 @@ function Topbar({ onMenuClick }: TopbarProps) {
       <label className="admin-topbar-search">
         <FiSearch className="admin-topbar-search-icon" />
         <input type="text" placeholder="Search anything..." className="admin-topbar-search-input" />
-        <kbd className="admin-topbar-search-kbd">&#8984;K</kbd>
       </label>
 
       <div className="admin-topbar-actions">
@@ -39,6 +38,7 @@ function Topbar({ onMenuClick }: TopbarProps) {
         </button>
 
         <button type="button" className="admin-topbar-user">
+          <FiChevronDown className="admin-topbar-user-chevron" />
           <span className="admin-topbar-user-avatar" aria-hidden="true">
             SA
           </span>
@@ -46,7 +46,6 @@ function Topbar({ onMenuClick }: TopbarProps) {
             <span className="admin-topbar-user-name">Super Admin</span>
             <span className="admin-topbar-user-role">Platform Owner</span>
           </span>
-          <FiChevronDown className="admin-topbar-user-chevron" />
         </button>
       </div>
     </header>
