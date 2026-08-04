@@ -6,13 +6,9 @@ import { getToken } from '../utils/tokenManager.ts';
 const rawApiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
-  'http://localhost:8000/api';
+  'http://localhost:8000/api/v1';
 
-const normalizedApiBaseUrl = String(rawApiBaseUrl).replace(/\/+$/, '');
-
-export const apiBaseUrl = normalizedApiBaseUrl.endsWith('/api')
-  ? normalizedApiBaseUrl
-  : `${normalizedApiBaseUrl}/api`;
+export const apiBaseUrl = String(rawApiBaseUrl).replace(/\/+$/, '');
 
 const axiosInstance = axios.create({
   baseURL: apiBaseUrl,
