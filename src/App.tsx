@@ -24,10 +24,15 @@ import Store from "./pages/landing/store/Store";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
+import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
+import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
+import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
+
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
 import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketOperationsAdmin';
 import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
+
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
@@ -45,10 +50,13 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
+         <Route path="/tickets" element={<Tickets />} />
+         <Route path="/privacy-policy" element={<LegalPolicy />} />
+         <Route path="/terms-and-conditions" element={<TermsConditions />} />
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/store" element={<Store />} />
 
-         {/* Fan Section*/ }
+          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
         <Route path="/fandashboard" element={<FanDashboard />} />
 
@@ -68,6 +76,7 @@ function App() {
         {/* General Admin dashboard */}
         <Route path="/dashboard/general-admin" element={<GeneralAdminDashboard />} />
         <Route path="/dashboard/general-admin/compliance" element={<ComplianceAdmin />}/>
+        <Route path="/dashboard/general-admin/finance" element={<FinanceAdmin />} />
         <Route path="/dashboard/general-admin/sports-data" element={<SportsDataAdmin />}/>
         <Route path="/dashboard/general-admin/markets" element={<MarketOperationsAdmin />}/>
         <Route path="/dashboard/general-admin/market-proposals" element={<MarketApprovalAdmin />}/>

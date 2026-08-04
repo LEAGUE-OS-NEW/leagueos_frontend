@@ -314,6 +314,18 @@ function hasPermission(perms: CompliancePermission[], required: CompliancePermis
   return perms.includes(required);
 }
 
+let auditIdCounter = 0;
+function nextAuditId(): string {
+  auditIdCounter += 1;
+  return `A-${Date.now()}-${auditIdCounter}`;
+}
+
+let restrictionIdCounter = 0;
+function nextRestrictionId(): string {
+  restrictionIdCounter += 1;
+  return `R-${Date.now()}-${restrictionIdCounter}`;
+}
+
 
 const PermButton: React.FC<{
   label: string;
@@ -333,16 +345,17 @@ const PermButton: React.FC<{
 
   return (
     <div className="perm-btn-wrap">
-      <button 
+      <button
         className={cls}
         disabled={!allowed}
+        aria-describedby={!allowed ? `${permission}-tooltip` : undefined}
         onClick={onClick}
       >
         {label}
       </button>
 
       {!allowed && (
-        <span className="perm-tooltip">
+        <span className="perm-tooltip" id={`${permission}-tooltip`} role="tooltip">
           Insufficient permission
         </span>
       )}
@@ -365,7 +378,7 @@ interface QueueCardConfig {
   actionLabel: string;
 }
 
-const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => void }> = ({ config, onAction }) => (
+const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => void; disabled?: boolean }> = ({ config, onAction, disabled }) => (
   <div className="queue-card">
     <div className="queue-card__top">
       <div className="queue-card__icon" style={{ background: `${config.color}22`, color: config.color }}>
@@ -383,7 +396,7 @@ const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => v
         <span className="queue-card__metric-label">{config.secondaryLabel}</span>
       </div>
     </div>
-    <button className="btn btn-gradient queue-card__action" onClick={onAction}>
+    <button className="btn btn-gradient queue-card__action" onClick={onAction} disabled={disabled}>
       {config.actionLabel}
     </button>
   </div>
@@ -423,7 +436,26 @@ const ComplianceRiskQueue: React.FC<{
   }, [cases, search, queueFilter, riskFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Keep the current page in range whenever the filtered set shrinks
+  // (e.g. after a case is resolved or a filter narrows the results).
+  const safePage = Math.min(page, totalPages);
+
+const pageItems = filtered.slice(
+  (safePage - 1) * PAGE_SIZE,
+  safePage * PAGE_SIZE
+);
+
+  const hasActiveFilters =
+    search.trim().length > 0 || queueFilter !== "All" || riskFilter !== "All" || statusFilter !== "All";
+
+  const resetFilters = () => {
+    setSearch("");
+    setQueueFilter("All");
+    setRiskFilter("All");
+    setStatusFilter("All");
+    setPage(1);
+  };
 
   return (
     <div className="panel">
@@ -484,6 +516,11 @@ const ComplianceRiskQueue: React.FC<{
           <option value="Escalated">Escalated</option>
           <option value="Resolved">Resolved</option>
         </select>
+        {hasActiveFilters && (
+          <button className="btn btn-outline" onClick={resetFilters}>
+            Reset filters
+          </button>
+        )}
       </div>
 
       <div className="table-scroll">
@@ -502,7 +539,19 @@ const ComplianceRiskQueue: React.FC<{
           </thead>
           <tbody>
             {pageItems.map((c) => (
-              <tr key={c.id} onClick={() => onSelect(c)}>
+              <tr
+                key={c.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open case ${c.id} for ${c.user.fullName}`}
+                onClick={() => onSelect(c)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(c);
+                  }
+                }}
+              >
                 <td>{c.id}</td>
                 <td>{c.queueType}</td>
                 <td>
@@ -539,14 +588,14 @@ const ComplianceRiskQueue: React.FC<{
 
       <div className="pagination">
         <span>
-          Showing {pageItems.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+        Showing {pageItems.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
           {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} cases
         </span>
         <div className="pagination__controls">
-          <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button className="btn btn-outline btn-sm" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)}>
             Prev
           </button>
-          <button className="btn btn-outline btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+          <button className="btn btn-outline btn-sm" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)}>
             Next
           </button>
         </div>
@@ -577,6 +626,14 @@ const ComplianceConfirmationModal: React.FC<{
 
   const canConfirm =
     reason.trim().length > 0 && checked && confirmText.trim().toUpperCase() === action.confirmWord;
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
@@ -655,13 +712,14 @@ const ComplianceConfirmationModal: React.FC<{
    ============================================================ */
 
 const ComplianceDecisionPanel: React.FC<{
-  caseData: ComplianceCase;
   permissions: CompliancePermission[];
-  onLowImpact: (action: string) => void;
+  onLowImpact: (action: string, detail: string) => void;
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
-}> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact }) => {
-  
+  onAssignInvestigator: () => void;
+}> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
+  const [infoRequest, setInfoRequest] = useState("");
+  const [internalNote, setInternalNote] = useState("");
 
   return (
     <div className="panel">
@@ -675,128 +733,152 @@ const ComplianceDecisionPanel: React.FC<{
       <div className="decision-groups">
         <div>
           <p className="decision-group__label">Low impact</p>
+
+          <div className="low-impact-field">
+            <input
+              type="text"
+              placeholder="What information do you need from the user?"
+              value={infoRequest}
+              onChange={(e) => setInfoRequest(e.target.value)}
+            />
+            <PermButton
+              label="Request Information"
+              permission="REQUEST_INFO"
+              permissions={permissions}
+              onClick={() => {
+                if (!infoRequest.trim()) return;
+                onLowImpact("Information requested", infoRequest.trim());
+                setInfoRequest("");
+              }}
+            />
+          </div>
+
+          <div className="low-impact-field">
+            <input
+              type="text"
+              placeholder="Add an internal note…"
+              value={internalNote}
+              onChange={(e) => setInternalNote(e.target.value)}
+            />
+            <PermButton
+              label="Add Internal Note"
+              permission="REQUEST_INFO"
+              permissions={permissions}
+              onClick={() => {
+                if (!internalNote.trim()) return;
+                onLowImpact("Internal note added", internalNote.trim());
+                setInternalNote("");
+              }}
+            />
+          </div>
+
           <div className="decision-group__buttons">
-  <PermButton
-    label="Request Information"
-    permission="REQUEST_INFO"
-    permissions={permissions}
-    onClick={() => onLowImpact("Request Information")}
-  />
+            <PermButton
+              label="Assign Investigator"
+              permission="REQUEST_INFO"
+              permissions={permissions}
+              onClick={onAssignInvestigator}
+            />
+          </div>
+        </div>
 
-  <PermButton
-    label="Add Internal Note"
-    permission="REQUEST_INFO"
-    permissions={permissions}
-    onClick={() => onLowImpact("Add Internal Note")}
-  />
+        <div>
+          <p className="decision-group__label">Medium impact</p>
+          <div className="decision-group__buttons">
+            <PermButton
+              label="Approve Verification"
+              permission="APPROVE_KYC"
+              permissions={permissions}
+              variant="gradient"
+              onClick={() => onMediumImpact("Approve Verification")}
+            />
 
-  <PermButton
-    label="Assign Investigator"
-    permission="REQUEST_INFO"
-    permissions={permissions}
-    onClick={() => onLowImpact("Assign Investigator")}
-  />
-</div>
-</div>
+            <PermButton
+              label="Reject Verification"
+              permission="REJECT_KYC"
+              permissions={permissions}
+              onClick={() => onMediumImpact("Reject Verification")}
+            />
 
-<div>
-  <p className="decision-group__label">Medium impact</p>
-  <div className="decision-group__buttons">
-    <PermButton
-      label="Approve Verification"
-      permission="APPROVE_KYC"
-      permissions={permissions}
-      variant="gradient"
-      onClick={() => onMediumImpact("Approve Verification")}
-    />
+            <PermButton
+              label="Apply Participation Limit"
+              permission="RESTRICT_ACCOUNT"
+              permissions={permissions}
+              onClick={() => onMediumImpact("Apply Participation Limit")}
+            />
+          </div>
+        </div>
 
-    <PermButton
-      label="Reject Verification"
-      permission="REJECT_KYC"
-      permissions={permissions}
-      onClick={() => onMediumImpact("Reject Verification")}
-    />
+        <div>
+          <p className="decision-group__label">
+            High impact — requires strong confirmation
+          </p>
 
-    <PermButton
-      label="Apply Participation Limit"
-      permission="RESTRICT_ACCOUNT"
-      permissions={permissions}
-      onClick={() => onMediumImpact("Apply Participation Limit")}
-    />
-  </div>
-</div>
+          <div className="decision-group__buttons">
+            <PermButton
+              label="Restrict Account"
+              permission="RESTRICT_ACCOUNT"
+              permissions={permissions}
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Restrict Account",
+                  confirmWord: "RESTRICT",
+                  impact:
+                    "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
+                  onConfirm: () => {},
+                })
+              }
+            />
 
-<div>
-  <p className="decision-group__label">
-    High impact — requires strong confirmation
-  </p>
+            <PermButton
+              label="Suspend Account"
+              permission="SUSPEND_ACCOUNT"
+              permissions={permissions}
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Suspend Account",
+                  confirmWord: "SUSPEND",
+                  impact:
+                    "This will immediately suspend the user's access to all platform services pending investigation.",
+                  onConfirm: () => {},
+                })
+              }
+            />
 
-  <div className="decision-group__buttons">
-    <PermButton
-      label="Restrict Account"
-      permission="RESTRICT_ACCOUNT"
-      permissions={permissions}
-      variant="danger"
-      onClick={() =>
-        onRequestHighImpact({
-          label: "Restrict Account",
-          confirmWord: "RESTRICT",
-          impact:
-            "This will limit the user's ability to deposit, withdraw, or trade until the restriction is manually lifted.",
-          onConfirm: () => {},
-        })
-      }
-    />
+            <PermButton
+              label="Freeze Trading Activity"
+              permission="RESTRICT_ACCOUNT"
+              permissions={permissions}
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Freeze Trading Activity",
+                  confirmWord: "FREEZE",
+                  impact:
+                    "This will halt all trading activity on this account immediately, without affecting login access.",
+                  onConfirm: () => {},
+                })
+              }
+            />
 
-    <PermButton
-      label="Suspend Account"
-      permission="SUSPEND_ACCOUNT"
-      permissions={permissions}
-      variant="danger"
-      onClick={() =>
-        onRequestHighImpact({
-          label: "Suspend Account",
-          confirmWord: "SUSPEND",
-          impact:
-            "This will immediately suspend the user's access to all platform services pending investigation.",
-          onConfirm: () => {},
-        })
-      }
-    />
-
-    <PermButton
-      label="Freeze Trading Activity"
-      permission="RESTRICT_ACCOUNT"
-      permissions={permissions}
-      variant="danger"
-      onClick={() =>
-        onRequestHighImpact({
-          label: "Freeze Trading Activity",
-          confirmWord: "FREEZE",
-          impact:
-            "This will halt all trading activity on this account immediately, without affecting login access.",
-          onConfirm: () => {},
-        })
-      }
-    />
-
-    <PermButton
-      label="Escalate to Senior Compliance"
-      permission="ESCALATE_CASE"
-      permissions={permissions}
-      variant="danger"
-      onClick={() =>
-        onRequestHighImpact({
-          label: "Escalate to Senior Compliance",
-          confirmWord: "ESCALATE",
-          impact:
-            "This will route the case to senior compliance for final review and pause any pending automated actions.",
-          onConfirm: () => {},
-        })
-      }
-    />
-  </div>
-
+            <PermButton
+              label="Escalate to Senior Compliance"
+              permission="ESCALATE_CASE"
+              permissions={permissions}
+              variant="danger"
+              onClick={() =>
+                onRequestHighImpact({
+                  label: "Escalate to Senior Compliance",
+                  confirmWord: "ESCALATE",
+                  impact:
+                    "This will route the case to senior compliance for final review and pause any pending automated actions.",
+                  onConfirm: () => {},
+                })
+              }
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -807,6 +889,13 @@ const ComplianceDecisionPanel: React.FC<{
    CASE DETAIL DRAWER
    ============================================================ */
 
+const RESTRICTION_TYPE_BY_LABEL: Record<string, Restriction["type"]> = {
+  "Restrict Account": "Account Restriction",
+  "Suspend Account": "Suspension",
+  "Freeze Trading Activity": "Trading Limit",
+  "Apply Participation Limit": "Spending Limit",
+};
+
 const ComplianceCaseDetail: React.FC<{
   caseData: ComplianceCase;
   permissions: CompliancePermission[];
@@ -814,10 +903,20 @@ const ComplianceCaseDetail: React.FC<{
   onMutate: (updated: ComplianceCase) => void;
 }> = ({ caseData, permissions, onClose, onMutate }) => {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [assigneeName, setAssigneeName] = useState("");
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !pendingAction) onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, pendingAction]);
 
   const appendAudit = (action: string, note?: string) => {
     const event: AuditEvent = {
-      id: `A-${Date.now()}`,
+      id: nextAuditId(),
       timestamp: new Date().toISOString(),
       adminUser: "You",
       action,
@@ -826,13 +925,91 @@ const ComplianceCaseDetail: React.FC<{
     onMutate({ ...caseData, auditHistory: [...caseData.auditHistory, event] });
   };
 
-  const handleHighImpactConfirm = (action: PendingAction, reason: string) => {
-    appendAudit(action.label, reason);
+  // Applies the restriction to case state (not just the audit log) and,
+  // for account-level actions, moves the case out of Pending so it's
+  // clear the case is no longer awaiting a first decision.
+  const applyRestriction = (action: PendingAction, reason: string) => {
+    const restrictionType = RESTRICTION_TYPE_BY_LABEL[action.label];
+    const event: AuditEvent = {
+      id: nextAuditId(),
+      timestamp: new Date().toISOString(),
+      adminUser: "You",
+      action: action.label,
+      note: reason,
+    };
+
+    let nextRestrictions = caseData.restrictions;
+    if (restrictionType) {
+      const restriction: Restriction = {
+        id: nextRestrictionId(),
+        type: restrictionType,
+        appliedBy: "You",
+        appliedAt: new Date().toISOString(),
+        active: true,
+      };
+      nextRestrictions = [...caseData.restrictions, restriction];
+    }
+
+    const nextStatus: CaseStatus =
+      action.label === "Escalate to Senior Compliance" ? "Escalated" : caseData.status;
+
+    onMutate({
+      ...caseData,
+      restrictions: nextRestrictions,
+      status: nextStatus,
+      auditHistory: [...caseData.auditHistory, event],
+    });
   };
+
+  const liftRestriction = (restrictionId: string) => {
+    const target = caseData.restrictions.find((r) => r.id === restrictionId);
+    const nextRestrictions = caseData.restrictions.map((r) =>
+      r.id === restrictionId ? { ...r, active: false } : r
+    );
+    const event: AuditEvent = {
+      id: nextAuditId(),
+      timestamp: new Date().toISOString(),
+      adminUser: "You",
+      action: "Restriction lifted",
+      note: target ? `${target.type} lifted` : undefined,
+    };
+    onMutate({
+      ...caseData,
+      restrictions: nextRestrictions,
+      auditHistory: [...caseData.auditHistory, event],
+    });
+  };
+
+  const resolveCase = () => {
+    const event: AuditEvent = {
+      id: nextAuditId(),
+      timestamp: new Date().toISOString(),
+      adminUser: "You",
+      action: "Case resolved",
+    };
+    onMutate({ ...caseData, status: "Resolved", auditHistory: [...caseData.auditHistory, event] });
+  };
+
+  const confirmAssignment = () => {
+    if (!assigneeName.trim()) return;
+    const event: AuditEvent = {
+      id: nextAuditId(),
+      timestamp: new Date().toISOString(),
+      adminUser: "You",
+      action: "Investigator assigned",
+      note: `Assigned to ${assigneeName.trim()}`,
+    };
+    onMutate({ ...caseData, assignedTo: assigneeName.trim(), auditHistory: [...caseData.auditHistory, event] });
+    setAssigning(false);
+    setAssigneeName("");
+  };
+
+  const activeRestrictions = caseData.restrictions.filter((r) => r.active);
+  const inactiveRestrictions = caseData.restrictions.filter((r) => !r.active);
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer" onClick={(e) => e.stopPropagation()}>
+      <div className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="drawer__header">
           <div>
             <h2>{caseData.id}</h2>
@@ -849,7 +1026,28 @@ const ComplianceCaseDetail: React.FC<{
             <div className="kv-grid">
               <div className="kv-item"><span className="k">Queue Type</span><span className="v">{caseData.queueType}</span></div>
               <div className="kv-item"><span className="k">Risk Score</span><span className="v">{caseData.riskScore}/100</span></div>
-              <div className="kv-item"><span className="k">Assigned Investigator</span><span className="v">{caseData.assignedTo}</span></div>
+              <div className="kv-item">
+                <span className="k">Assigned Investigator</span>
+                {assigning ? (
+                  <div className="assignee-edit">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Investigator name"
+                      value={assigneeName}
+                      onChange={(e) => setAssigneeName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") confirmAssignment();
+                        if (e.key === "Escape") setAssigning(false);
+                      }}
+                    />
+                    <button className="btn btn-gradient btn-sm" onClick={confirmAssignment}>Save</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(false)}>Cancel</button>
+                  </div>
+                ) : (
+                  <span className="v">{caseData.assignedTo}</span>
+                )}
+              </div>
               <div className="kv-item"><span className="k">Created</span><span className="v">{formatDateTime(caseData.createdAt)}</span></div>
             </div>
             <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.55, marginTop: 12 }}>
@@ -868,6 +1066,61 @@ const ComplianceCaseDetail: React.FC<{
               <div className="kv-item"><span className="k">Registered</span><span className="v">{caseData.user.registrationDate}</span></div>
               <div className="kv-item"><span className="k">Verification Tier</span><span className="v">{caseData.user.verificationTier}</span></div>
             </div>
+          </div>
+
+          {/* Self-Exclusion status */}
+          {caseData.selfExclusion && (
+            <div className="drawer-section">
+              <h3>Responsible Participation</h3>
+              <div className="kv-grid">
+                <div className="kv-item">
+                  <span className="k">Self-Exclusion Requested</span>
+                  <span className="v">{caseData.selfExclusion.requested ? "Yes" : "No"}</span>
+                </div>
+                <div className="kv-item">
+                  <span className="k">Cooling-Off Period</span>
+                  <span className="v">{caseData.selfExclusion.coolingOff ? "Active" : "Not active"}</span>
+                </div>
+                <div className="kv-item">
+                  <span className="k">Breach Attempts</span>
+                  <span className="v">{caseData.selfExclusion.breachAttempts}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Restrictions */}
+          <div className="drawer-section">
+            <h3>Restrictions</h3>
+            {activeRestrictions.length === 0 && inactiveRestrictions.length === 0 && (
+              <p className="empty-note">No restrictions have been applied to this case.</p>
+            )}
+            {activeRestrictions.map((r) => (
+              <div key={r.id} className="related-item">
+                <div>
+                  <div className="related-item__value">{r.type}</div>
+                  <div className="related-item__label">Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="badge badge-high">Active</span>
+                  <PermButton
+                    label="Lift"
+                    permission="RESTRICT_ACCOUNT"
+                    permissions={permissions}
+                    onClick={() => liftRestriction(r.id)}
+                  />
+                </div>
+              </div>
+            ))}
+            {inactiveRestrictions.map((r) => (
+              <div key={r.id} className="related-item" style={{ opacity: 0.6 }}>
+                <div>
+                  <div className="related-item__value">{r.type}</div>
+                  <div className="related-item__label">Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}</div>
+                </div>
+                <span className="badge badge-low">Lifted</span>
+              </div>
+            ))}
           </div>
 
           {/* Related Accounts */}
@@ -950,14 +1203,17 @@ const ComplianceCaseDetail: React.FC<{
 
           {/* Decision Panel */}
           <ComplianceDecisionPanel
-            caseData={caseData}
             permissions={permissions}
-            onLowImpact={(action) => appendAudit(action, "Logged via low-impact action")}
+            onLowImpact={(action, detail) => appendAudit(action, detail)}
             onMediumImpact={(action) => appendAudit(action, "Logged via medium-impact action")}
+            onAssignInvestigator={() => {
+              setAssigneeName(caseData.assignedTo === "Unassigned" ? "" : caseData.assignedTo);
+              setAssigning(true);
+            }}
             onRequestHighImpact={(action) =>
               setPendingAction({
                 ...action,
-                onConfirm: (reason) => handleHighImpactConfirm(action, reason),
+                onConfirm: (reason) => applyRestriction(action, reason),
               })
             }
           />
@@ -965,6 +1221,14 @@ const ComplianceCaseDetail: React.FC<{
 
         <div className="sticky-action-bar">
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Close</button>
+          <button
+            className="btn btn-outline"
+            style={{ flex: 1 }}
+            disabled={caseData.status === "Resolved"}
+            onClick={resolveCase}
+          >
+            Resolve
+          </button>
           <button
             className="btn btn-gradient"
             style={{ flex: 1 }}
@@ -974,11 +1238,31 @@ const ComplianceCaseDetail: React.FC<{
                 label: "Escalate to Senior Compliance",
                 confirmWord: "ESCALATE",
                 impact: "This will route the case to senior compliance for final review.",
-                onConfirm: (reason) => appendAudit("Escalate to Senior Compliance", reason),
+                onConfirm: (reason) =>
+                  applyRestriction(
+                    {
+                      label: "Escalate to Senior Compliance",
+                      confirmWord: "ESCALATE",
+                      impact: "",
+                      onConfirm: () => {},
+                    },
+                    reason
+                  ),
               })
             }
           >
             Escalate
+          </button>
+        </div>
+
+        {/* Non-sticky resolve/escalate controls for desktop, mirrored above for mobile */}
+        <div className="drawer-desktop-actions">
+          <button
+            className="btn btn-outline"
+            disabled={caseData.status === "Resolved"}
+            onClick={resolveCase}
+          >
+            Mark Case Resolved
           </button>
         </div>
       </div>
@@ -1103,6 +1387,12 @@ const ComplianceAdmin: React.FC = () => {
     if (next) setSelectedCase(next);
   };
 
+  const isQueueEmpty = (targetQueue: QueueType | "restriction" | "escalated"): boolean => {
+    if (targetQueue === "restriction") return restrictionCases.length === 0;
+    if (targetQueue === "escalated") return escalatedCases.length === 0;
+    return !cases.some((c) => c.queueType === targetQueue);
+  };
+
   const handleMutateCase = (updated: ComplianceCase) => {
     setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
     setSelectedCase(updated);
@@ -1136,8 +1426,23 @@ const ComplianceAdmin: React.FC = () => {
               </div>
               <div className="compliance-header__actions">
                 <span className="live-badge"><span className="live-badge__dot" />Live data</span>
-                <button className="btn btn-ghost">Export Dashboard</button>
-                <button className="btn btn-gradient">Compliance Settings</button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    const blob = new Blob([JSON.stringify(cases, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `compliance-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Export Dashboard
+                </button>
+                <button className="btn btn-gradient" disabled title="Compliance Settings coming soon">
+                  Compliance Settings
+                </button>
               </div>
             </div>
 
@@ -1146,6 +1451,7 @@ const ComplianceAdmin: React.FC = () => {
                 <ComplianceQueueCard
                   key={item.config.title}
                   config={item.config}
+                  disabled={isQueueEmpty(item.targetQueue)}
                   onAction={() => handleQueueCardAction(item.targetQueue)}
                 />
               ))}

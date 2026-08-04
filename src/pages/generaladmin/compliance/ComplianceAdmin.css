@@ -34,12 +34,10 @@
   --sidebar-width-collapsed: 0px;
   --topbar-height: 72px;
 
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(124, 58, 237, 0.08), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
-    var(--bg-primary);
+  background-color: var(--color-bg);
   color: var(--text-primary);
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  
 
  background-image:
     linear-gradient(
@@ -61,12 +59,7 @@
   
 }
 
-/* ---------- App shell: sidebar + topbar + content ----------
-   .app-shell    wraps everything below the root
-   .app-sidebar  fixed left column, full viewport height
-   .app-main     everything to the right of the sidebar (topbar + content)
-   .app-topbar   sticky header inside app-main
------------------------------------------------------------------------- */
+/* ---------- App shell: sidebar + topbar + content ---------- */
 
 .app-shell {
   position: relative;
@@ -184,7 +177,7 @@
 }
 
 .btn {
-  font-family: inherit;
+ 
   font-size: 13px;
   font-weight: 600;
   padding: 10px 16px;
@@ -261,7 +254,7 @@
 }
 
 .queue-card {
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -335,7 +328,7 @@
 /* ---------- Panel / Table shell ---------- */
 
 .panel {
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -371,6 +364,7 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 16px;
+  align-items: center;
 }
 
 .filters-row input[type="text"],
@@ -381,7 +375,7 @@
   border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 13px;
-  font-family: inherit;
+  
   outline: none;
   transition: border-color 0.12s ease;
 }
@@ -433,6 +427,12 @@
 }
 
 .risk-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+.risk-table tbody tr:focus-visible {
+  outline: 2px solid var(--purple-secondary);
+  outline-offset: -2px;
   background: var(--bg-card-hover);
 }
 
@@ -577,6 +577,12 @@
   font-weight: 700;
 }
 
+.empty-note {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
 .kv-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -600,12 +606,36 @@
   color: var(--text-primary);
 }
 
+.assignee-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.assignee-edit input[type="text"] {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+}
+
+.assignee-edit input[type="text"]:focus {
+  border-color: var(--purple-secondary);
+}
+
 .related-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
@@ -626,7 +656,7 @@
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
@@ -742,6 +772,32 @@
   gap: 8px;
 }
 
+.low-impact-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.low-impact-field input[type="text"] {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+.low-impact-field input[type="text"]:focus {
+  border-color: var(--purple-secondary);
+}
+
 .perm-btn-wrap {
   position: relative;
 }
@@ -763,7 +819,8 @@
   z-index: 5;
 }
 
-.perm-btn-wrap:hover .perm-tooltip {
+.perm-btn-wrap:hover .perm-tooltip,
+.perm-btn-wrap:focus-within .perm-tooltip {
   opacity: 1;
 }
 
@@ -884,6 +941,15 @@
   margin-top: 4px;
 }
 
+/* ---------- Drawer desktop action row (Resolve) ---------- */
+
+.drawer-desktop-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 22px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
 /* ---------- Sticky mobile action bar ---------- */
 
 .sticky-action-bar {
@@ -940,6 +1006,7 @@
   }
   .filters-row {
     flex-direction: column;
+    align-items: stretch;
   }
   .filters-row select,
   .filters-row input[type="text"] {
@@ -964,5 +1031,8 @@
     padding: 12px 16px;
     gap: 10px;
     z-index: 3;
+  }
+  .drawer-desktop-actions {
+    display: none;
   }
 }

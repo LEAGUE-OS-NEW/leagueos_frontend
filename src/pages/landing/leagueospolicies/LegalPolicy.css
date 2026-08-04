@@ -1,0 +1,221 @@
+.legal-policy {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+
+  background-image:
+    linear-gradient(
+      rgba(6, 6, 12, 0.473),
+      rgba(6, 6, 12, 0.548)
+    ),
+    url("/images/stadium-bg.png");
+
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.legal-policy__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 32px);
+}
+
+/* Header */
+.legal-policy__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.legal-policy__title {
+  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.15;
+  margin: 0 0 12px;
+  background: var(--gradient-hero-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.legal-policy__subtitle {
+  font-size: clamp(0.95rem, 1.4vw, 1.1rem);
+  color: var(--color-text-secondary);
+  max-width: 820px;
+  margin: 0 auto 16px;
+  line-height: 1.55;
+}
+
+.legal-policy__meta {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.legal-policy__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* Layout */
+.legal-policy__layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+/* Table of Contents */
+.legal-policy__toc {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.legal-policy__toc-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  margin: 0 0 12px;
+  color: var(--color-text-primary);
+}
+
+.legal-policy__toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legal-policy__toc-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.legal-policy__toc-link:hover {
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+}
+
+.legal-policy__toc-link:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+/* Content */
+.legal-policy__content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.legal-section {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(16px, 3vw, 24px);
+  scroll-margin-top: 16px;
+}
+
+.legal-section h2 {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  font-weight: 700;
+  font-style: italic;
+  margin: 0 0 12px;
+  color: var(--color-primary-light);
+}
+
+.legal-section p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+
+.legal-section p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-section ul {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.legal-section li + li {
+  margin-top: 6px;
+}
+
+/* Back to top */
+.legal-policy__back-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-primary-light);
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.legal-policy__back-to-top:hover {
+  background-color: var(--color-primary);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.legal-policy__back-to-top:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 4px;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .legal-policy__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-policy__toc {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-policy__back-to-top,
+  .legal-policy__toc-link {
+    transition: none;
+  }
+}
