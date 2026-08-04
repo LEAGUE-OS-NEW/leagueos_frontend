@@ -1,5 +1,13 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Landing from './pages/landing/Landing';
+
+function NormalizeSlash() {
+  const { pathname, search, hash } = useLocation();
+  if (pathname !== '/' && pathname.startsWith('//')) {
+    return <Navigate to={pathname.replace(/^\/+/, '/') + search + hash} replace />;
+  }
+  return null;
+}
 import NewsPage from "./pages/landing/news-page/NewsPage";
 import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
@@ -19,11 +27,13 @@ import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
 import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketOperationsAdmin';
 import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
+import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
   return (
     <Router>
+      <NormalizeSlash />
       <Routes>
         {/* Landing section */ }
         <Route path="/" element={<Landing />} />
@@ -56,6 +66,12 @@ function App() {
         <Route path="/dashboard/general-admin/sports-data" element={<SportsDataAdmin />}/>
         <Route path="/dashboard/general-admin/markets" element={<MarketOperationsAdmin />}/>
         <Route path="/dashboard/general-admin/market-proposals" element={<MarketApprovalAdmin />}/>
+        <Route path="/dashboard/general-admin/support" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/general-admin/support/case-queues" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/general-admin/support/my-cases" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/general-admin/support/escalations" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/general-admin/support/sla" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/general-admin/support/resolved" element={<CustomerSupportAdmin />} />
 
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
