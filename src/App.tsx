@@ -12,9 +12,13 @@ import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
+import Store from "./pages/landing/store/Store";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
+import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
+import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketOperationsAdmin';
+import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -27,6 +31,7 @@ function App() {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/store" element={<Store />} />
 
          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
@@ -48,7 +53,9 @@ function App() {
         {/* General Admin dashboard */}
         <Route path="/dashboard/general-admin" element={<GeneralAdminDashboard />} />
         <Route path="/dashboard/general-admin/compliance" element={<ComplianceAdmin />}/>
-
+        <Route path="/dashboard/general-admin/sports-data" element={<SportsDataAdmin />}/>
+        <Route path="/dashboard/general-admin/markets" element={<MarketOperationsAdmin />}/>
+        <Route path="/dashboard/general-admin/market-proposals" element={<MarketApprovalAdmin />}/>
 
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
