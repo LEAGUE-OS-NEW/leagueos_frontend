@@ -15,7 +15,6 @@ import {
 import Sidebar from '../../../components/generaladmin/Sidebar';
 import Topbar from '../sections/Topbar';
 import {
-  CURRENT_REVIEWER,
   approveMarket,
   fetchMarketsForApproval,
   rejectMarket,
@@ -77,7 +76,7 @@ function severityBadgeClass(severity: RiskSeverity): string {
 }
 
 function isDecidable(status: ApprovalStatus): boolean {
-  return status === 'Awaiting Review' || status === 'High Risk' || status === 'Second Approval Required';
+  return status === 'Awaiting Review';
 }
 
 /* ============================================================
@@ -202,7 +201,8 @@ function ReviewDrawer({
   onReturn: (market: MarketForApproval) => void;
   onBlocked: (market: MarketForApproval) => void;
 }) {
-  const isCreatedByReviewer = market.createdBy === CURRENT_REVIEWER;
+  // Maker/checker enforcement is authoritative on the backend.
+  const isCreatedByReviewer = false;
   const decidable = isDecidable(market.status);
   const awaitingSecondApproval = market.status === 'Second Approval Required';
 
@@ -478,21 +478,23 @@ function MarketApprovalAdmin() {
   };
 
   const handleApprove = async (market: MarketForApproval) => {
-    const updated = await approveMarket(market.id, CURRENT_REVIEWER);
-    applyUpdate(updated);
+    const note = window.prompt('Approval note (required)');
+    if (!note?.trim()) return;
+    try { applyUpdate(await approveMarket(market.id, note)); }
+    catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not approve this market.'); }
   };
 
   const handleRejectConfirm = async (reason: string) => {
     if (!pendingDecision) return;
-    const updated = await rejectMarket(pendingDecision.market.id, CURRENT_REVIEWER, reason);
-    applyUpdate(updated);
-    setPendingDecision(null);
+    try { applyUpdate(await rejectMarket(pendingDecision.market.id, reason)); setPendingDecision(null); }
+    catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not reject this market.'); }
   };
 
-  const handleReturnConfirm = async (reason: string) => {
+  const handleReturnConfirm = async (_reason: string) => {
+    void _reason;
     if (!pendingDecision) return;
-    const updated = await returnMarket(pendingDecision.market.id, CURRENT_REVIEWER, reason);
-    applyUpdate(updated);
+    try { await returnMarket(); }
+    catch (error) { setLoadError(error instanceof Error ? error.message : 'Return for Changes is unavailable.'); }
     setPendingDecision(null);
   };
 

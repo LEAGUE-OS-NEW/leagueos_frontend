@@ -16,6 +16,7 @@ import 'flag-icons/css/flag-icons.min.css';
 import Navbar from '../../../components/landing/Navbar.tsx';
 import BackButton from '../../../components/auth/BackButton.tsx';
 import { register as registerAccount } from '../../../services/authServices.ts';
+import { unwrapApiData } from '../../../services/apiUtils.ts';
 import {
   buildPhoneNumber,
   firstNameLengthRange,
@@ -231,18 +232,21 @@ export default function Register() {
       const payload = {
         first_name: formValues.firstName.trim(),
         last_name: formValues.lastName.trim(),
-        username: formValues.username.trim(),
-        phone_number: buildPhoneNumber(formValues.countryCode, formValues.phoneNumber),
+        phone_number: formValues.phoneNumber.trim()
+          ? buildPhoneNumber(formValues.countryCode, formValues.phoneNumber)
+          : '',
         email: formValues.email.trim().toLowerCase(),
         password: formValues.password,
         confirm_password: formValues.confirmPassword,
       };
 
       const response = await registerAccount(payload);
-      const data = response.data as {
+      const data = unwrapApiData(response.data) as {
         requires_email_verification?: boolean;
         next_step?: string;
         message?: string;
+        verification_channel?: string;
+        destination?: string;
       };
 
       savePendingOnboardingSession({
@@ -255,7 +259,9 @@ export default function Register() {
         state: {
           email: payload.email,
           message:
-            data.message ??
+            (data.verification_channel && data.destination
+              ? `${data.message ?? 'Verification required.'} Channel: ${data.verification_channel}; destination: ${data.destination}.`
+              : data.message) ??
             'Please verify your email address before continuing.',
           postLoginRedirect: postLoginRedirect ?? PERSONALIZE_ROUTE,
         },
