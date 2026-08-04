@@ -97,18 +97,6 @@
   color: var(--color-text-muted);
 }
 
-.admin-topbar-search-kbd {
-  flex-shrink: 0;
-  padding: 3px 7px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-bg-elevated);
-  color: var(--color-text-muted);
-  font-family: inherit;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
 .admin-topbar-actions {
   display: flex;
   align-items: center;
@@ -220,6 +208,7 @@
   color: var(--color-text-muted);
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
 }
 
 @media (min-width: 960px) {
@@ -235,10 +224,6 @@
   }
 
   .admin-topbar-tagline {
-    display: none;
-  }
-
-  .admin-topbar-search-kbd {
     display: none;
   }
 

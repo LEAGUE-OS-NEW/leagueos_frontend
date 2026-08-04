@@ -22,7 +22,6 @@ function Topbar({ onMenuClick }: TopbarProps) {
       <label className="ga-topbar-search">
         <FiSearch className="ga-topbar-search-icon" />
         <input type="text" placeholder="Search users, teams, markets, tickets..." className="ga-topbar-search-input" />
-        <kbd className="ga-topbar-search-kbd">&#8984;K</kbd>
       </label>
 
       <div className="ga-topbar-actions">
@@ -31,8 +30,8 @@ function Topbar({ onMenuClick }: TopbarProps) {
           <span className="ga-topbar-badge">8</span>
         </button>
 
-        <button type="button" className="ga-topbar-scope-pill" aria-label="Admin scope: Super Admin">
-          <FiShield /> Super Admin <FiChevronDown />
+        <button type="button" className="ga-topbar-scope-pill" aria-label="Admin scope: General Admin">
+          <FiShield /> General Admin
         </button>
 
         <button type="button" className="ga-topbar-user">

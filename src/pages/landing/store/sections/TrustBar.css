@@ -1,0 +1,55 @@
+.trust-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.trust-bar-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.trust-bar-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.16);
+  color: var(--color-primary-light);
+  font-size: 1.1rem;
+}
+
+.trust-bar-label {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+}
+
+.trust-bar-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.trust-bar-payment-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trust-bar-payment-chip {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
