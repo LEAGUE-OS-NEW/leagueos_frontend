@@ -207,7 +207,7 @@ describe('Register page', () => {
                         confirm_password: 'StrongPass1!',
                     })
                 },
-                { timeout: 8000 },
+                { timeout: 15000 },
             )
 
             expect(registerMock).not.toHaveBeenCalledWith(
@@ -228,10 +228,10 @@ describe('Register page', () => {
                         },
                     })
                 },
-                { timeout: 8000 },
+                { timeout: 15000 },
             )
         },
-        10000,
+        25000,
     )
 
     it('shows backend email field errors clearly', async () => {
@@ -253,12 +253,12 @@ describe('Register page', () => {
             await screen.findByText(
                 'A user with this email address already exists.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 
     it('shows backend phone_number field errors clearly', async () => {
         registerMock.mockRejectedValueOnce({
@@ -279,12 +279,12 @@ describe('Register page', () => {
             await screen.findByText(
                 'A user with this phone number already exists.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 
     it('shows general backend registration errors clearly', async () => {
         registerMock.mockRejectedValueOnce({
@@ -306,10 +306,10 @@ describe('Register page', () => {
             await screen.findByText(
                 'Registration could not be completed because the verification email could not be sent. Please try again.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 })

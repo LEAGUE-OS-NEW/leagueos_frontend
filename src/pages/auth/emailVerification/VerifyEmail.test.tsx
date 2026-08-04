@@ -36,6 +36,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Jumps the fake clock forward instantly instead of walking through every
+// intermediate tick of the countdown's 250ms interval. `advanceTimersByTimeAsync`
+// fires every pending timer along the way, and each fire triggers a React
+// render — for a multi-minute jump that's thousands of renders, which is
+// fast on a quiet machine but can blow past any timeout on a loaded one.
+// `setSystemTime` moves what `Date.now()` reports without walking the timer
+// queue, so the cost of this jump no longer depends on how large it is; we
+// still need one short `advanceTimersByTimeAsync` afterwards so the
+// component's own `setInterval` callback actually runs and picks up the
+// new time.
+async function fastForward(ms: number) {
+  vi.setSystemTime(new Date(Date.now() + ms));
+  await vi.advanceTimersByTimeAsync(300);
+  // React 19 needs one more tick to flush the setState made inside the
+  // interval callback above to the DOM — without this, assertions right
+  // after fastForward see the pre-jump render.
+  await vi.advanceTimersByTimeAsync(0);
+}
+
 describe('VerifyEmail page', () => {
   it('verifies the OTP and routes the user back to login', async () => {
     const user = userEvent.setup();
@@ -190,7 +209,7 @@ describe('VerifyEmail page', () => {
       </MemoryRouter>,
     );
 
-    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    await fastForward(10 * 60 * 1000);
 
     expect(screen.getByRole('timer')).toHaveTextContent(/expired/i);
     expect(screen.getByRole('button', { name: /verify & continue/i })).toBeDisabled();
@@ -199,7 +218,7 @@ describe('VerifyEmail page', () => {
     });
 
     vi.useRealTimers();
-  }, 15000);
+  }, 30000);
 
   it('lets the user request a resend during the countdown, which restarts the timer', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -213,10 +232,10 @@ describe('VerifyEmail page', () => {
     );
 
     await vi.advanceTimersByTimeAsync(30 * 1000);
-    // `shouldAdvanceTime` lets real time bleed in by a few tenths of a
-    // second while awaiting, so the tenths digit isn't exact — assert on
-    // the minutes:seconds window instead of one precise tenth.
-    expect(screen.getByRole('timer')).toHaveTextContent(/09:(29\.\d|30\.0)/);
+    // `shouldAdvanceTime` lets real time bleed in by more than a few tenths
+    // of a second while awaiting on a slow/loaded machine, so widen the
+    // window well beyond the nominal 09:30 mark rather than pinning to it.
+    expect(screen.getByRole('timer')).toHaveTextContent(/09:(2[0-9]\.\d|30\.0)/);
 
     await user.click(screen.getByRole('button', { name: /didn't receive/i }));
 

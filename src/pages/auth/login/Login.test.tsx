@@ -122,6 +122,7 @@ describe('Login page', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
   })
 
   it('renders the sign-in form and toggles password visibility', async () => {
@@ -211,6 +212,87 @@ describe('Login page', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     expect(screen.getByText(/phone number, email, or username is required/i)).toBeInTheDocument()
     expect(screen.getByText(/password is required/i)).toBeInTheDocument()
+  })
+
+  it('shows a loading state and disables the form while a login request is in flight', async () => {
+    const user = userEvent.setup()
+
+    let resolveLogin!: (value: typeof verifiedLoginResponse) => void
+    authMocks.login.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLogin = resolve
+      }),
+    )
+
+    renderLogin()
+
+    const identifierInput = screen.getByPlaceholderText('Enter phone number, email, or username')
+    const passwordInput = screen.getByPlaceholderText('Enter your password')
+
+    await user.type(identifierInput, 'fan@example.com')
+    await user.type(passwordInput, 'StrongPassword123')
+    await user.click(screen.getByRole('button', { name: /^log in$/i }))
+
+    const submitButton = screen.getByRole('button', { name: /logging in/i })
+    expect(submitButton).toBeDisabled()
+    expect(submitButton).toHaveAttribute('aria-busy', 'true')
+    expect(identifierInput).toBeDisabled()
+    expect(passwordInput).toBeDisabled()
+
+    resolveLogin(verifiedLoginResponse)
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/dashboard/fan', { replace: true })
+    })
+  })
+
+  it('remembers the identifier after a successful login when Remember Me is checked', async () => {
+    const user = userEvent.setup()
+
+    authMocks.login.mockResolvedValueOnce(verifiedLoginResponse)
+
+    renderLogin()
+
+    await user.type(screen.getByPlaceholderText('Enter phone number, email, or username'), 'fan@example.com')
+    await user.type(screen.getByPlaceholderText('Enter your password'), 'StrongPassword123')
+    await user.click(screen.getByRole('checkbox', { name: /remember me/i }))
+    await user.click(screen.getByRole('button', { name: /^log in$/i }))
+
+    expect(authMocks.login).toHaveBeenCalledWith({
+      identifier: 'fan@example.com',
+      password: 'StrongPassword123',
+    })
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('leagueos:rememberedIdentifier')).toBe('fan@example.com')
+    })
+  })
+
+  it('pre-fills and checks the identifier field when one was previously remembered', () => {
+    window.localStorage.setItem('leagueos:rememberedIdentifier', 'fan@example.com')
+
+    renderLogin()
+
+    expect(screen.getByPlaceholderText('Enter phone number, email, or username')).toHaveValue('fan@example.com')
+    expect(screen.getByRole('checkbox', { name: /remember me/i })).toBeChecked()
+  })
+
+  it('clears any remembered identifier after a successful login when Remember Me is unchecked', async () => {
+    const user = userEvent.setup()
+
+    window.localStorage.setItem('leagueos:rememberedIdentifier', 'fan@example.com')
+    authMocks.login.mockResolvedValueOnce(verifiedLoginResponse)
+
+    renderLogin()
+
+    // Remember Me starts checked because an identifier was remembered; uncheck it.
+    await user.click(screen.getByRole('checkbox', { name: /remember me/i }))
+    await user.type(screen.getByPlaceholderText('Enter your password'), 'StrongPassword123')
+    await user.click(screen.getByRole('button', { name: /^log in$/i }))
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('leagueos:rememberedIdentifier')).toBeNull()
+    })
   })
 
   it('shows backend errors and does not redirect for invalid credentials', async () => {
