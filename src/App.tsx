@@ -28,6 +28,11 @@ import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
 import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketOperationsAdmin';
 import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
+import HelpCenter from './pages/support/HelpCenter';
+import HowItWorks from './pages/support/HowItWorks';
+import Safety from './pages/support/Safety';
+import ContactUs from './pages/support/ContactUs';
+import Community from './pages/support/Community';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -72,6 +77,13 @@ function App() {
         <Route path="/dashboard/general-admin/support/escalations" element={<CustomerSupportAdmin />} />
         <Route path="/dashboard/general-admin/support/sla" element={<CustomerSupportAdmin />} />
         <Route path="/dashboard/general-admin/support/resolved" element={<CustomerSupportAdmin />} />
+
+        {/* Support pages */}
+        <Route path="/help" element={<HelpCenter />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/safety" element={<Safety />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/community" element={<Community />} />
 
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
