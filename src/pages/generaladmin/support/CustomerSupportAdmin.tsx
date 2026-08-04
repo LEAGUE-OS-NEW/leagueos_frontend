@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardSidebar from '../../../components/generaladmin/Sidebar';
 import DashboardTopbar from '../sections/Topbar';
 import './CustomerSupportAdmin.css';
@@ -258,6 +258,15 @@ const PATH_TO_SECTION: Record<string, string> = {
   '/dashboard/general-admin/support/escalations': 'Escalations',
   '/dashboard/general-admin/support/sla': 'SLA Monitoring',
   '/dashboard/general-admin/support/resolved': 'Resolved Cases',
+};
+
+const SECTION_TO_PATH: Record<string, string> = {
+  'Overview': '/dashboard/general-admin/support',
+  'Case Queues': '/dashboard/general-admin/support/case-queues',
+  'My Cases': '/dashboard/general-admin/support/my-cases',
+  'Escalations': '/dashboard/general-admin/support/escalations',
+  'SLA Monitoring': '/dashboard/general-admin/support/sla',
+  'Resolved Cases': '/dashboard/general-admin/support/resolved',
 };
 
 /* ============================================================
@@ -808,6 +817,7 @@ function EscalationsView({ cases }: { cases: SupportCase[] }) {
 
 export default function CustomerSupportAdmin() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [cases, setCases] = useState<SupportCase[]>(MOCK_CASES);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quickViewCase, setQuickViewCase] = useState<SupportCase | null>(null);
@@ -938,7 +948,7 @@ export default function CustomerSupportAdmin() {
             {/* Section tabs */}
             <div className="cs-section-tabs">
               {SECTION_TABS.map(s => (
-                <button key={s} className={`cs-section-tab${activeSection === s ? ' active' : ''}`} onClick={() => { setActiveSection(s); setPage(1); }}>{s}</button>
+                <button key={s} className={`cs-section-tab${activeSection === s ? ' active' : ''}`} onClick={() => navigate(SECTION_TO_PATH[s] ?? '/dashboard/general-admin/support')}>{s}</button>
               ))}
             </div>
 
