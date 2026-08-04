@@ -1,0 +1,90 @@
+.community-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-bg-elevated) 70%);
+}
+
+.community-banner-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.community-banner-subtext {
+  margin: 0 0 14px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.community-banner-social {
+  display: flex;
+  gap: 10px;
+}
+
+.community-banner-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.community-banner-social-link:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  transform: scale(1.08);
+}
+
+.community-banner-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.community-banner-perk {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 200px;
+}
+
+.community-banner-perk-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.18);
+  color: var(--color-primary-light);
+  font-size: 1rem;
+}
+
+.community-banner-perk-label {
+  margin: 0 0 3px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.community-banner-perk-desc {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-banner-social-link {
+    transition: none;
+  }
+}

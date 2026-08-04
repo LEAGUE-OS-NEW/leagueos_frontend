@@ -130,6 +130,32 @@
   outline-offset: 2px;
 }
 
+.admin-sidebar-link--toggle {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+}
+
+.admin-sidebar-link--toggle.active {
+  background: none;
+  color: var(--color-primary-light, #a78bfa);
+}
+
+.admin-sidebar-link-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.admin-sidebar-link-chevron.open {
+  transform: rotate(180deg);
+}
+
 .admin-sidebar-promo {
   margin-top: auto;
   padding: 18px 16px;

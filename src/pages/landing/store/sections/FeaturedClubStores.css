@@ -1,0 +1,94 @@
+.club-store-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.club-store-scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.club-store-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.club-store-card {
+  flex: 0 0 auto;
+  width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.club-store-card:hover {
+  transform: scale(1.03);
+  filter: brightness(1.1);
+}
+
+.club-store-crest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.92);
+  padding: 6px;
+  color: var(--color-text-muted);
+}
+
+.club-store-crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.club-store-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.club-store-sport {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.club-store-scroll-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.club-store-scroll-btn:hover {
+  background-color: var(--color-card-hover);
+  border-color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-store-card,
+  .club-store-scroll-btn {
+    transition: none;
+  }
+}

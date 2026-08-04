@@ -415,11 +415,46 @@
   margin-top: -2px;
 }
 
+.login-form label.login-remember-me {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(232, 239, 255, 0.78);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+
+.login-remember-me input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #7c3aed;
+  cursor: pointer;
+}
+
+.login-remember-me input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}
+
 .login-forgot {
   color: #7c3aed;
   text-decoration: none;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.login-field-shell input:disabled,
+.login-password-shell input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.login-password-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .login-submit {
@@ -443,6 +478,40 @@
   transform: translateY(-1px);
   background: linear-gradient(135deg, #6d28d9, #7c3aed);
   box-shadow: 0 22px 42px rgba(124, 58, 237, 0.48);
+}
+
+.login-submit:disabled {
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.85;
+}
+
+.login-submit-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.login-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: login-spinner-spin 0.7s linear infinite;
+}
+
+@keyframes login-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-spinner {
+    animation-duration: 1.4s;
+  }
 }
 
 .text-button {

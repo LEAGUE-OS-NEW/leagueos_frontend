@@ -1,0 +1,153 @@
+/* How It Works specific styles */
+
+.hiw-steps-section {
+  padding-bottom: 0;
+}
+
+.hiw-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hiw-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px 56px 1fr;
+  gap: 0 20px;
+  align-items: start;
+  padding: 0 0 48px;
+}
+
+.hiw-step__num {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--color-border);
+  line-height: 56px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hiw-step__icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light);
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.hiw-step__connector {
+  position: absolute;
+  left: 83px;
+  top: 62px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--color-border), transparent);
+}
+
+.hiw-step__body {
+  padding-top: 8px;
+}
+
+.hiw-step__title {
+  font-family: var(--font-family-heading);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+}
+
+.hiw-step__desc {
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+
+.hiw-step__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hiw-step__list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.hiw-check {
+  color: var(--color-open);
+  flex-shrink: 0;
+}
+
+/* Feature cards */
+.hiw-feature-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary-light);
+  background: rgba(124, 58, 237, 0.15);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+/* CTA */
+.hiw-cta {
+  background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(124, 58, 237, 0.18) 0%, transparent 70%),
+              var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border);
+  padding: 72px 24px;
+  text-align: center;
+}
+
+.hiw-cta h2 {
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+.hiw-cta p {
+  color: var(--color-text-secondary);
+  margin: 0 0 28px;
+  font-size: 0.95rem;
+}
+
+.hiw-cta-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .hiw-step {
+    grid-template-columns: 36px 44px 1fr;
+    gap: 0 12px;
+  }
+
+  .hiw-step__num {
+    font-size: 1.4rem;
+    line-height: 44px;
+  }
+
+  .hiw-step__connector {
+    left: 65px;
+  }
+}

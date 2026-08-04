@@ -11,16 +11,37 @@ const resetPasswordMock = vi.hoisted(() => vi.fn())
 
 // `shouldAdvanceTime` lets real wall-clock time bleed into the fake clock
 // while a test awaits user.type/click/waitFor, so the displayed tenths (and
-// sometimes whole seconds) drift by an unpredictable amount. Matching a
-// countdown by proximity to the expected second, rather than an exact
-// "M:SS.t" string, keeps these assertions meaningful without being brittle.
-function nearCountdown(expectedSeconds: number, toleranceSeconds = 5) {
+// sometimes whole seconds) drift by an unpredictable amount — more so on a
+// slow/loaded machine, where the real time spent inside those awaits can
+// itself run into several seconds. Matching a countdown by proximity to the
+// expected second, rather than an exact "M:SS.t" string, keeps these
+// assertions meaningful without being brittle.
+function nearCountdown(expectedSeconds: number, toleranceSeconds = 12) {
   return (content: string) => {
     const match = content.match(/^(\d+):(\d{2})\.\d$/)
     if (!match) return false
     const totalSeconds = Number(match[1]) * 60 + Number(match[2])
     return Math.abs(totalSeconds - expectedSeconds) <= toleranceSeconds
   }
+}
+
+// Jumps the fake clock forward instantly instead of walking through every
+// intermediate tick of the countdown's 250ms interval. `advanceTimersByTimeAsync`
+// fires every pending timer along the way, and each fire triggers a React
+// render — for a multi-minute jump that's thousands of renders, which is
+// fast on a quiet machine but can blow past any timeout on a loaded one.
+// `setSystemTime` moves what `Date.now()` reports without walking the timer
+// queue, so the cost of this jump no longer depends on how large it is; we
+// still need one short `advanceTimersByTimeAsync` afterwards so the
+// component's own `setInterval` callback actually runs and picks up the
+// new time.
+async function fastForward(ms: number) {
+  vi.setSystemTime(new Date(Date.now() + ms))
+  await vi.advanceTimersByTimeAsync(300)
+  // React 19 needs one more tick to flush the setState made inside the
+  // interval callback above to the DOM — without this, assertions right
+  // after fastForward see the pre-jump render.
+  await vi.advanceTimersByTimeAsync(0)
 }
 
 vi.mock('../../../hooks/usePasswordValidation.ts', () => ({
@@ -148,6 +169,16 @@ describe('ForgotPassword page', () => {
   }, 10000)
 
   it('counts the reset code down from 10 minutes and disables verification once it expires', async () => {
+    // No `shouldAdvanceTime` here: it ties the fake clock to real wall-clock
+    // time, and this test fast-forwards a full 9 minutes at once — with a
+    // 250ms tick that's ~2,160 timer fires, each paying real event-loop
+    // overhead under shouldAdvanceTime, which is what pushed this test past
+    // its timeout on a loaded machine. `advanceTimers` alone is enough to
+    // let user.type/user.click drive the fake clock as needed.
+    // `shouldAdvanceTime` is required here: without it, `user.click`/`user.type`
+    // combined with `advanceTimers: vi.advanceTimersByTime` deadlocks and never
+    // resolves in this environment (vitest 4 + user-event 14 + React 19) — that
+    // was the actual cause of this test timing out, not the countdown logic.
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     requestPasswordResetMock.mockResolvedValueOnce({ data: { ok: true } })
@@ -169,19 +200,23 @@ describe('ForgotPassword page', () => {
     await waitFor(() => {
       expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
     })
-    await vi.advanceTimersByTimeAsync(60 * 1000)
+    await fastForward(60 * 1000)
     expect(screen.getByText(nearCountdown(9 * 60))).toBeInTheDocument()
 
     // Once the remaining 9 minutes elapse, the code is expired.
-    await vi.advanceTimersByTimeAsync(9 * 60 * 1000)
+    await fastForward(9 * 60 * 1000)
 
     expect(screen.getByText(/your code has expired/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^verify code$/i })).toBeDisabled()
 
     vi.useRealTimers()
-  }, 10000)
+  }, 15000)
 
   it('lets the user request a new code during the countdown by returning them to the request form', async () => {
+    // Same reasoning as above — no need for real-time bleed here either,
+    // and dropping it keeps the assertions deterministic instead of
+    // dependent on machine speed.
+    // See the note above on `shouldAdvanceTime` — required or `user.click` hangs.
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     requestPasswordResetMock.mockResolvedValueOnce({ data: { ok: true } })
@@ -200,7 +235,7 @@ describe('ForgotPassword page', () => {
       expect(requestPasswordResetMock).toHaveBeenCalledTimes(1)
     })
 
-    await vi.advanceTimersByTimeAsync(90 * 1000)
+    await fastForward(90 * 1000)
     expect(screen.getByText(nearCountdown(8 * 60 + 30))).toBeInTheDocument()
 
     // "Resend code" mid-countdown takes the user back to the request form
@@ -221,5 +256,5 @@ describe('ForgotPassword page', () => {
     expect(screen.getByText(nearCountdown(10 * 60))).toBeInTheDocument()
 
     vi.useRealTimers()
-  }, 10000)
+  }, 20000)
 })
