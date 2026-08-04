@@ -439,13 +439,12 @@ const ComplianceRiskQueue: React.FC<{
 
   // Keep the current page in range whenever the filtered set shrinks
   // (e.g. after a case is resolved or a filter narrows the results).
-  React.useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [totalPages, page]);
+  const safePage = Math.min(page, totalPages);
 
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+const pageItems = filtered.slice(
+  (safePage - 1) * PAGE_SIZE,
+  safePage * PAGE_SIZE
+);
 
   const hasActiveFilters =
     search.trim().length > 0 || queueFilter !== "All" || riskFilter !== "All" || statusFilter !== "All";
@@ -589,14 +588,14 @@ const ComplianceRiskQueue: React.FC<{
 
       <div className="pagination">
         <span>
-          Showing {pageItems.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+        Showing {pageItems.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
           {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} cases
         </span>
         <div className="pagination__controls">
-          <button className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button className="btn btn-outline btn-sm" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)}>
             Prev
           </button>
-          <button className="btn btn-outline btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+          <button className="btn btn-outline btn-sm" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)}>
             Next
           </button>
         </div>
@@ -713,13 +712,12 @@ const ComplianceConfirmationModal: React.FC<{
    ============================================================ */
 
 const ComplianceDecisionPanel: React.FC<{
-  caseData: ComplianceCase;
   permissions: CompliancePermission[];
   onLowImpact: (action: string, detail: string) => void;
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
   onAssignInvestigator: () => void;
-}> = ({ caseData: _caseData, permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
+}> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
   const [infoRequest, setInfoRequest] = useState("");
   const [internalNote, setInternalNote] = useState("");
 
@@ -1205,7 +1203,6 @@ const ComplianceCaseDetail: React.FC<{
 
           {/* Decision Panel */}
           <ComplianceDecisionPanel
-            caseData={caseData}
             permissions={permissions}
             onLowImpact={(action, detail) => appendAudit(action, detail)}
             onMediumImpact={(action) => appendAudit(action, "Logged via medium-impact action")}
