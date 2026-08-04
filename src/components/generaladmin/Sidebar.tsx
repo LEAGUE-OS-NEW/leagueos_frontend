@@ -1,18 +1,24 @@
-import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { type ReactNode, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   FiActivity,
+  FiAlertTriangle,
+  FiChevronDown,
   FiAward,
   FiBarChart2,
+  FiCheckCircle,
   FiClipboard,
+  FiClock,
   FiDollarSign,
   FiFileText,
   FiGrid,
   FiHeadphones,
+  FiInbox,
   FiLock,
   FiShield,
   FiStar,
   FiTrendingUp,
+  FiUser,
   FiUsers,
   FiX,
   FiZap,
@@ -44,7 +50,16 @@ const PLATFORM_LINKS: SidebarLink[] = [
 const GOVERNANCE_LINKS: SidebarLink[] = [
   { label: 'Compliance', route: '/dashboard/general-admin/compliance', icon: <FiShield /> },
   { label: 'Finance', route: '/dashboard/general-admin/finance', icon: <FiDollarSign /> },
-  { label: 'Support', route: '/dashboard/general-admin/support', icon: <FiHeadphones /> },
+];
+
+
+const SUPPORT_LINKS: SidebarLink[] = [
+  { label: 'Support Overview', route: '/dashboard/general-admin/support', icon: <FiGrid /> },
+  { label: 'Case Queues', route: '/dashboard/general-admin/support/case-queues', icon: <FiInbox /> },
+  { label: 'My Cases', route: '/dashboard/general-admin/support/my-cases', icon: <FiUser /> },
+  { label: 'Escalations', route: '/dashboard/general-admin/support/escalations', icon: <FiAlertTriangle /> },
+  { label: 'SLA Monitoring', route: '/dashboard/general-admin/support/sla', icon: <FiClock /> },
+  { label: 'Resolved Cases', route: '/dashboard/general-admin/support/resolved', icon: <FiCheckCircle /> },
 ];
 
 const INTELLIGENCE_LINKS: SidebarLink[] = [
@@ -67,6 +82,10 @@ function NavLinkItem({ link, onClose }: { link: SidebarLink; onClose: () => void
 }
 
 function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const location = useLocation();
+  const onSupportRoute = location.pathname.startsWith('/dashboard/general-admin/support');
+  const [isSupportOpen, setIsSupportOpen] = useState(onSupportRoute);
+
   return (
     <>
       <div className={`admin-sidebar-backdrop${isOpen ? ' open' : ''}`} onClick={onClose} aria-hidden="true" />
@@ -95,6 +114,28 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           {GOVERNANCE_LINKS.map((link) => (
             <NavLinkItem link={link} onClose={onClose} key={link.route} />
           ))}
+
+          {/* Customer Support with collapsible submenu */}
+          <button
+            type="button"
+            className={`admin-sidebar-link admin-sidebar-link--toggle${onSupportRoute ? ' active' : ''}`}
+            onClick={() => setIsSupportOpen(prev => !prev)}
+            aria-expanded={isSupportOpen}
+          >
+            <span className="admin-sidebar-link-icon"><FiHeadphones /></span>
+            Customer Support
+            <FiChevronDown
+              className={`admin-sidebar-link-chevron${isSupportOpen ? ' open' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+          {isSupportOpen && (
+            <div style={{ paddingLeft: 14, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {SUPPORT_LINKS.map(link => (
+                <NavLinkItem link={link} onClose={onClose} key={link.route} />
+              ))}
+            </div>
+          )}
         </nav>
 
         <span className="admin-sidebar-group-label admin-sidebar-group-label--section">Intelligence</span>
