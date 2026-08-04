@@ -34,12 +34,10 @@
   --sidebar-width-collapsed: 0px;
   --topbar-height: 72px;
 
-  background: radial-gradient(1200px 600px at 10% -10%, rgba(124, 58, 237, 0.08), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(37, 99, 235, 0.08), transparent 55%),
-    var(--bg-primary);
+  background-color: var(--color-bg);
   color: var(--text-primary);
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  
 
  background-image:
     linear-gradient(
@@ -179,7 +177,7 @@
 }
 
 .btn {
-  font-family: inherit;
+ 
   font-size: 13px;
   font-weight: 600;
   padding: 10px 16px;
@@ -256,7 +254,7 @@
 }
 
 .queue-card {
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 20px;
@@ -330,7 +328,7 @@
 /* ---------- Panel / Table shell ---------- */
 
 .panel {
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -377,7 +375,7 @@
   border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 13px;
-  font-family: inherit;
+  
   outline: none;
   transition: border-color 0.12s ease;
 }
@@ -637,7 +635,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;
@@ -658,7 +656,7 @@
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
-  background: var(--bg-card);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   margin-bottom: 8px;

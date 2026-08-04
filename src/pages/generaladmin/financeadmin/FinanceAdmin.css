@@ -33,12 +33,9 @@
 .fa-shell {
   min-height: 100vh;
   display: flex;
-  background:
-    radial-gradient(circle at 15% 0%, rgba(63, 102, 201, 0.25), transparent 45%),
-    radial-gradient(circle at 85% 10%, rgba(79, 209, 197, 0.12), transparent 40%),
-    var(--fa-bg);
+  background-color: var(--color-bg);
   color: var(--fa-text);
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+
 
   background-image:
     linear-gradient(
@@ -134,7 +131,7 @@
   position: relative;
   padding: 18px 18px 16px;
   border-radius: var(--fa-radius);
-  background: var(--fa-panel);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--fa-panel-border);
   backdrop-filter: blur(16px);
   box-shadow: var(--fa-shadow);
@@ -193,7 +190,7 @@
 
 .fa-panel {
   border-radius: var(--fa-radius);
-  background: var(--fa-panel);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--fa-panel-border);
   backdrop-filter: blur(16px);
   box-shadow: var(--fa-shadow);
@@ -368,7 +365,7 @@
 }
 
 .fa-mono {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+ 
   font-size: 12px;
   color: var(--fa-blue-300);
 }
@@ -530,7 +527,7 @@
 
 .fa-refund-card {
   border-radius: var(--fa-radius-sm);
-  background: rgba(10, 18, 38, 0.6);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--fa-panel-border);
   padding: 16px;
   display: flex;
@@ -616,7 +613,7 @@
 .fa-segregation__group {
   border-radius: var(--fa-radius-sm);
   padding: 16px;
-  background: rgba(10, 18, 38, 0.55);
+  background-color: var(--color-card-bg);
   border: 1px solid var(--fa-panel-border);
   border-top: 3px solid var(--fa-blue-500);
 }

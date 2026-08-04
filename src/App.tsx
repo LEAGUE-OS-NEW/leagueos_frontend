@@ -16,6 +16,8 @@ import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
 import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
+import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
+import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -27,9 +29,11 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
-        <Route path="/tickets" element={<Tickets />} />
+         <Route path="/tickets" element={<Tickets />} />
+         <Route path="/privacy-policy" element={<LegalPolicy />} />
+         <Route path="/terms-and-conditions" element={<TermsConditions />} />
 
-         {/* Fan Section*/ }
+          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
         <Route path="/fandashboard" element={<FanDashboard />} />
 

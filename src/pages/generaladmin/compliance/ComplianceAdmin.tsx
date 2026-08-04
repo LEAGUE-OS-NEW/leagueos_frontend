@@ -719,7 +719,7 @@ const ComplianceDecisionPanel: React.FC<{
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
   onAssignInvestigator: () => void;
-}> = ({ caseData, permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
+}> = ({ caseData: _caseData, permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
   const [infoRequest, setInfoRequest] = useState("");
   const [internalNote, setInternalNote] = useState("");
 

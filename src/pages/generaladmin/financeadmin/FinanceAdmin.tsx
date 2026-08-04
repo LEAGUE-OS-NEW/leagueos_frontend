@@ -391,7 +391,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
 const FinanceAdminDashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [deposits] = useState<DepositBatch[]>(buildDeposits);
+  const [deposits,setDeposits] = useState<DepositBatch[]>(buildDeposits);
   const [withdrawals] = useState<WithdrawalBatch[]>(buildWithdrawals);
   const [settlements] = useState<SettlementBatch[]>(buildSettlements);
   const [refunds, setRefunds] = useState<RefundRequest[]>(mockRefunds);
@@ -656,6 +656,48 @@ const FinanceAdminDashboard: React.FC = () => {
     showToast(`${reportType} generated successfully`);
   };
 
+
+  const updateBatchStatus = (
+  batchId:string,
+  newStatus:BatchStatus
+) => {
+
+  setDeposits(prev =>
+    prev.map(batch =>
+      batch.id === batchId
+      ? {
+          ...batch,
+          status:newStatus,
+          auditHistory:[
+            ...batch.auditHistory,
+            {
+              id:uid("AUD"),
+              timestamp:nowStamp(),
+              user:"Finance Admin",
+              action:`Status changed to ${newStatus}`,
+              entityType:"Deposit Batch",
+              entityId:batchId
+            }
+          ]
+        }
+      : batch
+    )
+  );
+
+
+  pushAudit(
+    `Changed batch status to ${newStatus}`,
+    "Deposit Batch",
+    batchId
+  );
+
+
+  setDrawerBatch(null);
+
+  showToast(
+    `${batchId} moved to ${newStatus}`
+  );
+};
   /* --------------------------- render helpers --------------------------- */
 
   const activeStatuses = useMemo(() => {
@@ -1168,6 +1210,76 @@ const FinanceAdminDashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+            <div className="fa-drawer__section">
+
+<h4>Actions</h4>
+
+
+<div className="fa-actions">
+
+
+{drawerBatch.status === "Mismatched" && (
+
+<button
+className="fa-btn fa-btn--warning"
+onClick={() =>
+ updateBatchStatus(
+ drawerBatch.id,
+ "Under Review"
+ )
+}
+>
+Start Review
+</button>
+
+)}
+
+
+
+{drawerBatch.status === "Under Review" && (
+
+<>
+
+<button
+className="fa-btn fa-btn--success"
+onClick={() =>
+ confirmAndRun(
+ "Resolve mismatch",
+ "Confirm this deposit has been reconciled?",
+ "Confirm Match",
+ () =>
+ updateBatchStatus(
+ drawerBatch.id,
+ "Matched"
+ )
+ )
+}
+>
+Confirm Match
+</button>
+
+
+
+<button
+className="fa-btn fa-btn--danger"
+onClick={() =>
+ showToast(
+ `${drawerBatch.id} kept as mismatch`
+ )
+}
+>
+Reject Match
+</button>
+
+</>
+
+)}
+
+
+
+</div>
+
+</div>
 
             <div className="fa-drawer__section">
               <h4>Audit History</h4>
