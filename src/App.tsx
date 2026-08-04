@@ -15,6 +15,7 @@ import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
+import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -48,7 +49,7 @@ function App() {
         {/* General Admin dashboard */}
         <Route path="/dashboard/general-admin" element={<GeneralAdminDashboard />} />
         <Route path="/dashboard/general-admin/compliance" element={<ComplianceAdmin />}/>
-
+        <Route path="/dashboard/general-admin/sports-data" element={<SportsDataAdmin />}/>
 
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
