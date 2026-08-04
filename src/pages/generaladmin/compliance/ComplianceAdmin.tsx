@@ -1,6 +1,13 @@
-import React, { useMemo, useState } from "react";
-import DashboardSidebar from '../../../components/generaladmin/Sidebar';
-import DashboardTopbar from '../sections/Topbar';
+import React, { useEffect, useMemo, useState } from "react";
+import DashboardSidebar from "../../../components/generaladmin/Sidebar";
+import DashboardTopbar from "../sections/Topbar";
+import { extractApiError } from "../../../services/apiUtils.ts";
+import {
+  fetchComplianceDecisions,
+  fetchKYCSessions,
+  fetchRiskAssessments,
+  fetchRiskProfiles,
+} from "../../../services/markets/complianceAdminService.ts";
 import "./ComplianceAdmin.css";
 
 /* ============================================================
@@ -8,11 +15,7 @@ import "./ComplianceAdmin.css";
    ============================================================ */
 
 export type QueueType =
-  | "KYC"
-  | "Fraud"
-  | "Duplicate"
-  | "Self-Exclusion"
-  | "Restriction";
+  "KYC" | "Fraud" | "Duplicate" | "Self-Exclusion" | "Restriction";
 
 export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 
@@ -47,7 +50,12 @@ export interface RelatedTransaction {
 
 export interface EvidenceItem {
   id: string;
-  kind: "Document" | "ID Image" | "Transaction Screenshot" | "Device/Location" | "Note";
+  kind:
+    | "Document"
+    | "ID Image"
+    | "Transaction Screenshot"
+    | "Device/Location"
+    | "Note";
   label: string;
   uploadedBy: string;
   uploadedAt: string;
@@ -63,7 +71,8 @@ export interface AuditEvent {
 
 export interface Restriction {
   id: string;
-  type: "Spending Limit" | "Trading Limit" | "Account Restriction" | "Suspension";
+  type:
+    "Spending Limit" | "Trading Limit" | "Account Restriction" | "Suspension";
   appliedBy: string;
   appliedAt: string;
   active: boolean;
@@ -102,180 +111,8 @@ export interface ComplianceCase {
   selfExclusion?: SelfExclusionCase;
 }
 
-/* ============================================================
-   MOCK DATA
-   ============================================================ */
-
-const currentUserPermissions: CompliancePermission[] = [
-  "REQUEST_INFO",
-  "APPROVE_KYC",
-  "ESCALATE_CASE",
-];
-
-const mockComplianceCases: ComplianceCase[] = [
-  {
-    id: "COMP-2026-0142",
-    queueType: "KYC",
-    user: {
-      fullName: "Marcus Webb",
-      email: "marcus.webb@mailbox.com",
-      phone: "+1 (415) 555-0142",
-      country: "United States",
-      registrationDate: "2026-01-04",
-      verificationTier: "Tier 1",
-    },
-    riskLevel: "Medium",
-    riskScore: 54,
-    createdAt: "2026-07-29T09:12:00Z",
-    assignedTo: "Aisha Nolan",
-    status: "Pending",
-    summary: "Submitted ID document does not match registration name. Address mismatch flagged by automated OCR check.",
-    relatedAccounts: [
-      { id: "ACC-88214", name: "M. Webb Jr.", sharedPhone: true, sharedEmailDomain: false, sharedDevice: false, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-1", kind: "ID Image", label: "Driver's license (front)", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:10:00Z" },
-      { id: "EV-2", kind: "Document", label: "Proof of address - utility bill", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:11:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-1", timestamp: "2026-07-29T09:12:00Z", adminUser: "System", action: "Case created", note: "Auto-flagged by KYC OCR mismatch rule" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "COMP-2026-0188",
-    queueType: "Fraud",
-    user: {
-      fullName: "Priya Chandrasekaran",
-      email: "priya.c@fastmail.io",
-      phone: "+44 7700 900188",
-      country: "United Kingdom",
-      registrationDate: "2025-11-18",
-      verificationTier: "Tier 2",
-    },
-    riskLevel: "High",
-    riskScore: 81,
-    createdAt: "2026-07-30T14:45:00Z",
-    assignedTo: "Daniel Ruiz",
-    status: "Under Review",
-    summary: "Suspicious high-value transfer routed through three linked wallets within 40 minutes of account creation on the receiving side.",
-    relatedAccounts: [
-      { id: "ACC-51092", name: "Wallet Relay A", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-51093", name: "Wallet Relay B", sharedPhone: false, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [
-      { id: "TXN-90211", type: "Transfer Out", amount: 12500, currency: "USD", date: "2026-07-30T14:20:00Z", status: "Flagged", riskIndicator: "High" },
-      { id: "TXN-90212", type: "Transfer Out", amount: 8300, currency: "USD", date: "2026-07-30T14:32:00Z", status: "Flagged", riskIndicator: "High" },
-    ],
-    evidence: [
-      { id: "EV-3", kind: "Transaction Screenshot", label: "Wallet relay chain diagram", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:02:00Z" },
-      { id: "EV-4", kind: "Note", label: "Pattern matches known layering scheme #4", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:05:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-2", timestamp: "2026-07-30T14:45:00Z", adminUser: "System", action: "Case created", note: "Velocity + relay pattern detected" },
-      { id: "A-3", timestamp: "2026-07-30T15:06:00Z", adminUser: "Daniel Ruiz", action: "Information requested", note: "Requested source-of-funds documentation" },
-    ],
-    restrictions: [
-      { id: "R-1", type: "Trading Limit", appliedBy: "Daniel Ruiz", appliedAt: "2026-07-30T15:07:00Z", active: true },
-    ],
-  },
-  {
-    id: "COMP-2026-0211",
-    queueType: "Duplicate",
-    user: {
-      fullName: "Tomasz Nowicki",
-      email: "t.nowicki@protonhub.net",
-      phone: "+48 512 340 211",
-      country: "Poland",
-      registrationDate: "2026-03-22",
-      verificationTier: "Tier 1",
-    },
-    riskLevel: "Medium",
-    riskScore: 62,
-    createdAt: "2026-07-28T11:00:00Z",
-    assignedTo: "Unassigned",
-    status: "Pending",
-    summary: "Cluster of four accounts sharing a device fingerprint and payment method registered within the same week.",
-    relatedAccounts: [
-      { id: "ACC-33210", name: "T. Nowicki", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-33211", name: "Anna Nowicka", sharedPhone: true, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-33212", name: "T. Novak", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-5", kind: "Device/Location", label: "Shared device fingerprint report", uploadedBy: "System", uploadedAt: "2026-07-28T11:01:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-4", timestamp: "2026-07-28T11:00:00Z", adminUser: "System", action: "Case created", note: "Duplicate cluster detection triggered" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "COMP-2026-0227",
-    queueType: "Self-Exclusion",
-    user: {
-      fullName: "Renee Castellano",
-      email: "renee.castellano@gmail.com",
-      phone: "+1 (312) 555-0227",
-      country: "United States",
-      registrationDate: "2024-09-02",
-      verificationTier: "Tier 3",
-    },
-    riskLevel: "Critical",
-    riskScore: 93,
-    createdAt: "2026-07-31T08:15:00Z",
-    assignedTo: "Aisha Nolan",
-    status: "Escalated",
-    summary: "User attempted to access platform three times during an active self-exclusion period using a secondary account.",
-    relatedAccounts: [
-      { id: "ACC-70091", name: "R. Castellano (secondary)", sharedPhone: true, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: true },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-6", kind: "Note", label: "Login attempt log during exclusion window", uploadedBy: "Aisha Nolan", uploadedAt: "2026-07-31T08:20:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-5", timestamp: "2026-07-31T08:15:00Z", adminUser: "System", action: "Case created", note: "Self-exclusion breach attempt detected" },
-      { id: "A-6", timestamp: "2026-07-31T08:40:00Z", adminUser: "Aisha Nolan", action: "Escalation performed", note: "Escalated to senior compliance for review" },
-    ],
-    restrictions: [
-      { id: "R-2", type: "Account Restriction", appliedBy: "Aisha Nolan", appliedAt: "2026-07-31T08:41:00Z", active: true },
-    ],
-    selfExclusion: { requested: true, coolingOff: false, breachAttempts: 3 },
-  },
-  {
-    id: "COMP-2026-0254",
-    queueType: "Fraud",
-    user: {
-      fullName: "Kenji Watanabe",
-      email: "kenji.w@heliomail.com",
-      phone: "+81 90 1234 0254",
-      country: "Japan",
-      registrationDate: "2025-06-11",
-      verificationTier: "Tier 2",
-    },
-    riskLevel: "High",
-    riskScore: 76,
-    createdAt: "2026-08-01T02:30:00Z",
-    assignedTo: "Daniel Ruiz",
-    status: "Under Review",
-    summary: "Excessive trading velocity: 412 trades executed within 90 minutes, well beyond the user's historical pattern.",
-    relatedAccounts: [],
-    relatedTransactions: [
-      { id: "TXN-90401", type: "Trade", amount: 460, currency: "USD", date: "2026-08-01T02:05:00Z", status: "Completed", riskIndicator: "Medium" },
-      { id: "TXN-90402", type: "Trade", amount: 520, currency: "USD", date: "2026-08-01T02:06:00Z", status: "Completed", riskIndicator: "Medium" },
-      { id: "TXN-90403", type: "Trade", amount: 610, currency: "USD", date: "2026-08-01T02:07:00Z", status: "Flagged", riskIndicator: "High" },
-    ],
-    evidence: [
-      { id: "EV-7", kind: "Transaction Screenshot", label: "Trade velocity chart", uploadedBy: "System", uploadedAt: "2026-08-01T02:35:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-7", timestamp: "2026-08-01T02:30:00Z", adminUser: "System", action: "Case created", note: "Velocity threshold exceeded (412 trades/90min)" },
-    ],
-    restrictions: [],
-  },
-];
+/* Unsupported case mutations stay visible but disabled until matching endpoints exist. */
+const currentUserPermissions: CompliancePermission[] = [];
 
 /* ============================================================
    HELPERS
@@ -294,23 +131,34 @@ function formatDateTime(iso: string): string {
 
 function riskBadgeClass(level: RiskLevel): string {
   switch (level) {
-    case "Low": return "badge badge-low";
-    case "Medium": return "badge badge-medium";
-    case "High": return "badge badge-high";
-    case "Critical": return "badge badge-critical";
+    case "Low":
+      return "badge badge-low";
+    case "Medium":
+      return "badge badge-medium";
+    case "High":
+      return "badge badge-high";
+    case "Critical":
+      return "badge badge-critical";
   }
 }
 
 function statusPillClass(status: CaseStatus): string {
   switch (status) {
-    case "Pending": return "status-pill pending";
-    case "Under Review": return "status-pill review";
-    case "Escalated": return "status-pill escalated";
-    case "Resolved": return "status-pill resolved";
+    case "Pending":
+      return "status-pill pending";
+    case "Under Review":
+      return "status-pill review";
+    case "Escalated":
+      return "status-pill escalated";
+    case "Resolved":
+      return "status-pill resolved";
   }
 }
 
-function hasPermission(perms: CompliancePermission[], required: CompliancePermission): boolean {
+function hasPermission(
+  perms: CompliancePermission[],
+  required: CompliancePermission,
+): boolean {
   return perms.includes(required);
 }
 
@@ -326,7 +174,6 @@ function nextRestrictionId(): string {
   return `R-${Date.now()}-${restrictionIdCounter}`;
 }
 
-
 const PermButton: React.FC<{
   label: string;
   permission: CompliancePermission;
@@ -340,8 +187,8 @@ const PermButton: React.FC<{
     variant === "gradient"
       ? "btn btn-gradient btn-sm"
       : variant === "danger"
-      ? "btn btn-danger btn-sm"
-      : "btn btn-ghost btn-sm";
+        ? "btn btn-danger btn-sm"
+        : "btn btn-ghost btn-sm";
 
   return (
     <div className="perm-btn-wrap">
@@ -355,7 +202,11 @@ const PermButton: React.FC<{
       </button>
 
       {!allowed && (
-        <span className="perm-tooltip" id={`${permission}-tooltip`} role="tooltip">
+        <span
+          className="perm-tooltip"
+          id={`${permission}-tooltip`}
+          role="tooltip"
+        >
           Insufficient permission
         </span>
       )}
@@ -378,10 +229,17 @@ interface QueueCardConfig {
   actionLabel: string;
 }
 
-const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => void; disabled?: boolean }> = ({ config, onAction, disabled }) => (
+const ComplianceQueueCard: React.FC<{
+  config: QueueCardConfig;
+  onAction: () => void;
+  disabled?: boolean;
+}> = ({ config, onAction, disabled }) => (
   <div className="queue-card">
     <div className="queue-card__top">
-      <div className="queue-card__icon" style={{ background: `${config.color}22`, color: config.color }}>
+      <div
+        className="queue-card__icon"
+        style={{ background: `${config.color}22`, color: config.color }}
+      >
         {config.icon}
       </div>
       <p className="queue-card__title">{config.title}</p>
@@ -392,11 +250,19 @@ const ComplianceQueueCard: React.FC<{ config: QueueCardConfig; onAction: () => v
         <span className="queue-card__metric-label">{config.primaryLabel}</span>
       </div>
       <div className="queue-card__metric">
-        <span className="queue-card__metric-value is-warning">{config.secondaryValue}</span>
-        <span className="queue-card__metric-label">{config.secondaryLabel}</span>
+        <span className="queue-card__metric-value is-warning">
+          {config.secondaryValue}
+        </span>
+        <span className="queue-card__metric-label">
+          {config.secondaryLabel}
+        </span>
       </div>
     </div>
-    <button className="btn btn-gradient queue-card__action" onClick={onAction} disabled={disabled}>
+    <button
+      className="btn btn-gradient queue-card__action"
+      onClick={onAction}
+      disabled={disabled}
+    >
       {config.actionLabel}
     </button>
   </div>
@@ -420,9 +286,13 @@ const ComplianceRiskQueue: React.FC<{
 
   const filtered = useMemo(() => {
     return cases
-      .filter((c) => (queueFilter === "All" ? true : c.queueType === queueFilter))
+      .filter((c) =>
+        queueFilter === "All" ? true : c.queueType === queueFilter,
+      )
       .filter((c) => (riskFilter === "All" ? true : c.riskLevel === riskFilter))
-      .filter((c) => (statusFilter === "All" ? true : c.status === statusFilter))
+      .filter((c) =>
+        statusFilter === "All" ? true : c.status === statusFilter,
+      )
       .filter((c) => {
         const q = search.trim().toLowerCase();
         if (!q) return true;
@@ -432,7 +302,10 @@ const ComplianceRiskQueue: React.FC<{
           c.user.email.toLowerCase().includes(q)
         );
       })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
   }, [cases, search, queueFilter, riskFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -441,13 +314,16 @@ const ComplianceRiskQueue: React.FC<{
   // (e.g. after a case is resolved or a filter narrows the results).
   const safePage = Math.min(page, totalPages);
 
-const pageItems = filtered.slice(
-  (safePage - 1) * PAGE_SIZE,
-  safePage * PAGE_SIZE
-);
+  const pageItems = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const hasActiveFilters =
-    search.trim().length > 0 || queueFilter !== "All" || riskFilter !== "All" || statusFilter !== "All";
+    search.trim().length > 0 ||
+    queueFilter !== "All" ||
+    riskFilter !== "All" ||
+    statusFilter !== "All";
 
   const resetFilters = () => {
     setSearch("");
@@ -558,10 +434,16 @@ const pageItems = filtered.slice(
                   <div className="cell-user__name">{c.user.fullName}</div>
                   <div className="cell-user__email">{c.user.email}</div>
                 </td>
-                <td><span className={riskBadgeClass(c.riskLevel)}>{c.riskLevel}</span></td>
+                <td>
+                  <span className={riskBadgeClass(c.riskLevel)}>
+                    {c.riskLevel}
+                  </span>
+                </td>
                 <td>{formatDateTime(c.createdAt)}</td>
                 <td>{c.assignedTo}</td>
-                <td><span className={statusPillClass(c.status)}>{c.status}</span></td>
+                <td>
+                  <span className={statusPillClass(c.status)}>{c.status}</span>
+                </td>
                 <td>
                   <button
                     className="btn btn-outline btn-sm"
@@ -577,7 +459,14 @@ const pageItems = filtered.slice(
             ))}
             {pageItems.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", color: "var(--text-secondary)", padding: "24px 0" }}>
+                <td
+                  colSpan={8}
+                  style={{
+                    textAlign: "center",
+                    color: "var(--text-secondary)",
+                    padding: "24px 0",
+                  }}
+                >
                   No cases match the current filters.
                 </td>
               </tr>
@@ -588,14 +477,23 @@ const pageItems = filtered.slice(
 
       <div className="pagination">
         <span>
-        Showing {pageItems.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
-          {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} cases
+          Showing {pageItems.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
+          {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}{" "}
+          cases
         </span>
         <div className="pagination__controls">
-          <button className="btn btn-outline btn-sm" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)}>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
             Prev
           </button>
-          <button className="btn btn-outline btn-sm" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)}>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
             Next
           </button>
         </div>
@@ -625,7 +523,9 @@ const ComplianceConfirmationModal: React.FC<{
   const [confirmText, setConfirmText] = useState("");
 
   const canConfirm =
-    reason.trim().length > 0 && checked && confirmText.trim().toUpperCase() === action.confirmWord;
+    reason.trim().length > 0 &&
+    checked &&
+    confirmText.trim().toUpperCase() === action.confirmWord;
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -636,7 +536,12 @@ const ComplianceConfirmationModal: React.FC<{
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal__header">
           <div className="modal__icon">⚠</div>
@@ -664,7 +569,9 @@ const ComplianceConfirmationModal: React.FC<{
 
         <p className="modal__impact">{action.impact}</p>
 
-        <label className="field-label" htmlFor="reason">Reason (required)</label>
+        <label className="field-label" htmlFor="reason">
+          Reason (required)
+        </label>
         <textarea
           id="reason"
           rows={3}
@@ -674,8 +581,13 @@ const ComplianceConfirmationModal: React.FC<{
         />
 
         <label className="modal-checkbox">
-          <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-          I understand this action will immediately restrict the user from accessing platform services.
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+          />
+          I understand this action will immediately restrict the user from
+          accessing platform services.
         </label>
 
         <label className="field-label" htmlFor="confirmText">
@@ -690,7 +602,9 @@ const ComplianceConfirmationModal: React.FC<{
         />
 
         <div className="modal__footer">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
           <button
             className="btn btn-danger"
             disabled={!canConfirm}
@@ -717,7 +631,13 @@ const ComplianceDecisionPanel: React.FC<{
   onMediumImpact: (action: string) => void;
   onRequestHighImpact: (action: PendingAction) => void;
   onAssignInvestigator: () => void;
-}> = ({ permissions, onLowImpact, onMediumImpact, onRequestHighImpact, onAssignInvestigator }) => {
+}> = ({
+  permissions,
+  onLowImpact,
+  onMediumImpact,
+  onRequestHighImpact,
+  onAssignInvestigator,
+}) => {
   const [infoRequest, setInfoRequest] = useState("");
   const [internalNote, setInternalNote] = useState("");
 
@@ -726,7 +646,9 @@ const ComplianceDecisionPanel: React.FC<{
       <div className="panel__header">
         <div>
           <h2>Decision Controls</h2>
-          <p>Actions are enabled based on your current compliance permissions</p>
+          <p>
+            Actions are enabled based on your current compliance permissions
+          </p>
         </div>
       </div>
 
@@ -902,7 +824,9 @@ const ComplianceCaseDetail: React.FC<{
   onClose: () => void;
   onMutate: (updated: ComplianceCase) => void;
 }> = ({ caseData, permissions, onClose, onMutate }) => {
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+    null,
+  );
   const [assigning, setAssigning] = useState(false);
   const [assigneeName, setAssigneeName] = useState("");
 
@@ -951,7 +875,9 @@ const ComplianceCaseDetail: React.FC<{
     }
 
     const nextStatus: CaseStatus =
-      action.label === "Escalate to Senior Compliance" ? "Escalated" : caseData.status;
+      action.label === "Escalate to Senior Compliance"
+        ? "Escalated"
+        : caseData.status;
 
     onMutate({
       ...caseData,
@@ -964,7 +890,7 @@ const ComplianceCaseDetail: React.FC<{
   const liftRestriction = (restrictionId: string) => {
     const target = caseData.restrictions.find((r) => r.id === restrictionId);
     const nextRestrictions = caseData.restrictions.map((r) =>
-      r.id === restrictionId ? { ...r, active: false } : r
+      r.id === restrictionId ? { ...r, active: false } : r,
     );
     const event: AuditEvent = {
       id: nextAuditId(),
@@ -987,7 +913,11 @@ const ComplianceCaseDetail: React.FC<{
       adminUser: "You",
       action: "Case resolved",
     };
-    onMutate({ ...caseData, status: "Resolved", auditHistory: [...caseData.auditHistory, event] });
+    onMutate({
+      ...caseData,
+      status: "Resolved",
+      auditHistory: [...caseData.auditHistory, event],
+    });
   };
 
   const confirmAssignment = () => {
@@ -999,7 +929,11 @@ const ComplianceCaseDetail: React.FC<{
       action: "Investigator assigned",
       note: `Assigned to ${assigneeName.trim()}`,
     };
-    onMutate({ ...caseData, assignedTo: assigneeName.trim(), auditHistory: [...caseData.auditHistory, event] });
+    onMutate({
+      ...caseData,
+      assignedTo: assigneeName.trim(),
+      auditHistory: [...caseData.auditHistory, event],
+    });
     setAssigning(false);
     setAssigneeName("");
   };
@@ -1009,14 +943,32 @@ const ComplianceCaseDetail: React.FC<{
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="drawer"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="drawer__header">
           <div>
             <h2>{caseData.id}</h2>
-            <span className={riskBadgeClass(caseData.riskLevel)} style={{ marginRight: 8 }}>{caseData.riskLevel}</span>
-            <span className={statusPillClass(caseData.status)}>{caseData.status}</span>
+            <span
+              className={riskBadgeClass(caseData.riskLevel)}
+              style={{ marginRight: 8 }}
+            >
+              {caseData.riskLevel}
+            </span>
+            <span className={statusPillClass(caseData.status)}>
+              {caseData.status}
+            </span>
           </div>
-          <button className="drawer__close" onClick={onClose} aria-label="Close case detail">✕</button>
+          <button
+            className="drawer__close"
+            onClick={onClose}
+            aria-label="Close case detail"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="drawer__body">
@@ -1024,8 +976,14 @@ const ComplianceCaseDetail: React.FC<{
           <div className="drawer-section">
             <h3>Case Summary</h3>
             <div className="kv-grid">
-              <div className="kv-item"><span className="k">Queue Type</span><span className="v">{caseData.queueType}</span></div>
-              <div className="kv-item"><span className="k">Risk Score</span><span className="v">{caseData.riskScore}/100</span></div>
+              <div className="kv-item">
+                <span className="k">Queue Type</span>
+                <span className="v">{caseData.queueType}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Risk Score</span>
+                <span className="v">{caseData.riskScore}/100</span>
+              </div>
               <div className="kv-item">
                 <span className="k">Assigned Investigator</span>
                 {assigning ? (
@@ -1041,16 +999,36 @@ const ComplianceCaseDetail: React.FC<{
                         if (e.key === "Escape") setAssigning(false);
                       }}
                     />
-                    <button className="btn btn-gradient btn-sm" onClick={confirmAssignment}>Save</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(false)}>Cancel</button>
+                    <button
+                      className="btn btn-gradient btn-sm"
+                      onClick={confirmAssignment}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setAssigning(false)}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 ) : (
                   <span className="v">{caseData.assignedTo}</span>
                 )}
               </div>
-              <div className="kv-item"><span className="k">Created</span><span className="v">{formatDateTime(caseData.createdAt)}</span></div>
+              <div className="kv-item">
+                <span className="k">Created</span>
+                <span className="v">{formatDateTime(caseData.createdAt)}</span>
+              </div>
             </div>
-            <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.55, marginTop: 12 }}>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: 13,
+                lineHeight: 1.55,
+                marginTop: 12,
+              }}
+            >
               {caseData.summary}
             </p>
           </div>
@@ -1059,12 +1037,30 @@ const ComplianceCaseDetail: React.FC<{
           <div className="drawer-section">
             <h3>User Profile</h3>
             <div className="kv-grid">
-              <div className="kv-item"><span className="k">Full Name</span><span className="v">{caseData.user.fullName}</span></div>
-              <div className="kv-item"><span className="k">Email</span><span className="v">{caseData.user.email}</span></div>
-              <div className="kv-item"><span className="k">Phone</span><span className="v">{caseData.user.phone}</span></div>
-              <div className="kv-item"><span className="k">Country</span><span className="v">{caseData.user.country}</span></div>
-              <div className="kv-item"><span className="k">Registered</span><span className="v">{caseData.user.registrationDate}</span></div>
-              <div className="kv-item"><span className="k">Verification Tier</span><span className="v">{caseData.user.verificationTier}</span></div>
+              <div className="kv-item">
+                <span className="k">Full Name</span>
+                <span className="v">{caseData.user.fullName}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Email</span>
+                <span className="v">{caseData.user.email}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Phone</span>
+                <span className="v">{caseData.user.phone}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Country</span>
+                <span className="v">{caseData.user.country}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Registered</span>
+                <span className="v">{caseData.user.registrationDate}</span>
+              </div>
+              <div className="kv-item">
+                <span className="k">Verification Tier</span>
+                <span className="v">{caseData.user.verificationTier}</span>
+              </div>
             </div>
           </div>
 
@@ -1075,15 +1071,23 @@ const ComplianceCaseDetail: React.FC<{
               <div className="kv-grid">
                 <div className="kv-item">
                   <span className="k">Self-Exclusion Requested</span>
-                  <span className="v">{caseData.selfExclusion.requested ? "Yes" : "No"}</span>
+                  <span className="v">
+                    {caseData.selfExclusion.requested ? "Yes" : "No"}
+                  </span>
                 </div>
                 <div className="kv-item">
                   <span className="k">Cooling-Off Period</span>
-                  <span className="v">{caseData.selfExclusion.coolingOff ? "Active" : "Not active"}</span>
+                  <span className="v">
+                    {caseData.selfExclusion.coolingOff
+                      ? "Active"
+                      : "Not active"}
+                  </span>
                 </div>
                 <div className="kv-item">
                   <span className="k">Breach Attempts</span>
-                  <span className="v">{caseData.selfExclusion.breachAttempts}</span>
+                  <span className="v">
+                    {caseData.selfExclusion.breachAttempts}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1092,14 +1096,19 @@ const ComplianceCaseDetail: React.FC<{
           {/* Restrictions */}
           <div className="drawer-section">
             <h3>Restrictions</h3>
-            {activeRestrictions.length === 0 && inactiveRestrictions.length === 0 && (
-              <p className="empty-note">No restrictions have been applied to this case.</p>
-            )}
+            {activeRestrictions.length === 0 &&
+              inactiveRestrictions.length === 0 && (
+                <p className="empty-note">
+                  No restrictions have been applied to this case.
+                </p>
+              )}
             {activeRestrictions.map((r) => (
               <div key={r.id} className="related-item">
                 <div>
                   <div className="related-item__value">{r.type}</div>
-                  <div className="related-item__label">Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}</div>
+                  <div className="related-item__label">
+                    Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}
+                  </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className="badge badge-high">Active</span>
@@ -1116,7 +1125,9 @@ const ComplianceCaseDetail: React.FC<{
               <div key={r.id} className="related-item" style={{ opacity: 0.6 }}>
                 <div>
                   <div className="related-item__value">{r.type}</div>
-                  <div className="related-item__label">Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}</div>
+                  <div className="related-item__label">
+                    Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}
+                  </div>
                 </div>
                 <span className="badge badge-low">Lifted</span>
               </div>
@@ -1133,11 +1144,28 @@ const ComplianceCaseDetail: React.FC<{
                     <div className="related-item__value">{ra.name}</div>
                     <div className="related-item__label">{ra.id}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    {ra.sharedPhone && <span className="badge badge-medium">Shared Phone</span>}
-                    {ra.sharedEmailDomain && <span className="badge badge-medium">Shared Email Domain</span>}
-                    {ra.sharedDevice && <span className="badge badge-high">Shared Device</span>}
-                    {ra.sharedPaymentMethod && <span className="badge badge-high">Shared Payment</span>}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    {ra.sharedPhone && (
+                      <span className="badge badge-medium">Shared Phone</span>
+                    )}
+                    {ra.sharedEmailDomain && (
+                      <span className="badge badge-medium">
+                        Shared Email Domain
+                      </span>
+                    )}
+                    {ra.sharedDevice && (
+                      <span className="badge badge-high">Shared Device</span>
+                    )}
+                    {ra.sharedPaymentMethod && (
+                      <span className="badge badge-high">Shared Payment</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1152,11 +1180,17 @@ const ComplianceCaseDetail: React.FC<{
                 <div key={tx.id} className="tx-row">
                   <div>
                     <div className="tx-row__id">{tx.id}</div>
-                    <div className="tx-row__meta">{tx.type} · {formatDateTime(tx.date)}</div>
+                    <div className="tx-row__meta">
+                      {tx.type} · {formatDateTime(tx.date)}
+                    </div>
                   </div>
-                  <div className="tx-row__meta">{tx.currency} {tx.amount.toLocaleString()}</div>
+                  <div className="tx-row__meta">
+                    {tx.currency} {tx.amount.toLocaleString()}
+                  </div>
                   <div className="tx-row__meta">{tx.status}</div>
-                  <span className={riskBadgeClass(tx.riskIndicator)}>{tx.riskIndicator}</span>
+                  <span className={riskBadgeClass(tx.riskIndicator)}>
+                    {tx.riskIndicator}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1171,11 +1205,21 @@ const ComplianceCaseDetail: React.FC<{
                   <div className="timeline-item" key={ev.id}>
                     <div className="evidence-item">
                       <div className="evidence-item__icon">
-                        {ev.kind === "ID Image" ? "🪪" : ev.kind === "Document" ? "📄" : ev.kind === "Transaction Screenshot" ? "🖼" : ev.kind === "Device/Location" ? "📍" : "📝"}
+                        {ev.kind === "ID Image"
+                          ? "🪪"
+                          : ev.kind === "Document"
+                            ? "📄"
+                            : ev.kind === "Transaction Screenshot"
+                              ? "🖼"
+                              : ev.kind === "Device/Location"
+                                ? "📍"
+                                : "📝"}
                       </div>
                       <div>
                         <p className="timeline-item__title">{ev.label}</p>
-                        <p className="timeline-item__meta">{ev.uploadedBy} · {formatDateTime(ev.uploadedAt)}</p>
+                        <p className="timeline-item__meta">
+                          {ev.uploadedBy} · {formatDateTime(ev.uploadedAt)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1190,12 +1234,20 @@ const ComplianceCaseDetail: React.FC<{
             <div className="timeline">
               {caseData.auditHistory
                 .slice()
-                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                .sort(
+                  (a, b) =>
+                    new Date(a.timestamp).getTime() -
+                    new Date(b.timestamp).getTime(),
+                )
                 .map((ev) => (
                   <div className="timeline-item" key={ev.id}>
                     <p className="timeline-item__title">{ev.action}</p>
-                    <p className="timeline-item__meta">{ev.adminUser} · {formatDateTime(ev.timestamp)}</p>
-                    {ev.note && <p className="timeline-item__note">{ev.note}</p>}
+                    <p className="timeline-item__meta">
+                      {ev.adminUser} · {formatDateTime(ev.timestamp)}
+                    </p>
+                    {ev.note && (
+                      <p className="timeline-item__note">{ev.note}</p>
+                    )}
                   </div>
                 ))}
             </div>
@@ -1205,9 +1257,13 @@ const ComplianceCaseDetail: React.FC<{
           <ComplianceDecisionPanel
             permissions={permissions}
             onLowImpact={(action, detail) => appendAudit(action, detail)}
-            onMediumImpact={(action) => appendAudit(action, "Logged via medium-impact action")}
+            onMediumImpact={(action) =>
+              appendAudit(action, "Logged via medium-impact action")
+            }
             onAssignInvestigator={() => {
-              setAssigneeName(caseData.assignedTo === "Unassigned" ? "" : caseData.assignedTo);
+              setAssigneeName(
+                caseData.assignedTo === "Unassigned" ? "" : caseData.assignedTo,
+              );
               setAssigning(true);
             }}
             onRequestHighImpact={(action) =>
@@ -1220,7 +1276,13 @@ const ComplianceCaseDetail: React.FC<{
         </div>
 
         <div className="sticky-action-bar">
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Close</button>
+          <button
+            className="btn btn-ghost"
+            style={{ flex: 1 }}
+            onClick={onClose}
+          >
+            Close
+          </button>
           <button
             className="btn btn-outline"
             style={{ flex: 1 }}
@@ -1237,7 +1299,8 @@ const ComplianceCaseDetail: React.FC<{
               setPendingAction({
                 label: "Escalate to Senior Compliance",
                 confirmWord: "ESCALATE",
-                impact: "This will route the case to senior compliance for final review.",
+                impact:
+                  "This will route the case to senior compliance for final review.",
                 onConfirm: (reason) =>
                   applyRestriction(
                     {
@@ -1246,7 +1309,7 @@ const ComplianceCaseDetail: React.FC<{
                       impact: "",
                       onConfirm: () => {},
                     },
-                    reason
+                    reason,
                   ),
               })
             }
@@ -1283,18 +1346,135 @@ const ComplianceCaseDetail: React.FC<{
    ============================================================ */
 
 const ComplianceAdmin: React.FC = () => {
-  const [cases, setCases] = useState<ComplianceCase[]>(mockComplianceCases);
+  const [cases, setCases] = useState<ComplianceCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      fetchKYCSessions(),
+      fetchRiskProfiles(),
+      fetchRiskAssessments(),
+      fetchComplianceDecisions(),
+    ])
+      .then(([kycPage, profilePage, assessmentPage, decisionPage]) => {
+        if (!active) return;
+        const riskLevel = (score: number): RiskLevel =>
+          score >= 90
+            ? "Critical"
+            : score >= 70
+              ? "High"
+              : score >= 40
+                ? "Medium"
+                : "Low";
+        const status = (value: string): CaseStatus =>
+          value === "COMPLETED" || value === "APPROVED"
+            ? "Resolved"
+            : value === "IN_REVIEW" || value === "PENDING_REVIEW"
+              ? "Under Review"
+              : value === "ESCALATED"
+                ? "Escalated"
+                : "Pending";
+        const kycCases: ComplianceCase[] = kycPage.results.map((item) => ({
+          id: item.id,
+          queueType: "KYC",
+          user: {
+            fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
+            email: "Unavailable from compliance API",
+            phone: "Unavailable",
+            country: "Unavailable",
+            registrationDate: item.initiated_at,
+            verificationTier:
+              item.verification_level === "NONE" ? "Unverified" : "Tier 1",
+          },
+          riskLevel: "Low",
+          riskScore: 0,
+          createdAt: item.initiated_at,
+          assignedTo: "Unassigned",
+          status: status(item.status),
+          summary:
+            item.failure_code || `KYC session via ${item.provider_code}.`,
+          relatedAccounts: [],
+          relatedTransactions: [],
+          evidence: [],
+          auditHistory: [],
+          restrictions: [],
+        }));
+        const riskCases: ComplianceCase[] = profilePage.results.map((item) => {
+          const latest = assessmentPage.results.find(
+            (entry) => entry.participant_id === item.participant_id,
+          );
+          const proposal = decisionPage.results.find(
+            (entry) => entry.participant_id === item.participant_id,
+          );
+          return {
+            id: item.id,
+            queueType: item.restriction_recommendation
+              ? "Restriction"
+              : "Fraud",
+            user: {
+              fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
+              email: "Unavailable from compliance API",
+              phone: "Unavailable",
+              country: "Unavailable",
+              registrationDate: item.last_assessed_at,
+              verificationTier: "Unverified",
+            },
+            riskLevel: riskLevel(item.current_score),
+            riskScore: item.current_score,
+            createdAt: latest?.created_at || item.last_assessed_at,
+            assignedTo: "Unassigned",
+            status: proposal ? status(proposal.status) : "Pending",
+            summary:
+              item.reason_codes.join(", ") || "No risk reason codes supplied.",
+            relatedAccounts: [],
+            relatedTransactions: [],
+            evidence: [],
+            auditHistory: [],
+            restrictions: item.restriction_recommendation
+              ? [
+                  {
+                    id: `risk-${item.id}`,
+                    type: "Account Restriction",
+                    appliedBy: "Risk service",
+                    appliedAt: item.last_assessed_at,
+                    active: true,
+                  },
+                ]
+              : [],
+          };
+        });
+        setCases([...kycCases, ...riskCases]);
+      })
+      .catch((error) => {
+        if (active) setLoadError(extractApiError(error).message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const kycCases = cases.filter((c) => c.queueType === "KYC");
   const fraudCases = cases.filter((c) => c.queueType === "Fraud");
   const duplicateCases = cases.filter((c) => c.queueType === "Duplicate");
-  const restrictionCases = cases.filter((c) => c.restrictions.some((r) => r.active));
-  const selfExclusionCases = cases.filter((c) => c.queueType === "Self-Exclusion");
+  const restrictionCases = cases.filter((c) =>
+    c.restrictions.some((r) => r.active),
+  );
+  const selfExclusionCases = cases.filter(
+    (c) => c.queueType === "Self-Exclusion",
+  );
   const escalatedCases = cases.filter((c) => c.status === "Escalated");
 
-  const queueCardConfigs: { config: QueueCardConfig; targetQueue: QueueType | "restriction" | "escalated" }[] = [
+  const queueCardConfigs: {
+    config: QueueCardConfig;
+    targetQueue: QueueType | "restriction" | "escalated";
+  }[] = [
     {
       config: {
         title: "KYC Verification Queue",
@@ -1302,7 +1482,9 @@ const ComplianceAdmin: React.FC = () => {
         color: "#a855f7",
         primaryValue: kycCases.length,
         primaryLabel: "Pending reviews",
-        secondaryValue: kycCases.filter((c) => c.riskLevel === "High" || c.riskLevel === "Critical").length,
+        secondaryValue: kycCases.filter(
+          (c) => c.riskLevel === "High" || c.riskLevel === "Critical",
+        ).length,
         secondaryLabel: "High-risk",
         actionLabel: "Review KYC",
       },
@@ -1315,7 +1497,9 @@ const ComplianceAdmin: React.FC = () => {
         color: "#f97316",
         primaryValue: fraudCases.length,
         primaryLabel: "Suspicious transfers",
-        secondaryValue: fraudCases.filter((c) => c.relatedTransactions.some((t) => t.status === "Flagged")).length,
+        secondaryValue: fraudCases.filter((c) =>
+          c.relatedTransactions.some((t) => t.status === "Flagged"),
+        ).length,
         secondaryLabel: "Flagged trading",
         actionLabel: "Investigate",
       },
@@ -1328,7 +1512,11 @@ const ComplianceAdmin: React.FC = () => {
         color: "#2563eb",
         primaryValue: duplicateCases.length,
         primaryLabel: "Potential duplicates",
-        secondaryValue: duplicateCases.reduce((sum, c) => sum + c.relatedAccounts.filter((a) => a.sharedDevice).length, 0),
+        secondaryValue: duplicateCases.reduce(
+          (sum, c) =>
+            sum + c.relatedAccounts.filter((a) => a.sharedDevice).length,
+          0,
+        ),
         secondaryLabel: "Shared device matches",
         actionLabel: "Review Matches",
       },
@@ -1341,7 +1529,9 @@ const ComplianceAdmin: React.FC = () => {
         color: "#ef4444",
         primaryValue: restrictionCases.length,
         primaryLabel: "Active restrictions",
-        secondaryValue: cases.filter((c) => c.restrictions.some((r) => r.type === "Trading Limit" && r.active)).length,
+        secondaryValue: cases.filter((c) =>
+          c.restrictions.some((r) => r.type === "Trading Limit" && r.active),
+        ).length,
         secondaryLabel: "Trading limits",
         actionLabel: "Manage Restrictions",
       },
@@ -1352,9 +1542,14 @@ const ComplianceAdmin: React.FC = () => {
         title: "Responsible Participation",
         icon: "🛡",
         color: "#22c55e",
-        primaryValue: selfExclusionCases.filter((c) => c.selfExclusion?.requested).length,
+        primaryValue: selfExclusionCases.filter(
+          (c) => c.selfExclusion?.requested,
+        ).length,
         primaryLabel: "Self-exclusion requests",
-        secondaryValue: selfExclusionCases.reduce((sum, c) => sum + (c.selfExclusion?.breachAttempts ?? 0), 0),
+        secondaryValue: selfExclusionCases.reduce(
+          (sum, c) => sum + (c.selfExclusion?.breachAttempts ?? 0),
+          0,
+        ),
         secondaryLabel: "Breach attempts",
         actionLabel: "Review Cases",
       },
@@ -1367,7 +1562,8 @@ const ComplianceAdmin: React.FC = () => {
         color: "#f5f7ff",
         primaryValue: escalatedCases.length,
         primaryLabel: "Escalated cases",
-        secondaryValue: escalatedCases.filter((c) => c.riskLevel === "Critical").length,
+        secondaryValue: escalatedCases.filter((c) => c.riskLevel === "Critical")
+          .length,
         secondaryLabel: "Critical severity",
         actionLabel: "Open Escalations",
       },
@@ -1375,7 +1571,9 @@ const ComplianceAdmin: React.FC = () => {
     },
   ];
 
-  const handleQueueCardAction = (targetQueue: QueueType | "restriction" | "escalated") => {
+  const handleQueueCardAction = (
+    targetQueue: QueueType | "restriction" | "escalated",
+  ) => {
     let next: ComplianceCase | undefined;
     if (targetQueue === "restriction") {
       next = restrictionCases[0];
@@ -1387,7 +1585,9 @@ const ComplianceAdmin: React.FC = () => {
     if (next) setSelectedCase(next);
   };
 
-  const isQueueEmpty = (targetQueue: QueueType | "restriction" | "escalated"): boolean => {
+  const isQueueEmpty = (
+    targetQueue: QueueType | "restriction" | "escalated",
+  ): boolean => {
     if (targetQueue === "restriction") return restrictionCases.length === 0;
     if (targetQueue === "escalated") return escalatedCases.length === 0;
     return !cases.some((c) => c.queueType === targetQueue);
@@ -1409,7 +1609,10 @@ const ComplianceAdmin: React.FC = () => {
         </aside>
 
         {sidebarOpen && (
-          <div className="app-sidebar-scrim" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="app-sidebar-scrim"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
 
         <div className="app-main">
@@ -1422,14 +1625,22 @@ const ComplianceAdmin: React.FC = () => {
               <div>
                 <p className="compliance-header__eyebrow">Welcome back</p>
                 <h1>Compliance &amp; Trust Operations</h1>
-                <p>Central control for KYC reviews, fraud detection, restrictions, responsible participation, and platform safety.</p>
+                <p>
+                  Central control for KYC reviews, fraud detection,
+                  restrictions, responsible participation, and platform safety.
+                </p>
               </div>
               <div className="compliance-header__actions">
-                <span className="live-badge"><span className="live-badge__dot" />Live data</span>
+                <span className="live-badge">
+                  <span className="live-badge__dot" />
+                  Live data
+                </span>
                 <button
                   className="btn btn-ghost"
                   onClick={() => {
-                    const blob = new Blob([JSON.stringify(cases, null, 2)], { type: "application/json" });
+                    const blob = new Blob([JSON.stringify(cases, null, 2)], {
+                      type: "application/json",
+                    });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
@@ -1440,12 +1651,26 @@ const ComplianceAdmin: React.FC = () => {
                 >
                   Export Dashboard
                 </button>
-                <button className="btn btn-gradient" disabled title="Compliance Settings coming soon">
+                <button
+                  className="btn btn-gradient"
+                  disabled
+                  title="Compliance Settings coming soon"
+                >
                   Compliance Settings
                 </button>
               </div>
             </div>
 
+            {loading && (
+              <div className="empty-state" aria-busy="true">
+                Loading compliance records…
+              </div>
+            )}
+            {loadError && (
+              <div className="empty-state" role="alert">
+                {loadError}
+              </div>
+            )}
             <div className="queue-grid">
               {queueCardConfigs.map((item) => (
                 <ComplianceQueueCard

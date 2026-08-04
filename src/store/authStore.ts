@@ -117,6 +117,7 @@ type AuthStore = {
   }) => void;
   setHydratedUser: (user: unknown) => void;
   setAccessUnavailable: () => void;
+  updateTokens: (access: string, refresh?: string) => void;
   clearAuth: () => void;
 };
 
@@ -206,6 +207,12 @@ export const useAuthStore = create<AuthStore>()((set) => ({
 
   setAccessUnavailable: () => {
     set({ accessStatus: 'unavailable' });
+  },
+
+  updateTokens: (access, refresh) => {
+    setToken(access);
+    if (refresh) setRefreshToken(refresh);
+    set((state) => ({ accessToken: access, refreshToken: refresh ?? state.refreshToken }));
   },
 
   clearAuth: () => {
