@@ -12,6 +12,7 @@ import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
+import Store from "./pages/landing/store/Store";
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
@@ -28,6 +29,7 @@ function App() {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/store" element={<Store />} />
 
          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>

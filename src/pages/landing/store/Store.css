@@ -1,0 +1,96 @@
+.store-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.store-main {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.store-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.store-main-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px) clamp(40px, 6vw, 64px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4vw, 40px);
+}
+
+@media (max-width: 767px) {
+  .store-main {
+    background-attachment: scroll;
+  }
+}
+
+.store-panel {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.store-panel-heading {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.store-panel-heading h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  text-transform: uppercase;
+}
+
+.store-view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary-light);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.store-view-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.store-view-link:hover {
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.store-view-link:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-view-link {
+    transition: none;
+  }
+}
