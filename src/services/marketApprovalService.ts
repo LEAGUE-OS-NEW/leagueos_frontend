@@ -7,19 +7,7 @@ import {
 import type { AdminMarket } from "../types/api.ts";
 
 export type Sport = string;
-export type ApprovalStatus =
-  | "Awaiting Review"
-  | "Approved"
-  | "Rejected"
-  | "High Risk"
-  | "Second Approval Required"
-  | "Returned";
-export type RiskSeverity = "high" | "medium" | "low";
-export interface RiskFlag {
-  id: string;
-  label: string;
-  severity: RiskSeverity;
-}
+export type ApprovalStatus = "Awaiting Review" | "Approved" | "Rejected";
 export type DecisionAction = "Approved" | "Rejected";
 export interface ApprovalDecision {
   id: string;
@@ -43,19 +31,19 @@ export interface MarketForApproval {
   createdBy: string;
   createdByRole: string;
   submittedAt: string;
-  estimatedVolume: string;
-  isHighValue: boolean;
   status: ApprovalStatus;
-  riskFlags: RiskFlag[];
-  missingRules: string[];
-  requiresSecondApproval: boolean;
-  firstApprovedBy?: string;
   decisionHistory: ApprovalDecision[];
 }
 
+// Preserves the HTTP status on the thrown Error (not just its message) so
+// callers can tell "you can't approve your own market" (403 — maker/checker
+// conflict, enforced authoritatively on the backend) apart from any other
+// failure, instead of only ever seeing a generic error banner.
 const fail = (error: unknown): never => {
-  throw new Error(extractApiError(error).message);
+  const details = extractApiError(error);
+  throw Object.assign(new Error(details.message), { status: details.status });
 };
+
 const sport = (value?: string): Sport => value || "Other";
 const mapStatus = (value: string): ApprovalStatus =>
   value === "REJECTED"
@@ -82,12 +70,7 @@ const mapMarket = (market: AdminMarket): MarketForApproval => ({
   createdBy: market.created_by?.email || "Backend user",
   createdByRole: "Market Operations Admin",
   submittedAt: market.updated_at || market.created_at || market.opens_at,
-  estimatedVolume: "Volume unavailable",
-  isHighValue: false,
   status: mapStatus(market.status),
-  riskFlags: [],
-  missingRules: [],
-  requiresSecondApproval: false,
   decisionHistory: (market.status_transitions || [])
     .filter(
       (item) => item.to_status === "APPROVED" || item.to_status === "REJECTED",
@@ -148,9 +131,4 @@ export async function rejectMarket(
   } catch (e) {
     return fail(e);
   }
-}
-export async function returnMarket(): Promise<never> {
-  throw new Error(
-    "Return for Changes is not supported by the current backend workflow.",
-  );
 }
