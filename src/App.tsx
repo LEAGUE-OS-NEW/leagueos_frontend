@@ -11,6 +11,8 @@ function NormalizeSlash() {
 import NewsPage from "./pages/landing/news-page/NewsPage";
 import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
+import ClubProfile from './pages/clubs/profile/ClubProfile';
+import PlayerProfile from './pages/clubs/profile/PlayerProfile';
 import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import FanProfile from './pages/fan/profile/FanProfile';
@@ -52,6 +54,8 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
+        <Route path="/clubs/:clubSlug" element={<ClubProfile />} />
+        <Route path="/clubs/:clubSlug/players/:playerId" element={<PlayerProfile />} />
          <Route path="/tickets" element={<Tickets />} />
          <Route path="/privacy-policy" element={<LegalPolicy />} />
          <Route path="/terms-and-conditions" element={<TermsConditions />} />
