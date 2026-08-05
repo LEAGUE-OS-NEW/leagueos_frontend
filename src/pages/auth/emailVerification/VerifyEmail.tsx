@@ -55,18 +55,17 @@ export default function VerifyEmail() {
   useEffect(() => {
     if (!email || otpExpiresAt === null) return;
 
-    const tick = () => {
-      const remaining = otpExpiresAt - Date.now();
-      if (remaining <= 0) {
-        setMsLeft(0);
-        clearInterval(intervalId);
-        return;
-      }
-      setMsLeft(remaining);
-    };
-
-    const intervalId = setInterval(tick, 100);
-    tick();
+ const tick = () => {
+  const remaining = otpExpiresAt - Date.now();
+  if (remaining <= 0) {
+    setMsLeft(0);
+    clearInterval(intervalId);   // ← stops once expired
+    return;
+  }
+  setMsLeft(remaining);
+};
+   
+  const intervalId = setInterval(tick, 250);
 
     return () => clearInterval(intervalId);
   }, [email, otpExpiresAt]);

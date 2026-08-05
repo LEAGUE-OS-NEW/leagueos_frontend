@@ -19,6 +19,7 @@ import {
   convertProposalToDraft,
   createDraft,
   fetchDrafts,
+  fetchMarketCategories,
   fetchProposals,
   fetchVerifiedEvents,
   rejectProposal,
@@ -28,6 +29,7 @@ import {
   type DraftStatus,
   type MarketDraft,
   type MarketProposal,
+  type MarketCategory,
   type ProposalStatus,
   type VerificationStatus,
   type VerifiedEvent,
@@ -66,6 +68,8 @@ function draftStatusPillClass(status: DraftStatus): string {
       return 'moa-status-pill moa-status-pill--ready';
     case 'Submitted':
       return 'moa-status-pill moa-status-pill--submitted';
+    case 'Rejected':
+      return 'moa-status-pill moa-status-pill--rejected';
   }
 }
 
@@ -91,7 +95,7 @@ function separationStatus(draft: MarketDraft): { text: string; tone: 'pending' |
   if (draft.status === 'Ready for Approval') {
     return { text: 'Awaiting independent approval', tone: 'waiting' };
   }
-  return { text: 'Submitted for settlement', tone: 'submitted' };
+  return { text: draft.status === 'Rejected' ? 'Rejected by reviewer' : 'Submitted', tone: 'submitted' };
 }
 
 const PROPOSAL_STATUSES: ProposalStatus[] = ['New', 'Under Review', 'Returned', 'Converted', 'Rejected'];
@@ -599,6 +603,7 @@ interface EditorSeed {
 
 interface DraftFormState {
   eventId: string;
+  categoryId: string;
   question: string;
   resolutionRules: string;
   officialSource: string;
@@ -615,7 +620,7 @@ function toLocalInputValue(date: Date): string {
 function isStepValid(step: number, form: DraftFormState): boolean {
   switch (step) {
     case 0:
-      return form.eventId.length > 0;
+      return form.eventId.length > 0 && form.categoryId.length > 0;
     case 1:
       return form.question.trim().length > 6 && form.question.trim().endsWith('?');
     case 3:
@@ -637,12 +642,14 @@ function isStepValid(step: number, form: DraftFormState): boolean {
 
 function MarketDraftEditor({
   events,
+  categories,
   drafts,
   seed,
   onClose,
   onSubmitted,
 }: {
   events: VerifiedEvent[];
+  categories: MarketCategory[];
   drafts: MarketDraft[];
   seed: EditorSeed | null;
   onClose: () => void;
@@ -651,6 +658,7 @@ function MarketDraftEditor({
   const [step, setStep] = useState(seed?.startStep ?? 0);
   const [form, setForm] = useState<DraftFormState>({
     eventId: seed?.eventId ?? '',
+    categoryId: '',
     question: seed?.question ?? '',
     resolutionRules: seed?.resolutionRules ?? '',
     officialSource: '',
@@ -683,6 +691,8 @@ function MarketDraftEditor({
     try {
       const created = await createDraft({
         eventId: selectedEvent.id,
+        sportId: selectedEvent.sportId,
+        categoryId: form.categoryId,
         eventLabel: `${selectedEvent.teamA} vs ${selectedEvent.teamB}`,
         question: form.question.trim(),
         resolutionRules: form.resolutionRules.trim(),
@@ -764,6 +774,13 @@ function MarketDraftEditor({
             <div className="moa-step">
               <h3>Select a Verified Event</h3>
               <p className="moa-step__hint">Choose the fixture this market will be based on.</p>
+              <label className="moa-field">
+                <span>Market category</span>
+                <select value={form.categoryId} onChange={(event) => setForm((current) => ({ ...current, categoryId: event.target.value }))}>
+                  <option value="">Select a category</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+              </label>
               <div className="moa-event-list">
                 {events.map((event) => (
                   <button
@@ -1055,6 +1072,7 @@ function MarketOperationsAdmin() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [events, setEvents] = useState<VerifiedEvent[]>([]);
+  const [categories, setCategories] = useState<MarketCategory[]>([]);
   const [drafts, setDrafts] = useState<MarketDraft[]>([]);
   const [proposals, setProposals] = useState<MarketProposal[]>([]);
 
@@ -1065,17 +1083,18 @@ function MarketOperationsAdmin() {
   const [editorSeed, setEditorSeed] = useState<EditorSeed | null>(null);
 
   // Pure fetch — no setState inside, so it's safe to call from an effect.
-  const fetchAll = () => Promise.all([fetchVerifiedEvents(), fetchDrafts(), fetchProposals()]);
+  const fetchAll = () => Promise.all([fetchVerifiedEvents(), fetchDrafts(), fetchProposals(), fetchMarketCategories()]);
 
   useEffect(() => {
     let cancelled = false;
 
     fetchAll()
-      .then(([eventsResult, draftsResult, proposalsResult]) => {
+      .then(([eventsResult, draftsResult, proposalsResult, categoriesResult]) => {
         if (cancelled) return;
         setEvents(eventsResult);
         setDrafts(draftsResult);
         setProposals(proposalsResult);
+        setCategories(categoriesResult);
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load market operations data. Please try again.');
@@ -1094,10 +1113,11 @@ function MarketOperationsAdmin() {
     setLoadError(null);
 
     fetchAll()
-      .then(([eventsResult, draftsResult, proposalsResult]) => {
+      .then(([eventsResult, draftsResult, proposalsResult, categoriesResult]) => {
         setEvents(eventsResult);
         setDrafts(draftsResult);
         setProposals(proposalsResult);
+        setCategories(categoriesResult);
       })
       .catch(() => {
         setLoadError('Could not load market operations data. Please try again.');
@@ -1197,6 +1217,7 @@ function MarketOperationsAdmin() {
             {view === 'editor' ? (
               <MarketDraftEditor
                 events={events}
+                categories={categories}
                 drafts={drafts}
                 seed={editorSeed}
                 onClose={handleCloseEditor}

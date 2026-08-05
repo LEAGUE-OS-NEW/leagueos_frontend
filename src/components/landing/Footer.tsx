@@ -42,8 +42,8 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'About Us', route: '/about' },
       { label: 'Careers', route: '/careers' },
       { label: 'Partners', route: '/partners' },
-      { label: 'Terms & Conditions', route: '/terms' },
-      { label: 'Privacy Policy', route: '/privacy' },
+      { label: 'Terms & Conditions', route: '/terms-and-conditions' },
+      { label: 'Privacy Policy', route: '/privacy-policy' },
     ],
   },
 ];

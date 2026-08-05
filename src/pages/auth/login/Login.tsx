@@ -145,6 +145,18 @@ function getUserEmail(value: unknown) {
     return typeof value === 'string' && value.includes('@') ? value : undefined;
 }
 
+const REMEMBER_ME_STORAGE_KEY = 'leagueos:rememberedIdentifier';
+
+function getRememberedIdentifier() {
+    try {
+        return window.localStorage.getItem(REMEMBER_ME_STORAGE_KEY) ?? '';
+    } catch {
+        // localStorage can throw in private-browsing / disabled-storage
+        // contexts — treat that the same as "nothing remembered".
+        return '';
+    }
+}
+
 export default function Login() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -155,10 +167,11 @@ export default function Login() {
     const setHydratedUser = useAuthStore((state) => state.setHydratedUser);
 
     const [showPassword, setShowPassword] = useState(false);
-    const [identifier, setIdentifier] = useState('');
+    const [identifier, setIdentifier] = useState(() => getRememberedIdentifier());
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<LoginErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [rememberMe, setRememberMe] = useState(() => Boolean(getRememberedIdentifier()));
 
     const locationState = location.state as AuthFlowState | null;
     const locationMessage = locationState?.message ?? '';
@@ -234,6 +247,10 @@ export default function Login() {
         clearError('password');
     };
 
+    const handleRememberMeChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setRememberMe(e.target.checked);
+    };
+
     const validateForm = () => {
         const nextErrors: LoginErrors = {};
 
@@ -261,6 +278,19 @@ export default function Login() {
                 identifier: identifier.trim(),
                 password,
             });
+
+            // Persist (or clear) the remembered identifier once we know the
+            // credentials were accepted — never remember on a failed attempt.
+            try {
+                if (rememberMe) {
+                    window.localStorage.setItem(REMEMBER_ME_STORAGE_KEY, identifier.trim());
+                } else {
+                    window.localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+                }
+            } catch {
+                // Ignore storage failures (private browsing, quota, etc.) —
+                // remember-me is a convenience, not a hard requirement.
+            }
 
             if (result.requires_email_verification) {
                 navigate(VERIFY_EMAIL_ROUTE, {
@@ -395,6 +425,7 @@ export default function Login() {
                                         onChange={handleIdentifierChange}
                                         aria-invalid={Boolean(errors.identifier)}
                                         aria-describedby={errors.identifier ? 'login-identifier-error' : undefined}
+                                        disabled={isSubmitting}
                                     />
                                 </div>
                                 {errors.identifier ? (
@@ -418,6 +449,7 @@ export default function Login() {
                                         onChange={handlePasswordChange}
                                         aria-invalid={Boolean(errors.password)}
                                         aria-describedby={errors.password ? 'login-password-error' : undefined}
+                                        disabled={isSubmitting}
                                     />
                                     <button
                                         type="button"
@@ -425,6 +457,7 @@ export default function Login() {
                                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                                         aria-pressed={showPassword}
                                         onClick={() => setShowPassword((current) => !current)}
+                                        disabled={isSubmitting}
                                     >
                                         {showPassword ? <VisibilityOutlinedIcon /> : <VisibilityOffOutlinedIcon />}
                                     </button>
@@ -437,14 +470,34 @@ export default function Login() {
                             </label>
 
                             <div className="login-meta-row">
-                                <span />
+                                <label className="login-remember-me">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={handleRememberMeChange}
+                                        disabled={isSubmitting}
+                                    />
+                                    Remember me
+                                </label>
                                 <Link className="login-forgot" to="/forgot-password">
                                     Forgot password?
                                 </Link>
                             </div>
 
-                            <button type="submit" className="login-submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Logging in...' : 'Log In'}
+                            <button
+                                type="submit"
+                                className="login-submit"
+                                disabled={isSubmitting}
+                                aria-busy={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <span className="login-submit-loading">
+                                        <span className="login-spinner" aria-hidden="true" />
+                                        Logging in...
+                                    </span>
+                                ) : (
+                                    'Log In'
+                                )}
                             </button>
 
                             <p className="login-footnote">

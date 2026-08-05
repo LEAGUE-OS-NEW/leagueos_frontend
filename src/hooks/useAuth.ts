@@ -4,6 +4,7 @@ import type {
   AuthenticationResponse,
   LoginPayload,
 } from '../services/authServices.ts';
+import { unwrapApiData } from '../services/apiUtils.ts';
 
 export function useAuth() {
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -24,8 +25,7 @@ export function useAuth() {
 
    const login = async (payload: LoginPayload) => {
     const response = await authApi.login(payload);
-    console.log('USEAUTH DEBUG: response =', response); // TEMP
-    return completeAuthentication(response.data);
+    return completeAuthentication(unwrapApiData(response.data));
 };
 
   const logout = () => {

@@ -138,11 +138,9 @@ export function validateRegisterForm(values: RegisterFormValues) {
     errors.lastName = `Last name must be ${nameMaxLength} characters or fewer.`;
   }
 
-  if (!username) {
-    errors.username = 'Username is required.';
-  } else if (username.length < usernameLengthRange.min || username.length > usernameLengthRange.max) {
+  if (username && (username.length < usernameLengthRange.min || username.length > usernameLengthRange.max)) {
     errors.username = `Username must be ${usernameLengthRange.min} to ${usernameLengthRange.max} characters long.`;
-  } else if (!usernamePattern.test(username)) {
+  } else if (username && !usernamePattern.test(username)) {
     errors.username = 'Username can only contain letters, numbers, dots, and underscores.';
   } else if (firstName && username.toLowerCase() === firstName.toLowerCase()) {
     errors.username = 'Username cannot be the same as your first name.';
@@ -150,11 +148,9 @@ export function validateRegisterForm(values: RegisterFormValues) {
     errors.username = 'Username cannot be the same as your last name.';
   }
 
-  if (!phoneDigits) {
-    errors.phoneNumber = 'Phone number is required.';
-  } else if (!/^\d+$/.test(phoneDigits)) {
+  if (phoneDigits && !/^\d+$/.test(phoneDigits)) {
     errors.phoneNumber = 'Phone number can contain digits only.';
-  } else if (phoneDigits.length < phoneDigitLengthRange.min || phoneDigits.length > phoneDigitLengthRange.max) {
+  } else if (phoneDigits && (phoneDigits.length < phoneDigitLengthRange.min || phoneDigits.length > phoneDigitLengthRange.max)) {
     errors.phoneNumber = `Phone number must be ${phoneDigitLengthRange.min} to ${phoneDigitLengthRange.max} digits long.`;
   }
 

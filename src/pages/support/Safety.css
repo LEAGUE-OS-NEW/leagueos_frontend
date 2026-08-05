@@ -1,0 +1,195 @@
+/* Safety page specific styles */
+
+.safety-18-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 14px;
+  margin-top: 40px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+}
+
+.safety-18-icon {
+  color: var(--color-accent-alt);
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.safety-18-banner strong {
+  color: var(--color-accent-alt);
+}
+
+/* Warning signs box */
+.safety-signs {
+  margin-top: 40px;
+  background: rgba(249, 115, 22, 0.07);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 14px;
+  padding: 28px 28px 24px;
+}
+
+.safety-signs__title {
+  font-family: var(--font-family-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-accent);
+  margin: 0 0 14px;
+}
+
+.safety-signs__list {
+  padding-left: 20px;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.safety-signs__list li {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.safety-signs__note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.safety-signs__note strong {
+  color: var(--color-text-primary);
+}
+
+/* Security tips */
+.safety-tips {
+  margin-top: 32px;
+  padding: 24px 28px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.safety-tips h3 {
+  font-family: var(--font-family-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 14px;
+}
+
+.safety-tips ul {
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.safety-tips ul li {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* Privacy grid */
+.safety-privacy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.safety-privacy-item {
+  padding: 24px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.safety-privacy-item h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary-light);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.safety-privacy-item p {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Help banner */
+.safety-help-banner {
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border);
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.safety-help-banner h2 {
+  font-family: var(--font-family-heading);
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+.safety-help-banner p {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  margin: 0 0 32px;
+  line-height: 1.6;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.safety-help-contacts {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.safety-contact-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 32px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.safety-contact-card svg {
+  font-size: 1.4rem;
+  color: var(--color-primary-light);
+}
+
+.safety-contact-card small {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.safety-contact-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-card-hover);
+}

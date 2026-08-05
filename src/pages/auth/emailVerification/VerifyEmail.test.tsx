@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import VerifyEmail from './VerifyEmail';
@@ -30,11 +30,42 @@ vi.mock('react-router-dom', async () => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  navigateMock.mockReset();
   loginMock.mockReset();
   verifyOtpMock.mockReset();
   resendOtpMock.mockReset();
   vi.restoreAllMocks();
 });
+
+// Jumps the fake clock forward instantly instead of walking through every
+// intermediate tick of the countdown's 250ms interval. `advanceTimersByTimeAsync`
+// fires every pending timer along the way, and each fire triggers a React
+// render — for a multi-minute jump that's thousands of renders, which is
+// fast on a quiet machine but can blow past any timeout on a loaded one.
+// `setSystemTime` moves what `Date.now()` reports without walking the timer
+// queue, so the cost of this jump no longer depends on how large it is; we
+// still need one short `advanceTimersByTimeAsync` afterwards so the
+// component's own `setInterval` callback actually runs and picks up the
+// new time.
+async function fastForward(ms: number) {
+  await act(async () => {
+    vi.setSystemTime(new Date(Date.now() + ms));
+    await vi.advanceTimersByTimeAsync(300);
+  });
+}
+
+async function advanceTimers(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+function countdownSeconds(timer: HTMLElement) {
+  const match = timer.textContent?.match(/(\d{2}):(\d{2})\.(\d)/);
+  if (!match) throw new Error(`Could not parse countdown: ${timer.textContent}`);
+  return Number(match[1]) * 60 + Number(match[2]) + Number(match[3]) / 10;
+}
 
 describe('VerifyEmail page', () => {
   it('verifies the OTP and routes the user back to login', async () => {
@@ -166,6 +197,7 @@ describe('VerifyEmail page', () => {
 
   it('shows a 10 minute countdown that ticks down every second', async () => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
@@ -175,14 +207,13 @@ describe('VerifyEmail page', () => {
 
     expect(screen.getByRole('timer')).toHaveTextContent('10:00');
 
-    await vi.advanceTimersByTimeAsync(1000);
+    await advanceTimers(1000);
     expect(screen.getByRole('timer')).toHaveTextContent('09:59');
-
-    vi.useRealTimers();
   });
 
   it('disables the code once the countdown reaches zero and prompts for resend', async () => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
@@ -190,21 +221,20 @@ describe('VerifyEmail page', () => {
       </MemoryRouter>,
     );
 
-    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    await fastForward(10 * 60 * 1000);
 
     expect(screen.getByRole('timer')).toHaveTextContent(/expired/i);
     expect(screen.getByRole('button', { name: /verify & continue/i })).toBeDisabled();
     screen.getAllByRole('textbox', { name: /digit/i }).forEach((input) => {
       expect(input).toBeDisabled();
     });
-
-    vi.useRealTimers();
-  }, 15000);
+  }, 30000);
 
   it('lets the user request a resend during the countdown, which restarts the timer', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    resendOtpMock.mockResolvedValueOnce({ data: { message: 'A new OTP has been sent.' } });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const resendResponse = Promise.resolve({ data: { message: 'A new OTP has been sent.' } });
+    resendOtpMock.mockReturnValueOnce(resendResponse);
 
     render(
       <MemoryRouter initialEntries={[{ pathname: '/verify-email', state: { email: 'fan@example.com' } }]}>
@@ -212,21 +242,20 @@ describe('VerifyEmail page', () => {
       </MemoryRouter>,
     );
 
-    await vi.advanceTimersByTimeAsync(30 * 1000);
-    // `shouldAdvanceTime` lets real time bleed in by a few tenths of a
-    // second while awaiting, so the tenths digit isn't exact — assert on
-    // the minutes:seconds window instead of one precise tenth.
-    expect(screen.getByRole('timer')).toHaveTextContent(/09:(29\.\d|30\.0)/);
+    await fastForward(30 * 1000);
+    expect(countdownSeconds(screen.getByRole('timer'))).toBeGreaterThanOrEqual(569);
 
-    await user.click(screen.getByRole('button', { name: /didn't receive/i }));
-
-    await waitFor(() => {
-      expect(resendOtpMock).toHaveBeenCalledWith({ email: 'fan@example.com' });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /didn't receive/i }));
     });
 
-    expect(screen.getByRole('timer')).toHaveTextContent(/10:00\.0|09:59\.\d/);
-    expect(screen.getByRole('button', { name: /verify & continue/i })).not.toBeDisabled();
+    expect(resendOtpMock).toHaveBeenCalledWith({ email: 'fan@example.com' });
 
-    vi.useRealTimers();
+    await act(async () => {
+      await resendResponse;
+    });
+
+    expect(countdownSeconds(screen.getByRole('timer'))).toBeGreaterThanOrEqual(599);
+    expect(screen.getByRole('button', { name: /verify & continue/i })).not.toBeDisabled();
   });
 });

@@ -1,68 +1,89 @@
-// apiClent.ts
-import axios from 'axios';
-import { useAuthStore } from '../store/authStore.ts';
-import { getToken } from '../utils/tokenManager.ts';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "../store/authStore.ts";
+import { getRefreshToken, getToken } from "../utils/tokenManager.ts";
+import { unwrapApiData } from "./apiUtils.ts";
 
-const rawApiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000/api';
-
-const normalizedApiBaseUrl = String(rawApiBaseUrl).replace(/\/+$/, '');
-
-export const apiBaseUrl = normalizedApiBaseUrl.endsWith('/api')
-  ? normalizedApiBaseUrl
-  : `${normalizedApiBaseUrl}/api`;
+export const apiBaseUrl = String(
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
+).replace(/\/+$/, "");
+export const publicAuthPaths = [
+  "/auth/register/",
+  "/auth/verify-otp/",
+  "/auth/resend-otp/",
+  "/auth/login/",
+  "/auth/token/refresh/",
+  "/auth/password-reset/request/",
+  "/auth/password-reset/verify/",
+  "/auth/password-reset/confirm/",
+];
 
 const axiosInstance = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 60000,
+  headers: { "Content-Type": "application/json" },
 });
+const refreshClient = axios.create({
+  baseURL: apiBaseUrl,
+  timeout: 60000,
+  headers: { "Content-Type": "application/json" },
+});
+interface RetryConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+let refreshPromise: Promise<string> | null = null;
 
-const publicAuthPaths = [
-  '/accounts/login/',
-  '/accounts/register/',
-  '/accounts/verify-otp/',
-  '/accounts/resend-otp/',
-  '/accounts/password-reset/request/',
-  '/accounts/password-reset/confirm/',
-];
+const isPublicAuth = (url?: string) =>
+  publicAuthPaths.some((path) => String(url || "").includes(path));
 
 axiosInstance.interceptors.request.use((config) => {
-  const accessToken = getToken();
-  const requestUrl = String(config.url || '');
-  const isPublicAuthRequest = publicAuthPaths.some((path) =>
-    requestUrl.includes(path),
-  );
-
-  if (isPublicAuthRequest && config.headers) {
-    delete config.headers.Authorization;
+  if (isPublicAuth(config.url)) delete config.headers.Authorization;
+  else {
+    const token = getToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   }
-
-  if (accessToken && !isPublicAuthRequest) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
-
   return config;
 });
 
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refresh = getRefreshToken();
+      if (!refresh) throw new Error("No refresh token available");
+      const response = await refreshClient.post("/auth/token/refresh/", {
+        refresh,
+      });
+      const tokens = unwrapApiData<{ access: string; refresh?: string }>(
+        response.data,
+      );
+      useAuthStore.getState().updateTokens(tokens.access, tokens.refresh);
+      return tokens.access;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const status = error?.response?.status;
-    const requestUrl = String(error?.config?.url || '');
-    const isPublicAuthRequest = publicAuthPaths.some((path) =>
-      requestUrl.includes(path),
-    );
-
-    if (status === 401 && !isPublicAuthRequest) {
+  async (error: AxiosError) => {
+    const config = error.config as RetryConfig | undefined;
+    if (
+      error.response?.status !== 401 ||
+      !config ||
+      config._retry ||
+      isPublicAuth(config.url)
+    )
+      return Promise.reject(error);
+    config._retry = true;
+    try {
+      const access = await refreshAccessToken();
+      config.headers.Authorization = `Bearer ${access}`;
+      return axiosInstance(config);
+    } catch (refreshError) {
       useAuthStore.getState().clearAuth();
+      return Promise.reject(refreshError);
     }
-
-    return Promise.reject(error);
   },
 );
 

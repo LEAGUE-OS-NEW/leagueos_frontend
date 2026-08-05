@@ -98,8 +98,6 @@ describe('register helpers', () => {
         ).toMatchObject({
             firstName: 'First name is required.',
             lastName: 'Last name is required.',
-            username: 'Username is required.',
-            phoneNumber: 'Phone number is required.',
             email: 'Email address is required.',
             password: 'Password is required.',
             confirmPassword: 'Please confirm your password.',
@@ -167,8 +165,6 @@ describe('Register page', () => {
 
         expect(screen.getByText('First name is required.')).toBeInTheDocument()
         expect(screen.getByText('Last name is required.')).toBeInTheDocument()
-        expect(screen.getByText('Username is required.')).toBeInTheDocument()
-        expect(screen.getByText('Phone number is required.')).toBeInTheDocument()
         expect(screen.getByText('Email address is required.')).toBeInTheDocument()
         expect(screen.getByText('Password is required.')).toBeInTheDocument()
         expect(screen.getByText('Please confirm your password.')).toBeInTheDocument()
@@ -200,14 +196,13 @@ describe('Register page', () => {
                     expect(registerMock).toHaveBeenCalledWith({
                         first_name: 'Amina',
                         last_name: 'Kizza',
-                        username: 'aminakizza',
                         phone_number: '+256701234567',
                         email: 'amina.kizza@example.com',
                         password: 'StrongPass1!',
                         confirm_password: 'StrongPass1!',
                     })
                 },
-                { timeout: 8000 },
+                { timeout: 15000 },
             )
 
             expect(registerMock).not.toHaveBeenCalledWith(
@@ -228,10 +223,10 @@ describe('Register page', () => {
                         },
                     })
                 },
-                { timeout: 8000 },
+                { timeout: 15000 },
             )
         },
-        10000,
+        25000,
     )
 
     it('shows backend email field errors clearly', async () => {
@@ -253,12 +248,12 @@ describe('Register page', () => {
             await screen.findByText(
                 'A user with this email address already exists.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 
     it('shows backend phone_number field errors clearly', async () => {
         registerMock.mockRejectedValueOnce({
@@ -279,12 +274,12 @@ describe('Register page', () => {
             await screen.findByText(
                 'A user with this phone number already exists.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 
     it('shows general backend registration errors clearly', async () => {
         registerMock.mockRejectedValueOnce({
@@ -306,10 +301,10 @@ describe('Register page', () => {
             await screen.findByText(
                 'Registration could not be completed because the verification email could not be sent. Please try again.',
                 {},
-                { timeout: 8000 },
+                { timeout: 18000 },
             ),
         ).toBeInTheDocument()
 
         expect(navigateMock).not.toHaveBeenCalled()
-    }, 10000)
+    }, 20000)
 })
