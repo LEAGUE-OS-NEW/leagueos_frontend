@@ -1,36 +1,14 @@
 import { Link } from 'react-router-dom';
 import { GiTicket } from 'react-icons/gi';
+import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
+import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
+import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
+import { fetchTickets } from '../../../services/fanDashboardService';
 import './MyTickets.css';
 
-type Ticket = {
-  month: string;
-  day: string;
-  match: string;
-  time: string;
-  competition: string;
-  seat: string;
-};
-
-const TICKETS: Ticket[] = [
-  {
-    month: 'AUG',
-    day: '24',
-    match: 'Vipers SC vs Express FC',
-    time: '4:00 PM',
-    competition: 'Uganda Premier League',
-    seat: 'VIP Lounge • Row A • Seat 12',
-  },
-  {
-    month: 'AUG',
-    day: '30',
-    match: 'City Oilers vs Patriots BC',
-    time: '7:00 PM',
-    competition: 'NBL Uganda',
-    seat: 'Lower Bowl • Row C • Seat 8',
-  },
-];
-
 function MyTickets() {
+  const { data: tickets, isLoading, error, retry } = useDashboardSection(fetchTickets);
+
   return (
     <div className="my-tickets dashboard-card">
       <div className="dashboard-card-heading-row">
@@ -40,35 +18,45 @@ function MyTickets() {
         </Link>
       </div>
 
-      <p className="tickets-count">
-        <strong>{TICKETS.length}</strong> Upcoming Events
-      </p>
+      {isLoading ? (
+        <DashboardSkeleton rows={2} />
+      ) : error ? (
+        <DashboardNotice tone="error" title="Couldn't load your tickets" message={error} onRetry={retry} />
+      ) : tickets && tickets.length === 0 ? (
+        <DashboardNotice tone="empty" title="No upcoming tickets" message="Buy a ticket to see it here." />
+      ) : (
+        <>
+          <p className="tickets-count">
+            <strong>{tickets?.length ?? 0}</strong> Upcoming Events
+          </p>
 
-      <div className="tickets-list">
-        {TICKETS.map((ticket) => (
-          <Link to="/tickets" className="ticket-row" key={ticket.match}>
-            <div className="ticket-date">
-              <span className="ticket-date-month">{ticket.month}</span>
-              <span className="ticket-date-day">{ticket.day}</span>
-            </div>
+          <div className="tickets-list">
+            {(tickets ?? []).map((ticket) => (
+              <Link to="/tickets" className="ticket-row" key={ticket.match}>
+                <div className="ticket-date">
+                  <span className="ticket-date-month">{ticket.month}</span>
+                  <span className="ticket-date-day">{ticket.day}</span>
+                </div>
 
-            <div className="ticket-details">
-              <div className="ticket-details-top">
-                <span className="ticket-match">{ticket.match}</span>
-                <span className="ticket-time">{ticket.time}</span>
-              </div>
-              <p className="ticket-competition">{ticket.competition}</p>
-              <p className="ticket-seat">{ticket.seat}</p>
-            </div>
+                <div className="ticket-details">
+                  <div className="ticket-details-top">
+                    <span className="ticket-match">{ticket.match}</span>
+                    <span className="ticket-time">{ticket.time}</span>
+                  </div>
+                  <p className="ticket-competition">{ticket.competition}</p>
+                  <p className="ticket-seat">{ticket.seat}</p>
+                </div>
 
-            <GiTicket className="ticket-icon" />
+                <GiTicket className="ticket-icon" />
+              </Link>
+            ))}
+          </div>
+
+          <Link to="/tickets" className="tickets-manage-btn">
+            Manage Tickets
           </Link>
-        ))}
-      </div>
-
-      <Link to="/tickets" className="tickets-manage-btn">
-        Manage Tickets
-      </Link>
+        </>
+      )}
     </div>
   );
 }

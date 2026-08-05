@@ -1,0 +1,17 @@
+.notifications-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification-message {
+  margin: 0 0 4px;
+}
+
+.notification-time {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
