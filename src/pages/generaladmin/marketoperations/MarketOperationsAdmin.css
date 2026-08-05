@@ -157,16 +157,6 @@
   border: none;
 }
 
-.moa-btn--warning {
-  background: rgba(249, 115, 22, 0.16);
-  color: var(--color-accent-light);
-  border: 1px solid rgba(249, 115, 22, 0.35);
-}
-
-.moa-btn--warning:hover {
-  background: rgba(249, 115, 22, 0.24);
-}
-
 .moa-btn--outline {
   background: transparent;
   color: var(--color-text-primary);
@@ -431,10 +421,6 @@
 
 .moa-status-pill--review::before {
   background: var(--color-accent);
-}
-
-.moa-status-pill--returned::before {
-  background: var(--color-live);
 }
 
 .moa-status-pill--converted::before {

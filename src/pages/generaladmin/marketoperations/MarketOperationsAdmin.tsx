@@ -23,8 +23,6 @@ import {
   fetchProposals,
   fetchVerifiedEvents,
   rejectProposal,
-  requestProposalInfo,
-  returnProposal,
   submitForApproval,
   type DraftStatus,
   type MarketDraft,
@@ -79,8 +77,6 @@ function proposalStatusPillClass(status: ProposalStatus): string {
       return 'moa-status-pill moa-status-pill--new';
     case 'Under Review':
       return 'moa-status-pill moa-status-pill--review';
-    case 'Returned':
-      return 'moa-status-pill moa-status-pill--returned';
     case 'Converted':
       return 'moa-status-pill moa-status-pill--converted';
     case 'Rejected':
@@ -98,7 +94,7 @@ function separationStatus(draft: MarketDraft): { text: string; tone: 'pending' |
   return { text: draft.status === 'Rejected' ? 'Rejected by reviewer' : 'Submitted', tone: 'submitted' };
 }
 
-const PROPOSAL_STATUSES: ProposalStatus[] = ['New', 'Under Review', 'Returned', 'Converted', 'Rejected'];
+const PROPOSAL_STATUSES: ProposalStatus[] = ['New', 'Under Review', 'Converted', 'Rejected'];
 const KNOWN_SOURCES = ['ISIN official match feed', 'SportsRadar official match feed', 'OptaStats official match feed'];
 const WIZARD_STEP_LABELS = [
   'Event',
@@ -416,18 +412,14 @@ function ProposalDetailDrawer({
   duplicateDraft,
   onClose,
   onConvert,
-  onReturn,
   onReject,
-  onRequestInfo,
 }: {
   proposal: MarketProposal;
   event?: VerifiedEvent;
   duplicateDraft?: MarketDraft;
   onClose: () => void;
   onConvert: (proposal: MarketProposal) => void;
-  onReturn: (proposalId: string, note: string) => void;
   onReject: (proposalId: string, note: string) => void;
-  onRequestInfo: (proposalId: string, note: string) => void;
 }) {
   const [pendingDecision, setPendingDecision] = useState<PendingProposalDecision | null>(null);
   const isDecided = proposal.status === 'Converted' || proposal.status === 'Rejected';
@@ -526,36 +518,6 @@ function ProposalDetailDrawer({
           <div className="moa-drawer-section">
             <h3>Decision</h3>
             <div className="moa-decision-buttons">
-              <button
-                type="button"
-                className="moa-btn moa-btn--ghost"
-                disabled={isDecided}
-                onClick={() =>
-                  setPendingDecision({
-                    title: 'Request More Information',
-                    confirmLabel: 'Request Info',
-                    confirmClassName: 'moa-btn--gradient',
-                    onConfirm: (note) => onRequestInfo(proposal.id, note),
-                  })
-                }
-              >
-                Request More Info
-              </button>
-              <button
-                type="button"
-                className="moa-btn moa-btn--warning"
-                disabled={isDecided}
-                onClick={() =>
-                  setPendingDecision({
-                    title: 'Return for Changes',
-                    confirmLabel: 'Return',
-                    confirmClassName: 'moa-btn--warning',
-                    onConfirm: (note) => onReturn(proposal.id, note),
-                  })
-                }
-              >
-                Return for Changes
-              </button>
               <button
                 type="button"
                 className="moa-btn moa-btn--danger"
@@ -1148,20 +1110,8 @@ function MarketOperationsAdmin() {
     setView('editor');
   };
 
-  const handleReturnProposal = async (proposalId: string, note: string) => {
-    const updated = await returnProposal(proposalId, note);
-    setProposals((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-    setSelectedProposal(updated);
-  };
-
   const handleRejectProposal = async (proposalId: string, note: string) => {
     const updated = await rejectProposal(proposalId, note);
-    setProposals((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-    setSelectedProposal(updated);
-  };
-
-  const handleRequestProposalInfo = async (proposalId: string, note: string) => {
-    const updated = await requestProposalInfo(proposalId, note);
     setProposals((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setSelectedProposal(updated);
   };
@@ -1296,9 +1246,7 @@ function MarketOperationsAdmin() {
           duplicateDraft={selectedProposalDuplicate}
           onClose={() => setSelectedProposal(null)}
           onConvert={handleConvertToDraft}
-          onReturn={handleReturnProposal}
           onReject={handleRejectProposal}
-          onRequestInfo={handleRequestProposalInfo}
         />
       )}
     </div>
