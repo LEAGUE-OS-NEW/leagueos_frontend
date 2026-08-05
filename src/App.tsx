@@ -5,6 +5,8 @@ import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
 import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
+import FanProfile from './pages/fan/profile/FanProfile';
+import FanSettings from './pages/fan/settings/FanSettings';
 import Markets from './pages/markets/Markets';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -36,6 +38,8 @@ function App() {
          {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
         <Route path="/fandashboard" element={<FanDashboard />} />
+        <Route path="/profile" element={<FanProfile />} />
+        <Route path="/settings" element={<FanSettings />} />
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
