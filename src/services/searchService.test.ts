@@ -3,7 +3,7 @@ import { fetchSearchResults } from './searchService';
 import { getPublicClubs, getPublicCompetitions, getPublicFixtures } from './publicDashboardService';
 import { fetchOpenMarkets } from './markets/publicMarketsService';
 import { fetchNews } from './newsService';
-import { fetchPlayers } from './playersService';
+import { fetchClubs, fetchSquad } from './clubsService';
 
 vi.mock('./publicDashboardService', () => ({
   getPublicClubs: vi.fn(),
@@ -19,8 +19,9 @@ vi.mock('./newsService', () => ({
   fetchNews: vi.fn(),
 }));
 
-vi.mock('./playersService', () => ({
-  fetchPlayers: vi.fn(),
+vi.mock('./clubsService', () => ({
+  fetchClubs: vi.fn(),
+  fetchSquad: vi.fn(),
 }));
 
 describe('fetchSearchResults', () => {
@@ -56,16 +57,45 @@ describe('fetchSearchResults', () => {
         avatar: '/avatar.jpg',
       },
     ]);
-    vi.mocked(fetchPlayers).mockResolvedValue([
-      { id: 'p1', name: 'Allan Okello', club: 'Vipers SC', sport: 'Football', position: 'Midfielder' },
+    vi.mocked(fetchClubs).mockResolvedValue([
+      {
+        slug: 'vipers-sc',
+        name: 'Vipers SC',
+        sport: 'Football',
+        league: 'Uganda Premier League',
+        founded: '2008',
+        stadium: "St. Mary's Stadium",
+        description: '',
+        verificationStatus: 'Verified',
+        honours: [],
+      },
+    ]);
+    vi.mocked(fetchSquad).mockResolvedValue([
+      {
+        id: 'v-1',
+        clubSlug: 'vipers-sc',
+        name: 'Allan Okello',
+        position: 'Midfielder',
+        number: 8,
+        nationality: 'Uganda',
+        dateJoined: 'Jan 2022',
+        statsVerification: 'Verified',
+        stats: [],
+      },
     ]);
 
     const { results, failedSources } = await fetchSearchResults();
 
     expect(failedSources).toEqual(['fixtures']);
     expect(results.map((r) => r.kind).sort()).toEqual(['club', 'competition', 'market', 'news', 'player'].sort());
-    expect(results.find((r) => r.kind === 'club')).toMatchObject({ name: 'Vipers SC', sport: 'Football' });
+    expect(results.find((r) => r.kind === 'club')).toMatchObject({ name: 'Vipers SC', slug: 'vipers-sc', sport: 'Football' });
     expect(results.find((r) => r.kind === 'competition')).toMatchObject({ sport: 'Football' });
+    expect(results.find((r) => r.kind === 'player')).toMatchObject({
+      name: 'Allan Okello',
+      clubSlug: 'vipers-sc',
+      playerId: 'v-1',
+      sport: 'Football',
+    });
   });
 
   it('reports every source as failed when everything rejects', async () => {
@@ -74,7 +104,7 @@ describe('fetchSearchResults', () => {
     vi.mocked(getPublicFixtures).mockRejectedValue(new Error('down'));
     vi.mocked(fetchOpenMarkets).mockRejectedValue(new Error('down'));
     vi.mocked(fetchNews).mockRejectedValue(new Error('down'));
-    vi.mocked(fetchPlayers).mockRejectedValue(new Error('down'));
+    vi.mocked(fetchClubs).mockRejectedValue(new Error('down'));
 
     const { results, failedSources } = await fetchSearchResults();
 

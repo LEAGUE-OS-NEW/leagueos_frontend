@@ -139,14 +139,14 @@ function LiveScores() {
             <h2 className="section-heading">Live Scores</h2>
             <p className="section-subheading">Real-time scores from Africa and beyond.</p>
           </div>
-          <Link to="/live" className="section-link">
+          <Link to="/fixtures" className="section-link">
             View all live
           </Link>
         </div>
 
         <div className="live-scores-grid">
           {SCORE_CARDS.map((card) => (
-            <Link to="/live" className="score-card" key={`${card.teamA}-${card.teamB}`}>
+            <Link to="/fixtures" className="score-card" key={`${card.teamA}-${card.teamB}`}>
               <div className="score-card-header">
                 <span className={`score-sport-tag ${SPORT_CLASS[card.sport]}`}>{card.sport}</span>
                 <span className="score-status">
@@ -177,7 +177,7 @@ function LiveScores() {
 
           <div className="score-list-card">
             {LIST_MATCHES.map((match) => (
-              <Link to="/live" className="score-list-match" key={`${match.teamA}-${match.teamB}`}>
+              <Link to="/fixtures" className="score-list-match" key={`${match.teamA}-${match.teamB}`}>
                 <div className="score-list-teams">
                   <div className="score-list-row">
                     <TeamCrest src={match.crestA} name={match.teamA} className="score-list-crest" />

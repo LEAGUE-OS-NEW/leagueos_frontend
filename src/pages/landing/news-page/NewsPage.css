@@ -302,6 +302,20 @@ button {
   line-height: 1.3;
 }
 
+.story-card__image-link {
+  display: block;
+  height: 100%;
+}
+
+.story-card__title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.story-card__title-link:hover {
+  text-decoration: underline;
+}
+
 .story-card__desc {
   font-size: 13px;
   color: var(--text-secondary);

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
     Trophy,
     Circle,
@@ -227,7 +228,9 @@ const NewsPage: React.FC = () => {
                             {visibleStories.map((story) => (
                                 <article className="story-card" key={story.id}>
                                     <div className="story-card__image-wrap">
-                                        <img src={story.image} alt={story.title} className="story-card__image" />
+                                        <Link to={`/news/${story.id}`} className="story-card__image-link">
+                                            <img src={story.image} alt={story.title} className="story-card__image" />
+                                        </Link>
                                         <span
                                             className={`badge badge--category badge--${story.category.toLowerCase()}`}
                                         >
@@ -236,7 +239,11 @@ const NewsPage: React.FC = () => {
                                         <span className="story-card__time">{story.time}</span>
                                     </div>
                                     <div className="story-card__body">
-                                        <h3 className="story-card__title">{story.title}</h3>
+                                        <h3 className="story-card__title">
+                                            <Link to={`/news/${story.id}`} className="story-card__title-link">
+                                                {story.title}
+                                            </Link>
+                                        </h3>
                                         <p className="story-card__desc">{story.description}</p>
                                         <div className="story-card__footer">
                                             <div className="story-card__author">

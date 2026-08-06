@@ -1,0 +1,333 @@
+/* ============================================================
+   Fixtures & Results page (US-3.3) — real design tokens only,
+   classes prefixed `fixtures-`/`fx-` to avoid collisions.
+   ============================================================ */
+
+.fixtures-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.fixtures-main {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+@media (max-width: 767px) {
+  .fixtures-main {
+    background-attachment: scroll;
+  }
+}
+
+.fixtures-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.fixtures-main-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 48px) 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---------- Header ---------- */
+
+.fixtures-header__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.fixtures-header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+}
+
+.fixtures-header p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ---------- Tabs / pills ---------- */
+
+.fixtures-tab-row,
+.fixtures-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fixtures-tab,
+.fixtures-pill {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.fixtures-pill {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  padding: 7px 16px;
+}
+
+.fixtures-tab:hover,
+.fixtures-pill:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.fixtures-tab.is-active,
+.fixtures-pill.is-active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+/* ---------- Loading / error / empty ---------- */
+
+.fixtures-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.fixtures-error-banner svg {
+  color: var(--color-live);
+  flex-shrink: 0;
+}
+
+.fixtures-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.fixtures-btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.fixtures-btn--outline:hover {
+  background-color: var(--color-card-hover);
+}
+
+.fixtures-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.fixtures-loading__icon {
+  animation: fixtures-spin 1.2s linear infinite;
+}
+
+@keyframes fixtures-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fixtures-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+/* ---------- Grid / cards ---------- */
+
+.fixtures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.fx-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  transition: transform 0.15s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.fx-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-hover);
+  background-color: var(--color-card-hover);
+}
+
+.fx-card:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fx-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fx-card__competition {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-card__teams {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fx-card__team {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.fx-card__team span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.fx-crest {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--color-bg-elevated);
+}
+
+.fx-card__vs {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.fx-card__score {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.fx-card__meta {
+  margin: 12px 0 0;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ---------- Status badges (shared with MatchCentre.tsx) ---------- */
+
+.fixture-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.fixture-status--live {
+  background: rgba(220, 38, 38, 0.16);
+  color: var(--color-live);
+  animation: fixtures-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes fixtures-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.fixture-status--provisional {
+  background: rgba(249, 115, 22, 0.16);
+  color: var(--color-accent-light);
+}
+
+.fixture-status--final {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-open);
+}
+
+.fixture-status--scheduled {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--color-text-secondary);
+}
+
+.fixture-status--postponed,
+.fixture-status--cancelled {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--color-text-muted);
+}

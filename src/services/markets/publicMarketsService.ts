@@ -13,6 +13,7 @@ export interface PublicMarketCard {
   closesAt: string;
   outcomes: string[];
   result?: string;
+  sportingEventId?: string;
 }
 export function adaptPublicMarket(market: Market): PublicMarketCard {
   const sport = market.sport?.name || "Other";
@@ -32,6 +33,7 @@ export function adaptPublicMarket(market: Market): PublicMarketCard {
     closesAt: market.closes_at,
     outcomes: market.outcomes.map((outcome) => outcome.label),
     result: market.status === "VOIDED" ? "Voided" : winner,
+    sportingEventId: market.sporting_event?.id,
   };
 }
 const markets = async (params: Record<string, string>) =>
