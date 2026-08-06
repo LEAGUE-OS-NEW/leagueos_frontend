@@ -22,8 +22,11 @@ import {
 } from "react-icons/gi";
 import Navbar from "../../components/landing/Navbar";
 import Footer from "../../components/landing/Footer";
+import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
+import { getMarketPricing } from "../../services/markets/marketPricingService.ts";
+import type { SportingEvent } from "../../types/api.ts";
 import "./Markets.css";
 
 type Sport = "Football" | "Rugby" | "Basketball";
@@ -38,10 +41,12 @@ type FeaturedMarket = {
   crestB?: string;
   question: string;
   closesIn: string;
+  status: string;
+  probabilityPct: number;
+  yesPrice: string;
+  noPrice: string;
+  volume: string;
   traders: string;
-  tradedYes: string;
-  yesOdds: string;
-  noOdds: string;
 };
 
 type OpenMarketRow = {
@@ -50,8 +55,8 @@ type OpenMarketRow = {
   teamA: string;
   teamB: string;
   question: string;
-  yesOdds: string;
-  noOdds: string;
+  yesPrice: string;
+  noPrice: string;
   volume: string;
   closesIn: string;
 };
@@ -151,6 +156,48 @@ const HOW_IT_WORKS_STEPS: {
 
 const SPORT_FILTERS: SportFilter[] = ["All", "Football", "Rugby", "Basketball"];
 
+const MARKET_STATUS_META: Record<string, { label: string; className: string }> = {
+  OPEN: { label: "Open", className: "open" },
+  RESOLVED: { label: "Resolved", className: "resolved" },
+  VOIDED: { label: "Voided", className: "voided" },
+};
+
+function marketStatusMeta(status: string) {
+  return MARKET_STATUS_META[status] ?? { label: status, className: "open" };
+}
+
+function formatStartsIn(iso: string): string {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(date) - startOfDay(new Date())) / 86_400_000);
+  if (dayDiff === 0) return `Today, ${time}`;
+  if (dayDiff === 1) return `Tomorrow, ${time}`;
+  return `${date.toLocaleDateString("en-US", { weekday: "short" })}, ${time}`;
+}
+
+function isSupportedSport(sport: string): sport is Sport {
+  return sport === "Football" || sport === "Rugby" || sport === "Basketball";
+}
+
+function mapEventToStartingSoon(event: SportingEvent): StartingSoonItem | null {
+  const sport = event.sport?.name;
+  if (!sport || !isSupportedSport(sport)) return null;
+
+  const [teamA, teamB] = [...event.participants]
+    .sort((a, b) => a.position - b.position)
+    .map((entry) => entry.participant.name);
+  if (!teamA || !teamB) return null;
+
+  return {
+    sport,
+    teamA,
+    teamB,
+    league: event.competition?.name ?? sport,
+    startsIn: formatStartsIn(event.starts_at),
+  };
+}
+
 function CrestPlaceholder() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -218,6 +265,7 @@ function Markets() {
   const [openMarkets, setOpenMarkets] = useState<OpenMarketRow[]>(OPEN_MARKETS);
   const [closedMarkets, setClosedMarkets] =
     useState<ClosedMarketRow[]>(CLOSED_MARKETS);
+  const [startingSoon, setStartingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -235,31 +283,39 @@ function Markets() {
         setFeaturedMarkets(
           data.featured
             .filter((market) => supported(market.sport))
-            .map((market) => ({
-              id: market.id,
-              sport: market.sport as Sport,
-              ...teams(market.subject, market.teams),
-              question: market.question,
-              closesIn: new Date(market.closesAt).toLocaleString(),
-              traders: "Unavailable",
-              tradedYes: "Live market",
-              yesOdds: "Price unavailable",
-              noOdds: "Price unavailable",
-            })),
+            .map((market) => {
+              const pricing = getMarketPricing(market.id);
+              return {
+                id: market.id,
+                sport: market.sport as Sport,
+                ...teams(market.subject, market.teams),
+                question: market.question,
+                closesIn: new Date(market.closesAt).toLocaleString(),
+                status: market.status,
+                probabilityPct: pricing.probabilityPct,
+                yesPrice: pricing.yesPrice,
+                noPrice: pricing.noPrice,
+                volume: pricing.volume,
+                traders: pricing.traders,
+              };
+            }),
         );
         setOpenMarkets(
           data.open
             .filter((market) => supported(market.sport))
-            .map((market) => ({
-              id: market.id,
-              sport: market.sport as Sport,
-              ...teams(market.subject, market.teams),
-              question: market.question,
-              yesOdds: "Price unavailable",
-              noOdds: "Price unavailable",
-              volume: "Unavailable",
-              closesIn: new Date(market.closesAt).toLocaleString(),
-            })),
+            .map((market) => {
+              const pricing = getMarketPricing(market.id);
+              return {
+                id: market.id,
+                sport: market.sport as Sport,
+                ...teams(market.subject, market.teams),
+                question: market.question,
+                yesPrice: pricing.yesPrice,
+                noPrice: pricing.noPrice,
+                volume: pricing.volume,
+                closesIn: new Date(market.closesAt).toLocaleString(),
+              };
+            }),
         );
         setClosedMarkets(
           data.resolved
@@ -270,9 +326,17 @@ function Markets() {
               ...teams(market.subject, market.teams),
               question: market.question,
               result: market.result || "Result unavailable",
-              volume: "Unavailable",
+              volume: getMarketPricing(market.id).volume,
               closedAgo: new Date(market.closesAt).toLocaleString(),
             })),
+        );
+        setStartingSoon(
+          data.events
+            .filter((event) => new Date(event.starts_at).getTime() > Date.now())
+            .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+            .map(mapEventToStartingSoon)
+            .filter((item): item is StartingSoonItem => item !== null)
+            .slice(0, 4),
         );
       })
       .catch((error) => {
@@ -406,7 +470,17 @@ function Markets() {
                 <h2 id="featured-markets-heading">
                   <FiZap /> Featured Open Markets
                 </h2>
-                <p>Explore trending questions. Trade your view.</p>
+                <p className="market-panel-subnote">
+                  Explore trending questions. Trade your view.
+                  <InfoTooltip
+                    label="How prices work"
+                    text="A YES price of 67¢ means the market currently sees a 67% chance of YES. Prices move as more people trade."
+                  />
+                  <InfoTooltip
+                    label="What volume means"
+                    text="Volume is the total value traded on a market so far — higher volume usually means a more reliable price."
+                  />
+                </p>
               </div>
               <Link to="/markets" className="market-view-link">
                 View all markets
@@ -422,7 +496,9 @@ function Markets() {
                     >
                       {market.sport}
                     </span>
-                    <span className="open-badge">Open</span>
+                    <span className={`open-badge open-badge--${marketStatusMeta(market.status).className}`}>
+                      {marketStatusMeta(market.status).label}
+                    </span>
                   </div>
 
                   <div className="featured-market-teams">
@@ -440,24 +516,34 @@ function Markets() {
                   <p className="featured-market-question">{market.question}</p>
                   <p className="featured-market-closes">{market.closesIn}</p>
 
+                  <div className="market-probability">
+                    <div className="market-probability-track">
+                      <div
+                        className="market-probability-fill"
+                        style={{ width: `${market.probabilityPct}%` }}
+                      />
+                    </div>
+                    <span className="market-probability-label">{market.probabilityPct}% likely YES</span>
+                  </div>
+
                   <div className="featured-market-stats">
                     <span>
-                      <FiUsers /> {market.traders}
+                      <FiUsers /> {market.traders} traders
                     </span>
-                    <span>Traded {market.tradedYes}</span>
+                    <span>Vol: {market.volume}</span>
                   </div>
 
                   <div className="market-outcomes">
                     <OutcomeButton
                       label="Yes"
-                      value={market.yesOdds}
+                      value={market.yesPrice}
                       choice="yes"
                       selected={selections[market.id]}
                       onSelect={() => selectOutcome(market.id, "yes")}
                     />
                     <OutcomeButton
                       label="No"
-                      value={market.noOdds}
+                      value={market.noPrice}
                       choice="no"
                       selected={selections[market.id]}
                       onSelect={() => selectOutcome(market.id, "no")}
@@ -509,9 +595,24 @@ function Markets() {
                   >
                     <span>Event</span>
                     <span>Market Question</span>
-                    <span>Yes</span>
-                    <span>No</span>
-                    <span>Volume</span>
+                    <span>
+                      Yes
+                      <InfoTooltip
+                        label="What the YES price means"
+                        text="What it costs to buy a YES share — reflects the market's current probability."
+                      />
+                    </span>
+                    <span>
+                      No
+                      <InfoTooltip
+                        label="What the NO price means"
+                        text="What it costs to buy a NO share — always 100¢ minus the YES price."
+                      />
+                    </span>
+                    <span>
+                      Volume
+                      <InfoTooltip label="What volume means" text="Total value traded on this market so far." />
+                    </span>
                     <span>Closes In</span>
                   </div>
 
@@ -538,13 +639,13 @@ function Markets() {
                         role="cell"
                         className="open-market-outcome open-market-outcome--yes"
                       >
-                        {market.yesOdds}
+                        {market.yesPrice}
                       </div>
                       <div
                         role="cell"
                         className="open-market-outcome open-market-outcome--no"
                       >
-                        {market.noOdds}
+                        {market.noPrice}
                       </div>
                       <div role="cell" className="open-market-volume">
                         {market.volume}
@@ -685,7 +786,10 @@ function Markets() {
                 </div>
 
                 <div className="starting-soon-list">
-                  {STARTING_SOON.map((fixture) => {
+                  {startingSoon.length === 0 && (
+                    <p className="starting-soon-empty">No fixtures starting soon.</p>
+                  )}
+                  {startingSoon.map((fixture) => {
                     const match = `${fixture.teamA} vs ${fixture.teamB}`;
                     return (
                       <article className="starting-soon-item" key={match}>
