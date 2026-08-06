@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import DashboardSidebar from "../../../components/generaladmin/Sidebar";
-import DashboardTopbar from "../sections/Topbar";
+import AdminLayout from "../../../components/admin/AdminLayout";
 import { extractApiError } from "../../../services/apiUtils.ts";
 import {
   fetchComplianceDecisions,
@@ -1350,7 +1349,6 @@ const ComplianceAdmin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -1599,28 +1597,9 @@ const ComplianceAdmin: React.FC = () => {
   };
 
   return (
-    <div className="compliance-root">
-      <div className="app-shell">
-        <aside className={`app-sidebar${sidebarOpen ? " is-open" : ""}`}>
-          <DashboardSidebar
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-        </aside>
-
-        {sidebarOpen && (
-          <div
-            className="app-sidebar-scrim"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        <div className="app-main">
-          <header className="app-topbar">
-            <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
-          </header>
-
-          <main className="compliance-content">
+    <AdminLayout>
+      <div className="compliance-root">
+        <div className="compliance-content">
             <div className="compliance-header">
               <div>
                 <p className="compliance-header__eyebrow">Welcome back</p>
@@ -1683,9 +1662,7 @@ const ComplianceAdmin: React.FC = () => {
             </div>
 
             <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
-          </main>
         </div>
-      </div>
 
       {selectedCase && (
         <ComplianceCaseDetail
@@ -1695,7 +1672,8 @@ const ComplianceAdmin: React.FC = () => {
           onMutate={handleMutateCase}
         />
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 
