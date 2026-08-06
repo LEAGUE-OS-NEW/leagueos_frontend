@@ -1,0 +1,244 @@
+.dsp-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dsp-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dsp-head h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+}
+
+.dsp-head p:last-child {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.dsp-btn {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--color-text-primary);
+}
+
+.dsp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dsp-btn--ghost {
+  background-color: var(--color-card-bg);
+}
+
+.dsp-btn--gradient {
+  background: var(--gradient-primary);
+  color: #ffffff;
+  border: none;
+}
+
+.dsp-btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-border-hover);
+}
+
+.dsp-btn--sm {
+  padding: 7px 12px;
+  font-size: 0.74rem;
+  min-height: 32px;
+}
+
+/* ---------- Loading / error ---------- */
+
+.dsp-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 0;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.dsp-loading__icon {
+  animation: dsp-spin 1.2s linear infinite;
+}
+
+@keyframes dsp-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.dsp-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.dsp-error-banner > span {
+  flex: 1;
+}
+
+/* ---------- Panel / table ---------- */
+
+.dsp-panel {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.dsp-table-scroll {
+  overflow-x: auto;
+}
+
+.dsp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.dsp-table thead th {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.dsp-table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.dsp-table__title-cell {
+  min-width: 200px;
+  color: var(--color-text-primary);
+}
+
+.dsp-table__empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 24px 0 !important;
+}
+
+.dsp-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dsp-resolution-note {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+/* ---------- Status pills ---------- */
+
+.dsp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dsp-status-pill--open {
+  background: rgba(240, 178, 60, 0.16);
+  color: var(--color-accent-light);
+}
+
+.dsp-status-pill--escalated {
+  background: rgba(220, 38, 38, 0.16);
+  color: var(--color-live);
+}
+
+.dsp-status-pill--resolved {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-open);
+}
+
+/* ---------- Modal ---------- */
+
+.dsp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 3, 10, 0.72);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.dsp-modal {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dsp-modal h3 {
+  margin: 0;
+}
+
+.dsp-field-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.dsp-modal textarea {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  resize: vertical;
+}
+
+.dsp-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
