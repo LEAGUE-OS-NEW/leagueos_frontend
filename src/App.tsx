@@ -37,6 +37,8 @@ import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketO
 import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 
+import SearchPage from './pages/search/SearchPage';
+
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
@@ -70,6 +72,7 @@ function App() {
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
+        <Route path="/search" element={<SearchPage />} />
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />

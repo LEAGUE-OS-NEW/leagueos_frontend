@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { FiMenu, FiX, FiChevronDown, FiUsers, FiShoppingCart, FiFileText, FiInfo, FiTrendingUp } from 'react-icons/fi';
+import {
+  FiMenu,
+  FiX,
+  FiChevronDown,
+  FiUsers,
+  FiShoppingCart,
+  FiFileText,
+  FiInfo,
+  FiTrendingUp,
+  FiSearch,
+} from 'react-icons/fi';
 import { GiTrophyCup, GiTicket } from 'react-icons/gi';
 import HomeLogo from './HomeLogo';
+import { useAuthStore } from '../../store/authStore.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
 import './Navbar.css';
 
 export type NavbarLink = {
@@ -25,6 +37,7 @@ const DEFAULT_LINKS: NavbarLink[] = [
   { label: 'Store', route: '/store' },
   { label: 'News', route: '/news' },
   { label: 'About', route: '/about' },
+  { label: 'Search', route: '/search' },
 ];
 
 const LINK_ICONS: Record<string, ReactNode> = {
@@ -35,12 +48,15 @@ const LINK_ICONS: Record<string, ReactNode> = {
   Store: <FiShoppingCart />,
   News: <FiFileText />,
   About: <FiInfo />,
+  Search: <FiSearch />,
 };
 
 function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const isSignedIn = Boolean(useAuthStore((state) => state.accessToken));
+  const { logout } = useAuth();
 
   const openMenu = () => setIsMenuOpen(true);
 
@@ -92,13 +108,26 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         </nav>
 
         <div className="navbar-actions">
-          <Link to="/login" className="btn-login">
-            Log In
-          </Link>
-          {showSignup && (
-            <Link to="/signup" className="btn-signup">
-              Sign Up
-            </Link>
+          {isSignedIn ? (
+            <>
+              <Link to="/profile" className="btn-login">
+                My Account
+              </Link>
+              <button type="button" className="btn-signup" onClick={logout}>
+                Log Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="btn-login">
+                Log In
+              </Link>
+              {showSignup && (
+                <Link to="/signup" className="btn-signup">
+                  Sign Up
+                </Link>
+              )}
+            </>
           )}
         </div>
 
@@ -162,13 +191,34 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         <div className="navbar-mobile-divider" />
 
         <div className="navbar-mobile-actions">
-          <Link to="/login" className="btn-login-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
-            Log In
-          </Link>
-          {showSignup && (
-            <Link to="/signup" className="btn-signup-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
-              Sign Up
-            </Link>
+          {isSignedIn ? (
+            <>
+              <Link to="/profile" className="btn-login-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
+                My Account
+              </Link>
+              <button
+                type="button"
+                className="btn-signup-mobile"
+                onClick={() => {
+                  logout();
+                  closeMenu();
+                }}
+                tabIndex={isMenuOpen ? 0 : -1}
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="btn-login-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
+                Log In
+              </Link>
+              {showSignup && (
+                <Link to="/signup" className="btn-signup-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
+                  Sign Up
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>
