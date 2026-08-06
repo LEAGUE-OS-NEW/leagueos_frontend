@@ -19,7 +19,9 @@ import FanDashboard from './pages/fan/sections/FanDashboard';
 import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
+import MyPositions from './pages/fan/positions/MyPositions';
 import Markets from './pages/markets/Markets';
+import MarketDetailPage from './pages/markets/MarketDetailPage';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -86,8 +88,10 @@ function App() {
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
         <Route path="/wallet" element={<FanWallet />} />
+        <Route path="/positions" element={<MyPositions />} />
 
         <Route path="/markets" element={<Markets />} />
+        <Route path="/markets/:marketId" element={<MarketDetailPage />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
 
