@@ -17,6 +17,7 @@ import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
+import FanWallet from './pages/fan/wallet/FanWallet';
 import Markets from './pages/markets/Markets';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -69,6 +70,7 @@ function App() {
         <Route path="/fandashboard" element={<FanDashboard />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
+        <Route path="/wallet" element={<FanWallet />} />
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
