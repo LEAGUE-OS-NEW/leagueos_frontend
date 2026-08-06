@@ -30,16 +30,23 @@ import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
-import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
-import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import MarketsListPage from './pages/admin/markets/MarketsListPage';
+import CreateMarketWizard from './pages/admin/markets/CreateMarketWizard';
+import AdminMarketDetailPage from './pages/admin/markets/MarketDetailPage';
+import ResultVerificationPage from './pages/admin/verification/ResultVerificationPage';
+import DisputesPage from './pages/admin/disputes/DisputesPage';
+import AdminUsersPage from './pages/admin/users/AdminUsersPage';
+import RolesPermissionsPage from './pages/admin/roles/RolesPermissionsPage';
+import NotificationsPage from './pages/admin/notifications/NotificationsPage';
+import ReportsPage from './pages/admin/reports/ReportsPage';
+import SystemSettingsPage from './pages/admin/settings/SystemSettingsPage';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
 import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
-import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketOperationsAdmin';
-import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 
 import SearchPage from './pages/search/SearchPage';
@@ -91,22 +98,28 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
 
-        {/* Super Admin dashboard */}
-        <Route path="/dashboard/super-admin" element={<SuperAdminDashboard />} />
-
-        {/* General Admin dashboard */}
-        <Route path="/dashboard/general-admin" element={<GeneralAdminDashboard />} />
-        <Route path="/dashboard/general-admin/compliance" element={<ComplianceAdmin />}/>
-        <Route path="/dashboard/general-admin/finance" element={<FinanceAdmin />} />
-        <Route path="/dashboard/general-admin/sports-data" element={<SportsDataAdmin />}/>
-        <Route path="/dashboard/general-admin/markets" element={<MarketOperationsAdmin />}/>
-        <Route path="/dashboard/general-admin/market-proposals" element={<MarketApprovalAdmin />}/>
-        <Route path="/dashboard/general-admin/support" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/general-admin/support/case-queues" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/general-admin/support/my-cases" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/general-admin/support/escalations" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/general-admin/support/sla" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/general-admin/support/resolved" element={<CustomerSupportAdmin />} />
+        {/* Shared admin shell — Super Admin + every specialist role */}
+        <Route path="/dashboard/admin" element={<AdminDashboard />} />
+        <Route path="/dashboard/admin/markets" element={<MarketsListPage />} />
+        <Route path="/dashboard/admin/markets/create" element={<CreateMarketWizard />} />
+        <Route path="/dashboard/admin/markets/:marketId" element={<AdminMarketDetailPage />} />
+        <Route path="/dashboard/admin/verification" element={<ResultVerificationPage />} />
+        <Route path="/dashboard/admin/disputes" element={<DisputesPage />} />
+        <Route path="/dashboard/admin/users" element={<AdminUsersPage />} />
+        <Route path="/dashboard/admin/roles-permissions" element={<RolesPermissionsPage />} />
+        <Route path="/dashboard/admin/notifications" element={<NotificationsPage />} />
+        <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
+        <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
+        <Route path="/dashboard/admin/sports-data" element={<SportsDataAdmin />} />
+        <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
+        <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
+        <Route path="/dashboard/admin/payouts" element={<FinanceAdmin />} />
+        <Route path="/dashboard/admin/support" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin/support/case-queues" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin/support/my-cases" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin/support/escalations" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin/support/sla" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin/support/resolved" element={<CustomerSupportAdmin />} />
 
         {/* Support pages */}
         <Route path="/help" element={<HelpCenter />} />
