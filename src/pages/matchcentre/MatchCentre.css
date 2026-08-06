@@ -1,0 +1,398 @@
+/* ============================================================
+   Match Centre (US-3.3) — real design tokens only. Shares the
+   `.fixture-status*` badge classes defined in FixturesPage.css
+   (both pages load into the same single-bundle SPA, so the
+   classes are already present globally — no need to redefine
+   them here). Everything else is prefixed `matchcentre-`/`mc-`.
+   ============================================================ */
+
+.matchcentre-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.matchcentre-main {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+@media (max-width: 767px) {
+  .matchcentre-main {
+    background-attachment: scroll;
+  }
+}
+
+.matchcentre-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.matchcentre-main-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 48px) 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.matchcentre-breadcrumb {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.matchcentre-breadcrumb:hover {
+  color: var(--color-text-primary);
+}
+
+/* ---------- Loading / error ---------- */
+
+.matchcentre-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.matchcentre-error-banner svg {
+  color: var(--color-live);
+  flex-shrink: 0;
+}
+
+.matchcentre-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.matchcentre-loading__icon {
+  animation: matchcentre-spin 1.2s linear infinite;
+}
+
+@keyframes matchcentre-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.matchcentre-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.mc-btn {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  text-decoration: none;
+  transition: transform 0.15s ease, filter 0.2s ease, background-color 0.2s ease;
+}
+
+.mc-btn--gradient {
+  background: var(--gradient-primary);
+  color: #ffffff;
+  border: none;
+}
+
+.mc-btn--gradient:hover {
+  filter: brightness(1.1);
+}
+
+.mc-btn--outline {
+  background: transparent;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.mc-btn--outline:hover {
+  background-color: var(--color-card-hover);
+}
+
+/* ---------- Header / scoreboard ---------- */
+
+.matchcentre-header {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.matchcentre-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.matchcentre-header__competition {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.matchcentre-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.matchcentre-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.matchcentre-team span {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.matchcentre-team:hover span {
+  color: var(--color-primary-light);
+}
+
+.mc-crest {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--color-bg-elevated);
+}
+
+.matchcentre-score {
+  font-size: 1.6rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.matchcentre-vs {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.matchcentre-meta {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.matchcentre-header__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.matchcentre-refreshed-at {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Tabs ---------- */
+
+.matchcentre-tab-row {
+  display: flex;
+  gap: 8px;
+}
+
+.matchcentre-tab {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.matchcentre-tab:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.matchcentre-tab.is-active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+/* ---------- Panel ---------- */
+
+.matchcentre-panel {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+}
+
+.matchcentre-panel h2 {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+}
+
+/* ---------- Markets ---------- */
+
+.mc-market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.mc-market-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.mc-market-card:hover {
+  border-color: var(--color-border-hover);
+  background-color: var(--color-card-hover);
+}
+
+.mc-market-card__question {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.mc-market-card__meta {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.mc-see-all {
+  margin-top: 12px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mc-see-all:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Standings table ---------- */
+
+.mc-table-scroll {
+  overflow-x: auto;
+}
+
+.mc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.mc-table thead th {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.mc-table tbody td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.mc-table__club {
+  white-space: normal;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.mc-table tbody tr.is-competing {
+  background-color: rgba(124, 58, 237, 0.08);
+}
+
+.mc-table tbody tr.is-competing .mc-table__club {
+  color: var(--color-primary-light);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 480px) {
+  .matchcentre-scoreboard {
+    gap: 10px;
+  }
+
+  .mc-crest {
+    width: 44px;
+    height: 44px;
+  }
+
+  .matchcentre-score {
+    font-size: 1.25rem;
+  }
+}

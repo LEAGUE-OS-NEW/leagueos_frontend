@@ -62,7 +62,7 @@ function ResultCard({ result }: { result: SearchResult }) {
   switch (result.kind) {
     case 'club':
       return (
-        <CardShell to="/clubs" kindLabel="Club">
+        <CardShell to={`/clubs/${result.slug}`} kindLabel="Club">
           <div className="rc-row">
             <SafeImage
               src={result.crestUrl}
@@ -89,7 +89,7 @@ function ResultCard({ result }: { result: SearchResult }) {
 
     case 'fixture':
       return (
-        <CardShell to="/tickets" kindLabel="Fixture">
+        <CardShell to={`/matches/${result.fixtureId}`} kindLabel="Fixture">
           <div className="rc-row">
             <SafeImage
               src={result.homeCrestUrl}
@@ -117,7 +117,7 @@ function ResultCard({ result }: { result: SearchResult }) {
 
     case 'player':
       return (
-        <CardShell kindLabel="Player">
+        <CardShell to={`/clubs/${result.clubSlug}/players/${result.playerId}`} kindLabel="Player">
           <div className="rc-row">
             <SafeImage
               src={result.photoUrl}

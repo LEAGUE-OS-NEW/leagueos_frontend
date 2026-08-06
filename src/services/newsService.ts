@@ -91,3 +91,10 @@ const stories: Story[] = [
 export async function fetchNews(): Promise<Story[]> {
   return delay([...stories]);
 }
+
+// No per-article endpoint exists, mock or real — fetch the full list and
+// find by id, same approach TicketCheckoutPage.tsx uses for a single
+// fixture.
+export async function fetchStoryById(id: string): Promise<Story | null> {
+  return delay(stories.find((story) => story.id === id) ?? null);
+}

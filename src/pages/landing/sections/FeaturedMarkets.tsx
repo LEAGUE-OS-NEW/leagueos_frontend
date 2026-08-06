@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import InfoTooltip from '../../../components/InfoTooltip/InfoTooltip';
 import './FeaturedMarkets.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
@@ -18,8 +19,9 @@ type Market = {
   crestB?: string;
   volume: string;
   traders: string;
-  yesOdds: string;
-  noOdds: string;
+  probabilityPct: number;
+  yesPrice: string;
+  noPrice: string;
 };
 
 const SPORT_CLASS: Record<Sport, string> = {
@@ -39,8 +41,9 @@ const MARKETS: Market[] = [
     crestB: '/clubs/kcca-fc.png',
     volume: 'UGX 2.4M',
     traders: '1.2K',
-    yesOdds: 'UGX 1.62',
-    noOdds: 'UGX 2.38',
+    probabilityPct: 62,
+    yesPrice: '62¢',
+    noPrice: '38¢',
   },
   {
     sport: 'Football',
@@ -52,8 +55,9 @@ const MARKETS: Market[] = [
     crestB: '/clubs/express-fc.png',
     volume: 'UGX 1.6M',
     traders: '856',
-    yesOdds: 'UGX 1.55',
-    noOdds: 'UGX 2.45',
+    probabilityPct: 65,
+    yesPrice: '65¢',
+    noPrice: '35¢',
   },
   {
     sport: 'Rugby',
@@ -65,8 +69,9 @@ const MARKETS: Market[] = [
     crestB: '/clubs/black-pirates.png',
     volume: 'UGX 980K',
     traders: '642',
-    yesOdds: 'UGX 1.45',
-    noOdds: 'UGX 2.70',
+    probabilityPct: 69,
+    yesPrice: '69¢',
+    noPrice: '31¢',
   },
   {
     sport: 'Basketball',
@@ -77,8 +82,9 @@ const MARKETS: Market[] = [
     crestA: '/clubs/city-oilers.png',
     volume: 'UGX 1.1M',
     traders: '721',
-    yesOdds: 'UGX 1.70',
-    noOdds: 'UGX 2.20',
+    probabilityPct: 59,
+    yesPrice: '59¢',
+    noPrice: '41¢',
   },
   {
     sport: 'Football',
@@ -88,8 +94,9 @@ const MARKETS: Market[] = [
     teamB: 'Gaddafi FC',
     volume: 'UGX 620K',
     traders: '412',
-    yesOdds: 'UGX 1.75',
-    noOdds: 'UGX 2.15',
+    probabilityPct: 57,
+    yesPrice: '57¢',
+    noPrice: '43¢',
   },
 ];
 
@@ -129,7 +136,13 @@ function FeaturedMarkets() {
         <div className="section-heading-row">
           <div>
             <h2 className="section-heading">Featured Open Markets</h2>
-            <p className="section-subheading">Live predictions. Real outcomes. Trade your view.</p>
+            <p className="section-subheading">
+              Live predictions. Real outcomes. Trade your view.
+              <InfoTooltip
+                label="How prices work"
+                text="A YES price of 62¢ means the market currently sees a 62% chance of YES. Prices move as more people trade."
+              />
+            </p>
           </div>
           <Link to="/markets" className="section-link">
             View all markets
@@ -161,6 +174,13 @@ function FeaturedMarkets() {
                 </div>
               </div>
 
+              <div className="market-probability">
+                <div className="market-probability-track">
+                  <div className="market-probability-fill" style={{ width: `${market.probabilityPct}%` }} />
+                </div>
+                <span className="market-probability-label">{market.probabilityPct}% likely YES</span>
+              </div>
+
               <div className="market-stats">
                 <div className="market-stat">
                   <span className="market-stat-label">Volume</span>
@@ -174,10 +194,10 @@ function FeaturedMarkets() {
 
               <div className="market-actions">
                 <Link to="/markets" className="market-btn market-btn-yes">
-                  YES <span>{market.yesOdds}</span>
+                  YES <span>{market.yesPrice}</span>
                 </Link>
                 <Link to="/markets" className="market-btn market-btn-no">
-                  NO <span>{market.noOdds}</span>
+                  NO <span>{market.noPrice}</span>
                 </Link>
               </div>
             </div>

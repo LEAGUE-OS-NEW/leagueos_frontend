@@ -16,11 +16,12 @@ import { fetchOpenMarkets } from './markets/publicMarketsService';
 import type { PublicMarketCard } from './markets/publicMarketsService';
 import { fetchNews } from './newsService';
 import type { Story } from './newsService';
-import { fetchPlayers } from './playersService';
-import type { Player } from './playersService';
+import { fetchClubs, fetchSquad } from './clubsService';
+import type { ClubSummary, Player } from './clubsService';
+import { deriveSport, type Sport } from '../utils/sport';
 
+export type { Sport };
 export type SearchResultKind = 'club' | 'competition' | 'fixture' | 'player' | 'news' | 'market';
-export type Sport = 'Football' | 'Rugby' | 'Basketball';
 
 interface SearchResultBase {
   id: string;
@@ -31,6 +32,7 @@ interface SearchResultBase {
 export interface ClubResult extends SearchResultBase {
   kind: 'club';
   name: string;
+  slug: string;
   crestUrl?: string;
 }
 
@@ -42,6 +44,7 @@ export interface CompetitionResult extends SearchResultBase {
 
 export interface FixtureResult extends SearchResultBase {
   kind: 'fixture';
+  fixtureId: string;
   homeTeam: string;
   awayTeam: string;
   homeCrestUrl?: string;
@@ -56,6 +59,8 @@ export interface PlayerResult extends SearchResultBase {
   kind: 'player';
   name: string;
   club: string;
+  clubSlug: string;
+  playerId: string;
   position: string;
   photoUrl?: string;
 }
@@ -78,31 +83,12 @@ export interface MarketResult extends SearchResultBase {
 
 export type SearchResult = ClubResult | CompetitionResult | FixtureResult | PlayerResult | NewsResult | MarketResult;
 
-// Derives a sport from whatever text is available (a club's own sport
-// field, or a league/competition proper name like "StarTimes Uganda
-// Premier League 2026" / "Nile Special Rugby Premiership 2026") rather than
-// requiring an exact match, since sponsor prefixes and season years vary.
-function deriveSport(value?: string): Sport | undefined {
-  if (!value) return undefined;
-  const lower = value.toLowerCase();
-  if (lower.includes('rugby')) return 'Rugby';
-  if (lower.includes('basketball') || lower.includes('nbl')) return 'Basketball';
-  if (
-    lower.includes('football') ||
-    lower.includes('soccer') ||
-    lower.includes('premier league') ||
-    lower.includes('fufa')
-  ) {
-    return 'Football';
-  }
-  return undefined;
-}
-
 function mapClub(club: PublicClubApi): ClubResult {
   return {
     id: `club-${club.id}`,
     kind: 'club',
     name: club.name,
+    slug: club.slug,
     crestUrl: club.logo_url || club.logo || undefined,
     sport: deriveSport(club.sport_display || club.sport),
   };
@@ -122,6 +108,7 @@ function mapFixture(fixture: PublicFixtureApi): FixtureResult {
   return {
     id: `fixture-${fixture.id}`,
     kind: 'fixture',
+    fixtureId: String(fixture.id),
     homeTeam: fixture.home_club_name,
     awayTeam: fixture.away_club_name,
     homeCrestUrl: fixture.home_club_logo_url || undefined,
@@ -134,16 +121,31 @@ function mapFixture(fixture: PublicFixtureApi): FixtureResult {
   };
 }
 
-function mapPlayer(player: Player): PlayerResult {
+function mapPlayer(club: ClubSummary, player: Player): PlayerResult {
   return {
-    id: `player-${player.id}`,
+    id: `player-${player.clubSlug}-${player.id}`,
     kind: 'player',
     name: player.name,
-    club: player.club,
+    club: club.name,
+    clubSlug: player.clubSlug,
+    playerId: player.id,
     position: player.position,
-    photoUrl: player.photoUrl,
-    sport: player.sport,
+    photoUrl: player.photo,
+    sport: club.sport,
   };
+}
+
+// Players aren't a standalone real resource anywhere — they only exist as
+// each club's squad (clubsService.ts, the same mock data the real,
+// working PlayerProfile route already uses). Note this is a *different*
+// "clubs" source than mapClub()'s real getPublicClubs() above: one backs
+// Club search results (real backend), this one is only used internally to
+// enumerate squads for Player results, matching whatever identity space
+// PlayerProfile actually resolves against.
+async function fetchAllPlayerResults(): Promise<PlayerResult[]> {
+  const clubs = await fetchClubs();
+  const squads = await Promise.all(clubs.map((club) => fetchSquad(club.slug)));
+  return clubs.flatMap((club, index) => squads[index].map((player) => mapPlayer(club, player)));
 }
 
 function mapNews(story: Story): NewsResult {
@@ -177,7 +179,7 @@ export async function fetchSearchResults(): Promise<{ results: SearchResult[]; f
     getPublicFixtures(),
     fetchOpenMarkets(),
     fetchNews(),
-    fetchPlayers(),
+    fetchAllPlayerResults(),
   ]);
 
   const results: SearchResult[] = [];
@@ -214,7 +216,7 @@ export async function fetchSearchResults(): Promise<{ results: SearchResult[]; f
   }
 
   if (players.status === 'fulfilled') {
-    results.push(...players.value.map(mapPlayer));
+    results.push(...players.value);
   } else {
     failedSources.push('players');
   }

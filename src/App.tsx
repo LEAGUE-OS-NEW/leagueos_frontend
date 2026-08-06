@@ -9,6 +9,7 @@ function NormalizeSlash() {
   return null;
 }
 import NewsPage from "./pages/landing/news-page/NewsPage";
+import ArticleDetail from "./pages/landing/news-page/ArticleDetail";
 import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
 import ClubProfile from './pages/clubs/profile/ClubProfile';
@@ -17,6 +18,7 @@ import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
 import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
+import FanWallet from './pages/fan/wallet/FanWallet';
 import Markets from './pages/markets/Markets';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -24,7 +26,10 @@ import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
+import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
+import FixturesPage from './pages/fixtures/FixturesPage';
+import MatchCentre from './pages/matchcentre/MatchCentre';
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 import GeneralAdminDashboard from './pages/generaladmin/GeneralAdminDashboard';
 import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
@@ -54,6 +59,7 @@ function App() {
         {/* Landing section */ }
         <Route path="/" element={<Landing />} />
         <Route path="/news" element={<NewsPage />} />
+        <Route path="/news/:storyId" element={<ArticleDetail />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
         <Route path="/clubs/:clubSlug" element={<ClubProfile />} />
@@ -62,13 +68,17 @@ function App() {
          <Route path="/privacy-policy" element={<LegalPolicy />} />
          <Route path="/terms-and-conditions" element={<TermsConditions />} />
         <Route path="/tickets" element={<Tickets />} />
+        <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
+        <Route path="/fixtures" element={<FixturesPage />} />
+        <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
           {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
         <Route path="/fandashboard" element={<FanDashboard />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
+        <Route path="/wallet" element={<FanWallet />} />
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
