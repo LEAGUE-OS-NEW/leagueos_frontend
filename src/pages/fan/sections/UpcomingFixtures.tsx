@@ -1,58 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
+import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
+import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
+import { fetchFixtures } from '../../../services/fanDashboardService';
 import './UpcomingFixtures.css';
-
-type Sport = 'football' | 'rugby' | 'basketball';
-
-type Fixture = {
-  sport: Sport;
-  sportLabel: string;
-  teamA: string;
-  teamB: string;
-  scoreA: number;
-  scoreB: number;
-  crestA?: string;
-  crestB?: string;
-  competition: string;
-  time: string;
-};
-
-const FIXTURES: Fixture[] = [
-  {
-    sport: 'football',
-    sportLabel: 'Football',
-    teamA: 'Vipers SC',
-    teamB: 'Express FC',
-    scoreA: 2,
-    scoreB: 1,
-    crestA: '/clubs/vipers-sc.png',
-    crestB: '/clubs/express-fc.png',
-    competition: 'Uganda Premier League',
-    time: 'Today, 4:00 PM',
-  },
-  {
-    sport: 'rugby',
-    sportLabel: 'Rugby',
-    teamA: 'Toyota Buffaloes',
-    teamB: 'Black Pirates',
-    scoreA: 21,
-    scoreB: 14,
-    crestA: '/clubs/buffaloes.png',
-    crestB: '/clubs/black-pirates.png',
-    competition: 'Rugby Africa Cup',
-    time: 'Today, 5:30 PM',
-  },
-  {
-    sport: 'basketball',
-    sportLabel: 'Basketball',
-    teamA: 'City Oilers',
-    teamB: 'Patriots BC',
-    scoreA: 78,
-    scoreB: 69,
-    crestA: '/clubs/city-oilers.png',
-    competition: 'NBL Uganda',
-    time: 'Today, 7:00 PM',
-  },
-];
 
 function CrestPlaceholder() {
   return (
@@ -84,6 +35,8 @@ function FixtureCrest({ src, name }: { src?: string; name: string }) {
 }
 
 function UpcomingFixtures() {
+  const { data: fixtures, isLoading, error, retry } = useDashboardSection(fetchFixtures);
+
   return (
     <div className="upcoming-fixtures">
       <div className="dashboard-card-heading-row">
@@ -93,39 +46,47 @@ function UpcomingFixtures() {
         </Link>
       </div>
 
-      <div className="fixtures-grid">
-        {FIXTURES.map((fixture) => (
-          <Link to="/markets" className="fixture-card" key={`${fixture.teamA}-${fixture.teamB}`}>
-            <div className="fixture-card-header">
-              <span className={`fixture-tag fixture-tag--${fixture.sport}`}>{fixture.sportLabel}</span>
-              <span className="fixture-live-badge">Live</span>
-            </div>
+      {isLoading ? (
+        <DashboardSkeleton rows={3} />
+      ) : error ? (
+        <DashboardNotice tone="error" title="Couldn't load fixtures" message={error} onRetry={retry} />
+      ) : fixtures && fixtures.length === 0 ? (
+        <DashboardNotice tone="empty" title="No upcoming fixtures" message="Check back soon for new matches." />
+      ) : (
+        <div className="fixtures-grid">
+          {(fixtures ?? []).map((fixture) => (
+            <Link to="/markets" className="fixture-card" key={`${fixture.teamA}-${fixture.teamB}`}>
+              <div className="fixture-card-header">
+                <span className={`fixture-tag fixture-tag--${fixture.sport}`}>{fixture.sportLabel}</span>
+                <span className="fixture-live-badge">Live</span>
+              </div>
 
-            <div className="fixture-teams">
-              <FixtureCrest src={fixture.crestA} name={fixture.teamA} />
-              <span className="fixture-score">
-                {fixture.scoreA} - {fixture.scoreB}
+              <div className="fixture-teams">
+                <FixtureCrest src={fixture.crestA} name={fixture.teamA} />
+                <span className="fixture-score">
+                  {fixture.scoreA} - {fixture.scoreB}
+                </span>
+                <FixtureCrest src={fixture.crestB} name={fixture.teamB} />
+              </div>
+
+              <div className="fixture-team-names">
+                <span>{fixture.teamA}</span>
+                <span>{fixture.teamB}</span>
+              </div>
+
+              <p className="fixture-meta">
+                {fixture.competition}
+                <br />
+                {fixture.time}
+              </p>
+
+              <span className={`fixture-watch-btn fixture-watch-btn--${fixture.sport}`}>
+                View Match Details
               </span>
-              <FixtureCrest src={fixture.crestB} name={fixture.teamB} />
-            </div>
-
-            <div className="fixture-team-names">
-              <span>{fixture.teamA}</span>
-              <span>{fixture.teamB}</span>
-            </div>
-
-            <p className="fixture-meta">
-              {fixture.competition}
-              <br />
-              {fixture.time}
-            </p>
-
-            <span className={`fixture-watch-btn fixture-watch-btn--${fixture.sport}`}>
-              View Match Details
-            </span>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,92 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
+import { useCurrentUser } from '../../hooks/useCurrentUser';
+import {
+  fetchClubs,
+  fetchFollowedClubSlugs,
+  followClub,
+  unfollowClub,
+  type ClubSummary,
+} from '../../services/clubsService';
 import './ClubsPage.css';
-
-type Club = {
-  name: string;
-  sport: 'Football' | 'Rugby' | 'Basketball';
-  league: string;
-  crest?: string;
-  founded: string;
-  stadium: string;
-  description: string;
-};
-
-const CLUBS: Club[] = [
-  {
-    name: 'Vipers SC',
-    sport: 'Football',
-    league: 'Uganda Premier League',
-    crest: '/clubs/vipers-sc.png',
-    founded: '2008',
-    stadium: "St. Mary's Stadium, Kitende",
-    description: 'Record-breaking UPL champions and dominant force in Ugandan football.',
-  },
-  {
-    name: 'KCCA FC',
-    sport: 'Football',
-    league: 'Uganda Premier League',
-    crest: '/clubs/kcca-fc.png',
-    founded: '2008',
-    stadium: 'StarTimes Stadium, Lugogo',
-    description: 'Kampala Capital City Authority FC — one of Uganda\'s most celebrated clubs.',
-  },
-  {
-    name: 'SC Villa',
-    sport: 'Football',
-    league: 'Uganda Premier League',
-    crest: '/clubs/sc-villa.png',
-    founded: '1975',
-    stadium: 'Mandela National Stadium',
-    description: 'The most decorated club in Ugandan football history with over 16 league titles.',
-  },
-  {
-    name: 'Express FC',
-    sport: 'Football',
-    league: 'Uganda Premier League',
-    crest: '/clubs/express-fc.png',
-    founded: '1948',
-    stadium: 'Mutesa II Stadium, Wankulukuku',
-    description: 'One of Uganda\'s oldest clubs, known as the Red Eagles, with a passionate fanbase.',
-  },
-  {
-    name: 'Kobs Rugby',
-    sport: 'Rugby',
-    league: 'Rugby Africa',
-    crest: '/clubs/kobs.jpg',
-    founded: '1953',
-    stadium: 'Kyadondo Rugby Club',
-    description: 'Uganda\'s most successful rugby club and perennial Rugby Africa Cup contenders.',
-  },
-  {
-    name: 'Black Pirates',
-    sport: 'Rugby',
-    league: 'Rugby Africa',
-    crest: '/clubs/black-pirates.png',
-    founded: '1980',
-    stadium: 'Legends Rugby Club',
-    description: 'Fierce rivals of the Kobs and a powerhouse in Ugandan club rugby.',
-  },
-  {
-    name: 'City Oilers',
-    sport: 'Basketball',
-    league: 'NBL Uganda',
-    crest: '/clubs/city-oilers.png',
-    founded: '2012',
-    stadium: 'Lugogo Indoor Stadium',
-    description: 'The most successful basketball club in East Africa and NBL Uganda\'s flagship team.',
-  },
-  {
-    name: 'UCU Canons',
-    sport: 'Basketball',
-    league: 'NBL Uganda',
-    crest: undefined,
-    founded: '2014',
-    stadium: 'UCU Main Campus',
-    description: 'Uganda Christian University\'s competitive NBL side and City Oilers\' greatest rivals.',
-  },
-];
 
 const SPORTS = ['All', 'Football', 'Rugby', 'Basketball'] as const;
 type Filter = (typeof SPORTS)[number];
@@ -106,7 +30,19 @@ function CrestPlaceholder() {
   );
 }
 
-function ClubCard({ club, onFollow }: { club: Club; onFollow: () => void }) {
+function ClubCard({
+  club,
+  isFollowing,
+  isLoggedIn,
+  onToggleFollow,
+  onRequireSignup,
+}: {
+  club: ClubSummary;
+  isFollowing: boolean;
+  isLoggedIn: boolean;
+  onToggleFollow: (slug: string) => void;
+  onRequireSignup: () => void;
+}) {
   const badgeClass = `club-info-card__sport-badge club-info-card__sport-badge--${club.sport.toLowerCase()}`;
 
   return (
@@ -139,19 +75,61 @@ function ClubCard({ club, onFollow }: { club: Club; onFollow: () => void }) {
 
       <p className="club-info-card__desc">{club.description}</p>
 
-      <button type="button" className="club-info-card__btn" onClick={onFollow}>
-        Follow Club
-      </button>
+      <div className="club-info-card__actions">
+        <Link to={`/clubs/${club.slug}`} className="club-info-card__btn club-info-card__btn--outline">
+          View Profile
+        </Link>
+        <button
+          type="button"
+          className={`club-info-card__btn${isFollowing ? ' club-info-card__btn--following' : ''}`}
+          onClick={() => (isLoggedIn ? onToggleFollow(club.slug) : onRequireSignup())}
+        >
+          {isFollowing ? 'Following' : 'Follow Club'}
+        </button>
+      </div>
     </article>
   );
 }
 
 function ClubsPage() {
+  const { profile } = useCurrentUser();
+  const isLoggedIn = Boolean(profile);
+
+  const [clubs, setClubs] = useState<ClubSummary[]>([]);
+  const [followedSlugs, setFollowedSlugs] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const filtered =
-    activeFilter === 'All' ? CLUBS : CLUBS.filter((c) => c.sport === activeFilter);
+  useEffect(() => {
+    let cancelled = false;
+    fetchClubs().then((result) => {
+      if (!cancelled) setClubs(result);
+    });
+    if (isLoggedIn) {
+      fetchFollowedClubSlugs().then((slugs) => {
+        if (!cancelled) setFollowedSlugs(new Set(slugs));
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  const handleToggleFollow = async (slug: string) => {
+    if (followedSlugs.has(slug)) {
+      await unfollowClub(slug);
+      setFollowedSlugs((current) => {
+        const next = new Set(current);
+        next.delete(slug);
+        return next;
+      });
+    } else {
+      await followClub(slug);
+      setFollowedSlugs((current) => new Set(current).add(slug));
+    }
+  };
+
+  const filtered = activeFilter === 'All' ? clubs : clubs.filter((c) => c.sport === activeFilter);
 
   const grouped = (['Football', 'Rugby', 'Basketball'] as const)
     .map((sport) => ({
@@ -188,16 +166,21 @@ function ClubsPage() {
           ))}
         </div>
 
-        {grouped.length === 0 && (
-          <p className="clubs-empty">No clubs found.</p>
-        )}
+        {grouped.length === 0 && <p className="clubs-empty">No clubs found.</p>}
 
-        {grouped.map(({ sport, clubs }) => (
+        {grouped.map(({ sport, clubs: sportClubs }) => (
           <div className="clubs-group" key={sport}>
             <p className="clubs-group__label">{sport}</p>
             <div className="clubs-grid">
-              {clubs.map((club) => (
-                <ClubCard key={club.name} club={club} onFollow={() => setShowPrompt(true)} />
+              {sportClubs.map((club) => (
+                <ClubCard
+                  key={club.slug}
+                  club={club}
+                  isFollowing={followedSlugs.has(club.slug)}
+                  isLoggedIn={isLoggedIn}
+                  onToggleFollow={handleToggleFollow}
+                  onRequireSignup={() => setShowPrompt(true)}
+                />
               ))}
             </div>
           </div>
@@ -206,67 +189,16 @@ function ClubsPage() {
 
       {showPrompt && (
         <>
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(5,3,10,0.75)',
-              zIndex: 1000,
-            }}
-            onClick={() => setShowPrompt(false)}
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Sign up to follow clubs"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%,-50%)',
-              background: '#0d1020',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 20,
-              padding: '36px 32px',
-              maxWidth: 380,
-              width: '90vw',
-              zIndex: 1001,
-              textAlign: 'center',
-            }}
-          >
-            <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700 }}>
-              Sign up to follow clubs
-            </h3>
-            <p style={{ color: '#b8bfd8', fontSize: '0.9rem', margin: '0 0 24px', lineHeight: 1.6 }}>
+          <div className="clubs-signup-overlay" onClick={() => setShowPrompt(false)} aria-hidden="true" />
+          <div className="clubs-signup-modal" role="dialog" aria-modal="true" aria-label="Sign up to follow clubs">
+            <h3 className="clubs-signup-modal__title">Sign up to follow clubs</h3>
+            <p className="clubs-signup-modal__body">
               Create a free League OS account to follow clubs and never miss a moment.
             </p>
-            <a
-              href="/signup"
-              style={{
-                display: 'block',
-                padding: '11px 0',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg,#6d5efc,#9d7bff)',
-                color: '#fff',
-                fontWeight: 700,
-                textDecoration: 'none',
-                marginBottom: 10,
-              }}
-            >
+            <a href="/signup" className="clubs-signup-modal__cta">
               Sign Up Free
             </a>
-            <button
-              type="button"
-              onClick={() => setShowPrompt(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#7d84a3',
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-              }}
-            >
+            <button type="button" onClick={() => setShowPrompt(false)} className="clubs-signup-modal__dismiss">
               Maybe later
             </button>
           </div>

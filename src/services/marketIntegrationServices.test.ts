@@ -11,7 +11,6 @@ import {
 import {
   approveMarket,
   rejectMarket,
-  returnMarket,
 } from "./marketApprovalService.ts";
 import {
   decideComplianceProposal,
@@ -150,10 +149,9 @@ describe("approval and compliance contracts", () => {
     );
   });
 
-  it("requires approval and rejection notes and disables return", async () => {
+  it("requires approval and rejection notes", async () => {
     await expect(approveMarket("m1", " ")).rejects.toThrow("approval note");
     await expect(rejectMarket("m1", "")).rejects.toThrow("rejection note");
-    await expect(returnMarket()).rejects.toThrow("not supported");
     expect(post).not.toHaveBeenCalled();
   });
 

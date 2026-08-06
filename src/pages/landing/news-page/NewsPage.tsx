@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Trophy,
     Circle,
@@ -14,6 +14,7 @@ import {
 import "./NewsPage.css";
 import Navbar from "../../../components/landing/Navbar";
 import Footer from "../../../components/landing/Footer";
+import { fetchNews, type Story } from "../../../services/newsService";
 
 /* ---------- Small inline brand icons (lucide dropped these) ---------- */
 
@@ -22,17 +23,6 @@ import Footer from "../../../components/landing/Footer";
 
 
 /* ---------- Types ---------- */
-
-interface Story {
-    id: string;
-    category: "Football" | "Rugby" | "Basketball" | "Clubs" | "Markets" | "Fantasy";
-    time: string;
-    image: string;
-    title: string;
-    description: string;
-    author: string;
-    avatar: string;
-}
 
 interface TrendingStory {
     rank: number;
@@ -94,77 +84,6 @@ const trendingStories: TrendingStory[] = [
     },
 ];
 
-const stories: Story[] = [
-    {
-        id: "s1",
-        category: "Football",
-        time: "2h ago",
-        image: "/images/vipersvs.jfif",
-        title: "Vipers edge KCCA in title race clash",
-        description:
-            "A late strike from Allan Okello sealed all three points for Vipers SC in a tense encounter at St. Mary's Stadium.",
-        author: "Brian Ssempijja",
-        avatar: "https://i.pravatar.cc/40?img=12",
-    },
-    {
-        id: "s2",
-        category: "Rugby",
-        time: "4h ago",
-        image:  "/images/rugby-cranes.jfif",
-        title: "Rugby Cranes begin preparations for regional championship",
-        description:
-            "The national side has entered a two-week training camp ahead of the Africa Cup qualifiers next month.",
-        author: "Ivan Mugisha",
-        avatar: "https://i.pravatar.cc/40?img=33",
-    },
-    {
-        id: "s3",
-        category: "Basketball",
-        time: "5h ago",
-        image: "/images/city-oilers.jfif",
-        title: "City Oilers chase another statement win",
-        description:
-            "City Oilers look to extend their winning run in the NBL Uganda against a resurgent Namuwongo Blazers side.",
-        author: "Gloria Nankya",
-        avatar: "https://i.pravatar.cc/40?img=45",
-    },
-    {
-        id: "s4",
-        category: "Fantasy",
-        time: "6h ago",
-        image:
-            "/images/fantasy.jfif",
-        title: "Fantasy tips for Gameweek 28",
-        description:
-            "Top picks, differential players and captain shouts for a big Gameweek in the Uganda Premier League.",
-        author: "Fantasy Guru",
-        avatar: "https://i.pravatar.cc/40?img=8",
-    },
-    {
-        id: "s5",
-        category: "Markets",
-        time: "7h ago",
-        image:
-            "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?q=80&w=600&auto=format&fit=crop",
-        title: "Open markets to watch this week",
-        description:
-            "Key match markets with strong moves and smart money activity across the weekend fixtures.",
-        author: "Market Analyst",
-        avatar: "https://i.pravatar.cc/40?img=15",
-    },
-    {
-        id: "s6",
-        category: "Clubs",
-        time: "8h ago",
-        image:
-            "https://images.unsplash.com/photo-1522778119026-d647f0596c20?q=80&w=600&auto=format&fit=crop",
-        title: "Express FC unveil new home jersey",
-        description: "The Red Eagles reveal their 2024/25 home kit in style.",
-        author: "Nicholas Kasozi",
-        avatar: "https://i.pravatar.cc/40?img=22",
-    },
-];
-
 const liveMatches: LiveMatch[] = [
     {
         status: "LIVE",
@@ -210,6 +129,19 @@ const NewsPage: React.FC = () => {
     const [activeScoreTab, setActiveScoreTab] =
         useState<(typeof scoreTabs)[number]>("Football");
     const [email, setEmail] = useState("");
+    const [stories, setStories] = useState<Story[]>([]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        fetchNews().then((result) => {
+            if (!cancelled) setStories(result);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const visibleStories =
         activeFilter === "All" ? stories : stories.filter((s) => s.category === activeFilter);

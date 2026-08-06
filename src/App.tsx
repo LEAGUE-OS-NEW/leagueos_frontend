@@ -11,8 +11,12 @@ function NormalizeSlash() {
 import NewsPage from "./pages/landing/news-page/NewsPage";
 import AboutUs from "./pages/landing/aboutus/Aboutus";
 import ClubsPage from "./pages/clubs/ClubsPage";
+import ClubProfile from './pages/clubs/profile/ClubProfile';
+import PlayerProfile from './pages/clubs/profile/PlayerProfile';
 import FanOnboarding from "./pages/fan/onboarding/FanOnboarding";
 import FanDashboard from './pages/fan/sections/FanDashboard';
+import FanProfile from './pages/fan/profile/FanProfile';
+import FanSettings from './pages/fan/settings/FanSettings';
 import Markets from './pages/markets/Markets';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -33,6 +37,8 @@ import MarketOperationsAdmin from './pages/generaladmin/marketoperations/MarketO
 import MarketApprovalAdmin from './pages/generaladmin/marketapproval/MarketApprovalAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 
+import SearchPage from './pages/search/SearchPage';
+
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
@@ -50,6 +56,8 @@ function App() {
         <Route path="/news" element={<NewsPage />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/clubs" element={<ClubsPage />} />
+        <Route path="/clubs/:clubSlug" element={<ClubProfile />} />
+        <Route path="/clubs/:clubSlug/players/:playerId" element={<PlayerProfile />} />
          <Route path="/tickets" element={<Tickets />} />
          <Route path="/privacy-policy" element={<LegalPolicy />} />
          <Route path="/terms-and-conditions" element={<TermsConditions />} />
@@ -59,9 +67,12 @@ function App() {
           {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
         <Route path="/fandashboard" element={<FanDashboard />} />
+        <Route path="/profile" element={<FanProfile />} />
+        <Route path="/settings" element={<FanSettings />} />
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
+        <Route path="/search" element={<SearchPage />} />
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />

@@ -5,7 +5,6 @@ import {
   FiAlertTriangle,
   FiCheckCircle,
   FiClock,
-  FiCornerUpLeft,
   FiSearch,
   FiShield,
   FiUser,
@@ -18,10 +17,8 @@ import {
   approveMarket,
   fetchMarketsForApproval,
   rejectMarket,
-  returnMarket,
   type ApprovalStatus,
   type MarketForApproval,
-  type RiskSeverity,
 } from '../../../services/marketApprovalService';
 import './MarketApprovalAdmin.css';
 
@@ -38,40 +35,22 @@ function formatDateTime(iso: string): string {
   });
 }
 
-const STATUS_TABS: ApprovalStatus[] = [
-  'Awaiting Review',
-  'High Risk',
-  'Second Approval Required',
-  'Returned',
-  'Approved',
-  'Rejected',
-];
+function getErrorStatus(error: unknown): number | undefined {
+  return error instanceof Error && 'status' in error
+    ? (error as Error & { status?: number }).status
+    : undefined;
+}
+
+const STATUS_TABS: ApprovalStatus[] = ['Awaiting Review', 'Approved', 'Rejected'];
 
 function statusPillClass(status: ApprovalStatus): string {
   switch (status) {
     case 'Awaiting Review':
       return 'maa-status-pill maa-status-pill--awaiting';
-    case 'High Risk':
-      return 'maa-status-pill maa-status-pill--high-risk';
-    case 'Second Approval Required':
-      return 'maa-status-pill maa-status-pill--second';
-    case 'Returned':
-      return 'maa-status-pill maa-status-pill--returned';
     case 'Approved':
       return 'maa-status-pill maa-status-pill--approved';
     case 'Rejected':
       return 'maa-status-pill maa-status-pill--rejected';
-  }
-}
-
-function severityBadgeClass(severity: RiskSeverity): string {
-  switch (severity) {
-    case 'high':
-      return 'maa-severity-badge maa-severity-badge--high';
-    case 'medium':
-      return 'maa-severity-badge maa-severity-badge--medium';
-    case 'low':
-      return 'maa-severity-badge maa-severity-badge--low';
   }
 }
 
@@ -99,7 +78,7 @@ function StatCard({ icon: Icon, value, label }: { icon: IconType; value: string 
 
 type PendingDecision = {
   market: MarketForApproval;
-  kind: 'Reject' | 'Return';
+  kind: 'Approve' | 'Reject';
 };
 
 function ConfirmDecisionModal({
@@ -112,27 +91,27 @@ function ConfirmDecisionModal({
   onConfirm: (reason: string) => void;
 }) {
   const [reason, setReason] = useState('');
-  const verb = decision.kind === 'Reject' ? 'Reject' : 'Return for changes';
+  const isApprove = decision.kind === 'Approve';
 
   return (
     <div className="maa-modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="maa-modal" onClick={(event) => event.stopPropagation()}>
         <div className="maa-modal__header">
-          <span className="maa-modal__icon maa-modal__icon--warning">
-            <FiAlertTriangle aria-hidden="true" />
+          <span className={`maa-modal__icon ${isApprove ? 'maa-modal__icon--success' : 'maa-modal__icon--warning'}`}>
+            {isApprove ? <FiCheckCircle aria-hidden="true" /> : <FiAlertTriangle aria-hidden="true" />}
           </span>
           <div>
-            <h3>{verb} this market?</h3>
+            <h3>{decision.kind} this market?</h3>
             <p>{decision.market.eventLabel} — {decision.market.question}</p>
           </div>
         </div>
 
         <label className="maa-modal__field">
-          Reason <span aria-hidden="true">*</span>
+          Note <span aria-hidden="true">*</span>
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder={`Explain why this market is being ${decision.kind === 'Reject' ? 'rejected' : 'returned'}…`}
+            placeholder={`Explain why this market is being ${isApprove ? 'approved' : 'rejected'}…`}
             rows={3}
           />
         </label>
@@ -143,11 +122,11 @@ function ConfirmDecisionModal({
           </button>
           <button
             type="button"
-            className="maa-btn maa-btn--danger"
+            className={`maa-btn ${isApprove ? 'maa-btn--gradient' : 'maa-btn--danger'}`}
             disabled={!reason.trim()}
             onClick={() => onConfirm(reason.trim())}
           >
-            {verb}
+            {decision.kind}
           </button>
         </div>
       </div>
@@ -191,28 +170,13 @@ function ReviewDrawer({
   onClose,
   onApprove,
   onReject,
-  onReturn,
-  onBlocked,
 }: {
   market: MarketForApproval;
   onClose: () => void;
   onApprove: (market: MarketForApproval) => void;
   onReject: (market: MarketForApproval) => void;
-  onReturn: (market: MarketForApproval) => void;
-  onBlocked: (market: MarketForApproval) => void;
 }) {
-  // Maker/checker enforcement is authoritative on the backend.
-  const isCreatedByReviewer = false;
   const decidable = isDecidable(market.status);
-  const awaitingSecondApproval = market.status === 'Second Approval Required';
-
-  const handleApproveClick = () => {
-    if (isCreatedByReviewer) {
-      onBlocked(market);
-      return;
-    }
-    onApprove(market);
-  };
 
   return (
     <div className="maa-drawer-overlay" onClick={onClose}>
@@ -258,26 +222,6 @@ function ReviewDrawer({
             </p>
           </div>
 
-          {(market.riskFlags.length > 0 || market.missingRules.length > 0) && (
-            <div className="maa-drawer-section maa-drawer-section--warning">
-              <h4>
-                <FiAlertTriangle aria-hidden="true" /> Conflicts &amp; Missing Rules
-              </h4>
-              {market.riskFlags.map((flag) => (
-                <p className="maa-flag-row" key={flag.id}>
-                  <span className={severityBadgeClass(flag.severity)}>{flag.severity}</span>
-                  {flag.label}
-                </p>
-              ))}
-              {market.missingRules.map((rule) => (
-                <p className="maa-flag-row" key={rule}>
-                  <span className="maa-severity-badge maa-severity-badge--missing">missing</span>
-                  {rule}
-                </p>
-              ))}
-            </div>
-          )}
-
           <div className="maa-drawer-section">
             <h4>Creator</h4>
             <p className="maa-drawer-description">
@@ -286,12 +230,6 @@ function ReviewDrawer({
             <p className="maa-drawer-description">
               <FiClock aria-hidden="true" /> Submitted {formatDateTime(market.submittedAt)}
             </p>
-            <p className="maa-drawer-description">Estimated volume: {market.estimatedVolume}</p>
-            {market.requiresSecondApproval && (
-              <p className="maa-drawer-description maa-drawer-description--flagged">
-                <FiShield aria-hidden="true" /> Requires a second, independent approval before it can go live.
-              </p>
-            )}
           </div>
 
           {market.decisionHistory.length > 0 && (
@@ -311,20 +249,12 @@ function ReviewDrawer({
 
         {decidable && (
           <div className="maa-drawer__footer">
-            {isCreatedByReviewer && (
-              <p className="maa-drawer__conflict-note">
-                <FiShield aria-hidden="true" /> You created this market — you can't decide it.
-              </p>
-            )}
             <div className="maa-drawer__actions">
-              <button type="button" className="maa-btn maa-btn--outline" onClick={() => onReturn(market)}>
-                <FiCornerUpLeft /> Return
-              </button>
               <button type="button" className="maa-btn maa-btn--danger" onClick={() => onReject(market)}>
                 <FiXCircle /> Reject
               </button>
-              <button type="button" className="maa-btn maa-btn--gradient" onClick={handleApproveClick}>
-                <FiCheckCircle /> {awaitingSecondApproval ? 'Give Second Approval' : 'Approve'}
+              <button type="button" className="maa-btn maa-btn--gradient" onClick={() => onApprove(market)}>
+                <FiCheckCircle /> Approve
               </button>
             </div>
           </div>
@@ -477,31 +407,31 @@ function MarketApprovalAdmin() {
     setSelectedMarket(updated);
   };
 
-  const handleApprove = async (market: MarketForApproval) => {
-    const note = window.prompt('Approval note (required)');
-    if (!note?.trim()) return;
-    try { applyUpdate(await approveMarket(market.id, note)); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not approve this market.'); }
-  };
-
-  const handleRejectConfirm = async (reason: string) => {
+  const handleDecisionConfirm = async (reason: string) => {
     if (!pendingDecision) return;
-    try { applyUpdate(await rejectMarket(pendingDecision.market.id, reason)); setPendingDecision(null); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Could not reject this market.'); }
-  };
+    const { market, kind } = pendingDecision;
 
-  const handleReturnConfirm = async (_reason: string) => {
-    void _reason;
-    if (!pendingDecision) return;
-    try { await returnMarket(); }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Return for Changes is unavailable.'); }
-    setPendingDecision(null);
+    try {
+      const updated = kind === 'Approve' ? await approveMarket(market.id, reason) : await rejectMarket(market.id, reason);
+      applyUpdate(updated);
+      setPendingDecision(null);
+    } catch (error) {
+      // A 403 here means the backend's maker/checker rule rejected it —
+      // the reviewer created this market themselves, so show the dedicated
+      // conflict explanation instead of a generic error.
+      if (kind === 'Approve' && getErrorStatus(error) === 403) {
+        setPendingDecision(null);
+        setBlockedMarket(market);
+        return;
+      }
+
+      setLoadError(error instanceof Error ? error.message : `Could not ${kind.toLowerCase()} this market.`);
+    }
   };
 
   const awaitingReviewCount = markets.filter((m) => m.status === 'Awaiting Review').length;
-  const highRiskCount = markets.filter((m) => m.status === 'High Risk').length;
-  const secondApprovalCount = markets.filter((m) => m.status === 'Second Approval Required').length;
   const approvedCount = markets.filter((m) => m.status === 'Approved').length;
+  const rejectedCount = markets.filter((m) => m.status === 'Rejected').length;
 
   return (
     <div className="maa-root">
@@ -548,9 +478,9 @@ function MarketApprovalAdmin() {
               <>
                 <div className="maa-stat-grid">
                   <StatCard icon={FiClock} value={awaitingReviewCount} label="Awaiting review" />
-                  <StatCard icon={FiAlertTriangle} value={highRiskCount} label="High risk" />
-                  <StatCard icon={FiShield} value={secondApprovalCount} label="Second approval required" />
                   <StatCard icon={FiCheckCircle} value={approvedCount} label="Approved" />
+                  <StatCard icon={FiXCircle} value={rejectedCount} label="Rejected" />
+                  <StatCard icon={FiActivity} value={markets.length} label="Total markets" />
                 </div>
 
                 <ApprovalQueueTable markets={markets} onSelect={setSelectedMarket} />
@@ -564,10 +494,8 @@ function MarketApprovalAdmin() {
         <ReviewDrawer
           market={selectedMarket}
           onClose={() => setSelectedMarket(null)}
-          onApprove={handleApprove}
+          onApprove={(market) => setPendingDecision({ market, kind: 'Approve' })}
           onReject={(market) => setPendingDecision({ market, kind: 'Reject' })}
-          onReturn={(market) => setPendingDecision({ market, kind: 'Return' })}
-          onBlocked={(market) => setBlockedMarket(market)}
         />
       )}
 
@@ -575,7 +503,7 @@ function MarketApprovalAdmin() {
         <ConfirmDecisionModal
           decision={pendingDecision}
           onClose={() => setPendingDecision(null)}
-          onConfirm={pendingDecision.kind === 'Reject' ? handleRejectConfirm : handleReturnConfirm}
+          onConfirm={handleDecisionConfirm}
         />
       )}
 

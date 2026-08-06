@@ -256,8 +256,18 @@
   margin: 0 0 20px;
 }
 
-.club-info-card__btn {
+.club-info-card__actions {
+  display: flex;
+  gap: 8px;
   width: 100%;
+  margin-top: auto;
+}
+
+.club-info-card__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px;
   border-radius: 10px;
   border: 1px solid rgba(109, 94, 252, 0.4);
@@ -265,14 +275,24 @@
   color: #9d7bff;
   font-size: 0.85rem;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-  margin-top: auto;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .club-info-card__btn:hover {
   background: rgba(109, 94, 252, 0.2);
   color: #fff;
+}
+
+.club-info-card__btn--following {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+
+.club-info-card__btn--following:hover {
+  filter: brightness(1.1);
 }
 
 /* ── Empty state ── */
@@ -302,4 +322,63 @@
     width: 58px;
     height: 58px;
   }
+
+  .club-info-card__actions {
+    flex-direction: column;
+  }
+}
+
+/* ── Sign-up prompt modal ── */
+.clubs-signup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 3, 10, 0.75);
+  z-index: 1000;
+}
+
+.clubs-signup-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 36px 32px;
+  max-width: 380px;
+  width: 90vw;
+  z-index: 1001;
+  text-align: center;
+}
+
+.clubs-signup-modal__title {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.clubs-signup-modal__body {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.clubs-signup-modal__cta {
+  display: block;
+  padding: 11px 0;
+  border-radius: 10px;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.clubs-signup-modal__dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
 }

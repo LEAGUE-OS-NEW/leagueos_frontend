@@ -17,7 +17,7 @@ export type VerificationStatus = "Verified" | "Pending" | "Unverified";
 export type DraftStatus =
   "Draft" | "Ready for Approval" | "Submitted" | "Rejected";
 export type ProposalStatus =
-  "New" | "Under Review" | "Returned" | "Converted" | "Rejected";
+  "New" | "Under Review" | "Converted" | "Rejected";
 export interface VerifiedEvent {
   id: string;
   teamA: string;
