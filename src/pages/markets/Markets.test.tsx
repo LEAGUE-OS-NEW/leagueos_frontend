@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Markets from "./Markets.tsx";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
+import { fetchContracts, fetchMarkets } from "../../services/marketAdminService.ts";
+import type { Market } from "../../services/marketAdminService.ts";
 
 vi.mock("../../components/landing/Navbar", () => ({
   default: () => <nav>Navigation</nav>,
@@ -13,6 +15,10 @@ vi.mock("../../components/landing/Footer", () => ({
 }));
 vi.mock("../../services/markets/publicMarketsService.ts", () => ({
   fetchPublicMarkets: vi.fn(),
+}));
+vi.mock("../../services/marketAdminService.ts", () => ({
+  fetchMarkets: vi.fn(),
+  fetchContracts: vi.fn(),
 }));
 
 const emptyResponse = {
@@ -30,15 +36,37 @@ const emptyResponse = {
   },
 };
 
-const openMarket = {
+const openMarket: Market = {
   id: "market-1",
-  sport: "Football",
-  teams: ["KCCA FC", "SC Villa"],
-  subject: "KCCA FC vs SC Villa",
+  eventLabel: "KCCA FC vs SC Villa",
+  competition: "Uganda Premier League",
+  venue: "Philip Omondi Stadium",
+  kickoff: "2026-08-06T12:00:00Z",
+  category: "Football",
   question: "Will KCCA FC win?",
-  status: "OPEN",
-  closesAt: "2026-08-06T12:00:00Z",
-  outcomes: ["Yes", "No"],
+  description: "",
+  tags: [],
+  outcomes: [
+    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 5500 },
+    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 4500 },
+  ],
+  parameters: {
+    opensAt: "2026-08-01T00:00:00Z",
+    closesAt: "2026-08-06T11:50:00Z",
+    settlesBy: "2026-08-06T15:00:00Z",
+    initialLiquidityUgx: 500_000,
+    minTradeUgx: 1_000,
+    maxTradeUgx: 500_000,
+    feePct: 2,
+    featured: false,
+    trending: false,
+    recommended: false,
+    inPlayTrading: false,
+  },
+  status: "Live",
+  createdBy: "Test Admin",
+  createdAt: "2026-08-01T00:00:00Z",
+  auditHistory: [],
 };
 
 function renderMarkets() {
@@ -50,23 +78,27 @@ function renderMarkets() {
 }
 
 describe("Markets API states", () => {
-  beforeEach(() => vi.mocked(fetchPublicMarkets).mockReset());
+  beforeEach(() => {
+    vi.mocked(fetchPublicMarkets).mockReset().mockResolvedValue(emptyResponse);
+    vi.mocked(fetchMarkets).mockReset();
+    vi.mocked(fetchContracts).mockReset().mockResolvedValue([]);
+  });
 
   it("shows the existing loading state", async () => {
-    let resolveRequest!: (value: typeof emptyResponse) => void;
-    vi.mocked(fetchPublicMarkets).mockReturnValue(
+    let resolveRequest!: (value: Market[]) => void;
+    vi.mocked(fetchMarkets).mockReturnValue(
       new Promise((resolve) => {
         resolveRequest = resolve;
       }),
     );
     renderMarkets();
     expect(screen.getByText("Loading live markets…")).toBeInTheDocument();
-    resolveRequest(emptyResponse);
+    resolveRequest([]);
     await screen.findByText("No open markets for this sport right now.");
   });
 
   it("shows the existing empty state after a successful empty response", async () => {
-    vi.mocked(fetchPublicMarkets).mockResolvedValue(emptyResponse);
+    vi.mocked(fetchMarkets).mockResolvedValue([]);
     renderMarkets();
     expect(
       await screen.findByText("No open markets for this sport right now."),
@@ -75,9 +107,9 @@ describe("Markets API states", () => {
 
   it("shows a retryable error when the primary request fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchPublicMarkets)
+    vi.mocked(fetchMarkets)
       .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValueOnce(emptyResponse);
+      .mockResolvedValueOnce([]);
     renderMarkets();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Unable to reach League OS. Please try again.",
@@ -92,8 +124,8 @@ describe("Markets API states", () => {
 
   it("returns to loading when retry is invoked", async () => {
     const user = userEvent.setup();
-    let resolveRetry!: (value: typeof emptyResponse) => void;
-    vi.mocked(fetchPublicMarkets)
+    let resolveRetry!: (value: Market[]) => void;
+    vi.mocked(fetchMarkets)
       .mockRejectedValueOnce(new Error("offline"))
       .mockReturnValueOnce(
         new Promise((resolve) => {
@@ -103,19 +135,19 @@ describe("Markets API states", () => {
     renderMarkets();
     await user.click(await screen.findByRole("button", { name: "Retry" }));
     expect(screen.getByText("Loading live markets…")).toBeInTheDocument();
-    expect(fetchPublicMarkets).toHaveBeenCalledTimes(2);
-    resolveRetry(emptyResponse);
+    expect(fetchMarkets).toHaveBeenCalledTimes(2);
+    resolveRetry([]);
     await screen.findByText("No open markets for this sport right now.");
   });
 
   it("shows permission-aware copy for a 403 instead of the raw response", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchPublicMarkets)
+    vi.mocked(fetchMarkets)
       .mockRejectedValueOnce({
         isAxiosError: true,
         response: { status: 403, data: { detail: "raw axios forbidden" } },
       })
-      .mockResolvedValueOnce(emptyResponse);
+      .mockResolvedValueOnce([]);
     renderMarkets();
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
@@ -129,17 +161,9 @@ describe("Markets API states", () => {
     await screen.findByText("No open markets for this sport right now.");
   });
 
-  it("keeps open markets visible when optional sections fail", async () => {
-    vi.mocked(fetchPublicMarkets).mockResolvedValue({
-      ...emptyResponse,
-      open: [openMarket],
-      optionalErrors: {
-        featured: true,
-        resolved: true,
-        events: true,
-        discovery: true,
-      },
-    });
+  it("keeps open markets visible when the fixtures widget fails", async () => {
+    vi.mocked(fetchPublicMarkets).mockRejectedValue(new Error("fixtures endpoint down"));
+    vi.mocked(fetchMarkets).mockResolvedValue([openMarket]);
     renderMarkets();
     expect(await screen.findByText("KCCA FC vs SC Villa")).toBeInTheDocument();
     await waitFor(() =>

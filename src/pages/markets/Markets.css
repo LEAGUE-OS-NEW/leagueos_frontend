@@ -523,13 +523,19 @@
 }
 
 .featured-market-question {
+  display: block;
   margin: 0 0 6px;
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.4;
   color: var(--color-text-primary);
   text-align: center;
+  text-decoration: none;
   min-height: 2.6em;
+}
+
+.featured-market-question:hover {
+  text-decoration: underline;
 }
 
 .featured-market-closes {
@@ -666,10 +672,16 @@
 }
 
 .open-market-question {
+  display: block;
   margin: 0;
   font-size: 0.85rem;
   color: var(--color-text-secondary);
   line-height: 1.35;
+  text-decoration: none;
+}
+
+.open-market-question:hover {
+  text-decoration: underline;
 }
 
 .open-market-outcome {
