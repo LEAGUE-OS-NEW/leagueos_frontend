@@ -3,6 +3,16 @@
   display: flex;
   background-color: var(--color-bg);
   color: var(--color-text-primary);
+  background-image:
+    linear-gradient(
+      rgba(6, 6, 12, 0.473),
+      rgba(6, 6, 12, 0.548)
+    ),
+    url("/images/stadium-bg.png");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .admin-layout__main {
@@ -19,4 +29,10 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+@media (max-width: 767px) {
+  .admin-layout {
+    background-attachment: scroll;
+  }
 }
