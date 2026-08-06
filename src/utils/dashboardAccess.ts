@@ -313,7 +313,7 @@ function entitlementAuthorizesPath(
     case 'SUPER_ADMIN':
       return (
         matchesPath(pathname, '/super-admin') ||
-        matchesPath(pathname, '/dashboard/super-admin')
+        matchesPath(pathname, '/dashboard/admin')
       );
     case 'CLUB_ADMIN':
       return normalClubRouteMatches(entitlement, pathname);
