@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FiCheckCircle,
   FiFilter,
@@ -102,6 +102,7 @@ function formatUgx(value: number) {
 }
 
 function Markets() {
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -109,6 +110,16 @@ function Markets() {
   // NOTE: swap this for whatever field your user object actually exposes for
   // identity/KYC verification (this is distinct from email verification).
   const isVerified = Boolean((currentUser as { isVerified?: boolean } | null | undefined)?.isVerified);
+
+  // Gate for any trade-intent action (Yes/No, Buy, etc). Unverified fans get
+  // redirected into the verification wizard instead of placing a trade.
+  const requireVerification = (action: () => void) => {
+    if (!isVerified) {
+      navigate('/fan/verify');
+      return;
+    }
+    action();
+  };
 
   const { data: markets, isLoading, error, retry } = useDashboardSection<MarketListItem[]>(fetchMarkets);
   const { data: positions } = useDashboardSection<UserPosition[]>(fetchMyPositions);
@@ -275,10 +286,28 @@ function Markets() {
                 <h3 className="market-details-question">{selectedMarket.question}</h3>
 
                 <div className="yesno-buttons">
-                  <button type="button" className="buy-button buy-button--yes">
+                  <button
+                    type="button"
+                    className="buy-button buy-button--yes"
+                    onClick={() =>
+                      requireVerification(() => {
+                        setDetailTab('details');
+                        setTradeSide('buy');
+                      })
+                    }
+                  >
                     Yes
                   </button>
-                  <button type="button" className="buy-button buy-button--no">
+                  <button
+                    type="button"
+                    className="buy-button buy-button--no"
+                    onClick={() =>
+                      requireVerification(() => {
+                        setDetailTab('details');
+                        setTradeSide('sell');
+                      })
+                    }
+                  >
                     No
                   </button>
                 </div>
@@ -468,7 +497,7 @@ function Markets() {
                     <FiCheckCircle /> Withdraw Earnings
                   </li>
                 </ul>
-                <Link to="/settings" className="markets-cta markets-cta--primary verify-card-cta">
+                <Link to="/fan/verify" className="markets-cta markets-cta--primary verify-card-cta">
                   Get Started
                 </Link>
               </section>
@@ -693,7 +722,7 @@ function Markets() {
                 </span>
                 <h3>You are not verified</h3>
                 <p>Complete your identity verification to start trading and participate in all markets.</p>
-                <Link to="/settings" className="markets-cta markets-cta--primary verify-card-cta">
+                <Link to="/fan/verify" className="markets-cta markets-cta--primary verify-card-cta">
                   Get Started
                 </Link>
               </div>
