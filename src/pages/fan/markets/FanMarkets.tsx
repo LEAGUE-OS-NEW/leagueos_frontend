@@ -438,18 +438,50 @@ function Markets() {
                     <b>{formatUgx(potentialReturn)}</b>
                   </div>
 
-                  <div className="trade-actions">
-                    <button type="button" className="buy-button buy-button--yes">
+                 <div className="trade-actions">
+                    <button
+                      type="button"
+                      className="buy-button buy-button--yes"
+                      disabled={!amount || Number(amount) <= 0}
+                      onClick={() =>
+                        navigate(`/fan/markets/${selectedMarket.id}/review`, {
+                          state: {
+                            outcome: 'Yes',
+                            side: 'buy',
+                            price: selectedMarket.yesPrice,
+                            amount: Number(amount) || 0,
+                            contracts: Number(amount) ? Number(amount) / selectedMarket.yesPrice : 0,
+                            feeRate: 0.02,
+                          },
+                        })
+                      }
+                    >
                       Buy Yes
                     </button>
-                    <button type="button" className="buy-button buy-button--no">
+                    <button
+                      type="button"
+                      className="buy-button buy-button--no"
+                      disabled={!amount || Number(amount) <= 0}
+                      onClick={() =>
+                        navigate(`/fan/markets/${selectedMarket.id}/review`, {
+                          state: {
+                            outcome: 'Yes',
+                            side: 'sell',
+                            price: selectedMarket.yesPrice,
+                            amount: Number(amount) || 0,
+                            contracts: Number(amount) ? Number(amount) / selectedMarket.yesPrice : 0,
+                            feeRate: 0.02,
+                          },
+                        })
+                      }
+                    >
                       Sell Yes
                     </button>
                   </div>
-                  <button type="button" className="hold-position-btn">
+                  <button type="button" className="hold-position-btn" onClick={closeMarketDetail}>
                     Hold Position
                   </button>
-                </section>
+                  </section>
 
                 <section className="dashboard-card my-positions-mini">
                   <h3>My Positions</h3>
