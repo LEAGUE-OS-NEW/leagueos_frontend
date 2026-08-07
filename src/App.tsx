@@ -21,7 +21,18 @@ import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
 import MyPositions from './pages/fan/positions/MyPositions';
 import Markets from './pages/markets/Markets';
-import MarketDetailPage from './pages/markets/MarketDetailPage';
+import MarketDetailPage from './pages/fan/markets/FanMarkets';
+import { useCurrentUser } from './hooks/useCurrentUser';
+
+
+function MarketsGate() {
+  const { currentUser, isLoading } = useCurrentUser() as {
+    currentUser: unknown;
+    isLoading?: boolean;
+  };
+  if (isLoading) return null;
+  return currentUser ? <MarketDetailPage /> : <Markets />;
+}
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -47,18 +58,15 @@ import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
 import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
-
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
-
 import SearchPage from './pages/search/SearchPage';
-
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
-// import Personalize from "./pages/personalize/Personalize";
+
 
 function App() {
   return (
@@ -84,15 +92,18 @@ function App() {
 
           {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
+       
         <Route path="/dashboard/fan" element={<FanDashboard />} />
         <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
+       
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
 
-        <Route path="/markets" element={<Markets />} />
+        <Route path="/markets" element={<MarketsGate />} />
         <Route path="/markets/:marketId" element={<MarketDetailPage />} />
+        <Route path="/fan/markets" element={<Navigate to="/markets" replace />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
 
@@ -133,7 +144,7 @@ function App() {
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/community" element={<Community />} />
 
-        {/* <Route path="/personalize" element={<Personalize />} /> */}
+        
 
       </Routes>
     </Router>
