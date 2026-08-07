@@ -56,7 +56,7 @@ const STEP_SUCCESS: StepId = 6;
 /** Labels for the 5 "personalization" steps shown in the progress bar. Welcome and Success aren't counted. */
 const PROGRESS_LABELS = ["Country", "Sports", "Competitions", "Clubs", "Summary"];
 
-const DASHBOARD_ROUTE = "/fandashboard";
+const DASHBOARD_ROUTE = "/dashboard/fan";
 
 /* =============================================================================
    STATIC DATA
