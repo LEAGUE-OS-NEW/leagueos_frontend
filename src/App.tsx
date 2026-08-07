@@ -21,18 +21,8 @@ import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
 import MyPositions from './pages/fan/positions/MyPositions';
 import Markets from './pages/markets/Markets';
-import MarketDetailPage from './pages/fan/markets/FanMarkets';
-import { useCurrentUser } from './hooks/useCurrentUser';
-
-
-function MarketsGate() {
-  const { currentUser, isLoading } = useCurrentUser() as {
-    currentUser: unknown;
-    isLoading?: boolean;
-  };
-  if (isLoading) return null;
-  return currentUser ? <MarketDetailPage /> : <Markets />;
-}
+import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
+import FanMarkets from './pages/fan/markets/FanMarkets';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -101,9 +91,10 @@ function App() {
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
 
-        <Route path="/markets" element={<MarketsGate />} />
-        <Route path="/markets/:marketId" element={<MarketDetailPage />} />
-        <Route path="/fan/markets" element={<Navigate to="/markets" replace />} />
+        <Route path="/markets" element={<Markets />} />
+        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
+        <Route path="/fan/markets" element={<FanMarkets />} />
+        <Route path="/fan/markets/:marketId" element={<FanMarkets />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
 
