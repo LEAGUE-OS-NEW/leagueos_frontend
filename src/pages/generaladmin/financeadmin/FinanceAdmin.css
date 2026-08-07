@@ -218,6 +218,13 @@
   color: var(--fa-text-faint);
 }
 
+.fa-panel__note {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  color: var(--fa-text-faint);
+  font-style: italic;
+}
+
 /* ---------------------------- tabs ---------------------------- */
 
 .fa-tabs {
@@ -362,6 +369,15 @@
   color: var(--fa-text-faint);
   padding: 24px !important;
   white-space: normal !important;
+}
+
+.fa-empty--panel {
+  text-align: center;
+  color: var(--fa-text-faint);
+  padding: 24px;
+  border-radius: var(--fa-radius-sm);
+  border: 1px dashed var(--fa-panel-border);
+  grid-column: 1 / -1;
 }
 
 .fa-mono {
@@ -600,6 +616,89 @@
   background: rgba(240, 85, 92, 0.1);
   border-radius: 8px;
   padding: 6px 10px;
+}
+
+/* ---------------------------- refund drawer timeline ---------------------------- */
+
+.fa-refund-drawer__timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fa-refund-timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(147, 163, 199, 0.08);
+  border: 1px solid var(--fa-panel-border);
+  font-size: 13px;
+  color: var(--fa-text-dim);
+}
+
+.fa-refund-timeline-step__marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(147, 163, 199, 0.15);
+  color: var(--fa-text-dim);
+  flex-shrink: 0;
+}
+
+.fa-refund-timeline-step__label {
+  font-weight: 600;
+  color: var(--fa-text);
+}
+
+.fa-refund-timeline-step__meta {
+  font-size: 11px;
+  color: var(--fa-text-faint);
+  margin-left: auto;
+}
+
+.fa-refund-timeline-step--active {
+  background: rgba(93, 132, 230, 0.16);
+  border-color: rgba(93, 132, 230, 0.4);
+}
+
+.fa-refund-timeline-step--active .fa-refund-timeline-step__marker {
+  background: var(--fa-blue-500);
+  color: #06101f;
+}
+
+.fa-refund-timeline-step--done {
+  background: rgba(51, 209, 122, 0.14);
+  border-color: rgba(51, 209, 122, 0.35);
+}
+
+.fa-refund-timeline-step--done .fa-refund-timeline-step__marker {
+  background: var(--fa-green);
+  color: #06101f;
+}
+
+.fa-refund-timeline-step--done .fa-refund-timeline-step__label {
+  color: var(--fa-green);
+}
+
+.fa-refund-timeline-step--rejected {
+  background: rgba(240, 85, 92, 0.14);
+  border-color: rgba(240, 85, 92, 0.35);
+}
+
+.fa-refund-timeline-step--rejected .fa-refund-timeline-step__marker {
+  background: var(--fa-red);
+  color: #06101f;
+}
+
+.fa-refund-timeline-step--rejected .fa-refund-timeline-step__label {
+  color: var(--fa-red);
 }
 
 /* ---------------------------- fund segregation ---------------------------- */
@@ -956,5 +1055,52 @@
 
   .fa-drawer {
     width: 100%;
+  }
+}
+
+
+.ga-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 1200px) {
+  .ga-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ga-aside {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ga-aside > * {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 860px) {
+  .ga-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-aside {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .ga-footer {
+    padding: 14px 16px;
   }
 }

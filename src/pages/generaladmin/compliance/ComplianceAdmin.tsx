@@ -120,7 +120,7 @@ const mockComplianceCases: ComplianceCase[] = [
       fullName: "Marcus Webb",
       email: "marcus.webb@mailbox.com",
       phone: "+1 (415) 555-0142",
-      country: "United States",
+      country: "Rwanda",
       registrationDate: "2026-01-04",
       verificationTier: "Tier 1",
     },
@@ -150,7 +150,7 @@ const mockComplianceCases: ComplianceCase[] = [
       fullName: "Priya Chandrasekaran",
       email: "priya.c@fastmail.io",
       phone: "+44 7700 900188",
-      country: "United Kingdom",
+      country: "Uganda",
       registrationDate: "2025-11-18",
       verificationTier: "Tier 2",
     },
@@ -187,7 +187,7 @@ const mockComplianceCases: ComplianceCase[] = [
       fullName: "Tomasz Nowicki",
       email: "t.nowicki@protonhub.net",
       phone: "+48 512 340 211",
-      country: "Poland",
+      country: "Uganda",
       registrationDate: "2026-03-22",
       verificationTier: "Tier 1",
     },
@@ -218,7 +218,7 @@ const mockComplianceCases: ComplianceCase[] = [
       fullName: "Renee Castellano",
       email: "renee.castellano@gmail.com",
       phone: "+1 (312) 555-0227",
-      country: "United States",
+      country: "Uganda",
       registrationDate: "2024-09-02",
       verificationTier: "Tier 3",
     },
@@ -251,7 +251,7 @@ const mockComplianceCases: ComplianceCase[] = [
       fullName: "Kenji Watanabe",
       email: "kenji.w@heliomail.com",
       phone: "+81 90 1234 0254",
-      country: "Japan",
+      country: "Kenya",
       registrationDate: "2025-06-11",
       verificationTier: "Tier 2",
     },
@@ -1425,21 +1425,8 @@ const ComplianceAdmin: React.FC = () => {
                 <p>Central control for KYC reviews, fraud detection, restrictions, responsible participation, and platform safety.</p>
               </div>
               <div className="compliance-header__actions">
-                <span className="live-badge"><span className="live-badge__dot" />Live data</span>
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    const blob = new Blob([JSON.stringify(cases, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `compliance-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Export Dashboard
-                </button>
+                
+                
                 <button className="btn btn-gradient" disabled title="Compliance Settings coming soon">
                   Compliance Settings
                 </button>
@@ -1470,6 +1457,11 @@ const ComplianceAdmin: React.FC = () => {
           onMutate={handleMutateCase}
         />
       )}
+
+      <footer className="ga-footer">
+        <span>League OS Admin Console • All actions are logged and auditable</span>
+        <span>© 2026 League OS. All rights reserved.</span>
+      </footer>
     </div>
   );
 };

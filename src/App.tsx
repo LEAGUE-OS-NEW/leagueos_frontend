@@ -38,6 +38,9 @@ import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
+
+import PredictionMarkets from "./pages/fan/market/PredictionMarkets";
+import PredictionPortfolio from "./pages/fan/market/Predictionportfolio";
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -62,6 +65,18 @@ function App() {
 
         <Route path="/markets" element={<Markets />} />
         <Route path="/fantasy" element={<Fantasy />} />
+
+        <Route 
+  path="/fan/prediction-markets" 
+  element={<PredictionMarkets />} 
+/>
+
+<Route 
+  path="/fan/prediction-portfolio" 
+  element={<PredictionPortfolio />} 
+/>
+
+
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />
