@@ -84,7 +84,8 @@ function App() {
 
           {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
-        <Route path="/fandashboard" element={<FanDashboard />} />
+        <Route path="/dashboard/fan" element={<FanDashboard />} />
+        <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
         <Route path="/wallet" element={<FanWallet />} />
