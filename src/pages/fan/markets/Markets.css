@@ -1,0 +1,1751 @@
+/* ============================================================================
+ * LIST PAGE HEADING
+ * ========================================================================== */
+
+.markets-list-content {
+  gap: 20px;
+}
+
+.markets-list-heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.markets-list-heading h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.5vw, 1.7rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.markets-filters-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.markets-filters-toggle:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+/* ============================================================================
+ * TABLE PANEL
+ * ========================================================================== */
+
+.markets-table-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.markets-list-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.markets-list-tabs button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.markets-list-tabs button:hover {
+  color: var(--color-text-primary);
+}
+
+.markets-list-tabs button.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.markets-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.markets-table-row {
+  display: grid;
+  grid-template-columns: 2.2fr 1.2fr 0.8fr 0.9fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 6px;
+  margin: 0 -6px;
+  border-radius: 8px;
+  border-top: 1px solid var(--color-border);
+  transition: background-color 0.2s ease;
+}
+
+.markets-table-row:hover {
+  background-color: var(--color-card-hover);
+}
+
+.markets-table-labels {
+  border-top: none;
+  padding-top: 0;
+  padding-bottom: 8px;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.markets-table-labels:hover {
+  background-color: transparent;
+}
+
+.markets-row-event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.markets-row-crests {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.market-row-crest {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: contain;
+  background-color: var(--color-card-hover);
+  border: 2px solid var(--color-card-bg);
+}
+
+.markets-row-crests .market-row-crest:not(:first-child) {
+  margin-left: -10px;
+}
+
+.market-row-crest--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.markets-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.markets-row-copy b {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markets-row-copy small {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.markets-row-type {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.markets-row-ends {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.markets-row-ends--live {
+  color: var(--color-open, #22c55e);
+}
+
+.markets-row-ends--upcoming {
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.markets-row-volume {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.markets-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markets-row-actions button,
+.markets-row-actions a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.markets-row-actions button:hover,
+.markets-row-actions a:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+  background-color: var(--color-card-hover);
+}
+
+/* ============================================================================
+ * STATUS BADGE
+ * ========================================================================== */
+
+.market-status-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.market-status-badge b {
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.market-status-badge--live {
+  background-color: var(--color-danger, #d64545);
+}
+
+.market-status-badge--live i {
+  display: none;
+}
+
+.market-status-badge--upcoming {
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  border: 1px solid var(--color-border);
+}
+
+.market-status-badge--trending {
+  background-color: var(--color-primary-light);
+}
+
+/* ============================================================================
+ * EXPLORE GRID: SEARCH + CATEGORIES
+ * ========================================================================== */
+
+.markets-explore-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.all-markets-panel h2,
+.categories-panel h2,
+.filters-panel h2 {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.all-markets-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  margin-bottom: 14px;
+}
+
+.all-markets-search svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.all-markets-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.all-markets-search button {
+  flex-shrink: 0;
+  display: flex;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+}
+
+.all-markets-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.all-markets-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: var(--color-card-hover);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.all-markets-result-row:hover {
+  background-color: var(--color-border);
+}
+
+.all-markets-result-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.all-markets-result-copy b {
+  font-size: 0.86rem;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-markets-result-copy small {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.all-markets-empty {
+  margin: 0;
+  padding: 12px 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+  text-align: center;
+}
+
+.all-markets-view-all {
+  display: inline-block;
+  margin-top: 12px;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+}
+
+.category-card:hover {
+  transform: scale(1.02);
+  border-color: var(--color-primary);
+}
+
+.category-card.active {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+.category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+}
+
+.category-card b {
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.category-card small {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+/* ============================================================================
+ * FILTERS PANEL
+ * ========================================================================== */
+
+.filters-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.filters-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.filters-panel-heading h2 {
+  margin: 0;
+}
+
+.filters-panel-heading button {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.filters-panel-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.filters-group h3 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.filters-group h3:not(:first-child) {
+  margin-top: 16px;
+}
+
+.filters-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.86rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.filters-checkbox input {
+  accent-color: var(--color-primary-light);
+  width: 16px;
+  height: 16px;
+}
+
+.filters-group select {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.filters-apply {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  border: none;
+}
+
+/* ============================================================================
+ * MARKET INFORMATION MODAL
+ * ========================================================================== */
+
+.market-info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(6, 4, 12, 0.72);
+}
+
+.market-info-modal {
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.market-info-modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.market-info-modal-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-info-modal-heading button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  cursor: pointer;
+}
+
+.market-info-modal-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.market-info-modal-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.market-info-modal-list > div:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.market-info-modal-list dt {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.market-info-modal-list dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+/* ============================================================================
+ * SHARED CTA (matches markets-cta from the marketing site's Markets.css)
+ * ========================================================================== */
+
+.markets-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 40px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.markets-cta--primary {
+  background: var(--gradient-primary);
+}
+
+.markets-cta:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+/* ============================================================================
+ * RESPONSIVE
+ * ========================================================================== */
+
+@media (max-width: 1100px) {
+  .markets-explore-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters-panel-groups {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .markets-table-labels {
+    display: none;
+  }
+
+  .markets-table-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 8px;
+  }
+
+  .markets-row-event {
+    grid-column: 1 / -1;
+  }
+
+  .markets-row-type,
+  .markets-row-volume {
+    font-size: 0.8rem;
+  }
+
+  .categories-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters-panel-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+ * TRADING TERMINAL LAYOUT (verified/unverified Fan Markets dashboard)
+ * ========================================================================== */
+
+.markets-terminal-content {
+  gap: 16px;
+}
+
+.markets-terminal-content .markets-list-heading {
+  justify-content: flex-start;
+  gap: 20px;
+}
+
+.markets-terminal-content .markets-list-heading .markets-filters-toggle {
+  margin-left: auto;
+}
+
+.markets-terminal-content .markets-list-tabs {
+  margin-bottom: 0;
+}
+
+.up {
+  color: var(--color-open, #22c55e) !important;
+}
+
+.down {
+  color: var(--color-danger, #ef4444) !important;
+}
+
+.section-title {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.buy-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  min-height: 38px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.buy-button:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+.buy-button--yes {
+  background-color: var(--color-open, #22c55e);
+}
+
+.buy-button--no {
+  background-color: var(--color-danger, #ef4444);
+}
+
+.markets-terminal-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.markets-terminal-col {
+  min-width: 0;
+}
+
+.markets-terminal-col--aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------------------------- browse stack: live panel + all-markets panel ---------------------------- */
+
+/* Wraps the "Live Now" mini-card strip and the "All Markets" table as two
+   visually separate .dashboard-card panels (previously both lived inside
+   one shared card with just a heading between them, which read as a single
+   block — see bug: "separate the live events section from the all markets
+   sections"). The gap here is what actually creates the separation; each
+   section below keeps its own card background/border/padding. */
+.markets-browse-stack {
+  /* Needed because this wrapper's children (.live-markets-panel,
+     .all-markets-panel) are no longer *direct* children of
+     .markets-terminal-content, so they no longer match the
+     `.markets-terminal-content > .dashboard-card { z-index: 1 }` rule
+     that normally lifts cards above .fan-dashboard-content's ::before
+     background overlay. Positioning + z-index-ing this wrapper instead
+     achieves the same thing one level up. */
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.live-markets-title {
+  margin-bottom: 16px;
+}
+
+/* Live panel intentionally has no card background/border of its own —
+   the individual mini cards below already provide that, so wrapping them
+   in another bordered box just doubled up the framing. */
+.live-markets-panel {
+  position: relative;
+  z-index: 1;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* .dashboard-card's hover lift/border-color only makes sense for an
+   actual card surface — this panel isn't one, so cancel it out. */
+.live-markets-panel:hover {
+  transform: none;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* ---------------------------- live mini cards ---------------------------- */
+
+.live-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.market-mini-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.market-mini-card:hover {
+  border-color: var(--color-primary);
+}
+
+.market-mini-card.active {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+.market-mini-card .market-status-badge {
+  align-self: flex-start;
+}
+
+.market-mini-card-crests {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Bigger than the default .market-row-crest size (used elsewhere for the
+   compact "All Markets" table rows) — these mini cards have the room, and
+   at the old 30px the crests looked lost inside a much wider card. */
+.market-mini-card-crests .market-row-crest {
+  width: 48px;
+  height: 48px;
+  font-size: 1.1rem;
+}
+
+.market-mini-vs {
+  font-size: 0.76rem;
+  color: var(--color-text-muted, #6b7280);
+  text-transform: uppercase;
+}
+
+.market-mini-teams {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.market-mini-teams em {
+  font-style: normal;
+  color: var(--color-text-muted, #6b7280);
+  margin: 0 2px;
+}
+
+.market-mini-question {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.market-mini-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.mini-yesno {
+  flex: 1;
+  text-align: center;
+  padding: 10px 8px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mini-yesno--yes {
+  background-color: var(--color-open, #22c55e);
+}
+
+.mini-yesno--no {
+  background-color: var(--color-danger, #ef4444);
+}
+
+.market-mini-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding-top: 12px;
+  margin-top: 2px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* ---------------------------- all markets simple table ---------------------------- */
+
+.all-markets-title {
+  margin-top: 4px;
+}
+
+.all-markets-simple-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.all-markets-simple-row {
+  display: grid;
+  grid-template-columns: 2fr 0.9fr 0.8fr 0.8fr 0.9fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.82rem;
+}
+
+.all-markets-simple-labels {
+  border-top: none;
+  padding-bottom: 8px;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.all-markets-simple-market {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.all-markets-simple-market span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.all-markets-simple-market b {
+  font-size: 0.84rem;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-markets-simple-market small {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.all-markets-view-btn {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.all-markets-view-btn:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+/* ---------------------------- market details column ---------------------------- */
+
+.market-detail-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 18px;
+}
+
+.market-detail-subtabs button {
+  padding: 8px 4px;
+  margin-right: 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.market-detail-subtabs button.active {
+  color: var(--color-primary-light);
+  border-bottom-color: var(--color-primary-light);
+}
+
+.market-details-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.market-details-header-copy h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-details-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.market-details-header-copy p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.market-details-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.market-details-header-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  cursor: pointer;
+}
+
+.market-details-full-link {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 0.78rem;
+}
+
+.market-details-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 14px 0;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.market-details-stats-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.market-details-stats-row span {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-details-stats-row b {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-details-question {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.yesno-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.yesno-buttons .buy-button {
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+
+.market-details-verified-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.market-details-verified-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.market-details-verified-row span {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-details-verified-row b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------- verify inline notice ---------------------------- */
+
+.verify-inline-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.verify-inline-notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary-light);
+}
+
+.verify-inline-notice b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+}
+
+.verify-inline-notice p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.verify-inline-notice.compact {
+  padding: 10px 12px;
+}
+
+/* ---------------------------- my positions (details tab) ---------------------------- */
+
+.my-positions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.my-positions-row {
+  display: grid;
+  grid-template-columns: 2fr 0.6fr 0.6fr 0.6fr 0.9fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.84rem;
+  color: var(--color-text-primary);
+}
+
+.my-positions-question {
+  font-weight: 600;
+}
+
+.my-positions-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.88rem;
+}
+
+.my-positions-total-row b {
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------- market info fields tab ---------------------------- */
+
+.market-info-fields {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.market-info-fields > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.market-info-fields > div:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.market-info-fields dt {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.market-info-fields dd {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+/* ---------------------------- trade ticket (aside) ---------------------------- */
+
+.trade-ticket-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.trade-ticket-header b {
+  font-size: 0.92rem;
+  color: var(--color-text-primary);
+}
+
+.trade-ticket-ends {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.trade-ticket-ends span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.trade-ticket-ends b {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-open, #22c55e);
+}
+
+.trade-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.trade-tabs button {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trade-tabs button.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.trade-amount-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.trade-amount-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+.preset-chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.preset-chips button {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preset-chips button:hover {
+  border-color: var(--color-primary-light);
+  color: var(--color-text-primary);
+}
+
+.potential-return-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.potential-return-row span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.potential-return-row b {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.trade-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.hold-position-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.hold-position-btn:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-hover);
+}
+
+/* ---------------------------- my positions mini (aside) ---------------------------- */
+
+.my-positions-mini h3 {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.my-positions-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.84rem;
+}
+
+.my-positions-mini-row span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.my-positions-mini-row b {
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-positions-mini-row small {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.my-positions-mini-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.86rem;
+}
+
+.my-positions-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.view-all-positions-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 0.8rem;
+}
+
+/* ---------------------------- verify card (aside, unverified) ---------------------------- */
+
+.verify-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.verify-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.verify-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.verify-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.verify-checklist {
+  list-style: none;
+  margin: 6px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.verify-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--color-text-primary);
+}
+
+.verify-checklist li svg {
+  color: var(--color-open, #22c55e);
+  flex-shrink: 0;
+}
+
+.verify-card-cta {
+  width: 100%;
+  margin-top: 6px;
+  border: none;
+}
+
+/* ---------------------------- onboarding row (unverified only) ---------------------------- */
+
+.markets-onboarding-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.onboarding-card h3 {
+  margin: 0 0 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.onboarding-card--verify {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.onboarding-card--verify p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.onboarding-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.onboarding-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+.onboarding-steps b {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--color-text-primary);
+}
+
+.onboarding-steps p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.verify-checklist--why li svg {
+  color: var(--color-primary-light);
+}
+
+.markets-terminal-content > .dashboard-card {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================================
+ * MARKET DETAIL MODAL (full details + trade ticket popup, opened from a
+ * market card/row via openMarketDetail). Mirrors .market-info-overlay /
+ * .market-info-modal above, just sized to hold .markets-terminal-grid.
+ *
+ * IMPORTANT: this overlay is rendered via a React portal to document.body,
+ * so it sits as a *sibling* of `.fan-dashboard` (which contains the
+ * Sidebar), not a descendant of it. Portaling only fixes DOM order/clipping
+ * (e.g. escaping `overflow: hidden` ancestors) — it does NOT make this
+ * overlay automatically render above the Sidebar. Whichever element has the
+ * higher z-index wins, full stop.
+ *
+ * The Sidebar is `position: fixed` with its own z-index (commonly set very
+ * high, e.g. 1000+, so it can sit above topbars/content on mobile). That
+ * was beating this overlay's old z-index of 300, so the modal rendered
+ * underneath it (see bug: "popup market details is entering under the
+ * sidebar").
+ *
+ * Fixed by raising this overlay's z-index to 2000, comfortably above any
+ * z-index used by Sidebar.css or Topbar.css. If the modal ever gets buried
+ * again, check Sidebar.css/Topbar.css for a z-index >= 2000 and bump this
+ * value above it.
+ * ========================================================================== */
+
+.market-detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The sidebar is fixed-position and sits on top of the left edge of the
+     viewport, so a plain `justify-content: center` centers the modal
+     across the *full* viewport width and it ends up partly hidden behind
+     the sidebar. Padding the left side by the sidebar's width shifts the
+     centered flex content into the remaining space to the right of it.
+     Adjust this value if the sidebar's width in Sidebar.css changes. */
+  padding: 20px 20px 20px 300px;
+  background: rgba(6, 4, 12, 0.72);
+}
+
+.market-detail-modal {
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.market-detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.market-detail-modal-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-detail-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.market-detail-modal-close:hover {
+  background-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 860px) {
+  .market-detail-modal-overlay {
+    /* On mobile the sidebar is off-canvas (hidden until toggled), so there's
+       no need to reserve space for it here — undo the desktop offset. */
+    padding: 0;
+  }
+
+  .market-detail-modal {
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100vh;
+  }
+}
+
+/* ---------------------------- responsive ---------------------------- */
+
+@media (max-width: 1200px) {
+  .markets-terminal-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .markets-terminal-col--aside {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .markets-terminal-col--aside > * {
+    flex: 1 1 280px;
+  }
+
+  .markets-onboarding-row {
+    grid-template-columns: 1fr;
+  }
+
+  .live-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .live-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .markets-terminal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .all-markets-simple-labels {
+    display: none;
+  }
+
+  .all-markets-simple-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 6px;
+  }
+
+  .all-markets-simple-market {
+    grid-column: 1 / -1;
+  }
+
+  .my-positions-row {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 4px;
+  }
+}
