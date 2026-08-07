@@ -2,13 +2,7 @@
  * ------------------------------------------------------------------------
  * Fan-side Markets data layer
  * ------------------------------------------------------------------------
- * Every value returned from these functions (which matches are live, their
- * odds, volumes, categories, rules, order book, comments, positions, etc.)
- * is content that admins configure / the trading engine produces. This file
- * is the boundary the fan UI talks to; swap the mock bodies below for real
- * requests (e.g. `apiClient.get('/markets')`) once those endpoints exist.
- * ------------------------------------------------------------------------
- */
+*/
 
 export type MarketStatus = 'live' | 'upcoming' | 'trending' | 'closed';
 

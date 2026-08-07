@@ -1,0 +1,855 @@
+/* ============================================================================
+ * FAN TRADE + WALLET FLOW
+ * Covers: Position Details, Sell Position, Sell Confirmation, Wallet,
+ * Deposit Funds, Flutterwave Payment, Payment Success, Market Settled,
+ * Transactions History.
+ *
+ * Relies on the CSS custom properties already defined globally by the app
+ * (see FanDashboard.css): --color-border, --color-card-bg, --color-card-hover,
+ * --color-text-primary/secondary/muted, --color-primary/--color-primary-light,
+ * --gradient-primary, --color-open (green), --color-danger (red). Also reuses
+ * existing utility classes: .dashboard-card, .dashboard-card-link, .up, .down,
+ * .buy-button, .buy-button--yes/--no, .markets-cta, .markets-cta--primary,
+ * .market-status-badge, .trade-tabs, .preset-chips, .trade-amount-input,
+ * .trade-amount-label — defined in Markets.css / market-detail.css.
+ * ========================================================================== */
+
+/* ---------------------------- shared page shell ---------------------------- */
+
+.flow-page-content {
+  gap: 18px;
+  max-width: 640px;
+}
+
+.flow-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.flow-back-btn:hover {
+  border-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+.flow-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.flow-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.flow-card-subtitle {
+  margin: -10px 0 0;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.flow-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.flow-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.86rem;
+}
+
+.flow-meta-row:last-child {
+  border-bottom: none;
+}
+
+.flow-meta-row span:first-child {
+  color: var(--color-text-muted, #6b7280);
+}
+
+.flow-meta-row span:last-child,
+.flow-meta-row b {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.flow-meta-row--total {
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: none;
+  font-size: 0.92rem;
+}
+
+.flow-meta-row--total span:last-child {
+  font-size: 1.05rem;
+}
+
+/* ---------------------------- position details ---------------------------- */
+
+.position-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.position-detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.position-detail-stat span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.position-detail-stat b {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.position-detail-stat small {
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.position-detail-pnl {
+  grid-column: 1 / -1;
+}
+
+.price-history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.price-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.price-history-heading h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.price-history-range-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.price-history-range-tabs button {
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.price-history-range-tabs button.active {
+  background-color: var(--color-card-bg);
+  color: var(--color-primary-light);
+}
+
+.price-history-sparkline {
+  width: 100%;
+  height: 120px;
+  overflow: visible;
+}
+
+.position-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.position-detail-actions .buy-button--no {
+  background-color: var(--color-danger, #ef4444);
+}
+
+.hold-btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.hold-btn-outline:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-hover);
+}
+
+/* ---------------------------- sell position ---------------------------- */
+
+.sell-position-outcome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.sell-position-outcome-row span:first-child {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.sell-position-outcome-row b {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.sell-amount-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.sell-amount-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sell-preset-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.sell-preset-chips button {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.sell-preset-chips button.active,
+.sell-preset-chips button:hover {
+  border-color: var(--color-primary-light);
+  color: var(--color-text-primary);
+  background-color: var(--color-card-bg);
+}
+
+.sell-receive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+  border: 1px solid var(--color-border);
+}
+
+.sell-receive-row span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.sell-receive-row b {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.flow-danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-danger, #ef4444);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.flow-danger-btn:hover {
+  transform: scale(1.01);
+  filter: brightness(1.08);
+}
+
+.flow-danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* ---------------------------- wallet ---------------------------- */
+
+.wallet-balance-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.wallet-balance-card span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.wallet-balance-card b {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.wallet-balance-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.wallet-withdraw-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.wallet-withdraw-btn:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-hover);
+}
+
+.wallet-summary-title {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------- deposit / payment method list ---------------------------- */
+
+.payment-method-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-method-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.payment-method-option:hover {
+  border-color: var(--color-primary-light);
+}
+
+.payment-method-option.active {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+.payment-method-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.payment-method-option span {
+  flex: 1;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.payment-method-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.payment-method-option.active .payment-method-radio {
+  border-color: var(--color-primary-light);
+}
+
+.payment-method-option.active .payment-method-radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background-color: var(--color-primary-light);
+}
+
+.deposit-amount-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.flow-primary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.flow-primary-btn:hover {
+  transform: scale(1.01);
+  filter: brightness(1.08);
+}
+
+.flow-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.flow-success-btn {
+  background-color: var(--color-open, #22c55e);
+  background-image: none;
+}
+
+/* ---------------------------- flutterwave payment ---------------------------- */
+
+.payment-amount-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  text-align: center;
+}
+
+.payment-amount-banner span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.payment-amount-banner b {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.payment-secured-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.payment-secured-note svg {
+  color: var(--color-open, #22c55e);
+}
+
+/* ---------------------------- payment success ---------------------------- */
+
+.payment-success-card {
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+
+.payment-success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-open, #22c55e);
+  font-size: 2rem;
+}
+
+.payment-success-card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.payment-success-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.payment-success-balance {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.payment-success-balance span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.payment-success-balance b {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.payment-success-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-success-actions .dashboard-card-link {
+  text-align: center;
+}
+
+/* ---------------------------- market settled ---------------------------- */
+
+.market-settled-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settled-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: var(--color-open, #22c55e);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.market-settled-question {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-settled-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.market-settled-score span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-settled-score-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.market-settled-score-row small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.market-settled-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.market-settled-outcome span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-settled-outcome b {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.market-settled-position-title {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.market-settled-position-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.market-settled-position-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.market-settled-position-grid span {
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-settled-position-grid b {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------- transactions history ---------------------------- */
+
+.transactions-page-content {
+  gap: 18px;
+  max-width: 720px;
+}
+
+.transactions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.transactions-heading h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.transactions-filter-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.transactions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.transactions-row:first-child {
+  border-top: none;
+}
+
+.transactions-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.transactions-row-icon--in {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-open, #22c55e);
+}
+
+.transactions-row-icon--out {
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--color-danger, #ef4444);
+}
+
+.transactions-row-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transactions-row-copy b {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transactions-row-copy small {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.transactions-row-amount {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.transactions-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.86rem;
+}
+
+.transactions-view-all {
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* ---------------------------- responsive ---------------------------- */
+
+@media (max-width: 640px) {
+  .position-detail-stats,
+  .market-settled-position-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wallet-balance-actions,
+  .position-detail-actions {
+    grid-template-columns: 1fr;
+  }
+}
