@@ -92,10 +92,12 @@
 .btn-login,
 .btn-signup {
   text-decoration: none;
+  font-family: inherit;
   font-size: 0.9rem;
   font-weight: 700;
   padding: 9px 20px;
   border-radius: 8px;
+  border: none;
   cursor: pointer;
   min-height: 44px;
   display: inline-flex;
@@ -104,7 +106,6 @@
 
 .btn-login {
   color: #fff;
-  border: none;
   background: var(--gradient-accent);
   transition: transform 0.15s ease, filter 0.2s ease;
 }
@@ -300,8 +301,11 @@
 .btn-login-mobile,
 .btn-signup-mobile {
   text-align: center;
+  font-family: inherit;
   padding: 12px 16px;
   border-radius: 10px;
+  border: none;
+  width: 100%;
   font-weight: 700;
   font-size: 0.95rem;
   text-decoration: none;

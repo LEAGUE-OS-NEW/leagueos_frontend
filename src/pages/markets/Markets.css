@@ -294,6 +294,7 @@
   font-size: 0.88rem;
 }
 
+
 .market-view-link {
   display: inline-flex;
   align-items: center;
@@ -448,6 +449,43 @@
   background-color: var(--color-open);
 }
 
+.open-badge--resolved {
+  background-color: var(--color-primary-light);
+}
+
+.open-badge--voided {
+  background-color: var(--color-text-muted);
+}
+
+.market-probability {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.market-probability-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+
+.market-probability-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradient-primary);
+}
+
+.market-probability-label {
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 .featured-market-teams {
   display: flex;
   align-items: center;
@@ -485,13 +523,19 @@
 }
 
 .featured-market-question {
+  display: block;
   margin: 0 0 6px;
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.4;
   color: var(--color-text-primary);
   text-align: center;
+  text-decoration: none;
   min-height: 2.6em;
+}
+
+.featured-market-question:hover {
+  text-decoration: underline;
 }
 
 .featured-market-closes {
@@ -606,6 +650,11 @@
   letter-spacing: 0.04em;
 }
 
+.open-market-labels span {
+  display: inline-flex;
+  align-items: center;
+}
+
 .open-market-event {
   display: flex;
   align-items: center;
@@ -623,10 +672,16 @@
 }
 
 .open-market-question {
+  display: block;
   margin: 0;
   font-size: 0.85rem;
   color: var(--color-text-secondary);
   line-height: 1.35;
+  text-decoration: none;
+}
+
+.open-market-question:hover {
+  text-decoration: underline;
 }
 
 .open-market-outcome {
@@ -707,6 +762,14 @@
 .starting-soon-list {
   display: flex;
   flex-direction: column;
+}
+
+.starting-soon-empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .starting-soon-item {

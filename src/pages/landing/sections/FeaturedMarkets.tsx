@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import InfoTooltip from '../../../components/InfoTooltip/InfoTooltip';
+import { fetchContracts, fetchFeaturedPublishedMarkets } from '../../../services/marketAdminService';
+import type { Market as AdminMarket, MarketCategory } from '../../../services/marketAdminService';
 import './FeaturedMarkets.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
@@ -9,6 +13,7 @@ type MarketStatus = {
 };
 
 type Market = {
+  id: string;
   sport: Sport;
   status: MarketStatus;
   question: string;
@@ -18,8 +23,9 @@ type Market = {
   crestB?: string;
   volume: string;
   traders: string;
-  yesOdds: string;
-  noOdds: string;
+  probabilityPct: number;
+  yesPrice: string;
+  noPrice: string;
 };
 
 const SPORT_CLASS: Record<Sport, string> = {
@@ -28,70 +34,61 @@ const SPORT_CLASS: Record<Sport, string> = {
   Basketball: 'sport-basketball',
 };
 
-const MARKETS: Market[] = [
-  {
-    sport: 'Football',
-    status: { label: 'LIVE', meta: "75'" },
-    question: 'Will Vipers SC beat KCCA FC?',
-    teamA: 'Vipers SC',
-    teamB: 'KCCA FC',
-    crestA: '/clubs/vipers-sc.png',
-    crestB: '/clubs/kcca-fc.png',
-    volume: 'UGX 2.4M',
-    traders: '1.2K',
-    yesOdds: 'UGX 1.62',
-    noOdds: 'UGX 2.38',
-  },
-  {
-    sport: 'Football',
-    status: { label: 'LIVE', meta: "62'" },
-    question: 'Will SC Villa score first vs Express FC?',
-    teamA: 'SC Villa',
-    teamB: 'Express FC',
-    crestA: '/clubs/sc-villa.png',
-    crestB: '/clubs/express-fc.png',
-    volume: 'UGX 1.6M',
-    traders: '856',
-    yesOdds: 'UGX 1.55',
-    noOdds: 'UGX 2.45',
-  },
-  {
-    sport: 'Rugby',
-    status: { label: 'LIVE', meta: 'Q3 04:15' },
-    question: 'Will Kobs Rugby win this match?',
-    teamA: 'Kobs Rugby',
-    teamB: 'Black Pirates',
-    crestA: '/clubs/kobs.jpg',
-    crestB: '/clubs/black-pirates.png',
-    volume: 'UGX 980K',
-    traders: '642',
-    yesOdds: 'UGX 1.45',
-    noOdds: 'UGX 2.70',
-  },
-  {
-    sport: 'Basketball',
-    status: { label: 'LIVE', meta: 'Q3 02:30' },
-    question: 'Will City Oilers score 80+ points?',
-    teamA: 'City Oilers',
-    teamB: 'Canons',
-    crestA: '/clubs/city-oilers.png',
-    volume: 'UGX 1.1M',
-    traders: '721',
-    yesOdds: 'UGX 1.70',
-    noOdds: 'UGX 2.20',
-  },
-  {
-    sport: 'Football',
-    status: { label: 'OPEN', meta: 'Closes in 2h 45m' },
-    question: 'Will BUL FC keep a clean sheet?',
-    teamA: 'BUL FC',
-    teamB: 'Gaddafi FC',
-    volume: 'UGX 620K',
-    traders: '412',
-    yesOdds: 'UGX 1.75',
-    noOdds: 'UGX 2.15',
-  },
-];
+function isSupportedSport(category: MarketCategory): category is Sport {
+  return category === 'Football' || category === 'Rugby' || category === 'Basketball';
+}
+
+function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
+  const [teamA, teamB] = eventLabel.split(' vs ');
+  return { teamA: teamA ?? eventLabel, teamB: teamB ?? 'Event market' };
+}
+
+function formatUgxVolume(amount: number): string {
+  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
+  return `UGX ${Math.round(amount / 1000)}K`;
+}
+
+function formatClosesIn(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return 'Closing soon';
+  const hours = Math.floor(diffMs / 3_600_000);
+  const minutes = Math.floor((diffMs % 3_600_000) / 60_000);
+  if (hours >= 1) return `Closes in ${hours}h ${minutes}m`;
+  return `Closes in ${minutes}m`;
+}
+
+async function loadFeaturedMarkets(): Promise<Market[]> {
+  const published = await fetchFeaturedPublishedMarkets(5);
+  const supported = published.filter((market): market is AdminMarket => isSupportedSport(market.category));
+
+  const contractEntries = await Promise.all(
+    supported.map((market) => fetchContracts(market.id).then((contracts) => [market.id, contracts] as const)),
+  );
+  const contractsByMarket = new Map(contractEntries);
+
+  return supported.map((market) => {
+    const yes = market.outcomes.find((outcome) => outcome.id === 'YES')!;
+    const contracts = contractsByMarket.get(market.id) ?? [];
+    const totalUgx = contracts.reduce((sum, contract) => sum + contract.quantityUgx, 0);
+    const traders = new Set(contracts.flatMap((contract) => [contract.buyer, contract.seller])).size;
+
+    return {
+      id: market.id,
+      sport: market.category as Sport,
+      status:
+        market.status === 'Live'
+          ? { label: 'LIVE', meta: 'In play' }
+          : { label: 'OPEN', meta: formatClosesIn(market.parameters.closesAt) },
+      question: market.question,
+      ...teamsFromEventLabel(market.eventLabel),
+      volume: formatUgxVolume(totalUgx),
+      traders: traders.toLocaleString('en-US'),
+      probabilityPct: yes.probabilityPct,
+      yesPrice: `${yes.probabilityPct}¢`,
+      noPrice: `${100 - yes.probabilityPct}¢`,
+    };
+  });
+}
 
 function CrestPlaceholder() {
   return (
@@ -123,22 +120,52 @@ function TeamCrest({ src, name }: { src?: string; name: string }) {
 }
 
 function FeaturedMarkets() {
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadFeaturedMarkets()
+      .then((result) => {
+        if (!cancelled) setMarkets(result);
+      })
+      .catch(() => {
+        // Featured markets are a landing-page highlight, not the only way
+        // to reach /markets — fail quietly and let the section render empty.
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className="featured-markets">
       <div className="featured-markets-inner">
         <div className="section-heading-row">
           <div>
             <h2 className="section-heading">Featured Open Markets</h2>
-            <p className="section-subheading">Live predictions. Real outcomes. Trade your view.</p>
+            <p className="section-subheading">
+              Live predictions. Real outcomes. Trade your view.
+              <InfoTooltip
+                label="How prices work"
+                text="A YES price of 62¢ means the market currently sees a 62% chance of YES. Prices move as more people trade."
+              />
+            </p>
           </div>
           <Link to="/markets" className="section-link">
             View all markets
           </Link>
         </div>
 
+        {isLoading && <p>Loading markets…</p>}
+        {!isLoading && markets.length === 0 && <p>No open markets right now — check back soon.</p>}
+
         <div className="market-grid">
-          {MARKETS.map((market) => (
-            <div className="market-card" key={market.question}>
+          {markets.map((market) => (
+            <div className="market-card" key={market.id}>
               <div className="market-card-header">
                 <span className={`market-sport-tag ${SPORT_CLASS[market.sport]}`}>{market.sport}</span>
                 <span className={`market-status market-status-${market.status.label.toLowerCase()}`}>
@@ -161,6 +188,13 @@ function FeaturedMarkets() {
                 </div>
               </div>
 
+              <div className="market-probability">
+                <div className="market-probability-track">
+                  <div className="market-probability-fill" style={{ width: `${market.probabilityPct}%` }} />
+                </div>
+                <span className="market-probability-label">{market.probabilityPct}% likely YES</span>
+              </div>
+
               <div className="market-stats">
                 <div className="market-stat">
                   <span className="market-stat-label">Volume</span>
@@ -173,11 +207,11 @@ function FeaturedMarkets() {
               </div>
 
               <div className="market-actions">
-                <Link to="/markets" className="market-btn market-btn-yes">
-                  YES <span>{market.yesOdds}</span>
+                <Link to={`/markets/${market.id}`} className="market-btn market-btn-yes">
+                  YES <span>{market.yesPrice}</span>
                 </Link>
-                <Link to="/markets" className="market-btn market-btn-no">
-                  NO <span>{market.noOdds}</span>
+                <Link to={`/markets/${market.id}`} className="market-btn market-btn-no">
+                  NO <span>{market.noPrice}</span>
                 </Link>
               </div>
             </div>

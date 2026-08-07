@@ -58,7 +58,6 @@
 }
 
 .fa-content {
-  padding: 24px 28px 64px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -1022,10 +1021,6 @@
 /* ---------------------------- responsive ---------------------------- */
 
 @media (max-width: 900px) {
-  .fa-content {
-    padding: 16px 14px 48px;
-  }
-
   .fa-header {
     flex-direction: column;
   }

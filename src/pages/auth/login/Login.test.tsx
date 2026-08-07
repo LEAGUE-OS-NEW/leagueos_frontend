@@ -50,7 +50,7 @@ function renderLogin(initialEntries?: { pathname: string; state?: object }[]) {
 
 function entitlement(
   id: string,
-  dashboard: 'FAN' | 'GENERAL_ADMIN' | 'MARKET_OPERATIONS_ADMIN',
+  dashboard: 'FAN' | 'MARKET_OPERATIONS_ADMIN',
   route: string,
   workspaceRole: string | null = null,
 ) {
@@ -341,7 +341,7 @@ describe('Login page', () => {
     })
   })
 
-  it('routes an operational user from the General Admin entitlement, not legacy roles', async () => {
+  it('routes an operational user from the Market Admin entitlement, not legacy roles', async () => {
     const user = userEvent.setup()
 
     authMocks.login.mockResolvedValueOnce({
@@ -352,12 +352,12 @@ describe('Login page', () => {
         user: {
           email: 'ops.admin@leagueos.test',
           role: 'FAN',
-          roles: ['FAN', 'GENERAL_ADMIN'],
-          dashboard_access: access('general-admin', [
+          roles: ['FAN', 'MARKET_OPERATIONS_ADMIN'],
+          dashboard_access: access('ops-admin', [
             entitlement(
-              'general-admin',
-              'GENERAL_ADMIN',
-              '/dashboard/general-admin',
+              'ops-admin',
+              'MARKET_OPERATIONS_ADMIN',
+              '/dashboard/admin',
             ),
           ]),
         },
@@ -380,7 +380,7 @@ describe('Login page', () => {
 
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith(
-        '/dashboard/general-admin',
+        '/dashboard/admin',
         { replace: true },
       )
     })
@@ -412,11 +412,11 @@ describe('Login page', () => {
         requires_email_verification: false,
         user: {
           email: 'official@example.com',
-          dashboard_access: access('general-admin', [
+          dashboard_access: access('ops-admin', [
             entitlement(
-              'general-admin',
-              'GENERAL_ADMIN',
-              '/dashboard/general-admin',
+              'ops-admin',
+              'MARKET_OPERATIONS_ADMIN',
+              '/dashboard/admin',
             ),
           ]),
         },
@@ -440,7 +440,7 @@ describe('Login page', () => {
 
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith(
-        '/dashboard/general-admin',
+        '/dashboard/admin',
         { replace: true },
       )
     })
@@ -452,7 +452,7 @@ describe('Login page', () => {
     authMocks.login.mockResolvedValueOnce(verifiedLoginResponse)
     renderLogin([{
       pathname: '/login',
-      state: { postLoginRedirect: '/dashboard/general-admin' },
+      state: { postLoginRedirect: '/dashboard/admin' },
     }])
 
     await user.type(
@@ -482,7 +482,7 @@ describe('Login page', () => {
         requires_email_verification: false,
         user: {
           email: 'unscoped@example.com',
-          role: 'GENERAL_ADMIN',
+          role: 'MARKET_OPERATIONS_ADMIN',
           dashboard_access: access(null, []),
         },
       },

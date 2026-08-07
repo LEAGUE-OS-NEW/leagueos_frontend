@@ -1,0 +1,66 @@
+.squad-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.squad-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 20px 14px 16px;
+  border-radius: 16px;
+  background: rgba(13, 16, 32, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.squad-card:hover {
+  border-color: rgba(109, 94, 252, 0.45);
+  transform: translateY(-4px);
+}
+
+.squad-card__photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: rgba(255, 255, 255, 0.06);
+  margin-bottom: 10px;
+}
+
+.squad-card__number {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #9d7bff;
+  background: rgba(109, 94, 252, 0.15);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.squad-card__name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.squad-card__position {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #7d84a3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .squad-card {
+    transition: none;
+  }
+}

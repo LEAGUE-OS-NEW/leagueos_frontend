@@ -12,8 +12,7 @@ import {
   FiUpload,
   FiX,
 } from 'react-icons/fi';
-import Sidebar from '../../../components/generaladmin/Sidebar';
-import Topbar from '../sections/Topbar';
+import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   approveIssue,
   fetchCompetitions,
@@ -757,7 +756,6 @@ function IssueDetailDrawer({
    ============================================================ */
 
 function SportsDataAdmin() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -853,20 +851,9 @@ function SportsDataAdmin() {
   };
 
   return (
-    <div className="sda-root">
-      <div className="sda-shell">
-        <aside className={`sda-sidebar${isSidebarOpen ? ' is-open' : ''}`}>
-          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        </aside>
-
-        {isSidebarOpen && <div className="sda-sidebar-scrim" onClick={() => setIsSidebarOpen(false)} />}
-
-        <div className="sda-main">
-          <header className="sda-topbar">
-            <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-          </header>
-
-          <main className="sda-content">
+    <>
+      <AdminLayout>
+        <div className="sda-content">
             <div className="sda-header">
               <div>
                 <p className="sda-header__eyebrow">Welcome back</p>
@@ -930,9 +917,8 @@ function SportsDataAdmin() {
                 <CompetitionsPanel competitions={competitions} onConfigure={setConfiguringCompetition} />
               </>
             )}
-          </main>
         </div>
-      </div>
+      </AdminLayout>
 
       {selectedIssue && (
         <IssueDetailDrawer
@@ -951,7 +937,7 @@ function SportsDataAdmin() {
           onSave={(patch) => handleConfigureCompetition(configuringCompetition.id, patch)}
         />
       )}
-    </div>
+    </>
   );
 }
 

@@ -20,16 +20,8 @@
   --green: #22c55e;
   --yellow: #eab308;
 
-  background-image:
-    linear-gradient(rgba(6,6,12,0.5), rgba(6,6,12,0.6)),
-    url("/images/stadium-bg.png");
-  background-size: cover;
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background-color: var(--bg);
   color: var(--text-1);
-  min-height: 100vh;
+  width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
 }
 
@@ -47,7 +39,6 @@
 
 .cs-content {
   flex: 1;
-  padding: clamp(16px, 3vw, 28px);
   display: flex;
   flex-direction: column;
   gap: 20px;

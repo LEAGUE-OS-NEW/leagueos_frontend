@@ -1,32 +1,10 @@
 import { Link } from 'react-router-dom';
 import { FiShield } from 'react-icons/fi';
+import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
+import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
+import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
+import { fetchFantasyTeam } from '../../../services/fanDashboardService';
 import './MyFantasyTeam.css';
-
-type Player = {
-  name: string;
-  points: number;
-  jerseyColor: string;
-};
-
-const FORMATION: Player[][] = [
-  [
-    { name: 'A. Diallo', points: 156, jerseyColor: '#7c3aed' },
-    { name: 'K. Mbuku', points: 198, jerseyColor: '#2563eb' },
-    { name: 'S. Okello', points: 142, jerseyColor: '#dc2626' },
-  ],
-  [
-    { name: 'P. Katongo', points: 172, jerseyColor: '#38bdf8' },
-    { name: 'J. Mutyaba', points: 165, jerseyColor: '#1e3a8a' },
-    { name: 'E. Niyonzima', points: 148, jerseyColor: '#e5e7eb' },
-  ],
-  [
-    { name: 'B. Tendo', points: 134, jerseyColor: '#7c3aed' },
-    { name: 'M. Awany', points: 128, jerseyColor: '#1e3a8a' },
-    { name: 'H. Wasswa', points: 119, jerseyColor: '#dc2626' },
-    { name: 'D. Ochieng', points: 124, jerseyColor: '#7f1d1d' },
-  ],
-  [{ name: 'I. Kizito', points: 108, jerseyColor: '#16a34a' }],
-];
 
 function Jersey({ color }: { color: string }) {
   return (
@@ -40,6 +18,8 @@ function Jersey({ color }: { color: string }) {
 }
 
 function MyFantasyTeam() {
+  const { data: team, isLoading, error, retry } = useDashboardSection(fetchFantasyTeam);
+
   return (
     <div className="my-fantasy-team dashboard-card">
       <div className="dashboard-card-heading-row">
@@ -49,42 +29,50 @@ function MyFantasyTeam() {
         </Link>
       </div>
 
-      <div className="fantasy-header">
-        <div className="fantasy-header-team">
-          <FiShield className="fantasy-shield-icon" />
-          <div>
-            <p className="fantasy-team-name">Spartan Squad</p>
-            <p className="fantasy-team-league">Classic League</p>
+      {isLoading ? (
+        <DashboardSkeleton rows={4} />
+      ) : error ? (
+        <DashboardNotice tone="error" title="Couldn't load your fantasy team" message={error} onRetry={retry} />
+      ) : team ? (
+        <>
+          <div className="fantasy-header">
+            <div className="fantasy-header-team">
+              <FiShield className="fantasy-shield-icon" />
+              <div>
+                <p className="fantasy-team-name">{team.teamName}</p>
+                <p className="fantasy-team-league">{team.leagueName}</p>
+              </div>
+            </div>
+            <div className="fantasy-header-points">
+              <p className="fantasy-points-value">
+                {team.points.toLocaleString()} <span>PTS</span>
+              </p>
+              <p className="fantasy-points-rank">{team.rank}</p>
+            </div>
           </div>
-        </div>
-        <div className="fantasy-header-points">
-          <p className="fantasy-points-value">
-            1,286 <span>PTS</span>
-          </p>
-          <p className="fantasy-points-rank">Top 18%</p>
-        </div>
-      </div>
 
-      <div className="fantasy-pitch">
-        {FORMATION.map((row, index) => (
-          <div className="fantasy-pitch-row" key={index}>
-            {row.map((player) => (
-              <div className="fantasy-player" key={player.name}>
-                <Jersey color={player.jerseyColor} />
-                <span className="fantasy-player-name">{player.name}</span>
-                <span className="fantasy-player-points">{player.points} PTS</span>
+          <div className="fantasy-pitch">
+            {team.formation.map((row, index) => (
+              <div className="fantasy-pitch-row" key={index}>
+                {row.map((player) => (
+                  <div className="fantasy-player" key={player.name}>
+                    <Jersey color={player.jerseyColor} />
+                    <span className="fantasy-player-name">{player.name}</span>
+                    <span className="fantasy-player-points">{player.points} PTS</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-        ))}
-      </div>
 
-      <div className="fantasy-footer">
-        <span className="fantasy-gameweek">Gameweek 12</span>
-        <Link to="/fantasy" className="dashboard-card-link">
-          View full team
-        </Link>
-      </div>
+          <div className="fantasy-footer">
+            <span className="fantasy-gameweek">{team.gameweek}</span>
+            <Link to="/fantasy" className="dashboard-card-link">
+              View full team
+            </Link>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

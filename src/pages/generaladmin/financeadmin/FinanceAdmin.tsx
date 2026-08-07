@@ -1,6 +1,11 @@
+<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from "react";
 import DashboardSidebar from "../../../components/generaladmin/Sidebar";
 import DashboardTopbar from "../sections/Topbar";
+=======
+import React, { useMemo, useState } from "react";
+import AdminLayout from "../../../components/admin/AdminLayout";
+>>>>>>> development
 import "./FinanceAdmin.css";
 
 import type {
@@ -166,6 +171,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    ========================================================================= */
 
 const FinanceAdminDashboard: React.FC = () => {
+<<<<<<< HEAD
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   /* --------------------------- data state (backend-ready) --------------------------- */
@@ -234,6 +240,16 @@ const FinanceAdminDashboard: React.FC = () => {
       cancelled = true;
     };
   }, []);
+=======
+  const [deposits,setDeposits] = useState<DepositBatch[]>(buildDeposits);
+  const [withdrawals] = useState<WithdrawalBatch[]>(buildWithdrawals);
+  const [settlements] = useState<SettlementBatch[]>(buildSettlements);
+  const [refunds, setRefunds] = useState<RefundRequest[]>(mockRefunds);
+  const [clubs] = useState<ClubCommerceRecord[]>(mockClubCommerce);
+  const [exceptions, setExceptions] = useState<ReconciliationException[]>(mockExceptionsInit);
+  const [auditFeed, setAuditFeed] = useState<AuditEvent[]>(mockAuditFeedInit);
+  const [exportHistory, setExportHistory] = useState<ExportRecord[]>(initialExports);
+>>>>>>> development
 
   const [activeQueue, setActiveQueue] = useState<QueueKey>("deposits");
   const [search, setSearch] = useState("");
@@ -670,12 +686,8 @@ const FinanceAdminDashboard: React.FC = () => {
   }, [activeQueue, deposits, withdrawals, settlements, refunds, clubs]);
 
   return (
-    <div className="fa-shell">
-      <DashboardSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <div className="fa-main">
-        <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
-
+    <>
+      <AdminLayout>
         <div className="fa-content">
           {/* 1. FINANCE HEADER */}
           <header className="fa-header">
@@ -1138,7 +1150,7 @@ const FinanceAdminDashboard: React.FC = () => {
             </>
           )}
         </div>
-      </div>
+      </AdminLayout>
 
       {/* 11. BATCH DETAIL DRAWER */}
       {drawerBatch && (
@@ -1472,8 +1484,12 @@ const FinanceAdminDashboard: React.FC = () => {
 
       {/* Toast notification */}
       {toast && <div className="fa-toast">{toast}</div>}
+<<<<<<< HEAD
 
     </div>
+=======
+    </>
+>>>>>>> development
   );
 };
 

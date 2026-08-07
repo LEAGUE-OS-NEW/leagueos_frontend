@@ -1,0 +1,302 @@
+.club-profile-page {
+  --surface: #0d1020;
+  --surface-alt: #11152a;
+  --text-secondary: #b8bfd8;
+  --text-muted: #7d84a3;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --gradient-brand: linear-gradient(135deg, #6d5efc 0%, #9d7bff 100%);
+
+  background: #060612;
+  color: #ffffff;
+  font-family: var(--font-family-base);
+  background-image: linear-gradient(rgba(6, 6, 12, 0.55), rgba(6, 6, 12, 0.65)), url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.club-profile-main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(24px, 5vw, 48px) clamp(16px, 4vw, 24px) 64px;
+}
+
+.club-profile-status {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--text-muted);
+}
+
+/* ---------- Header ---------- */
+
+.club-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.club-profile__crest {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.club-profile__crest-placeholder {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.club-profile-header__info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.club-profile-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.club-profile-header__title-row h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+}
+
+.club-profile-header__meta {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
+.club-profile-follow-btn {
+  flex-shrink: 0;
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(109, 94, 252, 0.4);
+  background: transparent;
+  color: #9d7bff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.club-profile-follow-btn:hover {
+  background: rgba(109, 94, 252, 0.2);
+  color: #fff;
+}
+
+.club-profile-follow-btn.is-following {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ---------- Verified badge ---------- */
+
+.profile-verify-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.profile-verify-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.profile-verify-badge--verified {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+}
+
+.profile-verify-badge--pending {
+  background: rgba(234, 179, 8, 0.16);
+  color: #eab308;
+}
+
+/* ---------- Tabs ---------- */
+
+.club-profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.club-profile-tab {
+  font-family: inherit;
+  padding: 10px 6px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.club-profile-tab:hover {
+  color: #fff;
+}
+
+.club-profile-tab.is-active {
+  color: #9d7bff;
+  border-bottom-color: #9d7bff;
+}
+
+/* ---------- Panel ---------- */
+
+.club-profile-panel {
+  background: rgba(13, 16, 32, 0.85);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: clamp(20px, 3vw, 28px);
+}
+
+.club-profile-description {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.club-profile-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.club-profile-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-soft);
+}
+
+.club-profile-fact__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.club-profile-fact__value {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.club-profile-panel__heading {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.club-profile-honours {
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+/* ---------- Fixture list ---------- */
+
+.club-profile-fixture-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.club-profile-fixture-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(13, 16, 32, 0.85);
+  border: 1px solid var(--border-soft);
+}
+
+.club-profile-fixture-row__match {
+  margin: 0 0 2px;
+  font-weight: 700;
+}
+
+.club-profile-fixture-row__competition {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.club-profile-fixture-row__time {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #9d7bff;
+}
+
+/* ---------- Shared empty state (reused by Overview/Squad/Fixtures/PlayerProfile) ---------- */
+
+.profile-empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+}
+
+.profile-empty-state p {
+  margin: 0 0 6px;
+}
+
+.profile-empty-state__title {
+  font-weight: 700;
+  color: #fff !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-profile-follow-btn,
+  .club-profile-tab {
+    transition: none;
+  }
+}

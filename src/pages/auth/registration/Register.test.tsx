@@ -98,8 +98,6 @@ describe('register helpers', () => {
         ).toMatchObject({
             firstName: 'First name is required.',
             lastName: 'Last name is required.',
-            username: 'Username is required.',
-            phoneNumber: 'Phone number is required.',
             email: 'Email address is required.',
             password: 'Password is required.',
             confirmPassword: 'Please confirm your password.',
@@ -167,8 +165,6 @@ describe('Register page', () => {
 
         expect(screen.getByText('First name is required.')).toBeInTheDocument()
         expect(screen.getByText('Last name is required.')).toBeInTheDocument()
-        expect(screen.getByText('Username is required.')).toBeInTheDocument()
-        expect(screen.getByText('Phone number is required.')).toBeInTheDocument()
         expect(screen.getByText('Email address is required.')).toBeInTheDocument()
         expect(screen.getByText('Password is required.')).toBeInTheDocument()
         expect(screen.getByText('Please confirm your password.')).toBeInTheDocument()
@@ -200,7 +196,6 @@ describe('Register page', () => {
                     expect(registerMock).toHaveBeenCalledWith({
                         first_name: 'Amina',
                         last_name: 'Kizza',
-                        username: 'aminakizza',
                         phone_number: '+256701234567',
                         email: 'amina.kizza@example.com',
                         password: 'StrongPass1!',
