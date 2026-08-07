@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
-import DashboardSidebar from "../../../components/generaladmin/Sidebar";
-import DashboardTopbar from "../sections/Topbar";
+import AdminLayout from "../../../components/admin/AdminLayout";
 import "./FinanceAdmin.css";
 
 /* ============================================================================
@@ -389,8 +388,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    ========================================================================= */
 
 const FinanceAdminDashboard: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [deposits,setDeposits] = useState<DepositBatch[]>(buildDeposits);
   const [withdrawals] = useState<WithdrawalBatch[]>(buildWithdrawals);
   const [settlements] = useState<SettlementBatch[]>(buildSettlements);
@@ -718,12 +715,8 @@ const FinanceAdminDashboard: React.FC = () => {
   }, [activeQueue, deposits, withdrawals, settlements, refunds, clubs]);
 
   return (
-    <div className="fa-shell">
-      <DashboardSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <div className="fa-main">
-        <DashboardTopbar onMenuClick={() => setSidebarOpen(true)} />
-
+    <>
+      <AdminLayout>
         <div className="fa-content">
           {/* 1. FINANCE HEADER */}
           <header className="fa-header">
@@ -1142,7 +1135,7 @@ const FinanceAdminDashboard: React.FC = () => {
             </ul>
           </section>
         </div>
-      </div>
+      </AdminLayout>
 
       {/* 11. BATCH DETAIL DRAWER */}
       {drawerBatch && (
@@ -1344,7 +1337,7 @@ Reject Match
 
       {/* Toast notification */}
       {toast && <div className="fa-toast">{toast}</div>}
-    </div>
+    </>
   );
 };
 

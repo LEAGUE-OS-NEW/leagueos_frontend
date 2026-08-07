@@ -25,7 +25,7 @@ import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
-import { getMarketPricing } from "../../services/markets/marketPricingService.ts";
+import { fetchContracts, fetchMarkets } from "../../services/marketAdminService.ts";
 import type { SportingEvent } from "../../types/api.ts";
 import "./Markets.css";
 
@@ -118,8 +118,6 @@ const OPEN_MARKETS: OpenMarketRow[] = [];
 
 const STARTING_SOON: StartingSoonItem[] = [];
 
-const TRENDING_MARKETS: TrendingMarket[] = [];
-
 const CLOSED_MARKETS: ClosedMarketRow[] = [];
 
 const HOW_IT_WORKS_STEPS: {
@@ -198,6 +196,16 @@ function mapEventToStartingSoon(event: SportingEvent): StartingSoonItem | null {
   };
 }
 
+function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
+  const [teamA, teamB] = eventLabel.split(" vs ");
+  return { teamA: teamA ?? eventLabel, teamB: teamB ?? "Event market" };
+}
+
+function formatUgxVolume(amount: number): string {
+  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
+  return `UGX ${Math.round(amount / 1000)}K`;
+}
+
 function CrestPlaceholder() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -266,70 +274,20 @@ function Markets() {
   const [closedMarkets, setClosedMarkets] =
     useState<ClosedMarketRow[]>(CLOSED_MARKETS);
   const [startingSoon, setStartingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
+  const [trendingMarkets, setTrendingMarkets] = useState<TrendingMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+
+    // Starting Soon reads the real fixtures/events feed — it's about
+    // upcoming fixtures whether or not a market exists for them yet, so it
+    // stays on the real backend rather than the admin-published market list.
     fetchPublicMarkets(controller.signal)
       .then((data) => {
-        const supported = (sport: string): sport is Sport =>
-          sport === "Football" || sport === "Rugby" || sport === "Basketball";
-        const teams = (subject: string, values: string[]) => {
-          const [teamA = subject, teamB = "Event market"] = values;
-          return { teamA, teamB };
-        };
-        setFeaturedMarkets(
-          data.featured
-            .filter((market) => supported(market.sport))
-            .map((market) => {
-              const pricing = getMarketPricing(market.id);
-              return {
-                id: market.id,
-                sport: market.sport as Sport,
-                ...teams(market.subject, market.teams),
-                question: market.question,
-                closesIn: new Date(market.closesAt).toLocaleString(),
-                status: market.status,
-                probabilityPct: pricing.probabilityPct,
-                yesPrice: pricing.yesPrice,
-                noPrice: pricing.noPrice,
-                volume: pricing.volume,
-                traders: pricing.traders,
-              };
-            }),
-        );
-        setOpenMarkets(
-          data.open
-            .filter((market) => supported(market.sport))
-            .map((market) => {
-              const pricing = getMarketPricing(market.id);
-              return {
-                id: market.id,
-                sport: market.sport as Sport,
-                ...teams(market.subject, market.teams),
-                question: market.question,
-                yesPrice: pricing.yesPrice,
-                noPrice: pricing.noPrice,
-                volume: pricing.volume,
-                closesIn: new Date(market.closesAt).toLocaleString(),
-              };
-            }),
-        );
-        setClosedMarkets(
-          data.resolved
-            .filter((market) => supported(market.sport))
-            .map((market) => ({
-              id: market.id,
-              sport: market.sport as Sport,
-              ...teams(market.subject, market.teams),
-              question: market.question,
-              result: market.result || "Result unavailable",
-              volume: getMarketPricing(market.id).volume,
-              closedAgo: new Date(market.closesAt).toLocaleString(),
-            })),
-        );
+        if (controller.signal.aborted) return;
         setStartingSoon(
           data.events
             .filter((event) => new Date(event.starts_at).getTime() > Date.now())
@@ -337,6 +295,95 @@ function Markets() {
             .map(mapEventToStartingSoon)
             .filter((item): item is StartingSoonItem => item !== null)
             .slice(0, 4),
+        );
+      })
+      .catch(() => {
+        // Starting Soon is a secondary widget — a failure here shouldn't
+        // block the markets that actually drive this page.
+      });
+
+    // Featured / Open / Closed / Trending come from markets an admin has
+    // actually published — this is what makes "admin publishes -> fan sees
+    // it" real rather than a hardcoded landing-page mock.
+    fetchMarkets()
+      .then(async (allMarkets) => {
+        if (controller.signal.aborted) return;
+        const visible = allMarkets.filter(
+          (market) => market.status !== "Draft" && isSupportedSport(market.category),
+        );
+
+        const contractEntries = await Promise.all(
+          visible.map((market) => fetchContracts(market.id).then((contracts) => [market.id, contracts] as const)),
+        );
+        if (controller.signal.aborted) return;
+        const contractsByMarket = new Map(contractEntries);
+        const statsFor = (marketId: string) => {
+          const contracts = contractsByMarket.get(marketId) ?? [];
+          const totalUgx = contracts.reduce((sum, contract) => sum + contract.quantityUgx, 0);
+          const traders = new Set(contracts.flatMap((contract) => [contract.buyer, contract.seller])).size;
+          return { volume: formatUgxVolume(totalUgx), traders: traders.toLocaleString("en-US") };
+        };
+
+        const openStatus = visible.filter((market) => market.status === "Live" || market.status === "Upcoming");
+        const closedStatus = visible.filter(
+          (market) => market.status === "Resolved" || market.status === "Cancelled" || market.status === "Voided",
+        );
+
+        setFeaturedMarkets(
+          openStatus.slice(0, 5).map((market) => {
+            const yes = market.outcomes.find((outcome) => outcome.id === "YES")!;
+            return {
+              id: market.id,
+              sport: market.category as Sport,
+              ...teamsFromEventLabel(market.eventLabel),
+              question: market.question,
+              closesIn: new Date(market.parameters.closesAt).toLocaleString(),
+              status: "OPEN",
+              probabilityPct: yes.probabilityPct,
+              yesPrice: `${yes.probabilityPct}¢`,
+              noPrice: `${100 - yes.probabilityPct}¢`,
+              ...statsFor(market.id),
+            };
+          }),
+        );
+
+        setOpenMarkets(
+          openStatus.map((market) => {
+            const yes = market.outcomes.find((outcome) => outcome.id === "YES")!;
+            return {
+              id: market.id,
+              sport: market.category as Sport,
+              ...teamsFromEventLabel(market.eventLabel),
+              question: market.question,
+              yesPrice: `${yes.probabilityPct}¢`,
+              noPrice: `${100 - yes.probabilityPct}¢`,
+              volume: statsFor(market.id).volume,
+              closesIn: new Date(market.parameters.closesAt).toLocaleString(),
+            };
+          }),
+        );
+
+        setClosedMarkets(
+          closedStatus.map((market) => ({
+            id: market.id,
+            sport: market.category as Sport,
+            ...teamsFromEventLabel(market.eventLabel),
+            question: market.question,
+            result: market.winningOutcomeId ?? "VOIDED",
+            volume: statsFor(market.id).volume,
+            closedAgo: new Date(market.resolvedAt ?? market.parameters.closesAt).toLocaleString(),
+          })),
+        );
+
+        setTrendingMarkets(
+          openStatus
+            .filter((market) => market.parameters.trending)
+            .map((market) => ({
+              sport: market.category as Sport,
+              ...teamsFromEventLabel(market.eventLabel),
+              question: market.question,
+              fireCount: `${(contractsByMarket.get(market.id) ?? []).length} trades`,
+            })),
         );
       })
       .catch((error) => {
@@ -513,7 +560,9 @@ function Markets() {
                     </div>
                   </div>
 
-                  <p className="featured-market-question">{market.question}</p>
+                  <Link to={`/markets/${market.id}`} className="featured-market-question">
+                    {market.question}
+                  </Link>
                   <p className="featured-market-closes">{market.closesIn}</p>
 
                   <div className="market-probability">
@@ -632,9 +681,9 @@ function Markets() {
                           {market.teamA} vs {market.teamB}
                         </span>
                       </div>
-                      <p role="cell" className="open-market-question">
+                      <Link to={`/markets/${market.id}`} role="cell" className="open-market-question">
                         {market.question}
-                      </p>
+                      </Link>
                       <div
                         role="cell"
                         className="open-market-outcome open-market-outcome--yes"
@@ -712,9 +761,9 @@ function Markets() {
                           {market.teamA} vs {market.teamB}
                         </span>
                       </div>
-                      <p role="cell" className="open-market-question">
+                      <Link to={`/markets/${market.id}`} role="cell" className="open-market-question">
                         {market.question}
-                      </p>
+                      </Link>
                       <div
                         role="cell"
                         className={`closed-market-result closed-market-result--${market.result.toLowerCase()}`}
@@ -748,7 +797,10 @@ function Markets() {
                 </div>
 
                 <div className="trending-list">
-                  {TRENDING_MARKETS.map((market) => (
+                  {trendingMarkets.length === 0 && (
+                    <p className="starting-soon-empty">No trending markets right now.</p>
+                  )}
+                  {trendingMarkets.map((market) => (
                     <div
                       className="trending-item"
                       key={`${market.teamA}-${market.teamB}`}

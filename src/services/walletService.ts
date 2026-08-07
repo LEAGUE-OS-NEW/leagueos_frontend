@@ -181,6 +181,24 @@ export async function fetchWalletDetails(): Promise<WalletDetails> {
   return delay({ ...WALLET_DETAILS, transactions: [...WALLET_DETAILS.transactions] });
 }
 
+/** Credits a winning market position's payout — called when a Referee
+ * finalises a market result (see resultVerificationService.finalizeResult). */
+export function recordMarketPayout(marketLabel: string, amountUgx: number): void {
+  if (amountUgx <= 0) return;
+
+  WALLET_DETAILS.balance = formatUGX(parseUGX(WALLET_DETAILS.balance) + amountUgx);
+  WALLET_DETAILS.transactions = [
+    {
+      id: `payout-${Date.now().toString(36)}`,
+      label: `${marketLabel} — Market win`,
+      amount: `+${formatUGX(amountUgx)}`,
+      timestamp: 'Just now',
+      type: 'credit',
+    },
+    ...WALLET_DETAILS.transactions,
+  ];
+}
+
 export function recordDepositTransaction(record: DepositRecord): void {
   if (record.status !== 'success') return;
 

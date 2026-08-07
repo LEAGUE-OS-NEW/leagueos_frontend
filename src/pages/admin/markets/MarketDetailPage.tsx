@@ -1,0 +1,519 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FiAlertTriangle, FiActivity, FiArrowLeft, FiShield } from 'react-icons/fi';
+import AdminLayout from '../../../components/admin/AdminLayout';
+import {
+  cancelMarket,
+  fetchContracts,
+  fetchMarket,
+  fetchOrderBook,
+  publishMarket,
+  updateOutcomes,
+  type Contract,
+  type Market,
+  type MarketStatus,
+  type OrderBook,
+} from '../../../services/marketAdminService';
+import './MarketDetailPage.css';
+
+type Tab = 'Overview' | 'Outcomes' | 'Contracts' | 'Trading' | 'Audit Log';
+const TABS: Tab[] = ['Overview', 'Outcomes', 'Contracts', 'Trading', 'Audit Log'];
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatUgx(amount: number): string {
+  return `UGX ${amount.toLocaleString('en-US')}`;
+}
+
+function statusPillClass(status: MarketStatus): string {
+  switch (status) {
+    case 'Live':
+      return 'mdp-status-pill mdp-status-pill--live';
+    case 'Upcoming':
+      return 'mdp-status-pill mdp-status-pill--upcoming';
+    case 'Draft':
+      return 'mdp-status-pill mdp-status-pill--draft';
+    case 'Resolved':
+      return 'mdp-status-pill mdp-status-pill--resolved';
+    default:
+      return 'mdp-status-pill mdp-status-pill--cancelled';
+  }
+}
+
+function CancelModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (reason: string) => void }) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="mdp-modal-overlay" role="dialog" aria-modal="true" onClick={onCancel}>
+      <div className="mdp-modal" onClick={(event) => event.stopPropagation()}>
+        <h3>Cancel this market?</h3>
+        <p>Trading stops immediately and no payouts are made. This can't be undone.</p>
+        <label className="mdp-field-label" htmlFor="mdp-cancel-reason">
+          Reason
+        </label>
+        <textarea id="mdp-cancel-reason" rows={3} value={reason} onChange={(event) => setReason(event.target.value)} />
+        <div className="mdp-modal__footer">
+          <button type="button" className="mdp-btn mdp-btn--ghost" onClick={onCancel}>
+            Keep Market
+          </button>
+          <button type="button" className="mdp-btn mdp-btn--danger" disabled={!reason.trim()} onClick={() => onConfirm(reason.trim())}>
+            Cancel Market
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MarketDetailPage() {
+  const { marketId } = useParams<{ marketId: string }>();
+  const navigate = useNavigate();
+
+  const [market, setMarket] = useState<Market | null>(null);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [publishNotice, setPublishNotice] = useState<{ kind: 'published' | 'blocked'; message?: string } | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [yesProbability, setYesProbability] = useState(50);
+  const [yesLabel, setYesLabel] = useState('Yes');
+  const [yesDescription, setYesDescription] = useState('');
+  const [noLabel, setNoLabel] = useState('No');
+  const [noDescription, setNoDescription] = useState('');
+
+  const applyMarket = (result: Market) => {
+    setMarket(result);
+    const yes = result.outcomes.find((outcome) => outcome.id === 'YES');
+    const no = result.outcomes.find((outcome) => outcome.id === 'NO');
+    setYesProbability(yes?.probabilityPct ?? 50);
+    setYesLabel(yes?.label ?? 'Yes');
+    setYesDescription(yes?.description ?? '');
+    setNoLabel(no?.label ?? 'No');
+    setNoDescription(no?.description ?? '');
+  };
+
+  useEffect(() => {
+    if (!marketId) return;
+    let cancelled = false;
+    Promise.all([fetchMarket(marketId), fetchContracts(marketId), fetchOrderBook(marketId)])
+      .then(([marketResult, contractsResult, orderBookResult]) => {
+        if (cancelled) return;
+        applyMarket(marketResult);
+        setContracts(contractsResult);
+        setOrderBook(orderBookResult);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('Could not load this market. Please try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [marketId]);
+
+  const handlePublish = async () => {
+    if (!market) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await publishMarket(market.id);
+      applyMarket(updated);
+      setPublishNotice({ kind: 'published' });
+    } catch (error) {
+      const status = error instanceof Error && 'status' in error ? (error as Error & { status?: number }).status : undefined;
+      if (status === 403) {
+        setPublishNotice({ kind: 'blocked', message: error instanceof Error ? error.message : undefined });
+      } else {
+        setActionError(error instanceof Error ? error.message : 'Could not publish this market.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelMarket = async (reason: string) => {
+    if (!market) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await cancelMarket(market.id, reason);
+      applyMarket(updated);
+      setShowCancelModal(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not cancel this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveOutcomes = async () => {
+    if (!market) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await updateOutcomes(market.id, [
+        { id: 'YES', label: yesLabel, description: yesDescription, probabilityPct: yesProbability },
+        { id: 'NO', label: noLabel, description: noDescription, probabilityPct: 100 - yesProbability },
+      ]);
+      applyMarket(updated);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not save these outcomes.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="mdp-loading">
+          <FiActivity aria-hidden="true" className="mdp-loading__icon" />
+          Loading market…
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (loadError || !market) {
+    return (
+      <AdminLayout>
+        <div className="mdp-error-banner">
+          <FiAlertTriangle aria-hidden="true" />
+          <span>{loadError ?? 'Market not found.'}</span>
+          <button type="button" className="mdp-btn mdp-btn--outline mdp-btn--sm" onClick={() => navigate('/dashboard/admin/markets')}>
+            Back to Markets
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const canPublish = market.status === 'Draft';
+  const canCancel = market.status !== 'Resolved' && market.status !== 'Cancelled' && market.status !== 'Voided';
+  const yesOutcome = market.outcomes.find((outcome) => outcome.id === 'YES')!;
+  const noOutcome = market.outcomes.find((outcome) => outcome.id === 'NO')!;
+
+  return (
+    <AdminLayout>
+      <div className="mdp-root">
+        <button type="button" className="mdp-back" onClick={() => navigate('/dashboard/admin/markets')}>
+          <FiArrowLeft /> Back to Markets
+        </button>
+
+        <div className="mdp-head">
+          <div>
+            <span className={statusPillClass(market.status)}>{market.status}</span>
+            <h1>{market.eventLabel}</h1>
+            <p>{market.question}</p>
+          </div>
+          <div className="mdp-head__actions">
+            {canPublish && (
+              <button type="button" className="mdp-btn mdp-btn--gradient" disabled={isSaving} onClick={handlePublish}>
+                Publish Market
+              </button>
+            )}
+            {canCancel && (
+              <button type="button" className="mdp-btn mdp-btn--danger" disabled={isSaving} onClick={() => setShowCancelModal(true)}>
+                Cancel Market
+              </button>
+            )}
+          </div>
+        </div>
+
+        {actionError && (
+          <div className="mdp-error-banner">
+            <FiAlertTriangle aria-hidden="true" />
+            <span>{actionError}</span>
+          </div>
+        )}
+
+        {publishNotice && (
+          <div className={`mdp-notice mdp-notice--${publishNotice.kind}`}>
+            <FiShield aria-hidden="true" />
+            {publishNotice.kind === 'published' ? (
+              <span>Published — this market is now visible to fans.</span>
+            ) : (
+              <span>{publishNotice.message ?? 'A different Market Admin must publish this market.'}</span>
+            )}
+          </div>
+        )}
+
+        <div className="mdp-tabs" role="tablist">
+          {TABS.map((tab) => (
+            <button key={tab} type="button" className={`mdp-tab${activeTab === tab ? ' is-active' : ''}`} onClick={() => setActiveTab(tab)}>
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'Overview' && (
+          <div className="mdp-panel">
+            <div className="mdp-kv-grid">
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Category</span>
+                <span className="mdp-kv-item__value">{market.category}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Competition</span>
+                <span className="mdp-kv-item__value">{market.competition}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Venue</span>
+                <span className="mdp-kv-item__value">{market.venue}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Kickoff</span>
+                <span className="mdp-kv-item__value">{formatDateTime(market.kickoff)}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Opens</span>
+                <span className="mdp-kv-item__value">{formatDateTime(market.parameters.opensAt)}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Closes</span>
+                <span className="mdp-kv-item__value">{formatDateTime(market.parameters.closesAt)}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Created by</span>
+                <span className="mdp-kv-item__value">{market.createdBy}</span>
+              </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Fee</span>
+                <span className="mdp-kv-item__value">{market.parameters.feePct}%</span>
+              </div>
+            </div>
+            {market.description && <p className="mdp-description">{market.description}</p>}
+            {market.tags.length > 0 && (
+              <div className="mdp-tag-row">
+                {market.tags.map((tag) => (
+                  <span className="mdp-tag" key={tag}>
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'Outcomes' && (
+          <div className="mdp-panel">
+            <div className="mdp-outcomes-grid">
+              <div className="mdp-outcome-card mdp-outcome-card--yes">
+                <span className="mdp-outcome-card__badge">YES</span>
+                {canPublish ? (
+                  <>
+                    <label className="mdp-field">
+                      <span>Label</span>
+                      <input type="text" value={yesLabel} onChange={(event) => setYesLabel(event.target.value)} />
+                    </label>
+                    <label className="mdp-field">
+                      <span>Description</span>
+                      <textarea rows={2} value={yesDescription} onChange={(event) => setYesDescription(event.target.value)} />
+                    </label>
+                    <label className="mdp-field">
+                      <span>Probability: {yesProbability}%</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={99}
+                        value={yesProbability}
+                        onChange={(event) => setYesProbability(Number(event.target.value))}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <p className="mdp-outcome-card__label">{yesOutcome.label}</p>
+                    {yesOutcome.description && <p className="mdp-outcome-card__desc">{yesOutcome.description}</p>}
+                  </>
+                )}
+                <p className="mdp-outcome-card__price">{formatUgx(yesOutcome.price)}</p>
+              </div>
+
+              <div className="mdp-outcome-card mdp-outcome-card--no">
+                <span className="mdp-outcome-card__badge">NO</span>
+                {canPublish ? (
+                  <>
+                    <label className="mdp-field">
+                      <span>Label</span>
+                      <input type="text" value={noLabel} onChange={(event) => setNoLabel(event.target.value)} />
+                    </label>
+                    <label className="mdp-field">
+                      <span>Description</span>
+                      <textarea rows={2} value={noDescription} onChange={(event) => setNoDescription(event.target.value)} />
+                    </label>
+                    <label className="mdp-field">
+                      <span>Probability: {100 - yesProbability}%</span>
+                      <input type="range" min={1} max={99} value={100 - yesProbability} disabled />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <p className="mdp-outcome-card__label">{noOutcome.label}</p>
+                    {noOutcome.description && <p className="mdp-outcome-card__desc">{noOutcome.description}</p>}
+                  </>
+                )}
+                <p className="mdp-outcome-card__price">{formatUgx(noOutcome.price)}</p>
+              </div>
+            </div>
+            {canPublish && (
+              <button type="button" className="mdp-btn mdp-btn--gradient" disabled={isSaving} onClick={handleSaveOutcomes}>
+                {isSaving ? 'Saving…' : 'Save Outcomes'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'Contracts' && (
+          <div className="mdp-panel">
+            <div className="mdp-table-scroll">
+              <table className="mdp-table">
+                <thead>
+                  <tr>
+                    <th>Contract</th>
+                    <th>Outcome</th>
+                    <th>Price</th>
+                    <th>Stake</th>
+                    <th>Buyer</th>
+                    <th>Seller</th>
+                    <th>Matched</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contracts.map((contract) => (
+                    <tr key={contract.id}>
+                      <td>{contract.id}</td>
+                      <td>{contract.outcomeId}</td>
+                      <td>{formatUgx(contract.price)}</td>
+                      <td>{formatUgx(contract.quantityUgx)}</td>
+                      <td>{contract.buyer}</td>
+                      <td>{contract.seller}</td>
+                      <td>{formatDateTime(contract.matchedAt)}</td>
+                      <td>{contract.status}</td>
+                    </tr>
+                  ))}
+                  {contracts.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="mdp-table__empty">
+                        No contracts have been matched yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Trading' && (
+          <div className="mdp-panel">
+            {orderBook && (
+              <>
+                <div className="mdp-orderbook-summary">
+                  <div>
+                    <span className="mdp-kv-item__key">Last Price</span>
+                    <p className="mdp-orderbook-summary__value">{formatUgx(orderBook.lastPrice)}</p>
+                  </div>
+                  <div>
+                    <span className="mdp-kv-item__key">Spread</span>
+                    <p className="mdp-orderbook-summary__value">{formatUgx(orderBook.spread)}</p>
+                  </div>
+                </div>
+                <div className="mdp-orderbook-grid">
+                  <div>
+                    <h4 className="mdp-orderbook-col__title mdp-orderbook-col__title--bid">Bids</h4>
+                    {orderBook.bids.map((level, index) => (
+                      <div className="mdp-orderbook-row mdp-orderbook-row--bid" key={`bid-${index}`}>
+                        <span>{formatUgx(level.price)}</span>
+                        <span>{formatUgx(level.quantityUgx)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <h4 className="mdp-orderbook-col__title mdp-orderbook-col__title--ask">Asks</h4>
+                    {orderBook.asks.map((level, index) => (
+                      <div className="mdp-orderbook-row mdp-orderbook-row--ask" key={`ask-${index}`}>
+                        <span>{formatUgx(level.price)}</span>
+                        <span>{formatUgx(level.quantityUgx)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <h4 className="mdp-panel__subheading">Recent Trades</h4>
+            <div className="mdp-table-scroll">
+              <table className="mdp-table">
+                <thead>
+                  <tr>
+                    <th>Outcome</th>
+                    <th>Price</th>
+                    <th>Stake</th>
+                    <th>Matched</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contracts.slice(0, 8).map((contract) => (
+                    <tr key={contract.id}>
+                      <td>{contract.outcomeId}</td>
+                      <td>{formatUgx(contract.price)}</td>
+                      <td>{formatUgx(contract.quantityUgx)}</td>
+                      <td>{formatDateTime(contract.matchedAt)}</td>
+                    </tr>
+                  ))}
+                  {contracts.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="mdp-table__empty">
+                        No trades yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Audit Log' && (
+          <div className="mdp-panel">
+            <ul className="mdp-timeline">
+              {market.auditHistory.map((event) => (
+                <li className="mdp-timeline__item" key={event.id}>
+                  <span className="mdp-timeline__dot" />
+                  <div className="mdp-timeline__content">
+                    <div className="mdp-timeline__row">
+                      <span className="mdp-timeline__action">{event.action}</span>
+                      <span className="mdp-timeline__time">{formatDateTime(event.timestamp)}</span>
+                    </div>
+                    <div className="mdp-timeline__meta">{event.adminUser}</div>
+                    {event.note && <div className="mdp-timeline__note">{event.note}</div>}
+                  </div>
+                </li>
+              ))}
+              {market.auditHistory.length === 0 && <li className="mdp-table__empty">No activity recorded yet.</li>}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {showCancelModal && <CancelModal onCancel={() => setShowCancelModal(false)} onConfirm={handleCancelMarket} />}
+    </AdminLayout>
+  );
+}
+
+export default MarketDetailPage;

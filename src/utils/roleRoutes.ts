@@ -4,23 +4,28 @@ import {
   type DashboardIdentifier,
 } from '../types/dashboardAccess.js';
 
+// Every admin-side identifier lands on the shared, permission-aware admin
+// shell at /dashboard/admin — the Dashboard page itself is role-aware and
+// shows a scoped work-queue per role, so there's no need for each specialist
+// role to have its own distinct landing route (see src/config/adminNav.ts).
 const ROLE_DASHBOARD_ROUTES: Record<DashboardIdentifier, string> = {
   FAN: '/dashboard/fan',
   CLUB_ADMIN: '/dashboard/club-admin',
   TICKETING_OFFICER: '/dashboard/ticketing-officer',
-  GENERAL_ADMIN: '/dashboard/general-admin',
-  SPORTS_DATA_STATISTICS_ADMIN: '/dashboard/sports-data-statistics',
-  MARKET_OPERATIONS_ADMIN: '/dashboard/market-operations',
-  MARKET_APPROVAL_ADMIN: '/dashboard/market-approval',
-  RESULT_VERIFICATION_ADMIN: '/dashboard/result-verification',
-  COMPLIANCE_ADMIN: '/dashboard/compliance',
-  FINANCE_ADMIN: '/dashboard/finance',
-  CUSTOMER_SUPPORT_ADMIN: '/dashboard/customer-support',
-  SUPER_ADMIN: '/dashboard/super-admin',
+  SPORTS_DATA_STATISTICS_ADMIN: '/dashboard/admin',
+  MARKET_OPERATIONS_ADMIN: '/dashboard/admin',
+  RESULT_VERIFICATION_ADMIN: '/dashboard/admin',
+  COMPLIANCE_ADMIN: '/dashboard/admin',
+  FINANCE_ADMIN: '/dashboard/admin',
+  CUSTOMER_SUPPORT_ADMIN: '/dashboard/admin',
+  SUPER_ADMIN: '/dashboard/admin',
 };
 
 const LEGACY_ROLE_ALIASES: Record<string, DashboardIdentifier> = {
-  ADMIN: 'GENERAL_ADMIN',
+  // No successor for the old GENERAL_ADMIN role specifically — a legacy
+  // "ADMIN" string now falls back to full Super Admin visibility rather
+  // than a dead-end, since General Admin no longer exists as its own tier.
+  ADMIN: 'SUPER_ADMIN',
   CLUB_OWNER: 'CLUB_ADMIN',
   CLUB_SPECIALIST_STAFF: 'CLUB_ADMIN',
   CONTENT_MANAGER: 'CLUB_ADMIN',
