@@ -18,8 +18,6 @@ type SidebarProps = {
 
 const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'Home', route: '/dashboard/fan', icon: <FiHome /> },
-  { label: 'Markets', route: '/markets', icon: <FiTrendingUp /> },
-  { label: 'Home', route: '/fandashboard', icon: <FiHome /> },
   { label: 'Markets', route: '/fan/markets', icon: <FiTrendingUp /> },
   { label: 'Fantasy', route: '/fantasy', icon: <GiTrophyCup /> },
   { label: 'Clubs', route: '/clubs', icon: <FiShield /> },

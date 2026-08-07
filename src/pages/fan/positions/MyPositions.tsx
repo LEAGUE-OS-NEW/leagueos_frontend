@@ -112,7 +112,7 @@ function MyPositions() {
                 title="No positions yet"
                 message="Browse open markets and place your first order."
                 actionLabel="Explore Markets"
-                actionTo="/markets"
+                actionTo="/fan/markets"
               />
             ) : (
               <>
@@ -126,7 +126,7 @@ function MyPositions() {
                     <ul className="my-positions-list">
                       {openPositions.map((position) => (
                         <li className="my-positions-row" key={position.contract.id}>
-                          <Link to={`/markets/${position.market.id}`} className="my-positions-market">
+                          <Link to={`/fan/markets/${position.market.id}`} className="my-positions-market">
                             <strong>{position.market.eventLabel}</strong>
                             <span>{position.market.question}</span>
                           </Link>
@@ -159,7 +159,7 @@ function MyPositions() {
                     <ul className="my-positions-list">
                       {settledPositions.map((position) => (
                         <li className="my-positions-row" key={position.contract.id}>
-                          <Link to={`/markets/${position.market.id}`} className="my-positions-market">
+                          <Link to={`/fan/markets/${position.market.id}`} className="my-positions-market">
                             <strong>{position.market.eventLabel}</strong>
                             <span>{position.market.question}</span>
                           </Link>
