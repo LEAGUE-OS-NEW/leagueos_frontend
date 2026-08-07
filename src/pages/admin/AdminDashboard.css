@@ -1,0 +1,124 @@
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-dashboard__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-dashboard__header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+}
+
+.admin-dashboard__header p:last-child {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.admin-dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.admin-dash-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+}
+
+.admin-dash-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.admin-dash-stat__value {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.admin-dash-stat__label {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-dashboard__panel {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+}
+
+.admin-dashboard__panel h2 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.admin-dashboard__panel-note {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-dashboard__module-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-dashboard__module-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.admin-dashboard__module-link:hover {
+  border-color: var(--color-border-hover);
+  background-color: var(--color-card-hover);
+}
+
+.admin-dashboard__module-icon {
+  display: flex;
+  align-items: center;
+}
+
+.admin-dashboard__role-chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}

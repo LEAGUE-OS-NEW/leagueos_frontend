@@ -6,19 +6,17 @@ const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
   FAN: '/dashboard/fan',
   CLUB_ADMIN: '/dashboard/club-admin',
   TICKETING_OFFICER: '/dashboard/ticketing-officer',
-  GENERAL_ADMIN: '/dashboard/general-admin',
-  SPORTS_DATA_STATISTICS_ADMIN: '/dashboard/sports-data-statistics',
-  MARKET_OPERATIONS_ADMIN: '/dashboard/market-operations',
-  MARKET_APPROVAL_ADMIN: '/dashboard/market-approval',
-  RESULT_VERIFICATION_ADMIN: '/dashboard/result-verification',
-  COMPLIANCE_ADMIN: '/dashboard/compliance',
-  FINANCE_ADMIN: '/dashboard/finance',
-  CUSTOMER_SUPPORT_ADMIN: '/dashboard/customer-support',
-  SUPER_ADMIN: '/dashboard/super-admin',
+  SPORTS_DATA_STATISTICS_ADMIN: '/dashboard/admin',
+  MARKET_OPERATIONS_ADMIN: '/dashboard/admin',
+  RESULT_VERIFICATION_ADMIN: '/dashboard/admin',
+  COMPLIANCE_ADMIN: '/dashboard/admin',
+  FINANCE_ADMIN: '/dashboard/admin',
+  CUSTOMER_SUPPORT_ADMIN: '/dashboard/admin',
+  SUPER_ADMIN: '/dashboard/admin',
 };
 
 const LEGACY_ROLE_ALIASES: Record<string, string> = {
-  ADMIN: 'GENERAL_ADMIN',
+  ADMIN: 'SUPER_ADMIN',
   CLUB_OWNER: 'CLUB_ADMIN',
   CLUB_SPECIALIST_STAFF: 'CLUB_ADMIN',
   CONTENT_MANAGER: 'CLUB_ADMIN',
@@ -64,25 +62,25 @@ describe('getDefaultDashboardRoute', () => {
 
   it('normalizes case before matching', () => {
     expect(getDefaultDashboardRoute(user({ role: 'fan' }))).toBe('/dashboard/fan');
-    expect(getDefaultDashboardRoute(user({ role: 'General_Admin' }))).toBe(
-      '/dashboard/general-admin',
+    expect(getDefaultDashboardRoute(user({ role: 'Super_Admin' }))).toBe(
+      '/dashboard/admin',
     );
   });
 
   it('normalizes surrounding whitespace and internal spaces/dashes before matching', () => {
     expect(getDefaultDashboardRoute(user({ role: '  fan  ' }))).toBe('/dashboard/fan');
-    expect(getDefaultDashboardRoute(user({ role: 'general-admin' }))).toBe(
-      '/dashboard/general-admin',
+    expect(getDefaultDashboardRoute(user({ role: 'super-admin' }))).toBe(
+      '/dashboard/admin',
     );
-    expect(getDefaultDashboardRoute(user({ role: 'general admin' }))).toBe(
-      '/dashboard/general-admin',
+    expect(getDefaultDashboardRoute(user({ role: 'super admin' }))).toBe(
+      '/dashboard/admin',
     );
   });
 
   it('falls back to the roles array when role is missing', () => {
     expect(
-      getDefaultDashboardRoute(user({ roles: ['GENERAL_ADMIN'] })),
-    ).toBe('/dashboard/general-admin');
+      getDefaultDashboardRoute(user({ roles: ['SUPER_ADMIN'] })),
+    ).toBe('/dashboard/admin');
   });
 
   it('falls back to the roles array when role is unrecognized', () => {
@@ -100,7 +98,7 @@ describe('getDefaultDashboardRoute', () => {
     // change to the priority logic doesn't slip by silently.
     expect(
       getDefaultDashboardRoute(
-        user({ role: 'FAN', roles: ['FAN', 'GENERAL_ADMIN'] }),
+        user({ role: 'FAN', roles: ['FAN', 'SUPER_ADMIN'] }),
       ),
     ).toBe('/dashboard/fan');
   });
@@ -110,7 +108,7 @@ describe('getDefaultDashboardRoute', () => {
       getDefaultDashboardRoute(
         user({ role: 'MASCOT', roles: ['ALSO_UNKNOWN', 'FINANCE_ADMIN', 'SUPER_ADMIN'] }),
       ),
-    ).toBe('/dashboard/finance');
+    ).toBe('/dashboard/admin');
   });
 
   it('safely ignores non-string entries in the roles array', () => {

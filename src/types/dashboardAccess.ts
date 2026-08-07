@@ -1,11 +1,13 @@
+// GENERAL_ADMIN and MARKET_APPROVAL_ADMIN were retired when General Admin
+// was folded into Super Admin and Market Operations + Market Approval were
+// merged into one role (MARKET_OPERATIONS_ADMIN, labeled "Market Admin" in
+// the UI) — see src/config/adminNav.ts.
 export const DASHBOARD_IDENTIFIERS = [
   'FAN',
   'CLUB_ADMIN',
   'TICKETING_OFFICER',
-  'GENERAL_ADMIN',
   'SPORTS_DATA_STATISTICS_ADMIN',
   'MARKET_OPERATIONS_ADMIN',
-  'MARKET_APPROVAL_ADMIN',
   'RESULT_VERIFICATION_ADMIN',
   'COMPLIANCE_ADMIN',
   'FINANCE_ADMIN',
