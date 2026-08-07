@@ -23,6 +23,7 @@ import MyPositions from './pages/fan/positions/MyPositions';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanMarkets from './pages/fan/markets/FanMarkets';
+import FanVerification from './pages/fan/markets/FanVerification';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -82,19 +83,17 @@ function App() {
 
           {/* Fan Section*/ }
          <Route path="/fan/onboarding" element={<FanOnboarding />}/>
-       
-        <Route path="/dashboard/fan" element={<FanDashboard />} />
+               <Route path="/dashboard/fan" element={<FanDashboard />} />
         <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
-       
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
-
         <Route path="/markets" element={<Markets />} />
         <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
         <Route path="/fan/markets" element={<FanMarkets />} />
         <Route path="/fan/markets/:marketId" element={<FanMarkets />} />
+        <Route path="/fan/verify" element={<FanVerification />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
 
@@ -136,7 +135,6 @@ function App() {
         <Route path="/community" element={<Community />} />
 
         
-
       </Routes>
     </Router>
   );
