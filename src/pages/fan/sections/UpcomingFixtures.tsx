@@ -41,7 +41,7 @@ function UpcomingFixtures() {
     <div className="upcoming-fixtures">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Upcoming Fixtures</h2>
-        <Link to="/fan/markets" className="dashboard-card-link">
+        <Link to="/markets" className="dashboard-card-link">
           View all
         </Link>
       </div>
@@ -55,7 +55,7 @@ function UpcomingFixtures() {
       ) : (
         <div className="fixtures-grid">
           {(fixtures ?? []).map((fixture) => (
-            <Link to="/fan/markets" className="fixture-card" key={`${fixture.teamA}-${fixture.teamB}`}>
+            <Link to="/markets" className="fixture-card" key={`${fixture.teamA}-${fixture.teamB}`}>
               <div className="fixture-card-header">
                 <span className={`fixture-tag fixture-tag--${fixture.sport}`}>{fixture.sportLabel}</span>
                 <span className="fixture-live-badge">Live</span>

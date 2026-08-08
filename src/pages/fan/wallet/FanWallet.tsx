@@ -4,6 +4,7 @@ import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import { fetchWalletDetails } from '../../../services/walletService';
@@ -15,6 +16,7 @@ import './FanWallet.css';
 function FanWallet() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser } = useCurrentUser();
+  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
   const [wallet, setWallet] = useState<WalletDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,6 +88,14 @@ function FanWallet() {
                 message="Wallet balance, deposits, and transactions need a verified email."
                 actionLabel="Verify email"
                 actionTo="/settings"
+              />
+            ) : !isIdentityVerified ? (
+              <DashboardNotice
+                tone="forbidden"
+                title="Verify your identity to unlock your wallet"
+                message="Wallet balance, deposits, and transactions need identity verification."
+                actionLabel="Verify identity"
+                actionTo="/fan/verify"
               />
             ) : isLoading ? (
               <DashboardSkeleton rows={6} />

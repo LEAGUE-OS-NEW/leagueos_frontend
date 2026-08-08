@@ -15,7 +15,7 @@ function MarketUpdate() {
     <div className="market-update dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Market Update</h2>
-        <Link to="/fan/markets" className="dashboard-card-link">
+        <Link to="/markets" className="dashboard-card-link">
           View markets
         </Link>
       </div>
@@ -84,7 +84,7 @@ function MarketUpdate() {
             </div>
           </div>
 
-          <Link to="/fan/markets" className="market-explore-btn">
+          <Link to="/markets" className="market-explore-btn">
             Explore Markets
           </Link>
         </>

@@ -4,6 +4,7 @@ import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import { fetchMyPositions, sellPosition, type Position } from '../../../services/tradingService';
@@ -26,6 +27,7 @@ function formatDateTime(iso: string): string {
 function MyPositions() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser } = useCurrentUser();
+  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
   const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -102,6 +104,14 @@ function MyPositions() {
                 actionLabel="Verify email"
                 actionTo="/settings"
               />
+            ) : !isIdentityVerified ? (
+              <DashboardNotice
+                tone="forbidden"
+                title="Verify your identity to trade"
+                message="Tracking positions and trading needs identity verification."
+                actionLabel="Verify identity"
+                actionTo="/fan/verify"
+              />
             ) : isLoading ? (
               <DashboardSkeleton rows={4} />
             ) : error ? (
@@ -112,7 +122,7 @@ function MyPositions() {
                 title="No positions yet"
                 message="Browse open markets and place your first order."
                 actionLabel="Explore Markets"
-                actionTo="/fan/markets"
+                actionTo="/markets"
               />
             ) : (
               <>
@@ -126,7 +136,7 @@ function MyPositions() {
                     <ul className="my-positions-list">
                       {openPositions.map((position) => (
                         <li className="my-positions-row" key={position.contract.id}>
-                          <Link to={`/fan/markets/${position.market.id}`} className="my-positions-market">
+                          <Link to={`/markets/${position.market.id}`} className="my-positions-market">
                             <strong>{position.market.eventLabel}</strong>
                             <span>{position.market.question}</span>
                           </Link>
@@ -159,7 +169,7 @@ function MyPositions() {
                     <ul className="my-positions-list">
                       {settledPositions.map((position) => (
                         <li className="my-positions-row" key={position.contract.id}>
-                          <Link to={`/fan/markets/${position.market.id}`} className="my-positions-market">
+                          <Link to={`/markets/${position.market.id}`} className="my-positions-market">
                             <strong>{position.market.eventLabel}</strong>
                             <span>{position.market.question}</span>
                           </Link>

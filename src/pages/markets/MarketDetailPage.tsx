@@ -11,6 +11,7 @@ import {
   type OutcomeId,
 } from '../../services/marketAdminService';
 import { fetchMyPositions, placeOrder, type Position } from '../../services/tradingService';
+import { useIdentityVerificationStore } from '../../store/identityVerificationStore';
 import './MarketDetailPage.css';
 
 function formatDateTime(iso: string): string {
@@ -30,6 +31,7 @@ function formatUgx(amount: number): string {
 function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
+  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
 
   const [market, setMarket] = useState<Market | null>(null);
   const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
@@ -173,7 +175,7 @@ function MarketDetailPage() {
           </div>
         )}
 
-        {myPositions.length > 0 && (
+        {isIdentityVerified && myPositions.length > 0 && (
           <div className="pmd-panel">
             <h2>Your Position</h2>
             {myPositions.map((position) => (
@@ -194,7 +196,21 @@ function MarketDetailPage() {
           </div>
         )}
 
-        {isTradingOpen && (
+        {isTradingOpen && !isIdentityVerified && (
+          <div className="pmd-panel">
+            <h2>Place an Order</h2>
+            <div className="pmd-notice pmd-notice--upcoming">
+              <span>
+                Verify your identity to trade on this market.{' '}
+                <Link to="/fan/verify" className="pmd-positions-link">
+                  Verify now
+                </Link>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {isTradingOpen && isIdentityVerified && (
           <div className="pmd-panel">
             <h2>Place an Order</h2>
             {orderError && (
