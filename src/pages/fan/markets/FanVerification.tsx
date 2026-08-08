@@ -9,15 +9,14 @@ import {
   FiClock,
   FiUpload,
   FiCalendar,
+  FiAlertTriangle,
 } from 'react-icons/fi';
-// NOTE: adjust these relative imports if this page doesn't sit at
-// src/pages/fan/verification/ alongside src/pages/fan/sections/ and
-// src/pages/fan/markets/
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
+import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import '../sections/FanDashboard.css';
-import '../markets/Markets.css';
 import './FanVerification.css';
 
 type StepKey =
@@ -52,6 +51,7 @@ interface VerificationForm {
   idType: string;
   idFront: File | null;
   idBack: File | null;
+  fullLegalName: string;
   dob: string;
   country: string;
   nationality: string;
@@ -68,6 +68,7 @@ const INITIAL_FORM: VerificationForm = {
   idType: ID_TYPE_OPTIONS[0],
   idFront: null,
   idBack: null,
+  fullLegalName: '',
   dob: '',
   country: COUNTRY_OPTIONS[0],
   nationality: NATIONALITY_OPTIONS[0],
@@ -80,6 +81,8 @@ const INITIAL_FORM: VerificationForm = {
   confirmedAccurate: false,
 };
 
+const MINIMUM_TRADING_AGE = 18;
+
 function calculateAge(dob: string): number | null {
   if (!dob) return null;
   const birthDate = new Date(dob);
@@ -91,6 +94,16 @@ function calculateAge(dob: string): number | null {
     age -= 1;
   }
   return age;
+}
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function namesMatch(idName: string, registeredName: string): boolean {
+  const normalizedId = normalizeName(idName);
+  const normalizedRegistered = normalizeName(registeredName);
+  return normalizedId.length > 0 && normalizedId === normalizedRegistered;
 }
 
 function UploadDropzone({
@@ -122,11 +135,14 @@ function UploadDropzone({
 
 function FanVerification() {
   const navigate = useNavigate();
+  const { currentUser } = useCurrentUser();
+  const setVerified = useIdentityVerificationStore((state) => state.setVerified);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setForm] = useState<VerificationForm>(INITIAL_FORM);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentStep = STEPS[stepIndex].key;
@@ -144,16 +160,41 @@ function FanVerification() {
   // "done" in the stepper (any index < stepIndex renders with a check).
   const goNext = () => setStepIndex((index) => Math.min(index + 1, STEPS.length - 1));
 
+  // The only two real checks this mock can perform without a backend: the
+  // legal name given here has to match the registered account name, and the
+  // fan has to be old enough to trade. Both are required to proceed past
+  // review — this is what makes the gate elsewhere in the app meaningful
+  // rather than a rubber stamp.
+  const handleSubmitForVerification = () => {
+    const age = calculateAge(form.dob);
+    if (age === null || age < MINIMUM_TRADING_AGE) {
+      setSubmitError(`You must be ${MINIMUM_TRADING_AGE} or older to trade on League OS.`);
+      return;
+    }
+    if (!namesMatch(form.fullLegalName, currentUser.name)) {
+      setSubmitError(
+        `The name you entered doesn't match your registered account name (${currentUser.name}). Please double-check it matches your ID exactly.`,
+      );
+      return;
+    }
+    setSubmitError(null);
+    goToStep('pending');
+  };
+
   // Simulated review: once submitted we land on "pending", then auto-advance
   // to "verified" after a short delay. There's no backend wired up yet, so
-  // this stands in for the real async verification check.
+  // this stands in for the real async verification check — the actual
+  // pass/fail decision already happened in handleSubmitForVerification.
   useEffect(() => {
     if (currentStep !== 'pending') return;
-    pendingTimeoutRef.current = setTimeout(() => goToStep('verified'), 4000);
+    pendingTimeoutRef.current = setTimeout(() => {
+      setVerified();
+      goToStep('verified');
+    }, 4000);
     return () => {
       if (pendingTimeoutRef.current) clearTimeout(pendingTimeoutRef.current);
     };
-  }, [currentStep]);
+  }, [currentStep, setVerified]);
 
   const stepNumber = stepIndex + 1;
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
@@ -297,6 +338,18 @@ function FanVerification() {
                   <h2>Tell us more about you</h2>
                   <p>Please provide your personal details.</p>
 
+                  <label className="verify-field-label" htmlFor="verify-full-name">
+                    Full Legal Name (as it appears on your ID)
+                  </label>
+                  <input
+                    id="verify-full-name"
+                    type="text"
+                    className="verify-input"
+                    placeholder="e.g. Nakato Grace"
+                    value={form.fullLegalName}
+                    onChange={(event) => updateForm('fullLegalName', event.target.value)}
+                  />
+
                   <label className="verify-field-label" htmlFor="verify-dob">
                     Date of Birth
                   </label>
@@ -428,7 +481,7 @@ function FanVerification() {
                       type="button"
                       className="verify-btn verify-btn--primary"
                       onClick={goNext}
-                      disabled={!form.dob || !form.nin}
+                      disabled={!form.fullLegalName.trim() || !form.dob || !form.nin}
                     >
                       Continue
                     </button>
@@ -483,6 +536,10 @@ function FanVerification() {
 
                   <dl className="verify-review-list">
                     <div>
+                      <dt>Full Legal Name</dt>
+                      <dd>{form.fullLegalName || '\u2014'}</dd>
+                    </div>
+                    <div>
                       <dt>ID Type</dt>
                       <dd>{form.idType}</dd>
                     </div>
@@ -513,6 +570,13 @@ function FanVerification() {
                     I confirm that the information provided is accurate.
                   </label>
 
+                  {submitError && (
+                    <div className="verify-submit-error">
+                      <FiAlertTriangle aria-hidden="true" />
+                      <span>{submitError}</span>
+                    </div>
+                  )}
+
                   <div className="verify-step-actions verify-step-actions--split">
                     <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('selfie')}>
                       Back
@@ -520,7 +584,7 @@ function FanVerification() {
                     <button
                       type="button"
                       className="verify-btn verify-btn--primary"
-                      onClick={goNext}
+                      onClick={handleSubmitForVerification}
                       disabled={!form.confirmedAccurate}
                     >
                       Submit for Verification
@@ -548,7 +612,7 @@ function FanVerification() {
                     </ul>
                   </div>
                   <div className="verify-step-actions">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/markets')}>
                       Back to Markets
                     </button>
                   </div>
@@ -574,7 +638,7 @@ function FanVerification() {
                     </li>
                   </ul>
                   <div className="verify-step-actions">
-                    <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/markets')}>
                       Go to Markets
                     </button>
                   </div>
