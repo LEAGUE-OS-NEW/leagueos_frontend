@@ -19,19 +19,9 @@ import FanDashboard from './pages/fan/sections/FanDashboard';
 import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
-import Wallet from './pages/fan/markets/Wallet';
 import MyPositions from './pages/fan/positions/MyPositions';
-import PositionDetail from './pages/fan/markets/PositionDetail';
-import SellPosition from './pages/fan/markets/SellPosition';
-import SellConfirmation from './pages/fan/markets/SellConfirmation';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
-import FanMarkets from './pages/fan/markets/FanMarkets';
-import MarketDetailOverview from './pages/fan/markets/MarketDetailOverview';
-import MarketDetailChart from './pages/fan/markets/MarketDetailChart';
-import PlaceOrder from './pages/fan/markets/PlaceOrder';
-import ReviewOrder from './pages/fan/markets/ReviewOrder';
-import OrderPlaced from './pages/fan/markets/OrderPlaced';
 import FanVerification from './pages/fan/markets/FanVerification';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -101,27 +91,7 @@ function App() {
         <Route path="/markets" element={<Markets />} />
         <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 
-        {/* Fan markets list (card grid + modal trade ticket) */}
-        <Route path="/fan/markets" element={<FanMarkets />} />
-        {/* Fan market full-page flow: overview -> chart -> trade -> review -> placed */}
-        <Route path="/fan/markets/:marketId" element={<MarketDetailOverview />} />
-        <Route path="/fan/markets/:marketId/chart" element={<MarketDetailChart />} />
-        <Route path="/fan/markets/:marketId/trade" element={<PlaceOrder />} />
-        <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
-        <Route path="/fan/markets/:marketId/placed" element={<OrderPlaced />} />
-
         <Route path="/fan/verify" element={<FanVerification />} />
-
-        {/* Fan positions: detail -> sell -> sell confirmation */}
-        <Route path="/fan/positions/:positionId" element={<PositionDetail />} />
-        <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
-        <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
-
-        {/* Fan wallet (new flow). NOTE: deposit/withdraw/transactions pages
-            aren't wired up yet — add those routes once those components
-            exist, or point Wallet.tsx's links back at /wallet in the
-            meantime. */}
-        <Route path="/fan/wallet" element={<Wallet />} />
 
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
