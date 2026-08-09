@@ -17,6 +17,7 @@ import Footer from '../../../components/landing/Footer';
 import { calculateAge } from '../../../utils/rules.ts';
 import { startMarketKYCSession } from '../../../services/marketEligibilityService.ts';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility.ts';
+import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import { marketEligibilityMessage } from '../../../utils/marketEligibilityCopy.ts';
 import '../sections/FanDashboard.css';
 import './FanVerification.css';
@@ -131,6 +132,7 @@ function FanVerification() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isVerifyingDocument, setIsVerifyingDocument] = useState(false);
   const [kycSessionId, setKycSessionId] = useState<string | null>(null);
+  const setIdentityVerified = useIdentityVerificationStore((state) => state.setVerified);
 
   const currentStep = STEPS[stepIndex].key;
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
@@ -259,12 +261,14 @@ function FanVerification() {
     // (polled elsewhere) — there's no render-time value to derive this from
     // directly since eligibility arrives asynchronously after mount.
     if (isEligible) {
+      setIdentityVerified();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('verified');
     } else if (isPending) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('pending');
     }
-  }, [goToStep, isEligible, isPending]);
+  }, [goToStep, isEligible, isPending, setIdentityVerified]);
 
   useEffect(() => {
     if (currentStep !== 'pending') return;
