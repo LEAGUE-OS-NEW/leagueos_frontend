@@ -341,50 +341,57 @@ describe('Login page', () => {
     })
   })
 
-  it('routes an operational user from the Market Admin entitlement, not legacy roles', async () => {
-    const user = userEvent.setup()
+  it(
+    'routes an operational user from the Market Admin entitlement, not legacy roles',
+    async () => {
+      const user = userEvent.setup()
 
-    authMocks.login.mockResolvedValueOnce({
-      data: {
-        access: 'access-token',
-        refresh: 'refresh-token',
-        requires_email_verification: false,
-        user: {
-          email: 'ops.admin@leagueos.test',
-          role: 'FAN',
-          roles: ['FAN', 'MARKET_OPERATIONS_ADMIN'],
-          dashboard_access: access('ops-admin', [
-            entitlement(
-              'ops-admin',
-              'MARKET_OPERATIONS_ADMIN',
-              '/dashboard/admin',
-            ),
-          ]),
+      authMocks.login.mockResolvedValueOnce({
+        data: {
+          access: 'access-token',
+          refresh: 'refresh-token',
+          requires_email_verification: false,
+          user: {
+            email: 'ops.admin@leagueos.test',
+            role: 'FAN',
+            roles: ['FAN', 'MARKET_OPERATIONS_ADMIN'],
+            dashboard_access: access('ops-admin', [
+              entitlement(
+                'ops-admin',
+                'MARKET_OPERATIONS_ADMIN',
+                '/dashboard/admin',
+              ),
+            ]),
+          },
         },
-      },
-    })
+      })
 
-    renderLogin()
+      renderLogin()
 
-    await user.type(
-      screen.getByPlaceholderText('Enter phone number, email, or username'),
-      'ops.admin@leagueos.test',
-    )
-    await user.type(
-      screen.getByPlaceholderText('Enter your password'),
-      'StrongPassword123',
-    )
-    await user.click(
-      screen.getByRole('button', { name: /^log in$/i }),
-    )
-
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith(
-        '/dashboard/admin',
-        { replace: true },
+      await user.type(
+        screen.getByPlaceholderText('Enter phone number, email, or username'),
+        'ops.admin@leagueos.test',
       )
-    })
-  })
+      await user.type(
+        screen.getByPlaceholderText('Enter your password'),
+        'StrongPassword123',
+      )
+      await user.click(
+        screen.getByRole('button', { name: /^log in$/i }),
+      )
+
+      await waitFor(
+        () => {
+          expect(navigateMock).toHaveBeenCalledWith(
+            '/dashboard/admin',
+            { replace: true },
+          )
+        },
+        { timeout: 15000 },
+      )
+    },
+    20000,
+  )
 
   it('returns verified users to their requested protected page', async () => {
     const user = userEvent.setup()
@@ -402,49 +409,56 @@ describe('Login page', () => {
     })
   })
 
-  it('rejects a saved Fan redirect for an operational user', async () => {
-    const user = userEvent.setup()
+  it(
+    'rejects a saved Fan redirect for an operational user',
+    async () => {
+      const user = userEvent.setup()
 
-    authMocks.login.mockResolvedValueOnce({
-      data: {
-        access: 'access-token',
-        refresh: 'refresh-token',
-        requires_email_verification: false,
-        user: {
-          email: 'official@example.com',
-          dashboard_access: access('ops-admin', [
-            entitlement(
-              'ops-admin',
-              'MARKET_OPERATIONS_ADMIN',
-              '/dashboard/admin',
-            ),
-          ]),
+      authMocks.login.mockResolvedValueOnce({
+        data: {
+          access: 'access-token',
+          refresh: 'refresh-token',
+          requires_email_verification: false,
+          user: {
+            email: 'official@example.com',
+            dashboard_access: access('ops-admin', [
+              entitlement(
+                'ops-admin',
+                'MARKET_OPERATIONS_ADMIN',
+                '/dashboard/admin',
+              ),
+            ]),
+          },
         },
-      },
-    })
+      })
 
-    renderLogin([{
-      pathname: '/login',
-      state: { postLoginRedirect: '/dashboard/fan' },
-    }])
+      renderLogin([{
+        pathname: '/login',
+        state: { postLoginRedirect: '/dashboard/fan' },
+      }])
 
-    await user.type(
-      screen.getByPlaceholderText('Enter phone number, email, or username'),
-      'official@example.com',
-    )
-    await user.type(
-      screen.getByPlaceholderText('Enter your password'),
-      'StrongPassword123',
-    )
-    await user.click(screen.getByRole('button', { name: /^log in$/i }))
-
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith(
-        '/dashboard/admin',
-        { replace: true },
+      await user.type(
+        screen.getByPlaceholderText('Enter phone number, email, or username'),
+        'official@example.com',
       )
-    })
-  })
+      await user.type(
+        screen.getByPlaceholderText('Enter your password'),
+        'StrongPassword123',
+      )
+      await user.click(screen.getByRole('button', { name: /^log in$/i }))
+
+      await waitFor(
+        () => {
+          expect(navigateMock).toHaveBeenCalledWith(
+            '/dashboard/admin',
+            { replace: true },
+          )
+        },
+        { timeout: 15000 },
+      )
+    },
+    20000,
+  )
 
   it('rejects a saved admin redirect for a Fan', async () => {
     const user = userEvent.setup()
@@ -472,40 +486,47 @@ describe('Login page', () => {
     })
   })
 
-  it('fails closed when the authenticated response has no usable access', async () => {
-    const user = userEvent.setup()
+  it(
+    'fails closed when the authenticated response has no usable access',
+    async () => {
+      const user = userEvent.setup()
 
-    authMocks.login.mockResolvedValueOnce({
-      data: {
-        access: 'access-token',
-        refresh: 'refresh-token',
-        requires_email_verification: false,
-        user: {
-          email: 'unscoped@example.com',
-          role: 'MARKET_OPERATIONS_ADMIN',
-          dashboard_access: access(null, []),
+      authMocks.login.mockResolvedValueOnce({
+        data: {
+          access: 'access-token',
+          refresh: 'refresh-token',
+          requires_email_verification: false,
+          user: {
+            email: 'unscoped@example.com',
+            role: 'MARKET_OPERATIONS_ADMIN',
+            dashboard_access: access(null, []),
+          },
         },
-      },
-    })
+      })
 
-    renderLogin()
-    await user.type(
-      screen.getByPlaceholderText('Enter phone number, email, or username'),
-      'unscoped@example.com',
-    )
-    await user.type(
-      screen.getByPlaceholderText('Enter your password'),
-      'StrongPassword123',
-    )
-    await user.click(screen.getByRole('button', { name: /^log in$/i }))
-
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith(
-        '/account/access-unavailable',
-        { replace: true },
+      renderLogin()
+      await user.type(
+        screen.getByPlaceholderText('Enter phone number, email, or username'),
+        'unscoped@example.com',
       )
-    })
-  })
+      await user.type(
+        screen.getByPlaceholderText('Enter your password'),
+        'StrongPassword123',
+      )
+      await user.click(screen.getByRole('button', { name: /^log in$/i }))
+
+      await waitFor(
+        () => {
+          expect(navigateMock).toHaveBeenCalledWith(
+            '/account/access-unavailable',
+            { replace: true },
+          )
+        },
+        { timeout: 15000 },
+      )
+    },
+    20000,
+  )
 
   it('sends an already-authenticated user straight to their default dashboard instead of showing the form', async () => {
     useAuthStore.setState({

@@ -1,7 +1,7 @@
 export const DASHBOARD_ROUTE = '/dashboard';
 export const LOGIN_ROUTE = '/login';
 export const VERIFY_EMAIL_ROUTE = '/verify-email';
-export const PERSONALIZE_ROUTE = '/personalize';
+export const PERSONALIZE_ROUTE = '/fan/onboarding';
 
 
 export type AuthFlowState = {
