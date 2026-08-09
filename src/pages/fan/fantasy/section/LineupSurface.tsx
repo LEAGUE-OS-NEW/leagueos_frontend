@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Sport, Player } from '../FantasyCompetitions';
-import type { FormationId } from './FootballPitch';
+import type { FormationId } from './formations';
 import FootballPitch from './FootballPitch';
 import BasketballCourt from './BasketballCourt';
 import RugbyField from './RugbyField';

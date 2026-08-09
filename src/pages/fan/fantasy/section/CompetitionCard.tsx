@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Competition } from './FantasyCompetitions';
+import type { Competition } from '../FantasyCompetitions';
 
 interface CompetitionCardProps {
   competition: Competition;
