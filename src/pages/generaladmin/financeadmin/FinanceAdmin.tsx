@@ -170,8 +170,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    ========================================================================= */
 
 const FinanceAdminDashboard: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   /* --------------------------- data state (backend-ready) --------------------------- */
   // All of these are populated from financeService on mount. Every setter is
   // exposed (not just deposits') so status-update workflows can be extended
@@ -279,15 +277,6 @@ const FinanceAdminDashboard: React.FC = () => {
     };
     setAuditFeed((prev) => [event, ...prev]);
   };
-
-  /* -----------------------------------------------------------------------
-     RBAC PLACEHOLDER
-     Replace with real permission checks once auth/roles are wired up.
-     Expected permissions:
-       FINANCE_VIEW, REFUND_VIEW, REFUND_REVIEW,
-       REFUND_APPROVE_STEP1, REFUND_APPROVE_STEP2, REFUND_PROCESS
-     ----------------------------------------------------------------------- */
-  const hasPermission = (_permission: string): boolean => true; // TODO: wire to real RBAC
 
   /* --------------------------- derived summary numbers --------------------------- */
 

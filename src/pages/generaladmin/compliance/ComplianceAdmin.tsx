@@ -71,7 +71,10 @@ export interface AuditEvent {
 export interface Restriction {
   id: string;
   type:
-    "Spending Limit" | "Trading Limit" | "Account Restriction" | "Suspension";
+    | "Spending Limit"
+    | "Trading Limit"
+    | "Account Restriction"
+    | "Suspension";
   appliedBy: string;
   appliedAt: string;
   active: boolean;
@@ -118,171 +121,6 @@ const currentUserPermissions: CompliancePermission[] = [
   "REQUEST_INFO",
   "APPROVE_KYC",
   "ESCALATE_CASE",
-];
-
-const mockComplianceCases: ComplianceCase[] = [
-  {
-    id: "COMP-2026-0142",
-    queueType: "KYC",
-    user: {
-      fullName: "Marcus Webb",
-      email: "marcus.webb@mailbox.com",
-      phone: "+1 (415) 555-0142",
-      country: "Rwanda",
-      registrationDate: "2026-01-04",
-      verificationTier: "Tier 1",
-    },
-    riskLevel: "Medium",
-    riskScore: 54,
-    createdAt: "2026-07-29T09:12:00Z",
-    assignedTo: "Aisha Nolan",
-    status: "Pending",
-    summary: "Submitted ID document does not match registration name. Address mismatch flagged by automated OCR check.",
-    relatedAccounts: [
-      { id: "ACC-88214", name: "M. Webb Jr.", sharedPhone: true, sharedEmailDomain: false, sharedDevice: false, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-1", kind: "ID Image", label: "Driver's license (front)", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:10:00Z" },
-      { id: "EV-2", kind: "Document", label: "Proof of address - utility bill", uploadedBy: "Marcus Webb", uploadedAt: "2026-07-29T09:11:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-1", timestamp: "2026-07-29T09:12:00Z", adminUser: "System", action: "Case created", note: "Auto-flagged by KYC OCR mismatch rule" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "COMP-2026-0188",
-    queueType: "Fraud",
-    user: {
-      fullName: "Priya Chandrasekaran",
-      email: "priya.c@fastmail.io",
-      phone: "+44 7700 900188",
-      country: "Uganda",
-      registrationDate: "2025-11-18",
-      verificationTier: "Tier 2",
-    },
-    riskLevel: "High",
-    riskScore: 81,
-    createdAt: "2026-07-30T14:45:00Z",
-    assignedTo: "Daniel Ruiz",
-    status: "Under Review",
-    summary: "Suspicious high-value transfer routed through three linked wallets within 40 minutes of account creation on the receiving side.",
-    relatedAccounts: [
-      { id: "ACC-51092", name: "Wallet Relay A", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-51093", name: "Wallet Relay B", sharedPhone: false, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [
-      { id: "TXN-90211", type: "Transfer Out", amount: 12500, currency: "USD", date: "2026-07-30T14:20:00Z", status: "Flagged", riskIndicator: "High" },
-      { id: "TXN-90212", type: "Transfer Out", amount: 8300, currency: "USD", date: "2026-07-30T14:32:00Z", status: "Flagged", riskIndicator: "High" },
-    ],
-    evidence: [
-      { id: "EV-3", kind: "Transaction Screenshot", label: "Wallet relay chain diagram", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:02:00Z" },
-      { id: "EV-4", kind: "Note", label: "Pattern matches known layering scheme #4", uploadedBy: "Daniel Ruiz", uploadedAt: "2026-07-30T15:05:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-2", timestamp: "2026-07-30T14:45:00Z", adminUser: "System", action: "Case created", note: "Velocity + relay pattern detected" },
-      { id: "A-3", timestamp: "2026-07-30T15:06:00Z", adminUser: "Daniel Ruiz", action: "Information requested", note: "Requested source-of-funds documentation" },
-    ],
-    restrictions: [
-      { id: "R-1", type: "Trading Limit", appliedBy: "Daniel Ruiz", appliedAt: "2026-07-30T15:07:00Z", active: true },
-    ],
-  },
-  {
-    id: "COMP-2026-0211",
-    queueType: "Duplicate",
-    user: {
-      fullName: "Tomasz Nowicki",
-      email: "t.nowicki@protonhub.net",
-      phone: "+48 512 340 211",
-      country: "Uganda",
-      registrationDate: "2026-03-22",
-      verificationTier: "Tier 1",
-    },
-    riskLevel: "Medium",
-    riskScore: 62,
-    createdAt: "2026-07-28T11:00:00Z",
-    assignedTo: "Unassigned",
-    status: "Pending",
-    summary: "Cluster of four accounts sharing a device fingerprint and payment method registered within the same week.",
-    relatedAccounts: [
-      { id: "ACC-33210", name: "T. Nowicki", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-33211", name: "Anna Nowicka", sharedPhone: true, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: true },
-      { id: "ACC-33212", name: "T. Novak", sharedPhone: false, sharedEmailDomain: false, sharedDevice: true, sharedPaymentMethod: false },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-5", kind: "Device/Location", label: "Shared device fingerprint report", uploadedBy: "System", uploadedAt: "2026-07-28T11:01:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-4", timestamp: "2026-07-28T11:00:00Z", adminUser: "System", action: "Case created", note: "Duplicate cluster detection triggered" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "COMP-2026-0227",
-    queueType: "Self-Exclusion",
-    user: {
-      fullName: "Renee Castellano",
-      email: "renee.castellano@gmail.com",
-      phone: "+1 (312) 555-0227",
-      country: "Uganda",
-      registrationDate: "2024-09-02",
-      verificationTier: "Tier 3",
-    },
-    riskLevel: "Critical",
-    riskScore: 93,
-    createdAt: "2026-07-31T08:15:00Z",
-    assignedTo: "Aisha Nolan",
-    status: "Escalated",
-    summary: "User attempted to access platform three times during an active self-exclusion period using a secondary account.",
-    relatedAccounts: [
-      { id: "ACC-70091", name: "R. Castellano (secondary)", sharedPhone: true, sharedEmailDomain: true, sharedDevice: true, sharedPaymentMethod: true },
-    ],
-    relatedTransactions: [],
-    evidence: [
-      { id: "EV-6", kind: "Note", label: "Login attempt log during exclusion window", uploadedBy: "Aisha Nolan", uploadedAt: "2026-07-31T08:20:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-5", timestamp: "2026-07-31T08:15:00Z", adminUser: "System", action: "Case created", note: "Self-exclusion breach attempt detected" },
-      { id: "A-6", timestamp: "2026-07-31T08:40:00Z", adminUser: "Aisha Nolan", action: "Escalation performed", note: "Escalated to senior compliance for review" },
-    ],
-    restrictions: [
-      { id: "R-2", type: "Account Restriction", appliedBy: "Aisha Nolan", appliedAt: "2026-07-31T08:41:00Z", active: true },
-    ],
-    selfExclusion: { requested: true, coolingOff: false, breachAttempts: 3 },
-  },
-  {
-    id: "COMP-2026-0254",
-    queueType: "Fraud",
-    user: {
-      fullName: "Kenji Watanabe",
-      email: "kenji.w@heliomail.com",
-      phone: "+81 90 1234 0254",
-      country: "Kenya",
-      registrationDate: "2025-06-11",
-      verificationTier: "Tier 2",
-    },
-    riskLevel: "High",
-    riskScore: 76,
-    createdAt: "2026-08-01T02:30:00Z",
-    assignedTo: "Daniel Ruiz",
-    status: "Under Review",
-    summary: "Excessive trading velocity: 412 trades executed within 90 minutes, well beyond the user's historical pattern.",
-    relatedAccounts: [],
-    relatedTransactions: [
-      { id: "TXN-90401", type: "Trade", amount: 460, currency: "USD", date: "2026-08-01T02:05:00Z", status: "Completed", riskIndicator: "Medium" },
-      { id: "TXN-90402", type: "Trade", amount: 520, currency: "USD", date: "2026-08-01T02:06:00Z", status: "Completed", riskIndicator: "Medium" },
-      { id: "TXN-90403", type: "Trade", amount: 610, currency: "USD", date: "2026-08-01T02:07:00Z", status: "Flagged", riskIndicator: "High" },
-    ],
-    evidence: [
-      { id: "EV-7", kind: "Transaction Screenshot", label: "Trade velocity chart", uploadedBy: "System", uploadedAt: "2026-08-01T02:35:00Z" },
-    ],
-    auditHistory: [
-      { id: "A-7", timestamp: "2026-08-01T02:30:00Z", adminUser: "System", action: "Case created", note: "Velocity threshold exceeded (412 trades/90min)" },
-    ],
-    restrictions: [],
-  },
 ];
 
 /* ============================================================
@@ -1775,7 +1613,7 @@ const ComplianceAdmin: React.FC = () => {
             <div className="compliance-header">
               <div>
                 <p className="compliance-header__eyebrow">Welcome back</p>
-                <h1>Compliance &amp; Trust Operations</h1>
+                <h1>Compliance & Trust Operations</h1>
                 <p>
                   Central control for KYC reviews, fraud detection,
                   restrictions, responsible participation, and platform safety.

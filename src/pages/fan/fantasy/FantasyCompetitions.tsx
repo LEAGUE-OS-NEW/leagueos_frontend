@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FiMenu } from 'react-icons/fi';
 import SportFilter from './section/SportFilter';
 import CompetitionCard from './section/CompetitionCard';
 import PlayerRow from './section/PlayerRow';
 import StandingsTable from './section/StandingsTable';
 import LineupSurface from './section/LineupSurface';
-import { FORMATIONS, type FormationId } from './section/FootballPitch';
+import { FORMATIONS, type FormationId } from './section/formations';
 import GameweekHub, { type Fixture, type LeagueSeason } from './section/GameweekHub';
 import LivePointsPanel from './section/LivePointsPanel';
 import CreateLeagueModal, { type NewLeagueDetails } from './section/CreateLeagueModal';
@@ -470,10 +470,6 @@ const FantasyCompetitions: React.FC = () => {
   const [step, setStep] = useState<StepId>('discover');
   const [customCompetitions, setCustomCompetitions] = useState<Competition[]>([]);
 
-  const [privateOpen, setPrivateOpen] = useState(false);
-  const [inviteCode, setInviteCode] = useState('');
-  const [joinError, setJoinError] = useState('');
-
   // Read invite code from URL query params (e.g. /fantasy/join?code=ABC-1234)
   const [urlInviteCode] = useState<string>(() => {
     try {
@@ -482,6 +478,10 @@ const FantasyCompetitions: React.FC = () => {
       return '';
     }
   });
+  // Pre-fill invite code + open the private-join form if the URL carries a code.
+  const [privateOpen, setPrivateOpen] = useState<boolean>(!!urlInviteCode);
+  const [inviteCode, setInviteCode] = useState<string>(urlInviteCode);
+  const [joinError, setJoinError] = useState('');
   const [myLeagues, setMyLeagues] = useState<JoinedLeagueRecord[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<{
@@ -498,6 +498,10 @@ const FantasyCompetitions: React.FC = () => {
   const [squadIds, setSquadIds] = useState<Set<string>>(new Set());
   const [squadError, setSquadError] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
+
+  // Track previous squad/starting values for render-phase bench-order sync.
+  const [prevSquadPlayers, setPrevSquadPlayers] = useState<Player[]>([]);
+  const [prevStartingIds, setPrevStartingIds] = useState<Set<string>>(new Set());
 
   const [formation, setFormation] = useState<FormationId>('4-3-3');
   const [startingIds, setStartingIds] = useState<Set<string>>(new Set());
@@ -840,20 +844,24 @@ const FantasyCompetitions: React.FC = () => {
 
   // Keep the bench order in sync with squad/starting changes without
   // discarding the fan's existing ordering.
-  useEffect(() => {
+  // React-sanctioned "adjusting state during render" pattern — not an effect.
+  if (squadPlayers !== prevSquadPlayers || startingIds !== prevStartingIds) {
+    setPrevSquadPlayers(squadPlayers);
+    setPrevStartingIds(startingIds);
     const benchSet = new Set(squadPlayers.filter((p) => !startingIds.has(p.id)).map((p) => p.id));
-    setBenchOrder((prev) => {
-      const kept = prev.filter((id) => benchSet.has(id));
-      const missing = Array.from(benchSet).filter((id) => !kept.includes(id));
-      const next = [...kept, ...missing];
-      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev;
-      return next;
-    });
-  }, [squadPlayers, startingIds]);
+    const kept = benchOrder.filter((id) => benchSet.has(id));
+    const missing = Array.from(benchSet).filter((id) => !kept.includes(id));
+    const next = [...kept, ...missing];
+    if (next.length !== benchOrder.length || next.some((id, i) => id !== benchOrder[i])) {
+      setBenchOrder(next);
+    }
+  }
 
-  useEffect(() => {
-    if (step !== 'lineup') setSelectedPlayerId(null);
-  }, [step]);
+  // Clear the selected player when the user leaves the lineup step.
+  // React-sanctioned "adjusting state during render" pattern — not an effect.
+  if (step !== 'lineup' && selectedPlayerId !== null) {
+    setSelectedPlayerId(null);
+  }
 
   const toggleStarting = (playerId: string) => {
     setLineupError('');
@@ -987,25 +995,6 @@ const FantasyCompetitions: React.FC = () => {
   const toggleNotificationRead = (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n)));
   };
-
-  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
-
-  // If the currently selected competition doesn't belong to the active sport
-  // (shouldn't normally happen, but guards against stale state), clear it.
-  useEffect(() => {
-    if (selectedCompetition && selectedCompetition.sport !== sport) {
-      setSelectedCompetitionId(null);
-    }
-  }, [sport, selectedCompetition]);
-
-  // If the user opened the page via /fantasy/join?code=INVITE_CODE,
-  // pre-fill the invite-code field and open the private-league join form.
-  useEffect(() => {
-    if (urlInviteCode) {
-      setInviteCode(urlInviteCode);
-      setPrivateOpen(true);
-    }
-  }, [urlInviteCode]);
 
   const goToStep = (id: StepId) => {
     if (!canAccessStep(id)) {
