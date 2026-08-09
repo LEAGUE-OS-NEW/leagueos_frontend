@@ -202,7 +202,7 @@ describe('Register page', () => {
                         confirm_password: 'StrongPass1!',
                     })
                 },
-                { timeout: 15000 },
+                { timeout: 20000 },
             )
 
             expect(registerMock).not.toHaveBeenCalledWith(
@@ -219,14 +219,22 @@ describe('Register page', () => {
                             email: 'amina.kizza@example.com',
                             message:
                                 'Registration successful. Please verify your email address using the OTP sent to your email.',
-                            postLoginRedirect: '/personalize',
+                            postLoginRedirect: '/fan/onboarding',
                         },
                     })
                 },
-                { timeout: 15000 },
+                { timeout: 20000 },
             )
         },
-        25000,
+        // This test does the most work of the suite (fills every field, then
+        // two sequential waitFor calls), so it's the one most likely to brush
+        // up against a fixed ceiling when the environment is already slow —
+        // the previous run finished at 25048ms against a 25000ms budget with
+        // no failing assertion, i.e. it ran out of time rather than hanging.
+        // Sibling tests below already use generous 18000-20000ms findBy
+        // timeouts under a 20000ms test budget; this gives the same kind of
+        // headroom scaled up for the extra round trip.
+        45000,
     )
 
     it('shows backend email field errors clearly', async () => {
