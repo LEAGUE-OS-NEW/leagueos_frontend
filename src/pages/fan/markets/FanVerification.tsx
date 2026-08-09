@@ -261,13 +261,14 @@ function FanVerification() {
     // (polled elsewhere) — there's no render-time value to derive this from
     // directly since eligibility arrives asynchronously after mount.
     if (isEligible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIdentityVerified();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('verified');
     } else if (isPending) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('pending');
     }
-  }, [goToStep, isEligible, isPending]);
+  }, [goToStep, isEligible, isPending, setIdentityVerified]);
 
   useEffect(() => {
     if (currentStep !== 'pending') return;
