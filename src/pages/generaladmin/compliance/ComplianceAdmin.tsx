@@ -110,7 +110,6 @@ export interface ComplianceCase {
   selfExclusion?: SelfExclusionCase;
 }
 
-<<<<<<< HEAD
 /* ============================================================
    MOCK DATA
    ============================================================ */
@@ -285,10 +284,6 @@ const mockComplianceCases: ComplianceCase[] = [
     restrictions: [],
   },
 ];
-=======
-/* Unsupported case mutations stay visible but disabled until matching endpoints exist. */
-const currentUserPermissions: CompliancePermission[] = [];
->>>>>>> development
 
 /* ============================================================
    HELPERS
@@ -1787,37 +1782,9 @@ const ComplianceAdmin: React.FC = () => {
                 </p>
               </div>
               <div className="compliance-header__actions">
-<<<<<<< HEAD
                 
                 
                 <button className="btn btn-gradient" disabled title="Compliance Settings coming soon">
-=======
-                <span className="live-badge">
-                  <span className="live-badge__dot" />
-                  Live data
-                </span>
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    const blob = new Blob([JSON.stringify(cases, null, 2)], {
-                      type: "application/json",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `compliance-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Export Dashboard
-                </button>
-                <button
-                  className="btn btn-gradient"
-                  disabled
-                  title="Compliance Settings coming soon"
-                >
->>>>>>> development
                   Compliance Settings
                 </button>
               </div>
@@ -1855,17 +1822,13 @@ const ComplianceAdmin: React.FC = () => {
           onMutate={handleMutateCase}
         />
       )}
-<<<<<<< HEAD
 
       <footer className="ga-footer">
         <span>League OS Admin Console • All actions are logged and auditable</span>
         <span>© 2026 League OS. All rights reserved.</span>
       </footer>
     </div>
-=======
-      </div>
-    </AdminLayout>
->>>>>>> development
+      </AdminLayout>
   );
 };
 

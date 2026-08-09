@@ -1,11 +1,5 @@
-<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from "react";
-import DashboardSidebar from "../../../components/generaladmin/Sidebar";
-import DashboardTopbar from "../sections/Topbar";
-=======
-import React, { useMemo, useState } from "react";
 import AdminLayout from "../../../components/admin/AdminLayout";
->>>>>>> development
 import "./FinanceAdmin.css";
 
 import type {
@@ -132,7 +126,12 @@ const STATUS_ACTION_LABELS: Record<BatchStatus, string> = {
 
 const StatusPill: React.FC<{ status: string }> = ({ status }) => {
   const cls = status.toLowerCase().replace(/\s+/g, "-");
-  return <span className={`fa-pill fa-pill--${cls}`}>{status}</span>;
+
+  return (
+    <span className={`fa-pill fa-pill--${cls}`}>
+      {status}
+    </span>
+  );
 };
 
 const SeverityBadge: React.FC<{ severity: Severity }> = ({ severity }) => (
@@ -171,7 +170,6 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    ========================================================================= */
 
 const FinanceAdminDashboard: React.FC = () => {
-<<<<<<< HEAD
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   /* --------------------------- data state (backend-ready) --------------------------- */
@@ -238,18 +236,7 @@ const FinanceAdminDashboard: React.FC = () => {
 
     return () => {
       cancelled = true;
-    };
-  }, []);
-=======
-  const [deposits,setDeposits] = useState<DepositBatch[]>(buildDeposits);
-  const [withdrawals] = useState<WithdrawalBatch[]>(buildWithdrawals);
-  const [settlements] = useState<SettlementBatch[]>(buildSettlements);
-  const [refunds, setRefunds] = useState<RefundRequest[]>(mockRefunds);
-  const [clubs] = useState<ClubCommerceRecord[]>(mockClubCommerce);
-  const [exceptions, setExceptions] = useState<ReconciliationException[]>(mockExceptionsInit);
-  const [auditFeed, setAuditFeed] = useState<AuditEvent[]>(mockAuditFeedInit);
-  const [exportHistory, setExportHistory] = useState<ExportRecord[]>(initialExports);
->>>>>>> development
+    };  }, []);
 
   const [activeQueue, setActiveQueue] = useState<QueueKey>("deposits");
   const [search, setSearch] = useState("");
@@ -1484,12 +1471,8 @@ const FinanceAdminDashboard: React.FC = () => {
 
       {/* Toast notification */}
       {toast && <div className="fa-toast">{toast}</div>}
-<<<<<<< HEAD
 
-    </div>
-=======
     </>
->>>>>>> development
   );
 };
 

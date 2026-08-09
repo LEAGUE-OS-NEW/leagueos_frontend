@@ -59,8 +59,8 @@ import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
-import PredictionMarkets from "./pages/fan/market/PredictionMarkets";
-import PredictionPortfolio from "./pages/fan/market/Predictionportfolio";
+import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
+
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
@@ -98,17 +98,9 @@ function App() {
         <Route path="/markets/:marketId" element={<MarketDetailPage />} />
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
 
-        <Route 
-  path="/fan/prediction-markets" 
-  element={<PredictionMarkets />} 
-/>
-
-<Route 
-  path="/fan/prediction-portfolio" 
-  element={<PredictionPortfolio />} 
-/>
-
+       
 
 
         {/* authentication routes */}
@@ -151,6 +143,8 @@ function App() {
         {/* <Route path="/personalize" element={<Personalize />} /> */}
 
       </Routes>
+
+      
     </Router>
   );
 }
