@@ -15,8 +15,9 @@ import './FanWallet.css';
 
 function FanWallet() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { currentUser } = useCurrentUser();
   const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
+  const { currentUser, isLoading: isUserLoading } = useCurrentUser();
+  const isVerified = Boolean(!isUserLoading && currentUser.isVerified);
   const [wallet, setWallet] = useState<WalletDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,12 +25,19 @@ function FanWallet() {
 
   // Initial load: no synchronous setState before the fetch settles, relying
   // on the useState(true)/useState('') defaults above — matches
-  // useDashboardSection's effect shape so react-hooks/set-state-in-effect
-  // doesn't flag it. refreshWallet (below) is for user-triggered reloads
-  // (retry button, post-deposit refresh) called from event handlers, where
-  // resetting loading/error synchronously first is fine.
+  // FanTradeHub's effect shape so react-hooks/set-state-in-effect doesn't
+  // flag it. isLoading is never read while !isVerified (the render ternary
+  // below checks !isVerified/!isIdentityVerified first), so the early
+  // return doesn't need to touch it. refreshWallet (below) is for
+  // user-triggered reloads (retry button, post-deposit refresh) called from
+  // event handlers, where resetting loading/error synchronously first is
+  // fine.
   useEffect(() => {
     let cancelled = false;
+
+    if (!isVerified) {
+      return;
+    }
 
     fetchWalletDetails()
       .then((data) => {
@@ -45,7 +53,7 @@ function FanWallet() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isVerified]);
 
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
@@ -55,6 +63,7 @@ function FanWallet() {
   }, [isSidebarOpen]);
 
   function refreshWallet() {
+    if (!isVerified) return;
     setIsLoading(true);
     setError('');
     fetchWalletDetails()
@@ -80,14 +89,13 @@ function FanWallet() {
               <h1>My Wallet</h1>
               <p>Manage your League OS balance, deposits, and transaction history.</p>
             </div>
-
-            {!currentUser.isEmailVerified ? (
+            {!isVerified ? (
               <DashboardNotice
-                tone="forbidden"
-                title="Verify your email to unlock your wallet"
-                message="Wallet balance, deposits, and transactions need a verified email."
-                actionLabel="Verify email"
-                actionTo="/settings"
+                tone={isUserLoading ? 'empty' : 'forbidden'}
+                title={isUserLoading ? 'Loading your account…' : 'Verify your account to unlock your wallet'}
+                message={isUserLoading ? 'Checking your verification status.' : 'Only verified accounts can view balances, deposit funds, and withdraw earnings.'}
+                actionLabel={isUserLoading ? undefined : 'Verify identity'}
+                actionTo={isUserLoading ? undefined : '/fan/verify'}
               />
             ) : !isIdentityVerified ? (
               <DashboardNotice
