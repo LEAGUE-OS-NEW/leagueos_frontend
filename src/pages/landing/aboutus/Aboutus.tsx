@@ -44,12 +44,12 @@ const AboutUs = () => {
               sports communities can engage, compete, and grow together through technology.
             </p>
             <div className="about-hero__actions">
-              <a href="#platform" className="about-btn about-btn--primary">
+              <a href="/" className="about-btn about-btn--primary">
                 Explore the Platform
               </a>
-              <a href="#contact" className="about-btn about-btn--ghost">
-                Get in Touch
-              </a>
+              <a href="/contact" className="about-btn about-btn--ghost">
+  Get in Touch
+</a>
             </div>
           </div>
         </header>

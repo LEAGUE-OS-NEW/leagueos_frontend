@@ -71,7 +71,10 @@ export interface AuditEvent {
 export interface Restriction {
   id: string;
   type:
-    "Spending Limit" | "Trading Limit" | "Account Restriction" | "Suspension";
+    | "Spending Limit"
+    | "Trading Limit"
+    | "Account Restriction"
+    | "Suspension";
   appliedBy: string;
   appliedAt: string;
   active: boolean;
@@ -110,8 +113,15 @@ export interface ComplianceCase {
   selfExclusion?: SelfExclusionCase;
 }
 
-/* Unsupported case mutations stay visible but disabled until matching endpoints exist. */
-const currentUserPermissions: CompliancePermission[] = [];
+/* ============================================================
+   MOCK DATA
+   ============================================================ */
+
+const currentUserPermissions: CompliancePermission[] = [
+  "REQUEST_INFO",
+  "APPROVE_KYC",
+  "ESCALATE_CASE",
+];
 
 /* ============================================================
    HELPERS
@@ -1603,38 +1613,16 @@ const ComplianceAdmin: React.FC = () => {
             <div className="compliance-header">
               <div>
                 <p className="compliance-header__eyebrow">Welcome back</p>
-                <h1>Compliance &amp; Trust Operations</h1>
+                <h1>Compliance & Trust Operations</h1>
                 <p>
                   Central control for KYC reviews, fraud detection,
                   restrictions, responsible participation, and platform safety.
                 </p>
               </div>
               <div className="compliance-header__actions">
-                <span className="live-badge">
-                  <span className="live-badge__dot" />
-                  Live data
-                </span>
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    const blob = new Blob([JSON.stringify(cases, null, 2)], {
-                      type: "application/json",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `compliance-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Export Dashboard
-                </button>
-                <button
-                  className="btn btn-gradient"
-                  disabled
-                  title="Compliance Settings coming soon"
-                >
+                
+                
+                <button className="btn btn-gradient" disabled title="Compliance Settings coming soon">
                   Compliance Settings
                 </button>
               </div>
@@ -1672,8 +1660,13 @@ const ComplianceAdmin: React.FC = () => {
           onMutate={handleMutateCase}
         />
       )}
-      </div>
-    </AdminLayout>
+
+      <footer className="ga-footer">
+        <span>League OS Admin Console • All actions are logged and auditable</span>
+        <span>© 2026 League OS. All rights reserved.</span>
+      </footer>
+    </div>
+      </AdminLayout>
   );
 };
 

@@ -76,6 +76,9 @@ import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
+import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
+
+// import Personalize from "./pages/personalize/Personalize";
 
 function App() {
   return (
@@ -132,6 +135,10 @@ function App() {
 
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+
+       
+
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />
@@ -172,6 +179,8 @@ function App() {
 
         
       </Routes>
+
+      
     </Router>
   );
 }
