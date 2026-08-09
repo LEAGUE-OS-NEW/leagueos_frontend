@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FiMenu } from 'react-icons/fi';
+
 import SportFilter from './section/SportFilter';
 import CompetitionCard from './section/CompetitionCard';
 import PlayerRow from './section/PlayerRow';
@@ -1017,9 +1017,7 @@ const FantasyCompetitions: React.FC = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <header className="fh__topbar">
-        <button type="button" className="fh__menu-btn" aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
-          <FiMenu />
-        </button>
+        
         <div className="fh__brand">
           <span className="fh__brand-mark">FH</span>
           <div>
