@@ -7,7 +7,7 @@ function PlayerPhoto({ src, name }: { src?: string; name: string }) {
   return <img src={src ?? '/players/player-avatar.png'} alt={`${name} photo`} className="squad-card__photo" />;
 }
 
-function SquadTab({ clubSlug }: { clubSlug: string }) {
+function SquadTab({ clubSlug, playerBasePath = '/clubs' }: { clubSlug: string; playerBasePath?: string }) {
   const [squad, setSquad] = useState<Player[] | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ function SquadTab({ clubSlug }: { clubSlug: string }) {
   return (
     <div className="squad-grid">
       {squad.map((player) => (
-        <Link to={`/clubs/${clubSlug}/players/${player.id}`} className="squad-card" key={player.id}>
+        <Link to={`${playerBasePath}/${clubSlug}/players/${player.id}`} className="squad-card" key={player.id}>
           <PlayerPhoto src={player.photo} name={player.name} />
           <span className="squad-card__number">#{player.number}</span>
           <p className="squad-card__name">{player.name}</p>

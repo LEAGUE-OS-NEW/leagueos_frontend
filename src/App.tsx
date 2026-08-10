@@ -20,6 +20,12 @@ import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
 import MyPositions from './pages/fan/positions/MyPositions';
+import FanMembershipsPage from './pages/fan/memberships/FanMembershipsPage';
+import FanClubsPage from './pages/fan/clubs/FanClubsPage';
+import FanClubProfile from './pages/fan/clubs/FanClubProfile';
+import FanPlayerProfile from './pages/fan/clubs/FanPlayerProfile';
+import FanStorePage from './pages/fan/store/FanStorePage';
+import FanStoreCategoryPage from './pages/fan/store/FanStoreCategoryPage';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
@@ -116,6 +122,14 @@ function App() {
         <Route path="/settings" element={<FanSettings />} />
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
+        <Route path="/memberships" element={<FanMembershipsPage />} />
+        <Route path="/fan/clubs" element={<FanClubsPage />} />
+        <Route path="/fan/clubs/:clubSlug" element={<FanClubProfile />} />
+        <Route path="/fan/clubs/:clubSlug/players/:playerId" element={<FanPlayerProfile />} />
+        <Route path="/fan/store" element={<FanStorePage />} />
+        <Route path="/fan/store/category/:categorySlug" element={<FanStoreCategoryPage />} />
+        <Route path="/markets" element={<Markets />} />
+        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 
         {/* Authenticated fan markets/trading flow */}
 
