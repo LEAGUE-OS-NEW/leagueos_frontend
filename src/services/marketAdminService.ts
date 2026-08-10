@@ -9,18 +9,11 @@
 // swapping these bodies for real `apiClient` calls later is a drop-in
 // replacement, no component changes required.
 //
-// Self-publish separation of duties: the old backend blocked a Market
-// Approval Admin from approving a market they themselves created as a
-// Market Operations Admin (403, keyed on creator identity, not role). Now
-// that one role does both jobs, that same identity check is preserved here
-// as an instance-level rule — you can't publish a market you personally
-// drafted; a different Market Admin (or a Super Admin, who sits above the
-// separation-of-duties concern) has to do it. A thrown error carries
-// `.status = 403` so callers can distinguish this from any other failure,
-// matching the old contract exactly.
+// Creation and publishing are both handled by the merged Market Admin role —
+// no cross-check between two different admins. `createdBy` is kept purely
+// as an audit/display fact (who drafted this market), not as a publish gate.
 
 import { useAuthStore } from '../store/authStore.ts';
-import { getEntitlementsForDashboard } from '../utils/dashboardAccess.ts';
 
 export const MARKET_CATEGORIES = [
   'Football',
@@ -181,11 +174,6 @@ function seedFromId(id: string): number {
 export function currentAdminIdentity(): string {
   const user = useAuthStore.getState().user;
   return user?.full_name || user?.email || 'You';
-}
-
-function currentAdminIsSuperAdmin(): boolean {
-  const access = useAuthStore.getState().user?.dashboard_access;
-  return getEntitlementsForDashboard(access, 'SUPER_ADMIN').length > 0;
 }
 
 function priceFromProbability(probabilityPct: number): number {
@@ -536,12 +524,6 @@ export async function publishMarket(id: string): Promise<Market> {
   const market = findMarketOrThrow(id);
   if (market.status !== 'Draft') {
     fail(`${market.eventLabel} is already ${market.status.toLowerCase()} — only draft markets can be published.`);
-  }
-  if (market.createdBy === currentAdminIdentity() && !currentAdminIsSuperAdmin()) {
-    fail(
-      'You created this market. A different Market Admin (or a Super Admin) must publish it to keep creation and publishing separated.',
-      403,
-    );
   }
 
   market.status = deriveLifecycleStatus(market.parameters);

@@ -52,7 +52,6 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'Define outcomes and set trading parameters',
     'Review fan-submitted market proposals',
     'Publish markets so they appear on the landing page and Markets page',
-    'Cannot publish a market they personally created (a different Market Admin or Super Admin must)',
   ],
   RESULT_VERIFICATION_ADMIN: [
     'Verify real-world results against an official source',
