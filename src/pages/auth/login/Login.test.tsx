@@ -487,6 +487,62 @@ describe('Login page', () => {
   })
 
   it(
+    'falls back to role routing when the backend sends the legacy dashboard access contract',
+    async () => {
+      const user = userEvent.setup()
+
+      authMocks.login.mockResolvedValueOnce({
+        data: {
+          access: 'access-token',
+          refresh: 'refresh-token',
+          requires_email_verification: false,
+          user: {
+            email: 'admin@leagueos.com',
+            roles: ['Super Admin'],
+            permissions: [],
+            dashboard_access: {
+              entitlements: [
+                {
+                  role: 'Super Admin',
+                  dashboard_url: '/admin',
+                },
+              ],
+              default_entitlement: 'Super Admin',
+              default_route: '/admin',
+            },
+          },
+        },
+      })
+
+      renderLogin()
+
+      await user.type(
+        screen.getByPlaceholderText(
+          'Enter phone number, email, or username',
+        ),
+        'admin@leagueos.com',
+      )
+
+      await user.type(
+        screen.getByPlaceholderText('Enter your password'),
+        'Strong123!',
+      )
+
+      await user.click(
+        screen.getByRole('button', { name: /^log in$/i }),
+      )
+
+      await waitFor(() => {
+        expect(navigateMock).toHaveBeenCalledWith(
+          '/dashboard/admin',
+          { replace: true },
+        )
+      })
+    },
+    20000,
+  )
+
+  it(
     'fails closed when the authenticated response has no usable access',
     async () => {
       const user = userEvent.setup()

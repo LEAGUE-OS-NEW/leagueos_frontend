@@ -76,8 +76,25 @@ export const resetPassword = (payload: AuthPayload) =>
 
 export const fetchProfile = () => axiosInstance.get("/profile/");
 
-export const fetchCurrentUser = () =>
-  axiosInstance.get<AuthenticatedUser>("/auth/me/");
+export const fetchCurrentUser = async () => {
+  const response = await axiosInstance.get<
+    AuthenticatedUser | ApiEnvelope<{ user: AuthenticatedUser }>
+  >("/auth/me/");
+
+  const data = unwrapApiData<
+    AuthenticatedUser | { user: AuthenticatedUser }
+  >(response.data);
+
+  const user =
+    data && typeof data === "object" && "user" in data
+      ? data.user
+      : data;
+
+  return {
+    ...response,
+    data: user as AuthenticatedUser,
+  };
+};
 
 export const updateProfile = (payload: AuthPayload) =>
   axiosInstance.patch("/profile/", payload);
