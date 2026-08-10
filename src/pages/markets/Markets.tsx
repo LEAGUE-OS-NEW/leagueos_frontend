@@ -25,7 +25,10 @@ import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
-import { fetchContracts, fetchMarkets } from "../../services/marketAdminService.ts";
+import {
+  fetchContracts,
+  fetchPublishedMarkets,
+} from "../../services/marketAdminService.ts";
 import type { SportingEvent } from "../../types/api.ts";
 import "./Markets.css";
 
@@ -305,7 +308,7 @@ function Markets() {
     // Featured / Open / Closed / Trending come from markets an admin has
     // actually published — this is what makes "admin publishes -> fan sees
     // it" real rather than a hardcoded landing-page mock.
-    fetchMarkets()
+    fetchPublishedMarkets()
       .then(async (allMarkets) => {
         if (controller.signal.aborted) return;
         const visible = allMarkets.filter(

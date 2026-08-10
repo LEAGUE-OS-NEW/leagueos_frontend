@@ -4,7 +4,7 @@ import { FiAlertTriangle, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
 import {
-  fetchMarket,
+  fetchPublishedMarket,
   fetchOrderBook,
   type Market,
   type OrderBook,
@@ -53,7 +53,11 @@ function MarketDetailPage() {
   useEffect(() => {
     if (!marketId) return;
     let cancelled = false;
-    Promise.all([fetchMarket(marketId), fetchOrderBook(marketId), fetchMyPositions()])
+    Promise.all([
+      fetchPublishedMarket(marketId),
+      fetchOrderBook(marketId),
+      fetchMyPositions(),
+    ])
       .then(([marketResult, orderBookResult, positions]) => {
         if (cancelled) return;
         setMarket(marketResult);

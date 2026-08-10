@@ -858,6 +858,25 @@ export async function fetchPublishedMarkets(): Promise<Market[]> {
   }
 }
 
+export async function fetchPublishedMarket(
+  id: string,
+): Promise<Market> {
+  try {
+    const { data } =
+      await apiClient.get(
+        `/markets/${encodeURIComponent(id)}/`,
+      );
+
+    return mapBackendMarket(
+      unwrapApiData<AdminMarket>(
+        data,
+      ),
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
 export async function fetchFeaturedPublishedMarkets(
   limit = 5,
 ): Promise<Market[]> {
@@ -1488,8 +1507,13 @@ export async function fetchOrderBook(
   const market =
     mockMarket ??
     (
-      await fetchMarket(
+      await fetchPublishedMarket(
         marketId,
+      ).catch(
+        () =>
+          fetchMarket(
+            marketId,
+          ),
       )
     );
 
