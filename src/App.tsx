@@ -26,6 +26,7 @@ import FanClubProfile from './pages/fan/clubs/FanClubProfile';
 import FanPlayerProfile from './pages/fan/clubs/FanPlayerProfile';
 import FanStorePage from './pages/fan/store/FanStorePage';
 import FanStoreCategoryPage from './pages/fan/store/FanStoreCategoryPage';
+import FanTicketsPage from './pages/fan/tickets/FanTicketsPage';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
@@ -128,6 +129,7 @@ function App() {
         <Route path="/fan/clubs/:clubSlug/players/:playerId" element={<FanPlayerProfile />} />
         <Route path="/fan/store" element={<FanStorePage />} />
         <Route path="/fan/store/category/:categorySlug" element={<FanStoreCategoryPage />} />
+        <Route path="/fan/tickets" element={<FanTicketsPage />} />
         <Route path="/markets" element={<Markets />} />
         <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 

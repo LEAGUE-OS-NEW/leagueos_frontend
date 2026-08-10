@@ -21,7 +21,7 @@ const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'Markets', route: '/fan/markets', icon: <FiTrendingUp /> },
   { label: 'Fantasy', route: '/fan/fantasy', icon: <GiTrophyCup /> },
   { label: 'Clubs', route: '/fan/clubs', icon: <FiShield /> },
-  { label: 'Tickets', route: '/tickets', icon: <FiTag /> },
+  { label: 'Tickets', route: '/fan/tickets', icon: <FiTag /> },
   { label: 'Memberships', route: '/memberships', icon: <FiAward /> },
   { label: 'Store', route: '/fan/store', icon: <FiShoppingCart /> },
   { label: 'News', route: '/news', icon: <FiFileText /> },
