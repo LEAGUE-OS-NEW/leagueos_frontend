@@ -101,6 +101,10 @@
   color: var(--color-sport-basketball);
 }
 
+.stat-card-icon-gold {
+  color: #f59e0b;
+}
+
 .stat-card-value {
   margin: 0 0 10px;
   font-size: 1.5rem;

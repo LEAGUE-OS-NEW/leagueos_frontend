@@ -265,7 +265,6 @@ function FanVerification() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('verified');
     } else if (isPending) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('pending');
     }
   }, [goToStep, isEligible, isPending, setIdentityVerified]);

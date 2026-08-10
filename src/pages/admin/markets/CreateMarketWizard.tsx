@@ -7,6 +7,7 @@ import {
   convertProposalToDraft,
   createMarketDraft,
   MARKET_CATEGORIES,
+
   publishMarket,
   setParameters as saveParameters,
   updateOutcomes,
@@ -317,13 +318,14 @@ function CreateMarketWizard() {
                       ))}
                     </select>
                   </label>
+                 
                   <label className="wiz-field">
                     <span>Competition</span>
                     <input
                       type="text"
                       value={details.competition}
                       onChange={(event) => setDetails((current) => ({ ...current, competition: event.target.value }))}
-                      placeholder="StarTimes Uganda Premier League"
+                      placeholder="Uganda Premier League"
                     />
                   </label>
                   <label className="wiz-field">
@@ -332,7 +334,7 @@ function CreateMarketWizard() {
                       type="text"
                       value={details.venue}
                       onChange={(event) => setDetails((current) => ({ ...current, venue: event.target.value }))}
-                      placeholder="St. Mary's Stadium, Kitende"
+                      placeholder="Mandela National Stadium"
                     />
                   </label>
                   <label className="wiz-field">
@@ -378,6 +380,7 @@ function CreateMarketWizard() {
                     placeholder="Resolves YES if Vipers SC win in regulation time."
                   />
                 </label>
+
               </div>
             )}
 

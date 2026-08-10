@@ -1,0 +1,35 @@
+.fpp-content {
+  z-index: 1;
+  --text-secondary: #b8bfd8;
+  --text-muted: #7d84a3;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --gradient-brand: linear-gradient(135deg, #6d5efc 0%, #9d7bff 100%);
+}
+
+.fpp-back {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.15s ease;
+}
+
+.fpp-back:hover {
+  color: var(--color-text-primary);
+}
+
+/* Lift all player-profile elements above the fan-dashboard-content::before overlay */
+.fpp-content .player-profile-header,
+.fpp-content .club-profile-panel,
+.fpp-content .club-profile-status,
+.fpp-content .profile-empty-state {
+  position: relative;
+  z-index: 1;
+}

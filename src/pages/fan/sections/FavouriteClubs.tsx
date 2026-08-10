@@ -25,7 +25,7 @@ function FavouriteClubs() {
     <div className="favourite-clubs dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Favourite Clubs</h2>
-        <Link to="/clubs" className="dashboard-card-link">
+        <Link to="/fan/clubs" className="dashboard-card-link">
           View all
         </Link>
       </div>
@@ -35,7 +35,7 @@ function FavouriteClubs() {
       ) : error ? (
         <DashboardNotice tone="error" title="Couldn't load your clubs" message={error} onRetry={retry} />
       ) : clubs && clubs.length === 0 ? (
-        <DashboardNotice tone="empty" title="No clubs followed yet" message="Follow a club to see it here." actionLabel="Browse clubs" actionTo="/clubs" />
+        <DashboardNotice tone="empty" title="No clubs followed yet" message="Follow a club to see it here." actionLabel="Browse clubs" actionTo="/fan/clubs" />
       ) : (
         <ul className="dashboard-club-list">
           {(clubs ?? []).map((club) => (
