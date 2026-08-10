@@ -8,6 +8,7 @@ import { formatUgx } from '../../../utils/rules.ts';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanTradeWallet.css';
+import { MARKET_FACE_VALUE_UGX } from '../../../utils/marketPricing.ts';
 
 const PERCENT_PRESETS = [25, 50, 75, 100];
 
@@ -57,7 +58,7 @@ function SellPosition({ position = SAMPLE_POSITION }: { position?: SellPositionD
     return PERCENT_PRESETS.find((preset) => Math.round(pct) === preset) ?? null;
   }, [numericContracts, position.contractsOwned]);
 
-  const youWillReceive = numericContracts * position.currentPrice * 10_000;
+  const youWillReceive = numericContracts * position.currentPrice * MARKET_FACE_VALUE_UGX;
 
   const applyPreset = (pct: number) => {
     const next = Math.round((position.contractsOwned * pct) / 100);

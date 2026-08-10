@@ -26,6 +26,9 @@ import type {
   SportingEvent,
   SportResource,
 } from '../types/api.ts';
+import {
+  probabilityPctToUgxSharePrice,
+} from '../utils/marketPricing.ts';
 
 
 export const MARKET_CATEGORIES = [
@@ -57,7 +60,7 @@ export interface Outcome {
   label: string;
   description: string;
   probabilityPct: number;
-  /** UGX — price = implied probability x UGX 10,000 (see the contract explainer). */
+  /** UGX/share — winning share settles at UGX 1,000 (see the contract explainer). */
   price: number;
 }
 
@@ -263,7 +266,7 @@ function mapBackendMarket(
         backend?.description || '',
 
       probabilityPct: 50,
-      price: 5000,
+      price: probabilityPctToUgxSharePrice(50),
     };
   };
 
@@ -569,7 +572,7 @@ export function currentAdminIdentity(): string {
 }
 
 function priceFromProbability(probabilityPct: number): number {
-  return Math.round(probabilityPct * 100);
+  return probabilityPctToUgxSharePrice(probabilityPct);
 }
 
 function defaultOutcomes(): Outcome[] {
@@ -709,7 +712,7 @@ const markets: Market[] = [
     winningOutcomeId: 'YES',
     resolvedAt: hoursFromNow(-45),
     outcomes: [
-      { id: 'YES', label: 'Yes', description: 'Uganda Cranes win', probabilityPct: 100, price: 10_000 },
+      { id: 'YES', label: 'Yes', description: 'Uganda Cranes win', probabilityPct: 100, price: probabilityPctToUgxSharePrice(100) },
       { id: 'NO', label: 'No', description: 'Draw or Tanzania win', probabilityPct: 0, price: 0 },
     ],
   }),

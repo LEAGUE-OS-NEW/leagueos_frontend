@@ -24,6 +24,10 @@ import Navbar from "../../components/landing/Navbar";
 import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
+import {
+  MARKET_FACE_VALUE_UGX,
+  formatMarketSharePrice,
+} from "../../utils/marketPricing.ts";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
 import {
   fetchContracts,
@@ -205,8 +209,15 @@ function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string
 }
 
 function formatUgxVolume(amount: number): string {
-  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
-  return `UGX ${Math.round(amount / 1000)}K`;
+  if (amount >= 1_000_000) {
+    return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (amount >= 1_000) {
+    return `UGX ${(amount / 1_000).toFixed(1)}K`;
+  }
+
+  return `UGX ${Math.round(amount).toLocaleString("en-UG")}`;
 }
 
 function CrestPlaceholder() {
@@ -343,8 +354,17 @@ function Markets() {
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
               status: "OPEN",
               probabilityPct: yes.probabilityPct,
-              yesPrice: `${yes.probabilityPct}¢`,
-              noPrice: `${100 - yes.probabilityPct}¢`,
+              yesPrice: formatMarketSharePrice(yes.price),
+              noPrice: formatMarketSharePrice(
+                market.outcomes.find(
+                  (outcome) =>
+                    outcome.id === "NO",
+                )?.price ??
+                  (
+                    MARKET_FACE_VALUE_UGX -
+                    yes.price
+                  ),
+              ),
               ...statsFor(market.id),
             };
           }),
@@ -358,8 +378,17 @@ function Markets() {
               sport: market.category as Sport,
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              yesPrice: `${yes.probabilityPct}¢`,
-              noPrice: `${100 - yes.probabilityPct}¢`,
+              yesPrice: formatMarketSharePrice(yes.price),
+              noPrice: formatMarketSharePrice(
+                market.outcomes.find(
+                  (outcome) =>
+                    outcome.id === "NO",
+                )?.price ??
+                  (
+                    MARKET_FACE_VALUE_UGX -
+                    yes.price
+                  ),
+              ),
               volume: statsFor(market.id).volume,
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
             };
@@ -524,7 +553,7 @@ function Markets() {
                   Explore trending questions. Trade your view.
                   <InfoTooltip
                     label="How prices work"
-                    text="A YES price of 67¢ means the market currently sees a 67% chance of YES. Prices move as more people trade."
+                    text="A YES probability of 67% is UGX 670/share. A winning share settles at UGX 1,000. Prices move as people trade."
                   />
                   <InfoTooltip
                     label="What volume means"
@@ -658,7 +687,7 @@ function Markets() {
                       No
                       <InfoTooltip
                         label="What the NO price means"
-                        text="What it costs to buy a NO share — always 100¢ minus the YES price."
+                        text="What it costs to buy a NO share — the YES and NO prices together equal UGX 1,000/share."
                       />
                     </span>
                     <span>

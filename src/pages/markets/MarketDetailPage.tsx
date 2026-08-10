@@ -158,12 +158,12 @@ function MarketDetailPage() {
         <div className="pmd-outcomes">
           <div className="pmd-outcome-card pmd-outcome-card--yes">
             <span className="pmd-outcome-card__label">{yesOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(yesOutcome.price)}</span>
+            <span className="pmd-outcome-card__price">{formatUgx(yesOutcome.price)}/share</span>
             <span className="pmd-outcome-card__pct">{yesOutcome.probabilityPct}% likely</span>
           </div>
           <div className="pmd-outcome-card pmd-outcome-card--no">
             <span className="pmd-outcome-card__label">{noOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(noOutcome.price)}</span>
+            <span className="pmd-outcome-card__price">{formatUgx(noOutcome.price)}/share</span>
             <span className="pmd-outcome-card__pct">{noOutcome.probabilityPct}% likely</span>
           </div>
         </div>
@@ -240,14 +240,14 @@ function MarketDetailPage() {
                 className={`pmd-outcome-choice pmd-outcome-choice--yes${selectedOutcome === 'YES' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('YES')}
               >
-                {yesOutcome.label} &middot; {formatUgx(yesOutcome.price)}
+                {yesOutcome.label} &middot; {formatUgx(yesOutcome.price)}/share
               </button>
               <button
                 type="button"
                 className={`pmd-outcome-choice pmd-outcome-choice--no${selectedOutcome === 'NO' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('NO')}
               >
-                {noOutcome.label} &middot; {formatUgx(noOutcome.price)}
+                {noOutcome.label} &middot; {formatUgx(noOutcome.price)}/share
               </button>
             </div>
             <label className="pmd-field">
