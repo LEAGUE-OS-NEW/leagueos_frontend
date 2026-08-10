@@ -82,7 +82,7 @@ function MarketDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const [actionError, setActionError] = useState<string | null>(null);
-  const [publishNotice, setPublishNotice] = useState<{ kind: 'published' | 'blocked'; message?: string } | null>(null);
+  const [publishNotice, setPublishNotice] = useState<{ kind: 'published' } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -133,12 +133,7 @@ function MarketDetailPage() {
       applyMarket(updated);
       setPublishNotice({ kind: 'published' });
     } catch (error) {
-      const status = error instanceof Error && 'status' in error ? (error as Error & { status?: number }).status : undefined;
-      if (status === 403) {
-        setPublishNotice({ kind: 'blocked', message: error instanceof Error ? error.message : undefined });
-      } else {
-        setActionError(error instanceof Error ? error.message : 'Could not publish this market.');
-      }
+      setActionError(error instanceof Error ? error.message : 'Could not publish this market.');
     } finally {
       setIsSaving(false);
     }
@@ -241,13 +236,9 @@ function MarketDetailPage() {
         )}
 
         {publishNotice && (
-          <div className={`mdp-notice mdp-notice--${publishNotice.kind}`}>
+          <div className="mdp-notice mdp-notice--published">
             <FiShield aria-hidden="true" />
-            {publishNotice.kind === 'published' ? (
-              <span>Published — this market is now visible to fans.</span>
-            ) : (
-              <span>{publishNotice.message ?? 'A different Market Admin must publish this market.'}</span>
-            )}
+            <span>Published — this market is now visible to fans.</span>
           </div>
         )}
 
