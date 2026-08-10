@@ -50,8 +50,8 @@ const openMarket: Market = {
   description: "",
   tags: [],
   outcomes: [
-    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 5500 },
-    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 4500 },
+    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 550 },
+    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 450 },
   ],
   parameters: {
     opensAt: "2026-08-01T00:00:00Z",

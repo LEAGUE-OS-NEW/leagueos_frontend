@@ -3,6 +3,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiTrendingUp } from 'react-icons/fi';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { formatUgx } from '../../../utils/rules.ts';
+import {
+  MARKET_FACE_VALUE_UGX,
+  formatMarketSharePrice,
+} from '../../../utils/marketPricing.ts';
 import { fetchMarket } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
@@ -17,7 +21,8 @@ import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanMarketDetail.css';
 
-const PLATFORM_PAYOUT_PER_CONTRACT = 10_000; // UGX per winning share — see marketAdminService.sellContract/resolveMarket
+const PLATFORM_PAYOUT_PER_CONTRACT =
+  MARKET_FACE_VALUE_UGX;
 
 interface TradeNavState {
   outcomeId?: OutcomeId;
@@ -201,7 +206,7 @@ function PlaceOrder() {
                   <div>
                     <span>Current {outcome.label} Price</span>
                     <b>
-                      UGX {price.toLocaleString()} <FiTrendingUp className="up" />{' '}
+                      {formatMarketSharePrice(price)} <FiTrendingUp className="up" />{' '}
                       <span className="up">{outcome.probabilityPct}% probability</span>
                     </b>
                   </div>

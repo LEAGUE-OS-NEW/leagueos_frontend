@@ -11,6 +11,7 @@ import { formatUgx } from '../../../utils/rules.ts';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanTradeWallet.css';
+import { MARKET_FACE_VALUE_UGX } from '../../../utils/marketPricing.ts';
 
 type PriceRange = '1H' | '6H' | '1D' | '1W' | 'ALL';
 
@@ -71,8 +72,8 @@ function PositionDetail({ position = SAMPLE_POSITION }: { position?: PositionDet
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [range, setRange] = useState<PriceRange>('1D');
 
-  const currentValue = position.contracts * position.currentPrice * 10_000;
-  const costBasis = position.contracts * position.averagePrice * 10_000;
+  const currentValue = position.contracts * position.currentPrice * MARKET_FACE_VALUE_UGX;
+  const costBasis = position.contracts * position.averagePrice * MARKET_FACE_VALUE_UGX;
   const pnl = currentValue - costBasis;
   const pnlPct = costBasis === 0 ? 0 : (pnl / costBasis) * 100;
   const isProfit = pnl >= 0;
