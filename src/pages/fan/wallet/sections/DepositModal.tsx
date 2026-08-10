@@ -48,6 +48,7 @@ function DepositModal({ onClose, onSuccess }: DepositModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [confirmOwner, setConfirmOwner] = useState(false);
 
   const idempotencyKeyRef = useRef(generateIdempotencyKey());
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +126,10 @@ function DepositModal({ onClose, onSuccess }: DepositModalProps) {
 
   async function handleSubmitDeposit() {
     if (!method) return;
+    if (!confirmOwner) {
+      setSubmitError('Please confirm you are the account owner before starting this deposit.');
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError('');
     try {
@@ -165,6 +170,7 @@ function DepositModal({ onClose, onSuccess }: DepositModalProps) {
     setPhoneNumber('');
     setFormError('');
     setSubmitError('');
+    setConfirmOwner(false);
     setStep('method');
   }
 
@@ -306,6 +312,14 @@ function DepositModal({ onClose, onSuccess }: DepositModalProps) {
                   </div>
                 )}
               </dl>
+              <label className="deposit-field deposit-field--checkbox">
+                <input
+                  type="checkbox"
+                  checked={confirmOwner}
+                  onChange={(event) => setConfirmOwner(event.target.checked)}
+                />
+                I confirm I am the account owner and authorize this deposit.
+              </label>
               {submitError && <p className="deposit-error">{submitError}</p>}
             </div>
           )}
@@ -374,7 +388,7 @@ function DepositModal({ onClose, onSuccess }: DepositModalProps) {
             <button
               type="button"
               className="deposit-btn deposit-btn--primary"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !confirmOwner}
               onClick={() => void handleSubmitDeposit()}
             >
               {isSubmitting ? 'Starting deposit…' : 'Confirm Deposit'}

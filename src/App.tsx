@@ -23,6 +23,25 @@ import MyPositions from './pages/fan/positions/MyPositions';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
+// NOTE: these four already exist in src/pages/fan/markets/ (see the report
+// on that folder) but were never imported/routed. Adjust the path below if
+// they actually live somewhere else in the tree.
+import FanMarkets from './pages/fan/markets/FanMarkets';
+import MarketDetailOverview from './pages/fan/markets/MarketDetailOverview';
+import MarketDetailChart from './pages/fan/markets/MarketDetailChart';
+import PlaceOrder from './pages/fan/markets/PlaceOrder';
+import ReviewOrder from './pages/fan/markets/ReviewOrder';
+import OrderPlaced from './pages/fan/markets/OrderPlaced';
+// NOTE: same story for these three — PositionDetail/SellPosition/
+// SellConfirmation reference '../markets/Markets.css' via relative import,
+// which implies they sit in src/pages/fan/positions/ alongside MyPositions.
+import PositionDetail from './pages/fan/markets/PositionDetail';
+import SellPosition from './pages/fan/markets/SellPosition';
+import SellConfirmation from './pages/fan/markets/SellConfirmation';
+// Rich landing page verified fans are redirected to after completing
+// identity verification — wallet snapshot, live markets, categories, and
+// an open-positions summary in one place.
+import FanTradeHub from './pages/fan/markets/FanTradeHub';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
@@ -57,6 +76,9 @@ import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
+import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
+
+// import Personalize from "./pages/personalize/Personalize";
 
 function App() {
   return (
@@ -80,21 +102,43 @@ function App() {
         <Route path="/fixtures" element={<FixturesPage />} />
         <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
+        {/* Public marketing markets pages — logged-out browse, no trading */}
+        <Route path="/markets" element={<Markets />} />
+        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
+
           {/* Fan Section*/ }
-         <Route path="/fan/onboarding" element={<FanOnboarding />}/>
-               <Route path="/dashboard/fan" element={<FanDashboard />} />
-        <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
+        <Route path="/fan/onboarding" element={<FanOnboarding />}/>
+        <Route path="/fan" element={<FanDashboard />} />
+        <Route path="/dashboard/fan" element={<Navigate to="/fan" replace />} />
+        <Route path="/fandashboard" element={<Navigate to="/fan" replace />} />
         <Route path="/profile" element={<FanProfile />} />
         <Route path="/settings" element={<FanSettings />} />
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
-        <Route path="/markets" element={<Markets />} />
-        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 
+        {/* Authenticated fan markets/trading flow */}
+
+        <Route path="/fan/markets" element={<FanMarkets />} />
+        <Route path="/fan/markets/:marketId" element={<MarketDetailOverview />} />
+        <Route path="/fan/markets/:marketId/chart" element={<MarketDetailChart />} />
+        <Route path="/fan/markets/:marketId/trade" element={<PlaceOrder />} />
+        <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
+        <Route path="/fan/markets/:marketId/placed" element={<OrderPlaced />} />
         <Route path="/fan/verify" element={<FanVerification />} />
+        {/* Rich full-access trading hub — where newly verified fans land */}
+        <Route path="/fan/trade" element={<FanTradeHub />} />
+
+        {/* Positions / sell flow */}
+        <Route path="/fan/positions/:positionId" element={<PositionDetail />} />
+        <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
+        <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
 
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+
+       
+
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />
@@ -135,6 +179,8 @@ function App() {
 
         
       </Routes>
+
+      
     </Router>
   );
 }

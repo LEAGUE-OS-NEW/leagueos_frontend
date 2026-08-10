@@ -1,139 +1,44 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../../components/admin/AdminLayout";
 import "./FinanceAdmin.css";
 
+import type {
+  BatchStatus,
+  Severity,
+  AuditEvent,
+  ReconciliationBatch,
+  DepositBatch,
+  WithdrawalBatch,
+  SettlementBatch,
+  RefundRequest,
+  ClubCommerceRecord,
+  ReconciliationException,
+  FundSegregationSummary,
+  ExportRecord,
+  SettlableQueue,
+} from "./FinanceService";
+
+import {
+  nowStamp,
+  uid,
+  ANALYSTS,
+  formatExceptionSource,
+  getDeposits,
+  getWithdrawals,
+  getSettlements,
+  getRefunds,
+  getClubs,
+  getExceptions,
+  getAuditFeed,
+  getExportHistory,
+} from "./FinanceService";
+
 /* ============================================================================
-   TYPES
+   UI-ONLY TYPES
+   (tab keys are a display concern, not part of the data layer)
    ========================================================================= */
 
-type BatchStatus = "Matched" | "Mismatched" | "Pending" | "Under Review";
 type QueueKey = "deposits" | "withdrawals" | "settlements" | "refunds" | "clubs";
-type Severity = "Low" | "Medium" | "High" | "Critical";
-type ExceptionStatus = "Open" | "Investigating" | "Escalated" | "Resolved";
-type RefundApprovalStatus =
-  | "Requested"
-  | "Reviewed"
-  | "Awaiting Second Approval"
-  | "Approved"
-  | "Rejected"
-  | "Processed";
-
-interface AuditEvent {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  note?: string;
-}
-
-interface SourceReferences {
-  flutterwaveRef?: string;
-  mtnMomoRef?: string;
-  airtelMoneyRef?: string;
-  internalLedgerRef: string;
-  bankSettlementRef?: string;
-}
-
-interface LineItem {
-  id: string;
-  reference: string;
-  description: string;
-  amount: number;
-  timestamp: string;
-}
-
-interface ReconciliationBatch {
-  id: string;
-  provider: string;
-  settlementWindow: string;
-  currency: string;
-  status: BatchStatus;
-  createdAt: string;
-  closedAt?: string;
-  sourceReferences: SourceReferences;
-  lineItems: LineItem[];
-  auditHistory: AuditEvent[];
-}
-
-interface DepositBatch extends ReconciliationBatch {
-  batchId: string;
-  providerTotal: number;
-  ledgerTotal: number;
-  difference: number;
-}
-
-interface WithdrawalBatch extends ReconciliationBatch {
-  withdrawalBatch: string;
-  requestedAmount: number;
-  paidAmount: number;
-  providerReference: string;
-  difference: number;
-}
-
-interface SettlementBatch extends ReconciliationBatch {
-  settlementId: string;
-  market: string;
-  grossSettled: number;
-  fees: number;
-  netSettled: number;
-  ledgerPosted: number;
-  difference: number;
-}
-
-interface RefundRequest {
-  refundId: string;
-  originalTransaction: string;
-  customer: string;
-  amount: number;
-  reason: string;
-  requestedBy: string;
-  approvalStatus: RefundApprovalStatus;
-  step1ApprovedBy?: string;
-  step2ApprovedBy?: string;
-  rejectionReason?: string;
-  createdAt: string;
-}
-
-interface ClubCommerceRecord {
-  club: string;
-  ticketRevenue: number;
-  merchandiseRevenue: number;
-  membershipRevenue: number;
-  feesDeducted: number;
-  netClubFunds: number;
-  settlementStatus: BatchStatus;
-}
-
-interface ReconciliationException {
-  id: string;
-  sourceType: string;
-  expectedAmount: number;
-  actualAmount: number;
-  difference: number;
-  severity: Severity;
-  assignedAnalyst: string | null;
-  status: ExceptionStatus;
-}
-
-interface FundSegregationLine {
-  label: string;
-  amount: number;
-}
-
-interface FundSegregationSummary {
-  category: string;
-  lines: FundSegregationLine[];
-  subtotal: number;
-}
-
-interface ExportRecord {
-  reportType: string;
-  dateRange: string;
-  generatedBy: string;
-  lastGenerated: string;
-}
 
 /* ============================================================================
    HELPERS
@@ -146,149 +51,9 @@ const formatUGX = (value: number): string => {
   })}`;
 };
 
-const nowStamp = (): string =>
-  new Date().toISOString().replace("T", " ").slice(0, 19);
-
-const uid = (prefix: string): string =>
-  `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-const ANALYSTS = ["Finance Analyst", "Senior Finance Officer", "Finance Manager"];
-
 /* ============================================================================
-   MOCK DATA
+   STATIC REFERENCE DATA (report presentation config, not fetched)
    ========================================================================= */
-
-const mockLineItems = (count: number, prefix: string): LineItem[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `${prefix}-LI-${i + 1}`,
-    reference: uid("TXN"),
-    description: i % 3 === 0 ? "Wallet top-up" : i % 3 === 1 ? "Ticket purchase" : "Withdrawal payout",
-    amount: Math.round((Math.random() * 500000 + 5000) / 100) * 100,
-    timestamp: nowStamp(),
-  }));
-
-const mockAudit = (batchId: string): AuditEvent[] => [
-  { id: uid("AUD"), timestamp: "2025-08-01 06:02:11", user: "System", action: "Batch imported", entityType: "Batch", entityId: batchId },
-  { id: uid("AUD"), timestamp: "2025-08-01 06:03:44", user: "System", action: "Reconciliation executed", entityType: "Batch", entityId: batchId },
-  { id: uid("AUD"), timestamp: "2025-08-01 06:04:02", user: "System", action: "Mismatch detected", entityType: "Batch", entityId: batchId, note: "Variance above tolerance" },
-];
-
-const mockSourceRefs = (): SourceReferences => ({
-  flutterwaveRef: `FLW-${Math.floor(Math.random() * 900000 + 100000)}`,
-  mtnMomoRef: `MTN-${Math.floor(Math.random() * 900000 + 100000)}`,
-  airtelMoneyRef: `AIRTEL-${Math.floor(Math.random() * 900000 + 100000)}`,
-  internalLedgerRef: `LEDGER-${Math.floor(Math.random() * 900000 + 100000)}`,
-  bankSettlementRef: `BANK-${Math.floor(Math.random() * 900000 + 100000)}`,
-});
-
-const depositProviders = ["MTN", "Airtel", "Flutterwave", "Bank"];
-
-const buildDeposits = (): DepositBatch[] =>
-  Array.from({ length: 8 }, (_, i) => {
-    const providerTotal = Math.round((Math.random() * 12_000_000 + 2_000_000) / 1000) * 1000;
-    const skew = i % 4 === 0 ? Math.round(Math.random() * 150_000) : 0;
-    const ledgerTotal = providerTotal - skew;
-    const id = `DEP-${1000 + i}`;
-    return {
-      id,
-      batchId: id,
-      provider: depositProviders[i % depositProviders.length],
-      providerTotal,
-      ledgerTotal,
-      difference: providerTotal - ledgerTotal,
-      status: skew > 0 ? "Mismatched" : i % 5 === 0 ? "Under Review" : "Matched",
-      createdAt: `2025-08-0${(i % 9) + 1} 05:${10 + i}:00`,
-      closedAt: skew === 0 ? `2025-08-0${(i % 9) + 1} 07:00:00` : undefined,
-      settlementWindow: "00:00 - 06:00 EAT",
-      currency: "UGX",
-      sourceReferences: mockSourceRefs(),
-      lineItems: mockLineItems(6, id),
-      auditHistory: mockAudit(id),
-    };
-  });
-
-const buildWithdrawals = (): WithdrawalBatch[] =>
-  Array.from({ length: 6 }, (_, i) => {
-    const requestedAmount = Math.round((Math.random() * 8_000_000 + 1_000_000) / 1000) * 1000;
-    const skew = i % 3 === 0 ? Math.round(Math.random() * 80_000) : 0;
-    const paidAmount = requestedAmount - skew;
-    const id = `WD-${2000 + i}`;
-    return {
-      id,
-      withdrawalBatch: id,
-      provider: depositProviders[(i + 1) % depositProviders.length],
-      requestedAmount,
-      paidAmount,
-      providerReference: uid("PRV"),
-      difference: requestedAmount - paidAmount,
-      status: skew > 0 ? "Mismatched" : i % 4 === 0 ? "Pending" : "Matched",
-      createdAt: `2025-08-0${(i % 9) + 1} 09:${5 + i}:00`,
-      settlementWindow: "06:00 - 12:00 EAT",
-      currency: "UGX",
-      sourceReferences: mockSourceRefs(),
-      lineItems: mockLineItems(5, id),
-      auditHistory: mockAudit(id),
-    };
-  });
-
-const markets = ["Premier League Weekend", "UPL Matchday 12", "CAF Qualifiers", "Uganda Cup Round 3"];
-
-const buildSettlements = (): SettlementBatch[] =>
-  Array.from({ length: 5 }, (_, i) => {
-    const grossSettled = Math.round((Math.random() * 20_000_000 + 5_000_000) / 1000) * 1000;
-    const fees = Math.round(grossSettled * 0.045);
-    const netSettled = grossSettled - fees;
-    const skew = i % 3 === 1 ? Math.round(Math.random() * 60_000) : 0;
-    const ledgerPosted = netSettled - skew;
-    const id = `SET-${3000 + i}`;
-    return {
-      id,
-      settlementId: id,
-      provider: "Market Engine",
-      market: markets[i % markets.length],
-      grossSettled,
-      fees,
-      netSettled,
-      ledgerPosted,
-      difference: netSettled - ledgerPosted,
-      status: skew > 0 ? "Mismatched" : "Matched",
-      createdAt: `2025-08-0${(i % 9) + 1} 20:00:00`,
-      settlementWindow: "Post-match settlement",
-      currency: "UGX",
-      sourceReferences: mockSourceRefs(),
-      lineItems: mockLineItems(7, id),
-      auditHistory: mockAudit(id),
-    };
-  });
-
-const mockRefunds: RefundRequest[] = [
-  { refundId: "RFD-5001", originalTransaction: "TXN-88213", customer: "A. Nakato", amount: 45000, reason: "Duplicate ticket charge", requestedBy: "Support Agent", approvalStatus: "Requested", createdAt: "2025-08-01 08:12:00" },
-  { refundId: "RFD-5002", originalTransaction: "TXN-88477", customer: "J. Okello", amount: 120000, reason: "Cancelled market", requestedBy: "Support Agent", approvalStatus: "Reviewed", step1ApprovedBy: "Finance Analyst", createdAt: "2025-08-01 09:44:00" },
-  { refundId: "RFD-5003", originalTransaction: "TXN-88602", customer: "M. Kintu", amount: 310000, reason: "Failed withdrawal, funds not received", requestedBy: "Finance Analyst", approvalStatus: "Awaiting Second Approval", step1ApprovedBy: "Finance Analyst", createdAt: "2025-08-02 10:02:00" },
-  { refundId: "RFD-5004", originalTransaction: "TXN-88910", customer: "R. Byamukama", amount: 75000, reason: "Overcharged fee", requestedBy: "Support Agent", approvalStatus: "Approved", step1ApprovedBy: "Finance Analyst", step2ApprovedBy: "Finance Manager", createdAt: "2025-08-02 11:20:00" },
-  { refundId: "RFD-5005", originalTransaction: "TXN-89044", customer: "P. Adroa", amount: 20000, reason: "Suspected fraud", requestedBy: "Risk Team", approvalStatus: "Rejected", rejectionReason: "Confirmed legitimate charge", createdAt: "2025-08-02 12:00:00" },
-];
-
-const mockClubCommerce: ClubCommerceRecord[] = [
-  { club: "Kampala Sharks FC", ticketRevenue: 8_400_000, merchandiseRevenue: 1_250_000, membershipRevenue: 620_000, feesDeducted: 430_000, netClubFunds: 9_840_000, settlementStatus: "Matched" },
-  { club: "Nile Rangers", ticketRevenue: 5_100_000, merchandiseRevenue: 740_000, membershipRevenue: 310_000, feesDeducted: 260_000, netClubFunds: 5_890_000, settlementStatus: "Pending" },
-  { club: "Entebbe United", ticketRevenue: 3_950_000, merchandiseRevenue: 410_000, membershipRevenue: 180_000, feesDeducted: 195_000, netClubFunds: 4_345_000, settlementStatus: "Under Review" },
-  { club: "Jinja Falls SC", ticketRevenue: 6_700_000, merchandiseRevenue: 980_000, membershipRevenue: 505_000, feesDeducted: 340_000, netClubFunds: 7_845_000, settlementStatus: "Matched" },
-];
-
-const mockExceptionsInit: ReconciliationException[] = [
-  { id: "EXC-9001", sourceType: "MTN Deposit Batch DEP-1000", expectedAmount: 4_820_000, actualAmount: 4_670_000, difference: 150_000, severity: "High", assignedAnalyst: null, status: "Open" },
-  { id: "EXC-9002", sourceType: "Withdrawal Batch WD-2000", expectedAmount: 1_940_000, actualAmount: 1_860_000, difference: 80_000, severity: "Medium", assignedAnalyst: "Finance Analyst", status: "Investigating" },
-  { id: "EXC-9003", sourceType: "Settlement SET-3001", expectedAmount: 12_400_000, actualAmount: 12_340_000, difference: 60_000, severity: "Low", assignedAnalyst: null, status: "Open" },
-  { id: "EXC-9004", sourceType: "Flutterwave Deposit Batch DEP-1004", expectedAmount: 9_100_000, actualAmount: 8_640_000, difference: 460_000, severity: "Critical", assignedAnalyst: "Finance Manager", status: "Escalated" },
-];
-
-const mockAuditFeedInit: AuditEvent[] = [
-  { id: uid("AUD"), timestamp: "2025-08-02 07:15:03", user: "Finance Analyst", action: "Assigned exception", entityType: "Exception", entityId: "EXC-9002" },
-  { id: uid("AUD"), timestamp: "2025-08-02 08:02:41", user: "Finance Manager", action: "Escalated for review", entityType: "Exception", entityId: "EXC-9004" },
-  { id: uid("AUD"), timestamp: "2025-08-02 09:30:12", user: "Finance Analyst", action: "Approved Step 1", entityType: "Refund", entityId: "RFD-5002" },
-  { id: uid("AUD"), timestamp: "2025-08-02 11:22:55", user: "Finance Manager", action: "Approved Step 2", entityType: "Refund", entityId: "RFD-5004" },
-];
 
 const fundSegregation: FundSegregationSummary[] = [
   {
@@ -338,10 +103,22 @@ const fundSegregation: FundSegregationSummary[] = [
   },
 ];
 
-const initialExports: ExportRecord[] = [
-  { reportType: "Daily Reconciliation Report", dateRange: "2025-08-01 → 2025-08-02", generatedBy: "Finance Analyst", lastGenerated: "2025-08-02 06:00:00" },
-  { reportType: "Settlement Report", dateRange: "2025-08-01 → 2025-08-02", generatedBy: "Senior Finance Officer", lastGenerated: "2025-08-01 21:15:00" },
-];
+/* Human-readable entity labels for audit entries, keyed by settleable queue. */
+const QUEUE_ENTITY_LABELS: Record<SettlableQueue, string> = {
+  deposits: "Deposit Batch",
+  withdrawals: "Withdrawal Batch",
+  settlements: "Settlement",
+};
+
+/* Human-readable audit action labels for each batch status transition, shared
+   by the batch-level audit history and the global audit feed so both read
+   the same wording for the same event. */
+const STATUS_ACTION_LABELS: Record<BatchStatus, string> = {
+  "Under Review": "Batch review started",
+  Matched: "Batch matched",
+  Mismatched: "Batch rejected",
+  Pending: "Batch marked pending",
+};
 
 /* ============================================================================
    SMALL PRESENTATIONAL COMPONENTS
@@ -349,7 +126,12 @@ const initialExports: ExportRecord[] = [
 
 const StatusPill: React.FC<{ status: string }> = ({ status }) => {
   const cls = status.toLowerCase().replace(/\s+/g, "-");
-  return <span className={`fa-pill fa-pill--${cls}`}>{status}</span>;
+
+  return (
+    <span className={`fa-pill fa-pill--${cls}`}>
+      {status}
+    </span>
+  );
 };
 
 const SeverityBadge: React.FC<{ severity: Severity }> = ({ severity }) => (
@@ -388,14 +170,71 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    ========================================================================= */
 
 const FinanceAdminDashboard: React.FC = () => {
-  const [deposits,setDeposits] = useState<DepositBatch[]>(buildDeposits);
-  const [withdrawals] = useState<WithdrawalBatch[]>(buildWithdrawals);
-  const [settlements] = useState<SettlementBatch[]>(buildSettlements);
-  const [refunds, setRefunds] = useState<RefundRequest[]>(mockRefunds);
-  const [clubs] = useState<ClubCommerceRecord[]>(mockClubCommerce);
-  const [exceptions, setExceptions] = useState<ReconciliationException[]>(mockExceptionsInit);
-  const [auditFeed, setAuditFeed] = useState<AuditEvent[]>(mockAuditFeedInit);
-  const [exportHistory, setExportHistory] = useState<ExportRecord[]>(initialExports);
+  /* --------------------------- data state (backend-ready) --------------------------- */
+  // All of these are populated from financeService on mount. Every setter is
+  // exposed (not just deposits') so status-update workflows can be extended
+  // to withdrawals, settlements and clubs without further plumbing changes.
+  const [deposits, setDeposits] = useState<DepositBatch[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalBatch[]>([]);
+  const [settlements, setSettlements] = useState<SettlementBatch[]>([]);
+  const [refunds, setRefunds] = useState<RefundRequest[]>([]);
+  const [clubs, setClubs] = useState<ClubCommerceRecord[]>([]);
+  const [exceptions, setExceptions] = useState<ReconciliationException[]>([]);
+  const [auditFeed, setAuditFeed] = useState<AuditEvent[]>([]);
+  const [exportHistory, setExportHistory] = useState<ExportRecord[]>([]);
+
+  /* --------------------------- async / loading state --------------------------- */
+  const [loadingData, setLoadingData] = useState(true);
+  const [processingRefundId, setProcessingRefundId] = useState<string | null>(null);
+  const [processingExceptionId, setProcessingExceptionId] = useState<string | null>(null);
+  const [updatingBatchId, setUpdatingBatchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAll = async () => {
+      setLoadingData(true);
+      try {
+        const [
+          depositsData,
+          withdrawalsData,
+          settlementsData,
+          refundsData,
+          clubsData,
+          exceptionsData,
+          auditFeedData,
+          exportHistoryData,
+        ] = await Promise.all([
+          getDeposits(),
+          getWithdrawals(),
+          getSettlements(),
+          getRefunds(),
+          getClubs(),
+          getExceptions(),
+          getAuditFeed(),
+          getExportHistory(),
+        ]);
+
+        if (cancelled) return;
+
+        setDeposits(depositsData);
+        setWithdrawals(withdrawalsData);
+        setSettlements(settlementsData);
+        setRefunds(refundsData);
+        setClubs(clubsData);
+        setExceptions(exceptionsData);
+        setAuditFeed(auditFeedData);
+        setExportHistory(exportHistoryData);
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    };
+
+    loadAll();
+
+    return () => {
+      cancelled = true;
+    };  }, []);
 
   const [activeQueue, setActiveQueue] = useState<QueueKey>("deposits");
   const [search, setSearch] = useState("");
@@ -403,6 +242,13 @@ const FinanceAdminDashboard: React.FC = () => {
 
   const [drawerBatch, setDrawerBatch] = useState<ReconciliationBatch | null>(null);
   const [drawerTitle, setDrawerTitle] = useState<string>("");
+  const [drawerQueue, setDrawerQueue] = useState<SettlableQueue | null>(null);
+
+  // Refund Details Drawer — stores the ID (not the object) so the drawer
+  // always reflects the latest refund state after an approval action fires,
+  // and stays in sync with both the Refunds table and the quick-action panel
+  // since all three read from the same `refunds` state.
+  const [refundDrawerId, setRefundDrawerId] = useState<string | null>(null);
 
   const [confirmModal, setConfirmModal] = useState<{
     title: string;
@@ -506,16 +352,56 @@ const FinanceAdminDashboard: React.FC = () => {
     [clubs, search, statusFilter]
   );
 
+  // Quick-action queue for the Controlled Refund Approvals panel: only
+  // refunds still in flight. Processed / Rejected refunds are finished
+  // business and belong in the Refunds table + drawer audit history, not
+  // in a panel meant to surface things that need action right now.
+  const actionableRefunds = useMemo(
+    () =>
+      refunds.filter((r) =>
+        ["Requested", "Reviewed", "Awaiting Second Approval", "Approved"].includes(r.approvalStatus)
+      ),
+    [refunds]
+  );
+
+  /* --------------------------- refund drawer helpers --------------------------- */
+
+  const refundDrawer = useMemo(
+    () => refunds.find((r) => r.refundId === refundDrawerId) ?? null,
+    [refunds, refundDrawerId]
+  );
+
+  // Audit history for the drawer is derived from the single shared auditFeed
+  // (the same feed every refund handler already writes to via pushAudit),
+  // so no business logic or logging is duplicated between the panel,
+  // the table, and the drawer.
+  const refundAuditHistory = useMemo(() => {
+    if (!refundDrawer) return [];
+    return auditFeed.filter(
+      (e) => e.entityType === "Refund" && e.entityId === refundDrawer.refundId
+    );
+  }, [auditFeed, refundDrawer]);
+
+  const openRefundDrawer = (refund: RefundRequest) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_VIEW")) return;
+    setRefundDrawerId(refund.refundId);
+  };
+
+  const closeRefundDrawer = () => setRefundDrawerId(null);
+
   /* --------------------------- actions --------------------------- */
 
-  const openDrawer = (batch: ReconciliationBatch, title: string) => {
+  const openDrawer = (batch: ReconciliationBatch, title: string, queue: SettlableQueue) => {
     setDrawerBatch(batch);
     setDrawerTitle(title);
+    setDrawerQueue(queue);
   };
 
   const closeDrawer = () => {
     setDrawerBatch(null);
     setDrawerTitle("");
+    setDrawerQueue(null);
   };
 
   const confirmAndRun = (title: string, message: string, confirmLabel: string, run: () => void) => {
@@ -532,6 +418,7 @@ const FinanceAdminDashboard: React.FC = () => {
 
   const assignAnalyst = (exceptionId: string) => {
     const analyst = ANALYSTS[Math.floor(Math.random() * ANALYSTS.length)];
+    setProcessingExceptionId(exceptionId);
     setExceptions((prev) =>
       prev.map((e) =>
         e.id === exceptionId ? { ...e, assignedAnalyst: analyst, status: "Investigating" } : e
@@ -539,6 +426,7 @@ const FinanceAdminDashboard: React.FC = () => {
     );
     pushAudit("Assigned analyst", "Exception", exceptionId, `Assigned to ${analyst}`);
     showToast(`${exceptionId} assigned to ${analyst}`);
+    setProcessingExceptionId(null);
   };
 
   const escalateException = (exceptionId: string) => {
@@ -547,96 +435,142 @@ const FinanceAdminDashboard: React.FC = () => {
       `Escalate ${exceptionId} to Finance Manager for review? This cannot be undone.`,
       "Escalate",
       () => {
+        setProcessingExceptionId(exceptionId);
         setExceptions((prev) =>
           prev.map((e) => (e.id === exceptionId ? { ...e, status: "Escalated" } : e))
         );
         pushAudit("Escalated for review", "Exception", exceptionId);
         showToast(`${exceptionId} escalated`);
+        setProcessingExceptionId(null);
       }
     );
   };
 
+  // Resolving an exception also syncs its linked batch: the exception's
+  // sourceType/sourceId point directly at a deposit, withdrawal, or
+  // settlement, so the two queues never drift out of sync with each other.
   const resolveException = (exceptionId: string) => {
+    const exception = exceptions.find((e) => e.id === exceptionId);
+    if (!exception) return;
+
+    const relatedLabel = `${QUEUE_ENTITY_LABELS[exception.sourceType]} ${exception.sourceId}`;
+
     confirmAndRun(
       "Mark exception resolved",
-      `Confirm that ${exceptionId} has been fully investigated and resolved.`,
+      `Confirm that ${exceptionId} has been fully investigated and resolved. ${relatedLabel} will be marked Matched.`,
       "Mark Resolved",
       () => {
+        setProcessingExceptionId(exceptionId);
         setExceptions((prev) =>
           prev.map((e) => (e.id === exceptionId ? { ...e, status: "Resolved" } : e))
         );
-        pushAudit("Approved by Finance", "Exception", exceptionId, "Marked resolved");
+        pushAudit("Resolved exception", "Exception", exceptionId, `Marked resolved · ${relatedLabel}`);
         showToast(`${exceptionId} marked resolved`);
+
+        // Sync the linked reconciliation batch back to Matched. This is a
+        // no-op if the batch can't be found (e.g. it isn't loaded in this
+        // session's mock data), so it's always safe to call.
+        updateBatchStatus(exception.sourceType, exception.sourceId, "Matched");
+
+        setProcessingExceptionId(null);
       }
     );
   };
 
+  /* -----------------------------------------------------------------------
+     Refund approval handlers.
+     These are the single source of truth for the refund workflow and are
+     shared by all three views: the Refunds table (via the drawer), the
+     Refund Details Drawer, and the Controlled Refund Approvals quick-action
+     panel. None of these three views implement their own copy of this logic.
+     ----------------------------------------------------------------------- */
+
   const reviewRefund = (refundId: string) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_REVIEW")) return;
+    setProcessingRefundId(refundId);
     setRefunds((prev) =>
       prev.map((r) => (r.refundId === refundId && r.approvalStatus === "Requested" ? { ...r, approvalStatus: "Reviewed" } : r))
     );
-    pushAudit("Reviewed refund", "Refund", refundId);
+    pushAudit("Reviewed refund", "Refund", refundId, "Marked as reviewed");
     showToast(`${refundId} marked as reviewed`);
+    setProcessingRefundId(null);
   };
 
   const approveStep1 = (refundId: string) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_APPROVE_STEP1")) return;
     confirmAndRun(
       "Approve Step 1",
-      `Approve step 1 of ${refundId} as Finance Analyst?`,
+      `Approve step 1 of ${refundId} as Finance Admin?`,
       "Approve Step 1",
       () => {
+        setProcessingRefundId(refundId);
         setRefunds((prev) =>
           prev.map((r) =>
             r.refundId === refundId
-              ? { ...r, approvalStatus: "Awaiting Second Approval", step1ApprovedBy: "Finance Analyst" }
+              ? { ...r, approvalStatus: "Awaiting Second Approval", step1ApprovedBy: "Finance Admin" }
               : r
           )
         );
-        pushAudit("Approved Step 1", "Refund", refundId, "Approved by Finance Analyst");
+        pushAudit("Approved refund Step 1", "Refund", refundId, "Approved by Finance Admin");
         showToast(`${refundId} approved (step 1)`);
+        setProcessingRefundId(null);
       }
     );
   };
 
   const approveStep2 = (refundId: string) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_APPROVE_STEP2")) return;
     confirmAndRun(
       "Approve Step 2",
-      `Approve step 2 of ${refundId} as Senior Finance Officer? This authorizes final processing.`,
+      `Approve step 2 of ${refundId} as Finance Manager? This authorizes final processing.`,
       "Approve Step 2",
       () => {
+        setProcessingRefundId(refundId);
         setRefunds((prev) =>
           prev.map((r) =>
             r.refundId === refundId
-              ? { ...r, approvalStatus: "Approved", step2ApprovedBy: "Senior Finance Officer" }
+              ? { ...r, approvalStatus: "Approved", step2ApprovedBy: "Finance Manager" }
               : r
           )
         );
-        pushAudit("Approved Step 2", "Refund", refundId, "Approved by Senior Finance Officer");
+        pushAudit("Approved refund Step 2", "Refund", refundId, "Approved by Finance Manager");
         showToast(`${refundId} approved (step 2)`);
+        setProcessingRefundId(null);
       }
     );
   };
 
   const rejectRefund = (refundId: string, reason: string) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_APPROVE_STEP1") && !hasPermission("REFUND_APPROVE_STEP2")) return;
+    setProcessingRefundId(refundId);
     setRefunds((prev) =>
       prev.map((r) => (r.refundId === refundId ? { ...r, approvalStatus: "Rejected", rejectionReason: reason } : r))
     );
     pushAudit("Rejected refund", "Refund", refundId, reason);
     showToast(`${refundId} rejected`);
     setRejectDraft(null);
+    setProcessingRefundId(null);
   };
 
   const processRefund = (refundId: string) => {
+    // TODO: Replace with permission check
+    // if (!hasPermission("REFUND_PROCESS")) return;
     confirmAndRun(
       "Process refund",
       `This will process ${refundId} for final payout. Confirm dual-control approval is complete.`,
       "Process Refund",
       () => {
+        setProcessingRefundId(refundId);
         setRefunds((prev) =>
           prev.map((r) => (r.refundId === refundId ? { ...r, approvalStatus: "Processed" } : r))
         );
-        pushAudit("Processed refund", "Refund", refundId, "Final payout released");
+        pushAudit("Processed refund", "Refund", refundId, "Final payout released by Finance Admin");
         showToast(`${refundId} processed`);
+        setProcessingRefundId(null);
       }
     );
   };
@@ -649,52 +583,65 @@ const FinanceAdminDashboard: React.FC = () => {
       lastGenerated: nowStamp(),
     };
     setExportHistory((prev) => [record, ...prev]);
-    pushAudit("Export generated", "Report", reportType);
+    pushAudit("Report generated", "Report", reportType);
     showToast(`${reportType} generated successfully`);
   };
 
+  // Generalized across all settleable reconciliation queues (deposits,
+  // withdrawals, settlements) so status-update behavior isn't hard-coded to
+  // deposits alone — the drawer just tells this handler which queue it came
+  // from via `drawerQueue`.
+  const updateBatchStatus = (queue: SettlableQueue, batchId: string, newStatus: BatchStatus) => {
+    setUpdatingBatchId(batchId);
 
-  const updateBatchStatus = (
-  batchId:string,
-  newStatus:BatchStatus
-) => {
+    const entityType = QUEUE_ENTITY_LABELS[queue];
+    const actionLabel = STATUS_ACTION_LABELS[newStatus] ?? `Status changed to ${newStatus}`;
+    const appendAuditEntry = (batch: ReconciliationBatch): ReconciliationBatch => ({
+      ...batch,
+      status: newStatus,
+      auditHistory: [
+        ...batch.auditHistory,
+        {
+          id: uid("AUD"),
+          timestamp: nowStamp(),
+          user: "Finance Admin",
+          action: actionLabel,
+          entityType,
+          entityId: batchId,
+        },
+      ],
+    });
 
-  setDeposits(prev =>
-    prev.map(batch =>
-      batch.id === batchId
-      ? {
-          ...batch,
-          status:newStatus,
-          auditHistory:[
-            ...batch.auditHistory,
-            {
-              id:uid("AUD"),
-              timestamp:nowStamp(),
-              user:"Finance Admin",
-              action:`Status changed to ${newStatus}`,
-              entityType:"Deposit Batch",
-              entityId:batchId
-            }
-          ]
-        }
-      : batch
-    )
-  );
+    if (queue === "deposits") {
+      setDeposits((prev) =>
+        prev.map((batch) => (batch.id === batchId ? (appendAuditEntry(batch) as DepositBatch) : batch))
+      );
+    } else if (queue === "withdrawals") {
+      setWithdrawals((prev) =>
+        prev.map((batch) => (batch.id === batchId ? (appendAuditEntry(batch) as WithdrawalBatch) : batch))
+      );
+    } else if (queue === "settlements") {
+      setSettlements((prev) =>
+        prev.map((batch) => (batch.id === batchId ? (appendAuditEntry(batch) as SettlementBatch) : batch))
+      );
+    }
 
+    pushAudit(actionLabel, entityType, batchId);
 
-  pushAudit(
-    `Changed batch status to ${newStatus}`,
-    "Deposit Batch",
-    batchId
-  );
+    // Only close the batch drawer if it's currently showing the batch we
+    // just updated — this update can also be triggered indirectly (e.g. an
+    // exception resolution syncing its linked batch) while a different
+    // drawer, or no drawer, is open, and that shouldn't disturb the UI.
+    if (drawerBatch && drawerBatch.id === batchId) {
+      setDrawerBatch(null);
+      setDrawerQueue(null);
+    }
 
+    setUpdatingBatchId(null);
 
-  setDrawerBatch(null);
+    showToast(`${batchId} moved to ${newStatus}`);
+  };
 
-  showToast(
-    `${batchId} moved to ${newStatus}`
-  );
-};
   /* --------------------------- render helpers --------------------------- */
 
   const activeStatuses = useMemo(() => {
@@ -732,408 +679,452 @@ const FinanceAdminDashboard: React.FC = () => {
             </div>
           </header>
 
-          {/* 2. SUMMARY CARDS */}
-          <section className="fa-grid fa-grid--cards">
-            <SummaryCard icon="🏦" title="Provider Totals" value={formatUGX(totals.providerTotal)} description="Sum of deposit totals reported by payment providers" trend="+4.2%" trendTone="positive" />
-            <SummaryCard icon="📒" title="Ledger Totals" value={formatUGX(totals.ledgerTotal)} description="Sum of matching entries posted to the internal ledger" trend="+3.8%" trendTone="positive" />
-            <SummaryCard icon="⚠️" title="Total Mismatches" value={String(totals.mismatches)} description="Batches where provider and ledger totals disagree" trend={totals.mismatches > 0 ? "Needs attention" : "All clear"} trendTone={totals.mismatches > 0 ? "negative" : "positive"} />
-            <SummaryCard icon="🧾" title="Unresolved Exceptions" value={String(totals.unresolved)} description="Open, investigating or escalated exceptions" trend={totals.unresolved > 0 ? "Action required" : "Clear"} trendTone={totals.unresolved > 0 ? "negative" : "positive"} />
-            <SummaryCard icon="💸" title="Pending Refund Approvals" value={String(totals.pendingRefunds)} description="Refunds awaiting dual-control approval" trend="Dual control" trendTone="neutral" />
-            <SummaryCard icon="🏟️" title="Club Funds Held" value={formatUGX(totals.clubFundsHeld)} description="Net club commerce funds pending settlement" trend="5 clubs" trendTone="neutral" />
-          </section>
+          {loadingData ? (
+            <section className="fa-panel">
+              <p className="fa-panel__note">Loading finance data…</p>
+            </section>
+          ) : (
+            <>
+              {/* 2. SUMMARY CARDS */}
+              <section className="fa-grid fa-grid--cards">
+                <SummaryCard icon="🏦" title="Provider Totals" value={formatUGX(totals.providerTotal)} description="Sum of deposit totals reported by payment providers" trend="+4.2%" trendTone="positive" />
+                <SummaryCard icon="📒" title="Ledger Totals" value={formatUGX(totals.ledgerTotal)} description="Sum of matching entries posted to the internal ledger" trend="+3.8%" trendTone="positive" />
+                <SummaryCard icon="⚠️" title="Total Mismatches" value={String(totals.mismatches)} description="Batches where provider and ledger totals disagree" trend={totals.mismatches > 0 ? "Needs attention" : "All clear"} trendTone={totals.mismatches > 0 ? "negative" : "positive"} />
+                <SummaryCard icon="🧾" title="Unresolved Exceptions" value={String(totals.unresolved)} description="Open, investigating or escalated exceptions" trend={totals.unresolved > 0 ? "Action required" : "Clear"} trendTone={totals.unresolved > 0 ? "negative" : "positive"} />
+                <SummaryCard icon="💸" title="Pending Refund Approvals" value={String(totals.pendingRefunds)} description="Refunds awaiting dual-control approval" trend="Dual control" trendTone="neutral" />
+                <SummaryCard icon="🏟️" title="Club Funds Held" value={formatUGX(totals.clubFundsHeld)} description="Net club commerce funds pending settlement" trend="5 clubs" trendTone="neutral" />
+              </section>
 
-          {/* 3. RECONCILIATION QUEUE TABS */}
-          <section className="fa-panel">
-            <div className="fa-tabs">
-              {([
-                ["deposits", "Deposits"],
-                ["withdrawals", "Withdrawals"],
-                ["settlements", "Market Settlements"],
-                ["refunds", "Refunds"],
-                ["clubs", "Club Commerce"],
-              ] as [QueueKey, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`fa-tab ${activeQueue === key ? "fa-tab--active" : ""}`}
-                  onClick={() => {
-                    setActiveQueue(key);
-                    setStatusFilter("all");
-                    setSearch("");
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* 4. QUEUE FILTERS & SEARCH */}
-            <div className="fa-filters">
-              <input
-                className="fa-filters__search"
-                type="text"
-                placeholder="Search by ID, provider, customer or club..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <select
-                className="fa-filters__select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All statuses</option>
-                {activeStatuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 5. RECONCILIATION TABLE */}
-            <div className="fa-table-wrap">
-              {activeQueue === "deposits" && (
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Batch ID</th>
-                      <th>Provider</th>
-                      <th>Provider Total</th>
-                      <th>Ledger Total</th>
-                      <th>Difference</th>
-                      <th>Status</th>
-                      <th>Created At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredDeposits.map((d) => (
-                      <tr key={d.id} className="fa-row" onClick={() => openDrawer(d, `Deposit Batch ${d.batchId}`)}>
-                        <td className="fa-mono">{d.batchId}</td>
-                        <td>{d.provider}</td>
-                        <td>{formatUGX(d.providerTotal)}</td>
-                        <td>{formatUGX(d.ledgerTotal)}</td>
-                        <td><DiffBadge value={d.difference} /></td>
-                        <td><StatusPill status={d.status} /></td>
-                        <td>{d.createdAt}</td>
-                      </tr>
-                    ))}
-                    {filteredDeposits.length === 0 && (
-                      <tr><td colSpan={7} className="fa-empty">No deposit batches match your filters.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-
-              {activeQueue === "withdrawals" && (
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Withdrawal Batch</th>
-                      <th>Requested Amount</th>
-                      <th>Paid Amount</th>
-                      <th>Provider Reference</th>
-                      <th>Difference</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredWithdrawals.map((w) => (
-                      <tr key={w.id} className="fa-row" onClick={() => openDrawer(w, `Withdrawal Batch ${w.withdrawalBatch}`)}>
-                        <td className="fa-mono">{w.withdrawalBatch}</td>
-                        <td>{formatUGX(w.requestedAmount)}</td>
-                        <td>{formatUGX(w.paidAmount)}</td>
-                        <td className="fa-mono">{w.providerReference}</td>
-                        <td><DiffBadge value={w.difference} /></td>
-                        <td><StatusPill status={w.status} /></td>
-                      </tr>
-                    ))}
-                    {filteredWithdrawals.length === 0 && (
-                      <tr><td colSpan={6} className="fa-empty">No withdrawal batches match your filters.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-
-              {activeQueue === "settlements" && (
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Settlement ID</th>
-                      <th>Competition / Market</th>
-                      <th>Gross Settled</th>
-                      <th>Fees</th>
-                      <th>Net Settled</th>
-                      <th>Ledger Posted</th>
-                      <th>Difference</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSettlements.map((s) => (
-                      <tr key={s.id} className="fa-row" onClick={() => openDrawer(s, `Settlement ${s.settlementId}`)}>
-                        <td className="fa-mono">{s.settlementId}</td>
-                        <td>{s.market}</td>
-                        <td>{formatUGX(s.grossSettled)}</td>
-                        <td>{formatUGX(s.fees)}</td>
-                        <td>{formatUGX(s.netSettled)}</td>
-                        <td>{formatUGX(s.ledgerPosted)}</td>
-                        <td><DiffBadge value={s.difference} /></td>
-                      </tr>
-                    ))}
-                    {filteredSettlements.length === 0 && (
-                      <tr><td colSpan={7} className="fa-empty">No settlements match your filters.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-
-              {activeQueue === "refunds" && (
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Refund ID</th>
-                      <th>Original Transaction</th>
-                      <th>Customer</th>
-                      <th>Amount</th>
-                      <th>Reason</th>
-                      <th>Requested By</th>
-                      <th>Approval Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRefunds.map((r) => (
-                      <tr key={r.refundId} className="fa-row-static">
-                        <td className="fa-mono">{r.refundId}</td>
-                        <td className="fa-mono">{r.originalTransaction}</td>
-                        <td>{r.customer}</td>
-                        <td>{formatUGX(r.amount)}</td>
-                        <td>{r.reason}</td>
-                        <td>{r.requestedBy}</td>
-                        <td><StatusPill status={r.approvalStatus} /></td>
-                      </tr>
-                    ))}
-                    {filteredRefunds.length === 0 && (
-                      <tr><td colSpan={7} className="fa-empty">No refunds match your filters.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-
-              {activeQueue === "clubs" && (
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Club</th>
-                      <th>Ticket Revenue</th>
-                      <th>Merchandise Revenue</th>
-                      <th>Membership Revenue</th>
-                      <th>Fees Deducted</th>
-                      <th>Net Club Funds</th>
-                      <th>Settlement Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredClubs.map((c) => (
-                      <tr key={c.club} className="fa-row-static">
-                        <td>{c.club}</td>
-                        <td>{formatUGX(c.ticketRevenue)}</td>
-                        <td>{formatUGX(c.merchandiseRevenue)}</td>
-                        <td>{formatUGX(c.membershipRevenue)}</td>
-                        <td>{formatUGX(c.feesDeducted)}</td>
-                        <td>{formatUGX(c.netClubFunds)}</td>
-                        <td><StatusPill status={c.settlementStatus} /></td>
-                      </tr>
-                    ))}
-                    {filteredClubs.length === 0 && (
-                      <tr><td colSpan={7} className="fa-empty">No clubs match your filters.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </section>
-
-          {/* 6. MISMATCH & EXCEPTIONS PANEL */}
-          <section className="fa-panel">
-            <div className="fa-panel__header">
-              <h2>Mismatch &amp; Exceptions</h2>
-              <span className="fa-panel__hint">Finance balances shown here are read-only. Wallet and ledger amounts cannot be edited from this screen.</span>
-            </div>
-            <div className="fa-table-wrap">
-              <table className="fa-table">
-                <thead>
-                  <tr>
-                    <th>Exception ID</th>
-                    <th>Source Type</th>
-                    <th>Expected Amount</th>
-                    <th>Actual Amount</th>
-                    <th>Difference</th>
-                    <th>Severity</th>
-                    <th>Assigned Analyst</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {exceptions.map((exc) => (
-                    <tr key={exc.id}>
-                      <td className="fa-mono">{exc.id}</td>
-                      <td>{exc.sourceType}</td>
-                      <td className="fa-readonly">{formatUGX(exc.expectedAmount)}</td>
-                      <td className="fa-readonly">{formatUGX(exc.actualAmount)}</td>
-                      <td><DiffBadge value={exc.difference} /></td>
-                      <td><SeverityBadge severity={exc.severity} /></td>
-                      <td>{exc.assignedAnalyst ?? <span className="fa-muted">Unassigned</span>}</td>
-                      <td><StatusPill status={exc.status} /></td>
-                      <td className="fa-actions">
-                        <button className="fa-btn fa-btn--ghost" onClick={() => showToast(`Viewing details for ${exc.id}`)}>View</button>
-                        <button className="fa-btn fa-btn--ghost" disabled={exc.status === "Resolved"} onClick={() => assignAnalyst(exc.id)}>Assign</button>
-                        <button className="fa-btn fa-btn--warning" disabled={exc.status === "Escalated" || exc.status === "Resolved"} onClick={() => escalateException(exc.id)}>Escalate</button>
-                        <button className="fa-btn fa-btn--success" disabled={exc.status === "Resolved"} onClick={() => resolveException(exc.id)}>Mark Resolved</button>
-                      </td>
-                    </tr>
+              {/* 3. RECONCILIATION QUEUE TABS */}
+              <section className="fa-panel">
+                <div className="fa-tabs">
+                  {([
+                    ["deposits", "Deposits"],
+                    ["withdrawals", "Withdrawals"],
+                    ["settlements", "Market Settlements"],
+                    ["refunds", "Refunds"],
+                    ["clubs", "Club Commerce"],
+                  ] as [QueueKey, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      className={`fa-tab ${activeQueue === key ? "fa-tab--active" : ""}`}
+                      onClick={() => {
+                        setActiveQueue(key);
+                        setStatusFilter("all");
+                        setSearch("");
+                      }}
+                    >
+                      {label}
+                    </button>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                </div>
 
-          {/* 7. CONTROLLED REFUND APPROVAL PANEL */}
-          <section className="fa-panel">
-            <div className="fa-panel__header">
-              <h2>Controlled Refund Approvals</h2>
-              <span className="fa-panel__hint">Dual control: Step 1 and Step 2 approval are required before a refund can be processed.</span>
-            </div>
-            <div className="fa-refund-list">
-              {refunds.map((r) => {
-                const canApprove1 = r.approvalStatus === "Reviewed";
-                const canRequestSecond = r.approvalStatus === "Reviewed" || r.approvalStatus === "Awaiting Second Approval";
-                const canApprove2 = r.approvalStatus === "Awaiting Second Approval";
-                const canProcess = r.approvalStatus === "Approved";
-                const isFinal = r.approvalStatus === "Processed" || r.approvalStatus === "Rejected";
-                return (
-                  <div className="fa-refund-card" key={r.refundId}>
-                    <div className="fa-refund-card__top">
-                      <div>
-                        <span className="fa-mono fa-refund-card__id">{r.refundId}</span>
-                        <span className="fa-refund-card__customer">{r.customer}</span>
-                      </div>
-                      <StatusPill status={r.approvalStatus} />
-                    </div>
-                    <div className="fa-refund-card__body">
-                      <div><span className="fa-label">Original Txn</span><span className="fa-mono">{r.originalTransaction}</span></div>
-                      <div><span className="fa-label">Amount</span><span>{formatUGX(r.amount)}</span></div>
-                      <div><span className="fa-label">Reason</span><span>{r.reason}</span></div>
-                      <div><span className="fa-label">Requested By</span><span>{r.requestedBy}</span></div>
-                    </div>
-                    <div className="fa-refund-card__steps">
-                      <span className={`fa-step ${r.step1ApprovedBy ? "fa-step--done" : ""}`}>1. {r.step1ApprovedBy ? `Approved · ${r.step1ApprovedBy}` : "Step 1 pending"}</span>
-                      <span className={`fa-step ${r.step2ApprovedBy ? "fa-step--done" : ""}`}>2. {r.step2ApprovedBy ? `Approved · ${r.step2ApprovedBy}` : "Step 2 pending"}</span>
-                    </div>
-                    {r.rejectionReason && <div className="fa-refund-card__rejected">Rejected: {r.rejectionReason}</div>}
-                    <div className="fa-actions">
-                      <button className="fa-btn fa-btn--ghost" disabled={r.approvalStatus !== "Requested"} onClick={() => reviewRefund(r.refundId)}>Review Refund</button>
-                      <button className="fa-btn fa-btn--primary" disabled={!canApprove1} onClick={() => approveStep1(r.refundId)}>Approve Step 1</button>
-                      <button className="fa-btn fa-btn--primary" disabled={!canApprove2} onClick={() => approveStep2(r.refundId)}>{canRequestSecond && !canApprove2 ? "Request Second Approval" : "Approve Step 2"}</button>
-                      <button className="fa-btn fa-btn--danger" disabled={isFinal} onClick={() => setRejectDraft({ refundId: r.refundId, reason: "" })}>Reject with Reason</button>
-                      <button className="fa-btn fa-btn--success" disabled={!canProcess} onClick={() => processRefund(r.refundId)}>Process Refund</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                {/* 4. QUEUE FILTERS & SEARCH */}
+                <div className="fa-filters">
+                  <input
+                    className="fa-filters__search"
+                    type="text"
+                    placeholder="Search by ID, provider, customer or club..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <select
+                    className="fa-filters__select"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All statuses</option>
+                    {activeStatuses.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          {/* 8. FUND SEGREGATION REPORT */}
-          <section className="fa-panel">
-            <div className="fa-panel__header">
-              <h2>Fund Segregation Report</h2>
-              <span className="fa-panel__hint">Customer, platform, fee, club and statutory funds are tracked separately at all times.</span>
-            </div>
-            <div className="fa-segregation">
-              {fundSegregation.map((group) => (
-                <div className={`fa-segregation__group fa-segregation__group--${group.category.toLowerCase().replace(/\s+/g, "-")}`} key={group.category}>
-                  <div className="fa-segregation__title">{group.category}</div>
-                  <table className="fa-segregation__table">
+                {/* 5. RECONCILIATION TABLE */}
+                <div className="fa-table-wrap">
+                  {activeQueue === "deposits" && (
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Batch ID</th>
+                          <th>Provider</th>
+                          <th>Provider Total</th>
+                          <th>Ledger Total</th>
+                          <th>Difference</th>
+                          <th>Status</th>
+                          <th>Created At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredDeposits.map((d) => (
+                          <tr key={d.id} className="fa-row" onClick={() => openDrawer(d, `Deposit Batch ${d.batchId}`, "deposits")}>
+                            <td className="fa-mono">{d.batchId}</td>
+                            <td>{d.provider}</td>
+                            <td>{formatUGX(d.providerTotal)}</td>
+                            <td>{formatUGX(d.ledgerTotal)}</td>
+                            <td><DiffBadge value={d.difference} /></td>
+                            <td><StatusPill status={d.status} /></td>
+                            <td>{d.createdAt}</td>
+                          </tr>
+                        ))}
+                        {filteredDeposits.length === 0 && (
+                          <tr><td colSpan={7} className="fa-empty">No deposit batches match your filters.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeQueue === "withdrawals" && (
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Withdrawal Batch</th>
+                          <th>Requested Amount</th>
+                          <th>Paid Amount</th>
+                          <th>Provider Reference</th>
+                          <th>Difference</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredWithdrawals.map((w) => (
+                          <tr key={w.id} className="fa-row" onClick={() => openDrawer(w, `Withdrawal Batch ${w.withdrawalBatch}`, "withdrawals")}>
+                            <td className="fa-mono">{w.withdrawalBatch}</td>
+                            <td>{formatUGX(w.requestedAmount)}</td>
+                            <td>{formatUGX(w.paidAmount)}</td>
+                            <td className="fa-mono">{w.providerReference}</td>
+                            <td><DiffBadge value={w.difference} /></td>
+                            <td><StatusPill status={w.status} /></td>
+                          </tr>
+                        ))}
+                        {filteredWithdrawals.length === 0 && (
+                          <tr><td colSpan={6} className="fa-empty">No withdrawal batches match your filters.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeQueue === "settlements" && (
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Settlement ID</th>
+                          <th>Competition / Market</th>
+                          <th>Gross Settled</th>
+                          <th>Fees</th>
+                          <th>Net Settled</th>
+                          <th>Ledger Posted</th>
+                          <th>Difference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredSettlements.map((s) => (
+                          <tr key={s.id} className="fa-row" onClick={() => openDrawer(s, `Settlement ${s.settlementId}`, "settlements")}>
+                            <td className="fa-mono">{s.settlementId}</td>
+                            <td>{s.market}</td>
+                            <td>{formatUGX(s.grossSettled)}</td>
+                            <td>{formatUGX(s.fees)}</td>
+                            <td>{formatUGX(s.netSettled)}</td>
+                            <td>{formatUGX(s.ledgerPosted)}</td>
+                            <td><DiffBadge value={s.difference} /></td>
+                          </tr>
+                        ))}
+                        {filteredSettlements.length === 0 && (
+                          <tr><td colSpan={7} className="fa-empty">No settlements match your filters.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {/* REFUNDS QUEUE — primary entry point. Row actions open the
+                      Refund Details Drawer, which is the authoritative workflow
+                      view (full details, approval timeline, audit history, and
+                      every approval action). */}
+                  {activeQueue === "refunds" && (
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Refund ID</th>
+                          <th>Original Transaction</th>
+                          <th>Customer</th>
+                          <th>Amount</th>
+                          <th>Reason</th>
+                          <th>Requested By</th>
+                          <th>Approval Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredRefunds.map((r) => (
+                          <tr key={r.refundId} className="fa-row-static">
+                            <td className="fa-mono">{r.refundId}</td>
+                            <td className="fa-mono">{r.originalTransaction}</td>
+                            <td>{r.customer}</td>
+                            <td>{formatUGX(r.amount)}</td>
+                            <td>{r.reason}</td>
+                            <td>{r.requestedBy}</td>
+                            <td><StatusPill status={r.approvalStatus} /></td>
+                            <td>
+                              {/* TODO: Replace with permission check
+                                  if (hasPermission("REFUND_VIEW")) */}
+                              <button className="fa-btn fa-btn--ghost" onClick={() => openRefundDrawer(r)}>
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredRefunds.length === 0 && (
+                          <tr><td colSpan={8} className="fa-empty">No refunds match your filters.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {activeQueue === "clubs" && (
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Club</th>
+                          <th>Ticket Revenue</th>
+                          <th>Merchandise Revenue</th>
+                          <th>Membership Revenue</th>
+                          <th>Fees Deducted</th>
+                          <th>Net Club Funds</th>
+                          <th>Settlement Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredClubs.map((c) => (
+                          <tr key={c.club} className="fa-row-static">
+                            <td>{c.club}</td>
+                            <td>{formatUGX(c.ticketRevenue)}</td>
+                            <td>{formatUGX(c.merchandiseRevenue)}</td>
+                            <td>{formatUGX(c.membershipRevenue)}</td>
+                            <td>{formatUGX(c.feesDeducted)}</td>
+                            <td>{formatUGX(c.netClubFunds)}</td>
+                            <td><StatusPill status={c.settlementStatus} /></td>
+                          </tr>
+                        ))}
+                        {filteredClubs.length === 0 && (
+                          <tr><td colSpan={7} className="fa-empty">No clubs match your filters.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </section>
+
+              {/* 6. MISMATCH & EXCEPTIONS PANEL */}
+              <section className="fa-panel">
+                <div className="fa-panel__header">
+                  <h2>Mismatch &amp; Exceptions</h2>
+                  <span className="fa-panel__hint">Finance balances shown here are read-only. Wallet and ledger amounts cannot be edited from this screen.</span>
+                </div>
+                <div className="fa-table-wrap">
+                  <table className="fa-table">
+                    <thead>
+                      <tr>
+                        <th>Exception ID</th>
+                        <th>Source Type</th>
+                        <th>Expected Amount</th>
+                        <th>Actual Amount</th>
+                        <th>Difference</th>
+                        <th>Severity</th>
+                        <th>Assigned Analyst</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {group.lines.map((line) => (
-                        <tr key={line.label}>
-                          <td>{line.label}</td>
-                          <td>{formatUGX(line.amount)}</td>
+                      {exceptions.map((exc) => (
+                        <tr key={exc.id}>
+                          <td className="fa-mono">{exc.id}</td>
+                          <td>{formatExceptionSource(exc)}</td>
+                          <td className="fa-readonly">{formatUGX(exc.expectedAmount)}</td>
+                          <td className="fa-readonly">{formatUGX(exc.actualAmount)}</td>
+                          <td><DiffBadge value={exc.difference} /></td>
+                          <td><SeverityBadge severity={exc.severity} /></td>
+                          <td>{exc.assignedAnalyst ?? <span className="fa-muted">Unassigned</span>}</td>
+                          <td><StatusPill status={exc.status} /></td>
+                          <td className="fa-actions">
+                            <button className="fa-btn fa-btn--ghost" onClick={() => showToast(`Viewing details for ${exc.id}`)}>View</button>
+                            <button className="fa-btn fa-btn--ghost" disabled={exc.status === "Resolved" || processingExceptionId === exc.id} onClick={() => assignAnalyst(exc.id)}>Assign</button>
+                            <button className="fa-btn fa-btn--warning" disabled={exc.status === "Escalated" || exc.status === "Resolved" || processingExceptionId === exc.id} onClick={() => escalateException(exc.id)}>Escalate</button>
+                            <button className="fa-btn fa-btn--success" disabled={exc.status === "Resolved" || processingExceptionId === exc.id} onClick={() => resolveException(exc.id)}>Mark Resolved</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr>
-                        <td>Subtotal</td>
-                        <td>{formatUGX(group.subtotal)}</td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
 
-          {/* 9. EXPORT & REPORTING PANEL */}
-          <section className="fa-panel">
-            <div className="fa-panel__header">
-              <h2>Export &amp; Reporting</h2>
-            </div>
-            <div className="fa-export">
-              <div className="fa-export__buttons">
-                <button className="fa-btn fa-btn--primary" onClick={() => runExport("CSV Export")}>Export CSV</button>
-                <button className="fa-btn fa-btn--primary" onClick={() => runExport("Excel Export")}>Export Excel</button>
-                <button className="fa-btn fa-btn--primary" onClick={() => runExport("PDF Summary")}>Export PDF Summary</button>
-                <button className="fa-btn fa-btn--ghost" onClick={() => runExport("Daily Reconciliation Report")}>Generate Daily Reconciliation Report</button>
-                <button className="fa-btn fa-btn--ghost" onClick={() => runExport("Settlement Report")}>Generate Settlement Report</button>
-              </div>
-              <div className="fa-table-wrap">
-                <table className="fa-table">
-                  <thead>
-                    <tr>
-                      <th>Report Type</th>
-                      <th>Date Range</th>
-                      <th>Generated By</th>
-                      <th>Last Generated</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exportHistory.map((ex, idx) => (
-                      <tr key={`${ex.reportType}-${idx}`}>
-                        <td>{ex.reportType}</td>
-                        <td>{ex.dateRange}</td>
-                        <td>{ex.generatedBy}</td>
-                        <td>{ex.lastGenerated}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
+              {/* 7. CONTROLLED REFUND APPROVAL PANEL — secondary quick-action
+                  queue for Finance Admin users. The Refund Details Drawer
+                  remains the authoritative workflow view (full details,
+                  approval timeline, audit history, rejection reason, and all
+                  approval actions). This panel reads the same `refunds` state
+                  and reuses the same handlers, so it stays in sync automatically
+                  and never diverges from the drawer or the table. */}
+              <section className="fa-panel">
+                <div className="fa-panel__header">
+                  <h2>Controlled Refund Approvals</h2>
+                  <span className="fa-panel__hint">Dual control: Step 1 and Step 2 approval are required before a refund can be processed.</span>
+                </div>
+                <p className="fa-panel__note">
+                  Quick-action approval queue. Open a refund from the Refunds table for full details and audit history.
+                </p>
+                <div className="fa-refund-list">
+                  {actionableRefunds.map((r) => {
+                    const canApprove1 = r.approvalStatus === "Reviewed";
+                    const canRequestSecond = r.approvalStatus === "Reviewed" || r.approvalStatus === "Awaiting Second Approval";
+                    const canApprove2 = r.approvalStatus === "Awaiting Second Approval";
+                    const canProcess = r.approvalStatus === "Approved";
+                    const isFinal = r.approvalStatus === "Processed" || r.approvalStatus === "Rejected";
+                    const isProcessing = processingRefundId === r.refundId;
+                    return (
+                      <div className="fa-refund-card" key={r.refundId}>
+                        <div className="fa-refund-card__top">
+                          <div>
+                            <span className="fa-mono fa-refund-card__id">{r.refundId}</span>
+                            <span className="fa-refund-card__customer">{r.customer}</span>
+                          </div>
+                          <StatusPill status={r.approvalStatus} />
+                        </div>
+                        <div className="fa-refund-card__body">
+                          <div><span className="fa-label">Original Txn</span><span className="fa-mono">{r.originalTransaction}</span></div>
+                          <div><span className="fa-label">Amount</span><span>{formatUGX(r.amount)}</span></div>
+                          <div><span className="fa-label">Reason</span><span>{r.reason}</span></div>
+                          <div><span className="fa-label">Requested By</span><span>{r.requestedBy}</span></div>
+                        </div>
+                        <div className="fa-refund-card__steps">
+                          <span className={`fa-step ${r.step1ApprovedBy ? "fa-step--done" : ""}`}>1. {r.step1ApprovedBy ? `Approved · ${r.step1ApprovedBy}` : "Step 1 pending"}</span>
+                          <span className={`fa-step ${r.step2ApprovedBy ? "fa-step--done" : ""}`}>2. {r.step2ApprovedBy ? `Approved · ${r.step2ApprovedBy}` : "Step 2 pending"}</span>
+                        </div>
+                        {r.rejectionReason && <div className="fa-refund-card__rejected">Rejected: {r.rejectionReason}</div>}
+                        <div className="fa-actions">
+                          <button className="fa-btn fa-btn--ghost" onClick={() => openRefundDrawer(r)}>Open Details</button>
+                          {/* TODO: Replace with permission check
+                              if (hasPermission("REFUND_REVIEW")) */}
+                          <button className="fa-btn fa-btn--ghost" disabled={r.approvalStatus !== "Requested" || isProcessing} onClick={() => reviewRefund(r.refundId)}>Review Refund</button>
+                          {/* TODO: Replace with permission check
+                              if (hasPermission("REFUND_APPROVE_STEP1")) */}
+                          <button className="fa-btn fa-btn--primary" disabled={!canApprove1 || isProcessing} onClick={() => approveStep1(r.refundId)}>Approve Step 1</button>
+                          {/* TODO: Replace with permission check
+                              if (hasPermission("REFUND_APPROVE_STEP2")) */}
+                          <button className="fa-btn fa-btn--primary" disabled={!canApprove2 || isProcessing} onClick={() => approveStep2(r.refundId)}>{canRequestSecond && !canApprove2 ? "Request Second Approval" : "Approve Step 2"}</button>
+                          {/* TODO: Replace with permission check
+                              if (hasPermission("REFUND_APPROVE_STEP1") || hasPermission("REFUND_APPROVE_STEP2")) */}
+                          <button className="fa-btn fa-btn--danger" disabled={isFinal || isProcessing} onClick={() => setRejectDraft({ refundId: r.refundId, reason: "" })}>Reject with Reason</button>
+                          {/* TODO: Replace with permission check
+                              if (hasPermission("REFUND_PROCESS")) */}
+                          <button className="fa-btn fa-btn--success" disabled={!canProcess || isProcessing} onClick={() => processRefund(r.refundId)}>Process Refund</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {actionableRefunds.length === 0 && (
+                    <div className="fa-empty fa-empty--panel">No refunds currently need action.</div>
+                  )}
+                </div>
+              </section>
 
-          {/* 10. AUDIT ACTIVITY FEED */}
-          <section className="fa-panel">
-            <div className="fa-panel__header">
-              <h2>Audit Activity Feed</h2>
-            </div>
-            <ul className="fa-timeline">
-              {auditFeed.map((event) => (
-                <li className="fa-timeline__item" key={event.id}>
-                  <span className="fa-timeline__dot" />
-                  <div className="fa-timeline__content">
-                    <div className="fa-timeline__row">
-                      <span className="fa-timeline__action">{event.action}</span>
-                      <span className="fa-timeline__time">{event.timestamp}</span>
+              {/* 8. FUND SEGREGATION REPORT */}
+              <section className="fa-panel">
+                <div className="fa-panel__header">
+                  <h2>Fund Segregation Report</h2>
+                  <span className="fa-panel__hint">Customer, platform, fee, club and statutory funds are tracked separately at all times.</span>
+                </div>
+                <div className="fa-segregation">
+                  {fundSegregation.map((group) => (
+                    <div className={`fa-segregation__group fa-segregation__group--${group.category.toLowerCase().replace(/\s+/g, "-")}`} key={group.category}>
+                      <div className="fa-segregation__title">{group.category}</div>
+                      <table className="fa-segregation__table">
+                        <tbody>
+                          {group.lines.map((line) => (
+                            <tr key={line.label}>
+                              <td>{line.label}</td>
+                              <td>{formatUGX(line.amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td>Subtotal</td>
+                            <td>{formatUGX(group.subtotal)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
-                    <div className="fa-timeline__meta">
-                      {event.entityType} · {event.entityId} · {event.user}
-                    </div>
-                    {event.note && <div className="fa-timeline__note">{event.note}</div>}
+                  ))}
+                </div>
+              </section>
+
+              {/* 9. EXPORT & REPORTING PANEL */}
+              <section className="fa-panel">
+                <div className="fa-panel__header">
+                  <h2>Export &amp; Reporting</h2>
+                </div>
+                <div className="fa-export">
+                  <div className="fa-export__buttons">
+                    <button className="fa-btn fa-btn--primary" onClick={() => runExport("CSV Export")}>Export CSV</button>
+                    <button className="fa-btn fa-btn--primary" onClick={() => runExport("Excel Export")}>Export Excel</button>
+                    <button className="fa-btn fa-btn--primary" onClick={() => runExport("PDF Summary")}>Export PDF Summary</button>
+                    <button className="fa-btn fa-btn--ghost" onClick={() => runExport("Daily Reconciliation Report")}>Generate Daily Reconciliation Report</button>
+                    <button className="fa-btn fa-btn--ghost" onClick={() => runExport("Settlement Report")}>Generate Settlement Report</button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+                  <div className="fa-table-wrap">
+                    <table className="fa-table">
+                      <thead>
+                        <tr>
+                          <th>Report Type</th>
+                          <th>Date Range</th>
+                          <th>Generated By</th>
+                          <th>Last Generated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exportHistory.map((ex, idx) => (
+                          <tr key={`${ex.reportType}-${idx}`}>
+                            <td>{ex.reportType}</td>
+                            <td>{ex.dateRange}</td>
+                            <td>{ex.generatedBy}</td>
+                            <td>{ex.lastGenerated}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              {/* 10. AUDIT ACTIVITY FEED */}
+              <section className="fa-panel">
+                <div className="fa-panel__header">
+                  <h2>Audit Activity Feed</h2>
+                </div>
+                <ul className="fa-timeline">
+                  {auditFeed.map((event) => (
+                    <li className="fa-timeline__item" key={event.id}>
+                      <span className="fa-timeline__dot" />
+                      <div className="fa-timeline__content">
+                        <div className="fa-timeline__row">
+                          <span className="fa-timeline__action">{event.action}</span>
+                          <span className="fa-timeline__time">{event.timestamp}</span>
+                        </div>
+                        <div className="fa-timeline__meta">
+                          {event.entityType} · {event.entityId} · {event.user}
+                        </div>
+                        {event.note && <div className="fa-timeline__note">{event.note}</div>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          )}
         </div>
       </AdminLayout>
 
@@ -1203,76 +1194,55 @@ const FinanceAdminDashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+
             <div className="fa-drawer__section">
+              <h4>Actions</h4>
+              <div className="fa-actions">
+                {drawerBatch.status === "Mismatched" && (
+                  <button
+                    className="fa-btn fa-btn--warning"
+                    disabled={updatingBatchId === drawerBatch.id}
+                    onClick={() => drawerQueue && updateBatchStatus(drawerQueue, drawerBatch.id, "Under Review")}
+                  >
+                    Start Review
+                  </button>
+                )}
 
-<h4>Actions</h4>
+                {drawerBatch.status === "Under Review" && (
+                  <>
+                    <button
+                      className="fa-btn fa-btn--success"
+                      disabled={updatingBatchId === drawerBatch.id}
+                      onClick={() =>
+                        confirmAndRun(
+                          "Resolve mismatch",
+                          "Confirm this batch has been reconciled?",
+                          "Confirm Match",
+                          () => drawerQueue && updateBatchStatus(drawerQueue, drawerBatch.id, "Matched")
+                        )
+                      }
+                    >
+                      Confirm Match
+                    </button>
 
-
-<div className="fa-actions">
-
-
-{drawerBatch.status === "Mismatched" && (
-
-<button
-className="fa-btn fa-btn--warning"
-onClick={() =>
- updateBatchStatus(
- drawerBatch.id,
- "Under Review"
- )
-}
->
-Start Review
-</button>
-
-)}
-
-
-
-{drawerBatch.status === "Under Review" && (
-
-<>
-
-<button
-className="fa-btn fa-btn--success"
-onClick={() =>
- confirmAndRun(
- "Resolve mismatch",
- "Confirm this deposit has been reconciled?",
- "Confirm Match",
- () =>
- updateBatchStatus(
- drawerBatch.id,
- "Matched"
- )
- )
-}
->
-Confirm Match
-</button>
-
-
-
-<button
-className="fa-btn fa-btn--danger"
-onClick={() =>
- showToast(
- `${drawerBatch.id} kept as mismatch`
- )
-}
->
-Reject Match
-</button>
-
-</>
-
-)}
-
-
-
-</div>
-
-</div>
+                    <button
+                      className="fa-btn fa-btn--danger"
+                      disabled={updatingBatchId === drawerBatch.id}
+                      onClick={() =>
+                        confirmAndRun(
+                          "Reject match",
+                          "This will flag the batch as mismatched again for further investigation. Continue?",
+                          "Reject Match",
+                          () => drawerQueue && updateBatchStatus(drawerQueue, drawerBatch.id, "Mismatched")
+                        )
+                      }
+                    >
+                      Reject Match
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
 
             <div className="fa-drawer__section">
               <h4>Audit History</h4>
@@ -1295,7 +1265,157 @@ Reject Match
         </div>
       )}
 
-      {/* 12. CONFIRMATION MODAL */}
+      {/* 12. REFUND DETAILS DRAWER — authoritative workflow view.
+          Distinct from the reconciliation batch drawer above because
+          RefundRequest is a different type from ReconciliationBatch.
+          Shows full refund details, the dual-control approval timeline,
+          audit history (derived from the shared auditFeed), and every
+          approval action, all backed by the same handlers used by the
+          Refunds table and the Controlled Refund Approvals panel. */}
+      {refundDrawer && (
+        <div className="fa-drawer-overlay" onClick={closeRefundDrawer}>
+          <div className="fa-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="fa-drawer__header">
+              <h3>Refund {refundDrawer.refundId}</h3>
+              <button className="fa-drawer__close" onClick={closeRefundDrawer} aria-label="Close drawer">✕</button>
+            </div>
+
+            <div className="fa-drawer__section">
+              <h4>Refund Information</h4>
+              <div className="fa-drawer__grid">
+                <div><span className="fa-label">Refund ID</span><span className="fa-mono">{refundDrawer.refundId}</span></div>
+                <div><span className="fa-label">Original Transaction</span><span className="fa-mono">{refundDrawer.originalTransaction}</span></div>
+                <div><span className="fa-label">Customer</span><span>{refundDrawer.customer}</span></div>
+                <div><span className="fa-label">Amount</span><span>{formatUGX(refundDrawer.amount)}</span></div>
+                <div><span className="fa-label">Reason</span><span>{refundDrawer.reason}</span></div>
+                <div><span className="fa-label">Requested By</span><span>{refundDrawer.requestedBy}</span></div>
+                <div><span className="fa-label">Created</span><span>{refundDrawer.createdAt}</span></div>
+                <div><span className="fa-label">Current Status</span><StatusPill status={refundDrawer.approvalStatus} /></div>
+              </div>
+            </div>
+
+            <div className="fa-drawer__section">
+              <h4>Approval Timeline</h4>
+              <div className="fa-refund-drawer__timeline">
+                <div className={`fa-refund-timeline-step ${refundDrawer.approvalStatus !== "Requested" ? "fa-refund-timeline-step--done" : "fa-refund-timeline-step--active"}`}>
+                  <span className="fa-refund-timeline-step__marker">1</span>
+                  <span className="fa-refund-timeline-step__label">Requested</span>
+                  <span className="fa-refund-timeline-step__meta">{refundDrawer.requestedBy}</span>
+                </div>
+
+                <div className={`fa-refund-timeline-step ${["Reviewed", "Awaiting Second Approval", "Approved", "Processed"].includes(refundDrawer.approvalStatus)
+                    ? "fa-refund-timeline-step--done"
+                    : refundDrawer.approvalStatus === "Requested" ? "" : "fa-refund-timeline-step--active"
+                  }`}>
+                  <span className="fa-refund-timeline-step__marker">2</span>
+                  <span className="fa-refund-timeline-step__label">Reviewed</span>
+                </div>
+
+                <div className={`fa-refund-timeline-step ${refundDrawer.step1ApprovedBy ? "fa-refund-timeline-step--done" : ""}`}>
+                  <span className="fa-refund-timeline-step__marker">3</span>
+                  <span className="fa-refund-timeline-step__label">Step 1 Approved</span>
+                  {refundDrawer.step1ApprovedBy && <span className="fa-refund-timeline-step__meta">{refundDrawer.step1ApprovedBy}</span>}
+                </div>
+
+                <div className={`fa-refund-timeline-step ${refundDrawer.step2ApprovedBy ? "fa-refund-timeline-step--done" : ""}`}>
+                  <span className="fa-refund-timeline-step__marker">4</span>
+                  <span className="fa-refund-timeline-step__label">Step 2 Approved</span>
+                  {refundDrawer.step2ApprovedBy && <span className="fa-refund-timeline-step__meta">{refundDrawer.step2ApprovedBy}</span>}
+                </div>
+
+                <div className={`fa-refund-timeline-step ${refundDrawer.approvalStatus === "Processed" ? "fa-refund-timeline-step--done" :
+                    refundDrawer.approvalStatus === "Rejected" ? "fa-refund-timeline-step--rejected" : ""
+                  }`}>
+                  <span className="fa-refund-timeline-step__marker">5</span>
+                  <span className="fa-refund-timeline-step__label">
+                    {refundDrawer.approvalStatus === "Rejected" ? "Rejected" : "Processed"}
+                  </span>
+                  {refundDrawer.rejectionReason && <span className="fa-refund-timeline-step__meta">{refundDrawer.rejectionReason}</span>}
+                </div>
+              </div>
+            </div>
+
+            <div className="fa-drawer__section">
+              <h4>Actions</h4>
+              <div className="fa-actions">
+                {/* TODO: Replace with permission check
+                    if (hasPermission("REFUND_REVIEW")) */}
+                <button
+                  className="fa-btn fa-btn--ghost"
+                  disabled={refundDrawer.approvalStatus !== "Requested" || processingRefundId === refundDrawer.refundId}
+                  onClick={() => reviewRefund(refundDrawer.refundId)}
+                >
+                  Review Refund
+                </button>
+
+                {/* TODO: Replace with permission check
+                    if (hasPermission("REFUND_APPROVE_STEP1")) */}
+                <button
+                  className="fa-btn fa-btn--primary"
+                  disabled={refundDrawer.approvalStatus !== "Reviewed" || processingRefundId === refundDrawer.refundId}
+                  onClick={() => approveStep1(refundDrawer.refundId)}
+                >
+                  Approve Step 1
+                </button>
+
+                {/* TODO: Replace with permission check
+                    if (hasPermission("REFUND_APPROVE_STEP2")) */}
+                <button
+                  className="fa-btn fa-btn--primary"
+                  disabled={refundDrawer.approvalStatus !== "Awaiting Second Approval" || processingRefundId === refundDrawer.refundId}
+                  onClick={() => approveStep2(refundDrawer.refundId)}
+                >
+                  Approve Step 2
+                </button>
+
+                {/* TODO: Replace with permission check
+                    if (hasPermission("REFUND_APPROVE_STEP1") || hasPermission("REFUND_APPROVE_STEP2")) */}
+                <button
+                  className="fa-btn fa-btn--danger"
+                  disabled={refundDrawer.approvalStatus === "Processed" || refundDrawer.approvalStatus === "Rejected" || processingRefundId === refundDrawer.refundId}
+                  onClick={() => setRejectDraft({ refundId: refundDrawer.refundId, reason: "" })}
+                >
+                  Reject with Reason
+                </button>
+
+                {/* TODO: Replace with permission check
+                    if (hasPermission("REFUND_PROCESS")) */}
+                <button
+                  className="fa-btn fa-btn--success"
+                  disabled={refundDrawer.approvalStatus !== "Approved" || processingRefundId === refundDrawer.refundId}
+                  onClick={() => processRefund(refundDrawer.refundId)}
+                >
+                  Process Refund
+                </button>
+              </div>
+            </div>
+
+            <div className="fa-drawer__section">
+              <h4>Audit History</h4>
+              <ul className="fa-timeline fa-timeline--compact">
+                {refundAuditHistory.map((event) => (
+                  <li className="fa-timeline__item" key={event.id}>
+                    <span className="fa-timeline__dot" />
+                    <div className="fa-timeline__content">
+                      <div className="fa-timeline__row">
+                        <span className="fa-timeline__action">{event.action}</span>
+                        <span className="fa-timeline__time">{event.timestamp}</span>
+                      </div>
+                      <div className="fa-timeline__meta">{event.user}</div>
+                      {event.note && <div className="fa-timeline__note">{event.note}</div>}
+                    </div>
+                  </li>
+                ))}
+                {refundAuditHistory.length === 0 && (
+                  <li className="fa-empty">No audit events yet for this refund.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 13. CONFIRMATION MODAL */}
       {confirmModal && (
         <div className="fa-modal-overlay">
           <div className="fa-modal">
@@ -1309,7 +1429,7 @@ Reject Match
         </div>
       )}
 
-      {/* Reject-with-reason mini modal */}
+      {/* Reject-with-reason mini modal — shared by the drawer and the panel */}
       {rejectDraft && (
         <div className="fa-modal-overlay">
           <div className="fa-modal">
@@ -1332,11 +1452,15 @@ Reject Match
               </button>
             </div>
           </div>
+
         </div>
       )}
 
+
+
       {/* Toast notification */}
       {toast && <div className="fa-toast">{toast}</div>}
+
     </>
   );
 };

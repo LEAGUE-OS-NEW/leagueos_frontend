@@ -1,0 +1,677 @@
+/* ============================================================================
+ * FAN TRADE HUB — rich landing page for verified fans
+ * ========================================================================== */
+
+.trade-hub-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.trade-hub-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.trade-hub-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 520px;
+}
+
+.trade-hub-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-open, #22c55e);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trade-hub-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
+  color: var(--color-text-primary);
+}
+
+.trade-hub-hero-copy p {
+  margin: 0;
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.9rem;
+}
+
+.trade-hub-hero-wallet {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  min-width: 220px;
+}
+
+.trade-hub-hero-wallet span {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.trade-hub-hero-wallet b {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-hero-wallet .verify-btn {
+  flex: none;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.trade-hub-section {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trade-hub-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trade-hub-section-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-live, #ef4444);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
+  flex-shrink: 0;
+}
+
+.trade-hub-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary-light);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.trade-hub-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.trade-hub-market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .trade-hub-market-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.trade-hub-steps {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+}
+
+.trade-hub-steps h2 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trade-hub-steps-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.trade-hub-steps-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+}
+
+.trade-hub-steps-list b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.92rem;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-steps-list p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+/* ----------------------------------------------------------------------
+ * Sport filter — All / Football / Rugby / Basketball…
+ * Sits above the status filter and drives both the sport cards and the
+ * All Markets table via the same sportFilter state.
+ * ------------------------------------------------------------------- */
+
+.trade-hub-sport-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trade-hub-sport-pill {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trade-hub-sport-pill:hover {
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+}
+
+.trade-hub-sport-pill.active {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+/* ----------------------------------------------------------------------
+ * Status filters — Live / Open / Trending / All Markets / Closed
+ * ------------------------------------------------------------------- */
+
+.trade-hub-status-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trade-hub-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trade-hub-status-pill {
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trade-hub-status-pill:hover {
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+}
+
+.trade-hub-status-pill.active {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.trade-hub-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--color-primary-light);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trade-hub-filters-btn:hover {
+  background: rgba(124, 58, 237, 0.2);
+}
+
+.trade-hub-status-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-primary);
+}
+
+/* ----------------------------------------------------------------------
+ * Sport category cards
+ * ------------------------------------------------------------------- */
+
+.trade-hub-sport-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.trade-hub-sport-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trade-hub-sport-card:hover {
+  background-color: var(--color-card-bg);
+  border-color: color-mix(in srgb, var(--sport-accent, var(--color-primary-light)) 45%, var(--color-border));
+}
+
+.trade-hub-sport-card--active {
+  border-color: var(--sport-accent, var(--color-primary-light));
+  background-color: color-mix(in srgb, var(--sport-accent, var(--color-primary-light)) 10%, var(--color-card-hover));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sport-accent, var(--color-primary-light)) 55%, transparent);
+}
+
+.trade-hub-sport-card-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sport-accent, var(--color-primary-light)) 18%, transparent);
+  color: var(--sport-accent, var(--color-primary-light));
+  font-size: 1.3rem;
+}
+
+.trade-hub-sport-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.trade-hub-sport-card-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-sport-card-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.trade-hub-sport-card-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-open, #22c55e);
+}
+
+.trade-hub-sport-card-live b {
+  font-weight: 800;
+}
+
+.trade-hub-sport-card-arrow {
+  flex-shrink: 0;
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* All Markets table */
+
+.trade-hub-all-markets-table {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.trade-hub-all-markets-row {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.8fr 0.9fr 0.9fr 0.7fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.trade-hub-all-markets-row:hover {
+  background-color: var(--color-card-bg);
+}
+
+.trade-hub-all-markets-labels {
+  border-top: none;
+  padding-bottom: 10px;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trade-hub-all-markets-labels:hover {
+  background-color: transparent;
+}
+
+.trade-hub-all-markets-market {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.trade-hub-all-markets-market .market-crest {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.trade-hub-all-markets-market > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trade-hub-all-markets-market b {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-hub-all-markets-market span {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.trade-hub-all-markets-row > span {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.trade-hub-ends-soon {
+  color: var(--color-open, #22c55e) !important;
+  font-weight: 600;
+}
+
+.trade-hub-view-btn {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.trade-hub-view-btn:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-primary-light);
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .trade-hub-all-markets-labels {
+    display: none;
+  }
+
+  .trade-hub-all-markets-row {
+    grid-template-columns: 1fr auto;
+    row-gap: 8px;
+  }
+
+  .trade-hub-all-markets-market {
+    grid-column: 1 / -1;
+  }
+}
+
+.trade-hub-market-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trade-hub-market-subhead {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.trade-hub-market-subhead-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trade-hub-market-card {
+  /* featured-market-card already provides the card chrome (bg, border,
+     radius, padding, hover) — this class only adds the flex layout for
+     the extra rows (probability bar, stats, divider-less footer) that
+     the plain /markets card doesn't need. */
+  display: flex;
+  flex-direction: column;
+}
+
+.trade-hub-market-card-main {
+  display: flex;
+  flex-direction: column;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+.trade-hub-sport-tag {
+  background-color: var(--color-primary-light);
+}
+
+/* status badge colors for FanTradeHub's live/trending/closed/upcoming
+   states, layered on Markets.css's .open-badge pill shape */
+.open-badge--live {
+  background-color: var(--color-live, #ef4444);
+}
+
+.open-badge--trending {
+  background-color: var(--color-primary-light);
+}
+
+.open-badge--closed {
+  background-color: var(--color-text-muted, #6b7280);
+}
+
+.open-badge--upcoming {
+  background-color: var(--color-primary-light);
+}
+
+.trade-hub-closed-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  margin-top: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.trade-hub-closed-link:hover {
+  border-color: var(--color-primary-light);
+  color: var(--color-primary-light);
+}
+
+.trade-hub-positions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trade-hub-position-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.trade-hub-position-row:hover {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+}
+
+.trade-hub-position-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trade-hub-position-row b {
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+}
+
+.trade-hub-position-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.trade-hub-position-meta b {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 720px) {
+  .trade-hub-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trade-hub-hero-wallet {
+    align-items: stretch;
+  }
+
+  .trade-hub-market-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-hub-status-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trade-hub-filters-btn {
+    justify-content: center;
+  }
+}

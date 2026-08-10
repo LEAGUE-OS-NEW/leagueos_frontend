@@ -518,6 +518,20 @@
   }
 }
 
+.dashboard-columns--unverified {
+  grid-template-columns: 1fr;
+}
+
+.dashboard-columns--unverified .dashboard-column {
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .fan-dashboard-main {
+    margin-left: 260px;
+  }
+}
+
 @media (max-width: 700px) {
   .dashboard-two-col {
     grid-template-columns: 1fr;

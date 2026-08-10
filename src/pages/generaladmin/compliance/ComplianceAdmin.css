@@ -1016,3 +1016,25 @@
     display: none;
   }
 }
+
+/* ---------- Footer ---------- */
+
+.ga-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 28px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 640px) {
+  .ga-footer {
+    padding: 14px 16px;
+  }
+}

@@ -29,6 +29,7 @@ export type BackendProfile = {
   bio?: string;
   gender?: string;
   date_of_birth?: string;
+  is_verified?: boolean;
 };
 
 export type CurrentUser = {
@@ -44,6 +45,7 @@ export type CurrentUser = {
   memberSince: string;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
+  isVerified: boolean;
   primaryClubMembership: {
     clubName: string;
     tier: string;
@@ -71,6 +73,7 @@ export const currentUser: CurrentUser = {
   memberSince: 'Recently',
   isEmailVerified: false,
   isPhoneVerified: false,
+  isVerified: false,
 
   primaryClubMembership: {
     clubName: 'No club linked yet',
@@ -142,6 +145,11 @@ export function mapProfileToCurrentUser(profile?: BackendProfile | null): Curren
   const roleLabel = clean(profile.role_display || profile.role, currentUser.membership);
   const clubName = getClubName(profile.club);
 
+  const isVerified = Boolean(
+    profile?.is_verified ??
+      (profile?.is_email_verified && profile?.is_phone_verified),
+  );
+
   return {
     ...currentUser,
     name,
@@ -156,6 +164,7 @@ export function mapProfileToCurrentUser(profile?: BackendProfile | null): Curren
     memberSince: formatDate(profile.date_joined),
     isEmailVerified: Boolean(profile.is_email_verified),
     isPhoneVerified: Boolean(profile.is_phone_verified),
+    isVerified,
     primaryClubMembership: {
       clubName,
       tier: roleLabel,
