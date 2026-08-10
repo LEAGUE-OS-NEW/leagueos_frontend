@@ -68,6 +68,7 @@ import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
+import FantasyAdminPage from './pages/admin/fantasy/FantasyAdminPage';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 import SearchPage from './pages/search/SearchPage';
 import HelpCenter from './pages/support/HelpCenter';
@@ -160,6 +161,7 @@ function App() {
         <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
         <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
         <Route path="/dashboard/admin/sports-data" element={<SportsDataAdmin />} />
+        <Route path="/dashboard/admin/fantasy" element={<FantasyAdminPage />} />
         <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
         <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
         <Route path="/dashboard/admin/payouts" element={<FinanceAdmin />} />
