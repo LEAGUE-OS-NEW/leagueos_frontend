@@ -12,9 +12,10 @@
 
 import { ALL_SPECIALIST_ROLES } from '../config/adminNav';
 import type { DashboardIdentifier } from '../types/dashboardAccess';
+import { fetchClubs, type ClubSummary } from './clubsService';
 
-export type AdminRole = Exclude<DashboardIdentifier, 'FAN' | 'CLUB_ADMIN' | 'TICKETING_OFFICER'>;
-export const ASSIGNABLE_ADMIN_ROLES: AdminRole[] = ['SUPER_ADMIN', ...ALL_SPECIALIST_ROLES] as AdminRole[];
+export type AdminRole = Exclude<DashboardIdentifier, 'FAN' | 'TICKETING_OFFICER'>;
+export const ASSIGNABLE_ADMIN_ROLES: AdminRole[] = ['SUPER_ADMIN', ...ALL_SPECIALIST_ROLES, 'CLUB_ADMIN'] as AdminRole[];
 
 export type AdminUserStatus = 'Active' | 'Inactive';
 
@@ -26,6 +27,8 @@ export interface AdminUser {
   status: AdminUserStatus;
   createdAt: string;
   lastActiveAt?: string;
+  clubSlug?: string;
+  clubName?: string;
 }
 
 export interface CreateAdminUserInput {
@@ -33,6 +36,7 @@ export interface CreateAdminUserInput {
   email: string;
   role: AdminRole;
   password: string;
+  clubSlug?: string;
 }
 
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
@@ -74,6 +78,11 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'Assign, escalate and reply to fan support tickets',
     'Cannot approve KYC, modify balances, or decide market results',
   ],
+  CLUB_ADMIN: [
+    "Manage their own club's profile, squad, and fixtures",
+    'Scoped to exactly one club — cannot see or affect other clubs',
+    'Assigned and revoked only by a Super Admin',
+  ],
 };
 
 function delay<T>(value: T, ms = 300): Promise<T> {
@@ -82,6 +91,14 @@ function delay<T>(value: T, ms = 300): Promise<T> {
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+async function resolveClub(clubSlug: string | undefined): Promise<ClubSummary> {
+  if (!clubSlug) fail('Select a club for this Club Admin.');
+  const clubs = await fetchClubs();
+  const club = clubs.find((item) => item.slug === clubSlug);
+  if (!club) fail('Select a club for this Club Admin.');
+  return club;
 }
 
 let idCounter = 0;
@@ -188,6 +205,8 @@ export async function createAdminUser(input: CreateAdminUserInput): Promise<Admi
     fail('This person already holds that role.');
   }
 
+  const club = input.role === 'CLUB_ADMIN' ? await resolveClub(input.clubSlug) : null;
+
   const user: AdminUser = {
     id: genId('user'),
     fullName: input.fullName.trim(),
@@ -195,14 +214,19 @@ export async function createAdminUser(input: CreateAdminUserInput): Promise<Admi
     role: input.role,
     status: 'Active',
     createdAt: nowIso(),
+    clubSlug: club?.slug,
+    clubName: club?.name,
   };
   users.unshift(user);
   return delay(cloneUser(user));
 }
 
-export async function updateAdminUserRole(id: string, role: AdminRole): Promise<AdminUser> {
+export async function updateAdminUserRole(id: string, role: AdminRole, clubSlug?: string): Promise<AdminUser> {
   const user = findUserOrThrow(id);
+  const club = role === 'CLUB_ADMIN' ? await resolveClub(clubSlug ?? user.clubSlug) : null;
   user.role = role;
+  user.clubSlug = club?.slug;
+  user.clubName = club?.name;
   return delay(cloneUser(user));
 }
 

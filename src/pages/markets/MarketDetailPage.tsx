@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiAlertTriangle, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
@@ -28,9 +28,14 @@ function formatUgx(amount: number): string {
   return `UGX ${Math.round(amount).toLocaleString('en-US')}`;
 }
 
+function getInitialOutcome(searchParams: URLSearchParams): OutcomeId {
+  return searchParams.get('outcome') === 'NO' ? 'NO' : 'YES';
+}
+
 function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
 
   const [market, setMarket] = useState<Market | null>(null);
@@ -39,7 +44,7 @@ function MarketDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selectedOutcome, setSelectedOutcome] = useState<OutcomeId>('YES');
+  const [selectedOutcome, setSelectedOutcome] = useState<OutcomeId>(() => getInitialOutcome(searchParams));
   const [amount, setAmount] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);

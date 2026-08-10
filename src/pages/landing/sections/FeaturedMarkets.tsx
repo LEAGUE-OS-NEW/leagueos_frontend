@@ -166,6 +166,11 @@ function FeaturedMarkets() {
         <div className="market-grid">
           {markets.map((market) => (
             <div className="market-card" key={market.id}>
+              <Link
+                to={`/markets/${market.id}`}
+                className="market-card-link"
+                aria-label={`${market.teamA} vs ${market.teamB}: ${market.question}`}
+              />
               <div className="market-card-header">
                 <span className={`market-sport-tag ${SPORT_CLASS[market.sport]}`}>{market.sport}</span>
                 <span className={`market-status market-status-${market.status.label.toLowerCase()}`}>
@@ -207,10 +212,10 @@ function FeaturedMarkets() {
               </div>
 
               <div className="market-actions">
-                <Link to={`/markets/${market.id}`} className="market-btn market-btn-yes">
+                <Link to={`/markets/${market.id}?outcome=YES`} className="market-btn market-btn-yes">
                   YES <span>{market.yesPrice}</span>
                 </Link>
-                <Link to={`/markets/${market.id}`} className="market-btn market-btn-no">
+                <Link to={`/markets/${market.id}?outcome=NO`} className="market-btn market-btn-no">
                   NO <span>{market.noPrice}</span>
                 </Link>
               </div>
