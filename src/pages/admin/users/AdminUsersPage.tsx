@@ -11,6 +11,7 @@ import {
   type AdminRole,
   type AdminUser,
 } from '../../../services/adminUsersService';
+import { fetchClubs, type ClubSummary } from '../../../services/clubsService';
 import './AdminUsersPage.css';
 
 function formatDateTime(iso: string): string {
@@ -23,24 +24,31 @@ function formatDateTime(iso: string): string {
 }
 
 function AddUserModal({
+  clubs,
   onCancel,
   onCreate,
 }: {
+  clubs: ClubSummary[];
   onCancel: () => void;
-  onCreate: (input: { fullName: string; email: string; role: AdminRole; password: string }) => Promise<void>;
+  onCreate: (input: { fullName: string; email: string; role: AdminRole; password: string; clubSlug?: string }) => Promise<void>;
 }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AdminRole>(ASSIGNABLE_ADMIN_ROLES[1] ?? 'SUPER_ADMIN');
   const [password, setPassword] = useState('');
+  const [clubSlug, setClubSlug] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
+    if (role === 'CLUB_ADMIN' && !clubSlug) {
+      setError('Select a club for this Club Admin.');
+      return;
+    }
     setIsSaving(true);
     setError(null);
     try {
-      await onCreate({ fullName, email, role, password });
+      await onCreate({ fullName, email, role, password, clubSlug: role === 'CLUB_ADMIN' ? clubSlug : undefined });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Could not add this user.');
     } finally {
@@ -76,6 +84,19 @@ function AddUserModal({
             ))}
           </select>
         </label>
+        {role === 'CLUB_ADMIN' && (
+          <label className="au-field">
+            <span>Club</span>
+            <select value={clubSlug} onChange={(event) => setClubSlug(event.target.value)}>
+              <option value="">Select a club…</option>
+              {clubs.map((club) => (
+                <option key={club.slug} value={club.slug}>
+                  {club.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="au-field">
           <span>Temporary password</span>
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
@@ -95,6 +116,7 @@ function AddUserModal({
 
 function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [clubs, setClubs] = useState<ClubSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -112,6 +134,9 @@ function AdminUsersPage() {
       .finally(() => {
         if (!cancelled) setIsLoading(false);
       });
+    fetchClubs().then((result) => {
+      if (!cancelled) setClubs(result);
+    });
     return () => {
       cancelled = true;
     };
@@ -126,16 +151,16 @@ function AdminUsersPage() {
       .finally(() => setIsLoading(false));
   };
 
-  const handleCreate = async (input: { fullName: string; email: string; role: AdminRole; password: string }) => {
+  const handleCreate = async (input: { fullName: string; email: string; role: AdminRole; password: string; clubSlug?: string }) => {
     const created = await createAdminUser(input);
     setUsers((current) => [created, ...current]);
     setShowAddModal(false);
   };
 
-  const handleRoleChange = async (id: string, role: AdminRole) => {
+  const handleRoleChange = async (id: string, role: AdminRole, clubSlug?: string) => {
     setActionError(null);
     try {
-      const updated = await updateAdminUserRole(id, role);
+      const updated = await updateAdminUserRole(id, role, clubSlug);
       setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not update this user.');
@@ -192,6 +217,7 @@ function AdminUsersPage() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Club</th>
                     <th>Status</th>
                     <th>Last Active</th>
                     <th>Actions</th>
@@ -203,13 +229,39 @@ function AdminUsersPage() {
                       <td>{user.fullName}</td>
                       <td>{user.email}</td>
                       <td>
-                        <select value={user.role} onChange={(event) => handleRoleChange(user.id, event.target.value as AdminRole)}>
+                        <select
+                          value={user.role}
+                          onChange={(event) => {
+                            const nextRole = event.target.value as AdminRole;
+                            handleRoleChange(
+                              user.id,
+                              nextRole,
+                              nextRole === 'CLUB_ADMIN' ? (user.clubSlug ?? clubs[0]?.slug) : undefined,
+                            );
+                          }}
+                        >
                           {ASSIGNABLE_ADMIN_ROLES.map((role) => (
                             <option key={role} value={role}>
                               {ADMIN_ROLE_LABELS[role]}
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td>
+                        {user.role === 'CLUB_ADMIN' ? (
+                          <select
+                            value={user.clubSlug ?? ''}
+                            onChange={(event) => handleRoleChange(user.id, user.role, event.target.value)}
+                          >
+                            {clubs.map((club) => (
+                              <option key={club.slug} value={club.slug}>
+                                {club.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td>
                         <span className={`au-status-pill au-status-pill--${user.status.toLowerCase()}`}>{user.status}</span>
@@ -224,7 +276,7 @@ function AdminUsersPage() {
                   ))}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="au-table__empty">
+                      <td colSpan={7} className="au-table__empty">
                         No admin users yet.
                       </td>
                     </tr>
@@ -236,7 +288,7 @@ function AdminUsersPage() {
         )}
       </div>
 
-      {showAddModal && <AddUserModal onCancel={() => setShowAddModal(false)} onCreate={handleCreate} />}
+      {showAddModal && <AddUserModal clubs={clubs} onCancel={() => setShowAddModal(false)} onCreate={handleCreate} />}
     </AdminLayout>
   );
 }
