@@ -14,6 +14,19 @@
 // as an audit/display fact (who drafted this market), not as a publish gate.
 
 import { useAuthStore } from '../store/authStore.ts';
+import apiClient from './apiClient.ts';
+import {
+  extractApiError,
+  normalizeApiList,
+  unwrapApiData,
+} from './apiUtils.ts';
+import type {
+  AdminMarket,
+  MarketCategory as ApiMarketCategory,
+  SportingEvent,
+  SportResource,
+} from '../types/api.ts';
+
 
 export const MARKET_CATEGORIES = [
   'Football',
@@ -145,6 +158,385 @@ export interface OutcomeInput {
   probabilityPct: number;
 }
 
+function apiFailure(error: unknown): never {
+  const details = extractApiError(error);
+
+  throw Object.assign(
+    new Error(details.message),
+    {
+      status: details.status,
+    },
+  );
+}
+
+function normalizeName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function isUuid(value?: string): boolean {
+  return Boolean(
+    value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        value,
+      ),
+  );
+}
+
+function asMarketCategory(
+  name?: string,
+): MarketCategory {
+  const value =
+    (name || '').trim();
+
+  return (
+    MARKET_CATEGORIES.find(
+      (category) =>
+        category.toLowerCase() ===
+        value.toLowerCase(),
+    ) ?? 'Other'
+  ) as MarketCategory;
+}
+
+function mapBackendStatus(
+  market: AdminMarket,
+): MarketStatus {
+  switch (market.status) {
+    case 'OPEN':
+      return 'Live';
+
+    case 'APPROVED':
+      return 'Upcoming';
+
+    case 'RESOLVED':
+    case 'CLOSED':
+      return 'Resolved';
+
+    case 'VOIDED':
+      return 'Voided';
+
+    case 'SUSPENDED':
+      return 'Cancelled';
+
+    default:
+      return 'Draft';
+  }
+}
+
+function mapBackendMarket(
+  market: AdminMarket,
+): Market {
+  const kickoff =
+    market.sporting_event?.starts_at ||
+    market.opens_at ||
+    new Date().toISOString();
+
+  const defaults =
+    defaultParameters(kickoff);
+
+  const backendOutcomes =
+    market.outcomes || [];
+
+  const outcomeFor = (
+    side: OutcomeId,
+  ): Outcome => {
+    const backend =
+      backendOutcomes.find(
+        (item) =>
+          item.side === side,
+      );
+
+    return {
+      id: side,
+
+      label:
+        backend?.label ||
+        (
+          side === 'YES'
+            ? 'Yes'
+            : 'No'
+        ),
+
+      description:
+        backend?.description || '',
+
+      probabilityPct: 50,
+      price: 5000,
+    };
+  };
+
+  return {
+    id:
+      market.id,
+
+    sportingEventId:
+      market.sporting_event?.id,
+
+    eventLabel:
+      market.subject?.name ||
+      market.sporting_event?.name ||
+      market.question,
+
+    competition:
+      market.competition?.name ||
+      market.sporting_event
+        ?.competition?.name ||
+      'Competition unavailable',
+
+    venue:
+      market.sporting_event?.venue ||
+      'Venue unavailable',
+
+    kickoff,
+
+    category:
+      asMarketCategory(
+        market.sport?.name,
+      ),
+
+    question:
+      market.question,
+
+    description:
+      market.description || '',
+
+    tags: [],
+
+    outcomes: [
+      outcomeFor('YES'),
+      outcomeFor('NO'),
+    ],
+
+    parameters: {
+      ...defaults,
+
+      opensAt:
+        market.opens_at ||
+        defaults.opensAt,
+
+      closesAt:
+        market.closes_at ||
+        defaults.closesAt,
+
+      featured:
+        Boolean(
+          market.is_featured,
+        ),
+    },
+
+    status:
+      mapBackendStatus(
+        market,
+      ),
+
+    createdBy:
+      market.created_by?.full_name ||
+      market.created_by?.email ||
+      'Backend user',
+
+    createdAt:
+      market.created_at ||
+      new Date().toISOString(),
+
+    publishedAt:
+      market.status === 'OPEN'
+        ? market.updated_at
+        : undefined,
+
+    resolvedAt:
+      market.status === 'RESOLVED'
+        ? market.updated_at
+        : undefined,
+
+    winningOutcomeId:
+      market.winning_outcome
+        ? (
+            backendOutcomes.find(
+              (outcome) =>
+                outcome.id ===
+                market.winning_outcome,
+            )?.side === 'NO'
+              ? 'NO'
+              : 'YES'
+          )
+        : undefined,
+
+    auditHistory:
+      (
+        market.status_transitions ||
+        []
+      ).map(
+        (item) => ({
+          id:
+            item.id,
+
+          timestamp:
+            item.created_at,
+
+          adminUser:
+            'Authenticated admin',
+
+          action:
+            `${item.from_status} -> ${item.to_status}`,
+
+          note:
+            item.notes,
+        }),
+      ),
+  };
+}
+
+async function resolveCreateReferences(
+  input: MarketDetailsInput,
+) {
+  const [
+    { data: sportsData },
+    { data: eventsData },
+    { data: categoriesData },
+  ] = await Promise.all([
+    apiClient.get(
+      '/sports/',
+    ),
+
+    apiClient.get(
+      '/sporting-events/',
+    ),
+
+    apiClient.get(
+      '/markets/categories/',
+    ),
+  ]);
+
+  const sports =
+    normalizeApiList<SportResource>(
+      sportsData,
+    );
+
+  const events =
+    normalizeApiList<SportingEvent>(
+      eventsData,
+    );
+
+  const categories =
+    normalizeApiList<ApiMarketCategory>(
+      categoriesData,
+    );
+
+  const requestedSport =
+    normalizeName(
+      input.category,
+    );
+
+  const sport =
+    sports.find(
+      (item) =>
+        normalizeName(
+          item.name,
+        ) ===
+        requestedSport,
+    );
+
+  if (!sport) {
+    throw new Error(
+      `No active ${input.category} sport exists in the backend.`,
+    );
+  }
+
+  if (
+    categories.length === 0
+  ) {
+    throw new Error(
+      'No active market categories exist in the backend.',
+    );
+  }
+
+  const category =
+    categories.find(
+      (item) =>
+        normalizeName(
+          item.name,
+        ) ===
+        'match result',
+    ) ||
+    categories.find(
+      (item) =>
+        normalizeName(
+          item.name,
+        ) ===
+        normalizeName(
+          input.category,
+        ),
+    ) ||
+    categories[0];
+
+  const label =
+    normalizeName(
+      input.eventLabel,
+    );
+
+  const eventById =
+    isUuid(
+      input.sportingEventId,
+    )
+      ? events.find(
+          (item) =>
+            item.id ===
+            input.sportingEventId,
+        )
+      : undefined;
+
+  const eventByName =
+    events.find(
+      (item) => {
+        if (
+          item.sport?.id !==
+          sport.id
+        ) {
+          return false;
+        }
+
+        if (
+          normalizeName(
+            item.name,
+          ) ===
+          label
+        ) {
+          return true;
+        }
+
+        if (
+          item.participants.length === 0
+        ) {
+          return false;
+        }
+
+        return (
+          item.participants.every(
+            (participant) =>
+              label.includes(
+                normalizeName(
+                  participant
+                    .participant
+                    .name,
+                ),
+              ),
+          )
+        );
+      },
+    );
+
+  return {
+    sport,
+    category,
+
+    event:
+      eventById ||
+      eventByName,
+  };
+}
+
 function delay<T>(value: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
@@ -206,29 +598,8 @@ function defaultParameters(kickoffIso: string): MarketParameters {
   };
 }
 
-function deriveLifecycleStatus(parameters: MarketParameters): MarketStatus {
-  return new Date(parameters.opensAt).getTime() <= Date.now() ? 'Live' : 'Upcoming';
-}
-
-function cloneMarket(market: Market): Market {
-  return {
-    ...market,
-    outcomes: market.outcomes.map((outcome) => ({ ...outcome })),
-    parameters: { ...market.parameters },
-    tags: [...market.tags],
-    auditHistory: market.auditHistory.map((event) => ({ ...event })),
-  };
-}
-
 function cloneProposal(proposal: MarketProposal): MarketProposal {
   return { ...proposal, auditHistory: proposal.auditHistory.map((event) => ({ ...event })) };
-}
-
-function pushAudit(market: Market, action: string, note?: string): void {
-  market.auditHistory = [
-    { id: genId('audit'), timestamp: nowIso(), adminUser: currentAdminIdentity(), action, note },
-    ...market.auditHistory,
-  ];
 }
 
 function findMarketOrThrow(id: string): Market {
@@ -426,148 +797,611 @@ function contractsFor(market: Market): Contract[] {
 }
 
 /* ============================================================
-   MARKETS
+   MARKETS - BACKEND PERSISTED
    ============================================================ */
 
 export async function fetchMarkets(): Promise<Market[]> {
-  return delay(markets.map(cloneMarket));
+  try {
+    const { data } =
+      await apiClient.get(
+        '/market-admin/markets/',
+      );
+
+    return normalizeApiList<AdminMarket>(
+      data,
+    ).map(
+      mapBackendMarket,
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
 }
 
-export async function fetchMarket(id: string): Promise<Market> {
-  return delay(cloneMarket(findMarketOrThrow(id)));
+export async function fetchMarket(
+  id: string,
+): Promise<Market> {
+  try {
+    const { data } =
+      await apiClient.get(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+      );
+
+    return mapBackendMarket(
+      unwrapApiData<AdminMarket>(
+        data,
+      ),
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
 }
 
 export async function fetchPublishedMarkets(): Promise<Market[]> {
-  return delay(
-    markets.filter((market) => market.status === 'Live' || market.status === 'Upcoming').map(cloneMarket),
+  try {
+    const { data } =
+      await apiClient.get(
+        '/markets/',
+        {
+          params: {
+            status: 'OPEN',
+          },
+        },
+      );
+
+    return normalizeApiList<AdminMarket>(
+      data,
+    ).map(
+      mapBackendMarket,
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
+export async function fetchFeaturedPublishedMarkets(
+  limit = 5,
+): Promise<Market[]> {
+  try {
+    const { data } =
+      await apiClient.get(
+        '/markets/',
+        {
+          params: {
+            status: 'OPEN',
+            is_featured: true,
+          },
+        },
+      );
+
+    const featured =
+      normalizeApiList<AdminMarket>(
+        data,
+      ).map(
+        mapBackendMarket,
+      );
+
+    if (
+      featured.length >=
+      limit
+    ) {
+      return featured.slice(
+        0,
+        limit,
+      );
+    }
+
+    const {
+      data: allData,
+    } =
+      await apiClient.get(
+        '/markets/',
+        {
+          params: {
+            status: 'OPEN',
+          },
+        },
+      );
+
+    const all =
+      normalizeApiList<AdminMarket>(
+        allData,
+      ).map(
+        mapBackendMarket,
+      );
+
+    const seen =
+      new Set(
+        featured.map(
+          (market) =>
+            market.id,
+        ),
+      );
+
+    return [
+      ...featured,
+
+      ...all.filter(
+        (market) =>
+          !seen.has(
+            market.id,
+          ),
+      ),
+    ].slice(
+      0,
+      limit,
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
+export async function createMarketDraft(
+  input: MarketDetailsInput,
+): Promise<Market> {
+  if (
+    !input.eventLabel.trim()
+  ) {
+    fail(
+      'Select an event for this market.',
+    );
+  }
+
+  const question =
+    input.question.trim();
+
+  if (
+    question.length < 6 ||
+    !question.endsWith('?')
+  ) {
+    fail(
+      'Enter a single, unambiguous YES/NO question ending with a question mark.',
+    );
+  }
+
+  try {
+    const {
+      sport,
+      category,
+      event,
+    } =
+      await resolveCreateReferences(
+        input,
+      );
+
+    const kickoff =
+      input.kickoff ||
+      event?.starts_at ||
+      new Date(
+        Date.now() +
+        24 * 60 * 60_000,
+      ).toISOString();
+
+    const initial =
+      defaultParameters(
+        kickoff,
+      );
+
+    const description =
+      input.description.trim();
+
+    const payload:
+      Record<string, unknown> = {
+        sport_id:
+          sport.id,
+
+        category_id:
+          category.id,
+
+        scope_type:
+          event
+            ? 'EVENT'
+            : 'CUSTOM',
+
+        question,
+
+        description,
+
+        rules:
+          description ||
+          question,
+
+        resolution_source:
+          'Official League OS sporting event result',
+
+        resolution_criteria:
+          description ||
+          question,
+
+        opens_at:
+          initial.opensAt,
+
+        closes_at:
+          initial.closesAt,
+
+        is_featured:
+          false,
+
+        yes_label:
+          'Yes',
+
+        no_label:
+          'No',
+      };
+
+    if (event) {
+      payload.sporting_event_id =
+        event.id;
+    } else {
+      payload.custom_subject =
+        input.eventLabel.trim();
+    }
+
+    const { data } =
+      await apiClient.post(
+        '/market-admin/markets/',
+        payload,
+      );
+
+    return mapBackendMarket(
+      unwrapApiData<AdminMarket>(
+        data,
+      ),
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
+export async function updateOutcomes(
+  id: string,
+  outcomes: OutcomeInput[],
+): Promise<Market> {
+  const yes =
+    outcomes.find(
+      (outcome) =>
+        outcome.id === 'YES',
+    );
+
+  const no =
+    outcomes.find(
+      (outcome) =>
+        outcome.id === 'NO',
+    );
+
+  if (
+    !yes ||
+    !no
+  ) {
+    fail(
+      'Both YES and NO outcomes are required.',
+    );
+  }
+
+  if (
+    yes.probabilityPct <= 0 ||
+    yes.probabilityPct >= 100
+  ) {
+    fail(
+      'Probabilities must be between 1% and 99%.',
+    );
+  }
+
+  if (
+    Math.round(
+      yes.probabilityPct +
+      no.probabilityPct,
+    ) !== 100
+  ) {
+    fail(
+      'YES and NO probabilities must add up to 100%.',
+    );
+  }
+
+  try {
+    const { data } =
+      await apiClient.patch(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+        {
+          yes_label:
+            yes.label.trim() ||
+            'Yes',
+
+          no_label:
+            no.label.trim() ||
+            'No',
+        },
+      );
+
+    const mapped =
+      mapBackendMarket(
+        unwrapApiData<AdminMarket>(
+          data,
+        ),
+      );
+
+    mapped.outcomes =
+      [yes, no].map(
+        (outcome) => ({
+          id:
+            outcome.id,
+
+          label:
+            outcome.label.trim() ||
+            outcome.id,
+
+          description:
+            outcome.description.trim(),
+
+          probabilityPct:
+            outcome.probabilityPct,
+
+          price:
+            priceFromProbability(
+              outcome.probabilityPct,
+            ),
+        }),
+      );
+
+    return mapped;
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
+export async function setParameters(
+  id: string,
+  parameters: MarketParameters,
+): Promise<Market> {
+  if (
+    new Date(
+      parameters.closesAt,
+    ).getTime() <=
+    new Date(
+      parameters.opensAt,
+    ).getTime()
+  ) {
+    fail(
+      'Trading must close after it opens.',
+    );
+  }
+
+  if (
+    new Date(
+      parameters.settlesBy,
+    ).getTime() <
+    new Date(
+      parameters.closesAt,
+    ).getTime()
+  ) {
+    fail(
+      'Settlement time must be at or after the trading close time.',
+    );
+  }
+
+  if (
+    parameters.minTradeUgx <= 0 ||
+    parameters.maxTradeUgx <
+      parameters.minTradeUgx
+  ) {
+    fail(
+      'Enter a valid minimum and maximum trade amount.',
+    );
+  }
+
+  try {
+    const { data } =
+      await apiClient.patch(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+        {
+          opens_at:
+            parameters.opensAt,
+
+          closes_at:
+            parameters.closesAt,
+
+          is_featured:
+            parameters.featured,
+        },
+      );
+
+    const mapped =
+      mapBackendMarket(
+        unwrapApiData<AdminMarket>(
+          data,
+        ),
+      );
+
+    mapped.parameters = {
+      ...mapped.parameters,
+      ...parameters,
+    };
+
+    return mapped;
+  } catch (error) {
+    return apiFailure(error);
+  }
+}
+
+async function lifecycleAction(
+  id: string,
+  action: string,
+  notes: string,
+): Promise<AdminMarket> {
+  const { data } =
+    await apiClient.post(
+      `/market-admin/markets/${encodeURIComponent(id)}/${action}/`,
+      {
+        notes,
+      },
+    );
+
+  return unwrapApiData<AdminMarket>(
+    data,
   );
 }
 
-export async function fetchFeaturedPublishedMarkets(limit = 5): Promise<Market[]> {
-  const published = markets.filter((market) => market.status === 'Live' || market.status === 'Upcoming');
-  const featured = published.filter((market) => market.parameters.featured);
-  const rest = published.filter((market) => !market.parameters.featured);
-  return delay([...featured, ...rest].slice(0, limit).map(cloneMarket));
+export async function publishMarket(
+  id: string,
+): Promise<Market> {
+  try {
+    const { data } =
+      await apiClient.get(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+      );
+
+    let market =
+      unwrapApiData<AdminMarket>(
+        data,
+      );
+
+    if (
+      market.status === 'DRAFT' ||
+      market.status === 'REJECTED'
+    ) {
+      market =
+        await lifecycleAction(
+          id,
+          'submit',
+          'Submitted from the Market Admin publish flow.',
+        );
+    }
+
+    if (
+      market.status ===
+      'PENDING_APPROVAL'
+    ) {
+      market =
+        await lifecycleAction(
+          id,
+          'approve',
+          'Approved from the Market Admin publish flow.',
+        );
+    }
+
+    if (
+      market.status ===
+      'APPROVED'
+    ) {
+      market =
+        await lifecycleAction(
+          id,
+          'open',
+          'Opened from the Market Admin publish flow.',
+        );
+    }
+
+    if (
+      market.status !==
+      'OPEN'
+    ) {
+      throw new Error(
+        `Market publish stopped at backend status ${market.status}.`,
+      );
+    }
+
+    return mapBackendMarket(
+      market,
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
 }
 
-export async function createMarketDraft(input: MarketDetailsInput): Promise<Market> {
-  if (!input.eventLabel.trim()) fail('Select an event for this market.');
-  const question = input.question.trim();
-  if (question.length < 6 || !question.endsWith('?')) {
-    fail('Enter a single, unambiguous YES/NO question ending with a question mark.');
+export async function cancelMarket(
+  id: string,
+  reason: string,
+): Promise<Market> {
+  if (
+    !reason.trim()
+  ) {
+    fail(
+      'A cancellation reason is required.',
+    );
   }
 
-  const market: Market = {
-    id: genId('market'),
-    sportingEventId: input.sportingEventId,
-    eventLabel: input.eventLabel.trim(),
-    competition: input.competition.trim() || 'Competition unavailable',
-    venue: input.venue.trim() || 'Venue unavailable',
-    kickoff: input.kickoff,
-    category: input.category,
-    question,
-    description: input.description.trim(),
-    tags: input.tags.map((tag) => tag.trim()).filter(Boolean),
-    outcomes: defaultOutcomes(),
-    parameters: defaultParameters(input.kickoff),
-    status: 'Draft',
-    createdBy: currentAdminIdentity(),
-    createdAt: nowIso(),
-    auditHistory: [],
-  };
-  pushAudit(market, 'Draft created');
-  markets.unshift(market);
-  return delay(cloneMarket(market));
+  try {
+    const { data } =
+      await apiClient.get(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+      );
+
+    const market =
+      unwrapApiData<AdminMarket>(
+        data,
+      );
+
+    if (
+      market.status !==
+      'OPEN'
+    ) {
+      fail(
+        `Only an open market can be suspended. Current status: ${market.status}.`,
+      );
+    }
+
+    return mapBackendMarket(
+      await lifecycleAction(
+        id,
+        'suspend',
+        reason.trim(),
+      ),
+    );
+  } catch (error) {
+    return apiFailure(error);
+  }
 }
 
-export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Promise<Market> {
-  const market = findMarketOrThrow(id);
-  const yes = outcomes.find((outcome) => outcome.id === 'YES');
-  const no = outcomes.find((outcome) => outcome.id === 'NO');
-  if (!yes || !no) fail('Both YES and NO outcomes are required.');
-  if (yes.probabilityPct <= 0 || yes.probabilityPct >= 100) {
-    fail('Probabilities must be between 1% and 99%.');
+export async function resolveMarket(
+  id: string,
+  winningOutcomeId: OutcomeId,
+): Promise<Market> {
+  try {
+    const { data } =
+      await apiClient.get(
+        `/market-admin/markets/${encodeURIComponent(id)}/`,
+      );
+
+    const market =
+      unwrapApiData<AdminMarket>(
+        data,
+      );
+
+    const winning =
+      market.outcomes.find(
+        (outcome) =>
+          outcome.side ===
+          winningOutcomeId,
+      );
+
+    if (!winning) {
+      fail(
+        `The ${winningOutcomeId} outcome was not found.`,
+      );
+    }
+
+    const response =
+      await apiClient.post(
+        `/market-admin/markets/${encodeURIComponent(id)}/resolve/`,
+        {
+          winning_outcome_id:
+            winning.id,
+
+          notes:
+            `Resolved as ${winningOutcomeId}.`,
+
+          evidence:
+            'Verified sporting event result.',
+        },
+      );
+
+    return mapBackendMarket(
+      unwrapApiData<AdminMarket>(
+        response.data,
+      ),
+    );
+  } catch (error) {
+    return apiFailure(error);
   }
-  if (Math.round(yes.probabilityPct + no.probabilityPct) !== 100) {
-    fail('YES and NO probabilities must add up to 100%.');
-  }
-
-  market.outcomes = [yes, no].map((outcome) => ({
-    id: outcome.id,
-    label: outcome.label.trim() || outcome.id,
-    description: outcome.description.trim(),
-    probabilityPct: outcome.probabilityPct,
-    price: priceFromProbability(outcome.probabilityPct),
-  }));
-  pushAudit(market, 'Outcomes updated', `${yes.probabilityPct}% YES / ${no.probabilityPct}% NO`);
-  return delay(cloneMarket(market));
-}
-
-export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
-  const market = findMarketOrThrow(id);
-  if (new Date(parameters.closesAt).getTime() <= new Date(parameters.opensAt).getTime()) {
-    fail('Trading must close after it opens.');
-  }
-  if (new Date(parameters.settlesBy).getTime() < new Date(parameters.closesAt).getTime()) {
-    fail('Settlement time must be at or after the trading close time.');
-  }
-  if (parameters.minTradeUgx <= 0 || parameters.maxTradeUgx < parameters.minTradeUgx) {
-    fail('Enter a valid minimum and maximum trade amount.');
-  }
-
-  market.parameters = { ...parameters };
-  pushAudit(market, 'Parameters set');
-  return delay(cloneMarket(market));
-}
-
-export async function publishMarket(id: string): Promise<Market> {
-  const market = findMarketOrThrow(id);
-  if (market.status !== 'Draft') {
-    fail(`${market.eventLabel} is already ${market.status.toLowerCase()} — only draft markets can be published.`);
-  }
-
-  market.status = deriveLifecycleStatus(market.parameters);
-  market.publishedAt = nowIso();
-  pushAudit(market, 'Published', `Market went ${market.status.toLowerCase()}.`);
-  return delay(cloneMarket(market));
-}
-
-export async function cancelMarket(id: string, reason: string): Promise<Market> {
-  if (!reason.trim()) fail('A cancellation reason is required.');
-  const market = findMarketOrThrow(id);
-  if (market.status === 'Resolved' || market.status === 'Cancelled') {
-    fail(`${market.eventLabel} is already ${market.status.toLowerCase()}.`);
-  }
-
-  market.status = 'Cancelled';
-  pushAudit(market, 'Cancelled', reason.trim());
-  return delay(cloneMarket(market));
-}
-
-/**
- * Settles a market once the Referee / Resolution Officer has verified the
- * real-world result — marks every matched contract Settled and computes its
- * payout (UGX 10,000 per share for the winning outcome, 0 otherwise; a
- * "share" is quantityUgx / price, per the contract explainer).
- */
-export async function resolveMarket(id: string, winningOutcomeId: OutcomeId): Promise<Market> {
-  const market = findMarketOrThrow(id);
-  if (market.status !== 'Live' && market.status !== 'Upcoming') {
-    fail(`${market.eventLabel} can't be resolved from ${market.status}.`);
-  }
-
-  market.status = 'Resolved';
-  market.winningOutcomeId = winningOutcomeId;
-  market.resolvedAt = nowIso();
-  pushAudit(market, 'Resolved', `Winning outcome: ${winningOutcomeId}`);
-
-  for (const contract of contractsFor(market)) {
-    contract.status = 'Settled';
-    const shares = contract.quantityUgx / contract.price;
-    contract.payoutUgx = contract.outcomeId === winningOutcomeId ? Math.round(shares * 10_000) : 0;
-  }
-
-  return delay(cloneMarket(market));
 }
 
 /* ============================================================
@@ -618,29 +1452,140 @@ export const requestProposalInfo = async (...args: [string?, string?]): Promise<
    CONTRACTS & ORDER BOOK (Trading tab)
    ============================================================ */
 
-export async function fetchContracts(marketId: string): Promise<Contract[]> {
-  const market = findMarketOrThrow(marketId);
-  return delay(contractsFor(market).map((contract) => ({ ...contract })));
+export async function fetchContracts(
+  marketId: string,
+): Promise<Contract[]> {
+  const mockMarket =
+    markets.find(
+      (item) =>
+        item.id === marketId,
+    );
+
+  if (!mockMarket) {
+    return [];
+  }
+
+  return delay(
+    contractsFor(
+      mockMarket,
+    ).map(
+      (contract) => ({
+        ...contract,
+      }),
+    ),
+  );
 }
 
-export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
-  const market = findMarketOrThrow(marketId);
-  const yes = market.outcomes.find((outcome) => outcome.id === 'YES')!;
-  const seed = seedFromId(marketId);
-  const lastPrice = yes.price;
-  const spread = 20 + (seed % 60);
+export async function fetchOrderBook(
+  marketId: string,
+): Promise<OrderBook> {
+  const mockMarket =
+    markets.find(
+      (item) =>
+        item.id === marketId,
+    );
 
-  const levels = (base: number, direction: 1 | -1): OrderBookLevel[] =>
-    Array.from({ length: 5 }, (_, index) => ({
-      price: Math.max(1, Math.min(9_999, base + direction * (index + 1) * (10 + ((seed >> (index + 2)) % 15)))),
-      quantityUgx: 5_000 + ((seed >> (index + 1)) % 45_000),
-    }));
+  const market =
+    mockMarket ??
+    (
+      await fetchMarket(
+        marketId,
+      )
+    );
+
+  const yes =
+    market.outcomes.find(
+      (outcome) =>
+        outcome.id === 'YES',
+    )!;
+
+  const seed =
+    seedFromId(
+      marketId,
+    );
+
+  const lastPrice =
+    yes.price;
+
+  const spread =
+    20 +
+    (
+      seed %
+      60
+    );
+
+  const levels = (
+    base: number,
+    direction: 1 | -1,
+  ): OrderBookLevel[] =>
+    Array.from(
+      {
+        length: 5,
+      },
+      (_, index) => ({
+        price:
+          Math.max(
+            1,
+            Math.min(
+              9_999,
+              base +
+                direction *
+                (
+                  index + 1
+                ) *
+                (
+                  10 +
+                  (
+                    (
+                      seed >>
+                      (
+                        index + 2
+                      )
+                    ) %
+                    15
+                  )
+                ),
+            ),
+          ),
+
+        quantityUgx:
+          5_000 +
+          (
+            (
+              seed >>
+              (
+                index + 1
+              )
+            ) %
+            45_000
+          ),
+      }),
+    );
 
   return delay({
     marketId,
-    outcomeId: 'YES',
-    bids: levels(lastPrice - Math.round(spread / 2), -1),
-    asks: levels(lastPrice + Math.round(spread / 2), 1),
+
+    outcomeId:
+      'YES',
+
+    bids:
+      levels(
+        lastPrice -
+          Math.round(
+            spread / 2,
+          ),
+        -1,
+      ),
+
+    asks:
+      levels(
+        lastPrice +
+          Math.round(
+            spread / 2,
+          ),
+        1,
+      ),
+
     lastPrice,
     spread,
   });
