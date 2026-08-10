@@ -114,12 +114,6 @@ function resolvePostLoginRoute(
     result: LoginResult,
     postLoginRedirect?: string | null,
 ) {
-    const hasDashboardAccessContract =
-        Boolean(result.user) &&
-        Object.prototype.hasOwnProperty.call(
-            result.user,
-            'dashboard_access',
-        );
     const dashboardAccess = validateDashboardAccess(
         result.user?.dashboard_access,
     );
@@ -131,8 +125,17 @@ function resolvePostLoginRoute(
         return postLoginRedirect;
     }
 
-    if (hasDashboardAccessContract) {
-        return getDefaultDashboardRoute(dashboardAccess) ?? ACCESS_UNAVAILABLE_ROUTE;
+    // Prefer the canonical v1 dashboard_access contract when available.
+    //
+    // The current backend still sends the legacy dashboard_access shape for
+    // some users. An invalid legacy contract must therefore fall back to the
+    // existing role router rather than sending every authenticated user to
+    // /account/access-unavailable.
+    if (dashboardAccess) {
+        return (
+            getDefaultDashboardRoute(dashboardAccess) ??
+            ACCESS_UNAVAILABLE_ROUTE
+        );
     }
 
     return (
