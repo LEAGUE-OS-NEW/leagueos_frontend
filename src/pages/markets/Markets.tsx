@@ -24,6 +24,10 @@ import Navbar from "../../components/landing/Navbar";
 import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
+import {
+  fetchMarketStats,
+  type PublicMarketStats,
+} from "../../services/markets/publicMarketsService.ts";
 import { fetchContracts, fetchPublishedMarkets } from "../../services/marketAdminService.ts";
 import "./Markets.css";
 
@@ -88,24 +92,18 @@ type ClosedMarketRow = {
 
 const SPORT_META: Record<
   Sport,
-  { icon: IconType; markets: string; live: string; className: string }
+  { icon: IconType; className: string }
 > = {
   Football: {
     icon: GiSoccerBall,
-    markets: "1,284 markets",
-    live: "87",
     className: "football",
   },
   Rugby: {
     icon: GiRugbyConversion,
-    markets: "342 markets",
-    live: "18",
     className: "rugby",
   },
   Basketball: {
     icon: GiBasketballBall,
-    markets: "512 markets",
-    live: "34",
     className: "basketball",
   },
 };
@@ -164,6 +162,36 @@ function marketStatusMeta(status: string) {
 
 function isSupportedSport(sport: string): sport is Sport {
   return sport === "Football" || sport === "Rugby" || sport === "Basketball";
+}
+
+function findSportStats(
+  stats: PublicMarketStats | null | undefined,
+  sport: Sport,
+) {
+  return stats?.sports.find(
+    (item) => item.name === sport || item.code === sport.toUpperCase(),
+  );
+}
+
+function marketCountLabel(
+  stats: PublicMarketStats | null | undefined,
+  sport: Sport,
+): string {
+  if (stats === undefined) return "Loading…";
+  if (stats === null) return "Stats unavailable";
+
+  const count = findSportStats(stats, sport)?.total_markets ?? 0;
+  return `${count.toLocaleString()} ${count === 1 ? "market" : "markets"}`;
+}
+
+function liveMarketCountLabel(
+  stats: PublicMarketStats | null | undefined,
+  sport: Sport,
+): string {
+  if (stats === undefined) return "…";
+  if (stats === null) return "—";
+
+  return String(findSportStats(stats, sport)?.live_markets ?? 0);
 }
 
 function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
@@ -251,6 +279,9 @@ function Markets() {
   const [trendingMarkets, setTrendingMarkets] = useState<TrendingMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
+  const [marketStats, setMarketStats] = useState<
+    PublicMarketStats | null | undefined
+  >(undefined);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
@@ -355,6 +386,20 @@ function Markets() {
       });
     return () => controller.abort();
   }, [loadAttempt]);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetchMarketStats(controller.signal)
+      .then((stats) => {
+        if (!controller.signal.aborted) setMarketStats(stats);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setMarketStats(null);
+      });
+
+    return () => controller.abort();
+  }, [loadAttempt]);
+
   const [selections, setSelections] = useState<Record<string, "yes" | "no">>(
     {},
   );
@@ -380,6 +425,7 @@ function Markets() {
   const retryMarkets = () => {
     setMarketsLoading(true);
     setMarketsError("");
+    setMarketStats(undefined);
     setLoadAttempt((value) => value + 1);
   };
 
@@ -451,9 +497,9 @@ function Markets() {
                   </span>
                   <span className="sport-summary-copy">
                     <b>{sport}</b>
-                    <small>{meta.markets}</small>
+                    <small>{marketCountLabel(marketStats, sport as Sport)}</small>
                     <em>
-                      <i /> Live <strong>{meta.live}</strong>
+                      <i /> Live <strong>{liveMarketCountLabel(marketStats, sport as Sport)}</strong>
                     </em>
                   </span>
                   <FiArrowRight className="sport-summary-arrow" />
