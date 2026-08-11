@@ -1,6 +1,11 @@
 import apiClient from './apiClient.ts';
 import { extractApiError, normalizeApiList } from './apiUtils.ts';
 import type { Market as ApiMarket, MarketCategory as ApiMarketCategory } from '../types/api.ts';
+import {
+  MARKET_FACE_VALUE_UGX,
+  backendQuantityToShares,
+  stakeUgxToBackendQuantity,
+} from '../utils/marketPricing.ts';
 
 export type MarketStatus = 'live' | 'upcoming' | 'trending' | 'closed';
 export type AdminMarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Resolved' | 'Voided' | 'Cancelled';
@@ -9,7 +14,7 @@ export type MarketCategoryName = string;
 
 export const MARKET_CATEGORIES = ['Football', 'Rugby', 'Basketball', 'Cricket', 'Athletics', 'Esports', 'Other'] as const;
 
-const PAYOUT_PER_CONTRACT_UGX = 10_000;
+const PAYOUT_PER_CONTRACT_UGX = MARKET_FACE_VALUE_UGX;
 const DEFAULT_PROBABILITY = 50;
 const DEFAULT_MIN_TRADE_UGX = 1_000;
 const DEFAULT_MAX_TRADE_UGX = 500_000;
@@ -281,8 +286,8 @@ function adaptListItem(market: Market): MarketListItem {
     endsInLabel: formatDurationUntil(market.parameters.closesAt),
     volumeLabel: '0',
     question: market.question,
-    yesPrice: yes?.price ?? 5_000,
-    noPrice: no?.price ?? 5_000,
+    yesPrice: yes?.price ?? MARKET_FACE_VALUE_UGX / 2,
+    noPrice: no?.price ?? MARKET_FACE_VALUE_UGX / 2,
     changePct: 0,
     tradersCount: 0,
     totalContractsLabel: '0',
@@ -342,16 +347,37 @@ export async function fetchMyPositions(): Promise<UserPosition[]> {
     const response = await apiClient.get('/markets/portfolio/positions/');
     const positions = normalizeApiList<PortfolioPositionApi>(response.data);
     return positions.map((position) => {
-      const avgPrice = Number(position.average_entry_price) * PAYOUT_PER_CONTRACT_UGX;
-      const quantity = Number(position.available_quantity || position.quantity);
+      const avgPrice =
+        Number(position.average_entry_price) *
+        PAYOUT_PER_CONTRACT_UGX;
+
+      const backendQuantity =
+        Number(
+          position.available_quantity ||
+          position.quantity,
+        );
+
+      const quantity =
+        backendQuantityToShares(
+          backendQuantity,
+        );
+
       return {
         id: position.id,
         marketId: position.market_id,
         question: position.market_question,
-        side: position.outcome_label.toLowerCase().includes('no') ? 'No' : 'Yes',
+        side:
+          position.outcome_label
+            .toLowerCase()
+            .includes('no')
+            ? 'No'
+            : 'Yes',
         quantity,
         price: avgPrice,
-        value: Number(position.market_value ?? position.total_cost_basis) * PAYOUT_PER_CONTRACT_UGX,
+        value: Number(
+          position.market_value ??
+          position.total_cost_basis,
+        ),
       };
     });
   } catch (error) {
@@ -369,15 +395,39 @@ export async function fetchFanPositions(): Promise<Position[]> {
         const market = marketsById.get(position.market_id);
         if (!market) return null;
         const outcome = market.outcomes.find((item) => item.backendOutcomeId === position.outcome_id);
-        const quantity = Number(position.available_quantity || position.quantity);
-        const price = Number(position.average_entry_price) * PAYOUT_PER_CONTRACT_UGX;
+        const backendQuantity =
+          Number(
+            position.available_quantity ||
+            position.quantity,
+          );
+
+        const shares =
+          backendQuantityToShares(
+            backendQuantity,
+          );
+
+        const price =
+          Number(
+            position.average_entry_price,
+          ) *
+          PAYOUT_PER_CONTRACT_UGX;
+
         return {
           contract: {
             id: position.id,
             marketId: position.market_id,
-            outcomeId: outcome?.id ?? (position.outcome_label.toLowerCase().includes('no') ? 'NO' : 'YES'),
+            outcomeId:
+              outcome?.id ??
+              (
+                position.outcome_label
+                  .toLowerCase()
+                  .includes('no')
+                  ? 'NO'
+                  : 'YES'
+              ),
             price,
-            quantityUgx: quantity * price,
+            quantityUgx:
+              shares * price,
             buyer: 'You',
             seller: 'Market',
             matchedAt: position.created_at,
@@ -398,8 +448,24 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
     const outcome = market.outcomes.find((item) => item.id === input.outcomeId);
     if (!outcome) throw new Error('Select YES or NO.');
 
-    const limitPrice = Math.max(0.00001, Math.min(0.99999, outcome.price / PAYOUT_PER_CONTRACT_UGX));
-    const quantity = Math.max(0.0001, input.quantityUgx / PAYOUT_PER_CONTRACT_UGX);
+    const limitPrice =
+      Math.max(
+        0.00001,
+        Math.min(
+          0.99999,
+          outcome.price /
+            PAYOUT_PER_CONTRACT_UGX,
+        ),
+      );
+
+    const quantity =
+      Math.max(
+        0.0001,
+        stakeUgxToBackendQuantity(
+          input.quantityUgx,
+          limitPrice,
+        ),
+      );
     const response = await apiClient.post(`/markets/${encodeURIComponent(input.marketId)}/orders/`, {
       outcome_id: outcome.backendOutcomeId,
       side: 'BUY',
@@ -413,7 +479,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
       marketId: order.market,
       outcomeId: input.outcomeId,
       price: Number(order.limit_price) * PAYOUT_PER_CONTRACT_UGX,
-      quantityUgx: Number(order.quantity) * Number(order.limit_price) * PAYOUT_PER_CONTRACT_UGX,
+      quantityUgx: Number(order.quantity) * Number(order.limit_price),
       buyer: 'You',
       seller: 'Market',
       matchedAt: order.created_at,

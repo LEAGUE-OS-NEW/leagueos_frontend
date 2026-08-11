@@ -1,0 +1,119 @@
+/* Lifts everything above fan-dashboard-content::before overlay */
+.fan-store-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vw, 32px);
+}
+
+/* ── Your Club Store section ── */
+.fan-your-store {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fsp-followed-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  align-self: flex-end;
+}
+
+.fsp-loading,
+.fsp-no-products {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  padding: 12px 0;
+}
+
+.fsp-empty {
+  text-align: center;
+  padding: 32px 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+}
+
+.fsp-empty-title {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 6px;
+}
+
+.fsp-empty p { margin: 0; }
+
+/* ── Per-club subsections ── */
+.fsp-club-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.fsp-club-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fsp-club-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fsp-crest {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: #fff;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.fsp-crest-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.fsp-club-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.fsp-sport-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.fsp-sport-badge--football { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.fsp-sport-badge--rugby    { background: rgba(251, 146, 60, 0.15); color: #fb923c; }
+.fsp-sport-badge--basketball { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+
+/* ── Product grid ── */
+.fsp-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .fsp-products-grid { grid-template-columns: repeat(2, 1fr); }
+}

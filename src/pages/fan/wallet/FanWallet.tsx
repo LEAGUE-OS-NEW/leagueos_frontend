@@ -7,7 +7,7 @@ import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
-import { fetchWalletDetails } from '../../../services/walletService';
+import { fetchWalletDetails, getWalletAvailableBalanceUgx, recordWithdrawalTransaction } from '../../../services/walletService';
 import type { WalletDetails } from '../../../services/walletService';
 import DepositModal from './sections/DepositModal';
 import '../sections/FanDashboard.css';
@@ -22,6 +22,10 @@ function FanWallet() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawDestination, setWithdrawDestination] = useState('');
+  const [withdrawError, setWithdrawError] = useState('');
 
   // Initial load: no synchronous setState before the fetch settles, relying
   // on the useState(true)/useState('') defaults above — matches
@@ -77,6 +81,25 @@ function FanWallet() {
     refreshWallet();
   };
 
+  const handleWithdraw = () => {
+    const amount = Number(withdrawAmount);
+    if (!amount || Number.isNaN(amount) || amount <= 0) {
+      setWithdrawError('Enter a valid withdrawal amount.');
+      return;
+    }
+    if (amount > getWalletAvailableBalanceUgx()) {
+      setWithdrawError('Withdrawal amount exceeds your available balance.');
+      return;
+    }
+
+    recordWithdrawalTransaction(amount, withdrawDestination.trim() || 'Mobile Money');
+    setWithdrawAmount('');
+    setWithdrawDestination('');
+    setWithdrawError('');
+    setIsWithdrawOpen(false);
+    refreshWallet();
+  };
+
   return (
     <div className="fan-wallet">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -122,7 +145,47 @@ function FanWallet() {
                   <button type="button" className="fan-wallet-topup-btn" onClick={() => setIsDepositOpen(true)}>
                     Top Up
                   </button>
+                  <button type="button" className="fan-wallet-withdraw-btn" onClick={() => setIsWithdrawOpen(true)}>
+                    Withdraw
+                  </button>
                 </div>
+
+                {isWithdrawOpen && (
+                  <div className="fan-wallet-withdraw-panel">
+                    <h2>Withdraw Funds</h2>
+                    <label>
+                      Amount (UGX)
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={withdrawAmount}
+                        onChange={(event) => {
+                          setWithdrawAmount(event.target.value.replace(/[^\d]/g, ''));
+                          setWithdrawError('');
+                        }}
+                        placeholder="e.g. 50000"
+                      />
+                    </label>
+                    <label>
+                      Destination
+                      <input
+                        type="text"
+                        value={withdrawDestination}
+                        onChange={(event) => setWithdrawDestination(event.target.value)}
+                        placeholder="MTN 0771234567"
+                      />
+                    </label>
+                    {withdrawError && <p className="fan-wallet-withdraw-error">{withdrawError}</p>}
+                    <div className="fan-wallet-withdraw-actions">
+                      <button type="button" onClick={() => setIsWithdrawOpen(false)}>
+                        Cancel
+                      </button>
+                      <button type="button" onClick={handleWithdraw}>
+                        Submit Withdrawal
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="fan-wallet-history">
                   <h2>Transaction History</h2>

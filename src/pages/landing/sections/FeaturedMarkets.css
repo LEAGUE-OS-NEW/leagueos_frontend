@@ -19,12 +19,20 @@
 }
 
 .market-card {
+  position: relative;
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 16px;
   cursor: pointer;
   transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.market-card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
 }
 
 .market-card:hover {
@@ -204,6 +212,8 @@
 }
 
 .market-actions {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;

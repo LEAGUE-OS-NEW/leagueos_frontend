@@ -23,14 +23,14 @@ export function useAuth() {
     return result;
   };
 
-   const login = async (payload: LoginPayload) => {
+  const login = async (payload: LoginPayload) => {
     const response = await authApi.login(payload);
     return completeAuthentication(unwrapApiData(response.data));
-};
+  };
 
   const logout = () => {
     clearAuth();
   };
 
-   return { login, logout };
+  return { login, logout };
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FiAlertTriangle, FiCheckCircle, FiChevronLeft, FiChevronRight, FiShield } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { getPublicFixtures, type PublicFixtureApi } from '../../../services/publicDashboardService';
 import {
   convertProposalToDraft,
   createMarketDraft,
   MARKET_CATEGORIES,
+
   publishMarket,
   setParameters as saveParameters,
   updateOutcomes,
@@ -76,8 +77,7 @@ function CreateMarketWizard() {
   const [market, setMarket] = useState<Market | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [publishOutcome, setPublishOutcome] = useState<'published' | 'blocked' | null>(null);
-  const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [publishOutcome, setPublishOutcome] = useState<'published' | null>(null);
 
   const [fixtures, setFixtures] = useState<PublicFixtureApi[]>([]);
   useEffect(() => {
@@ -211,13 +211,7 @@ function CreateMarketWizard() {
       setMarket(updated);
       setPublishOutcome('published');
     } catch (error) {
-      const status = error instanceof Error && 'status' in error ? (error as Error & { status?: number }).status : undefined;
-      if (status === 403) {
-        setPublishOutcome('blocked');
-        setPublishMessage(error instanceof Error ? error.message : null);
-      } else {
-        setSaveError(error instanceof Error ? error.message : 'Could not publish this market.');
-      }
+      setSaveError(error instanceof Error ? error.message : 'Could not publish this market.');
     } finally {
       setIsSaving(false);
     }
@@ -255,24 +249,17 @@ function CreateMarketWizard() {
         )}
 
         {publishOutcome && (
-          <div className={`wiz-outcome wiz-outcome--${publishOutcome}`}>
+          <div className="wiz-outcome wiz-outcome--published">
             <span className="wiz-outcome__icon">
-              {publishOutcome === 'published' ? <FiCheckCircle aria-hidden="true" /> : <FiShield aria-hidden="true" />}
+              <FiCheckCircle aria-hidden="true" />
             </span>
-            {publishOutcome === 'published' ? (
-              <div>
-                <h3>Market published</h3>
-                <p>
-                  <b>{market?.eventLabel}</b> is now {market?.status.toLowerCase()} and visible to fans on the landing
-                  page and Markets page.
-                </p>
-              </div>
-            ) : (
-              <div>
-                <h3>Saved as a draft — a different Market Admin must publish it</h3>
-                <p>{publishMessage}</p>
-              </div>
-            )}
+            <div>
+              <h3>Market published</h3>
+              <p>
+                <b>{market?.eventLabel}</b> is now {market?.status.toLowerCase()} and visible to fans on the landing
+                page and Markets page.
+              </p>
+            </div>
             <button type="button" className="wiz-btn wiz-btn--gradient" onClick={() => navigate('/dashboard/admin/markets')}>
               Back to Markets
             </button>
@@ -331,13 +318,14 @@ function CreateMarketWizard() {
                       ))}
                     </select>
                   </label>
+                 
                   <label className="wiz-field">
                     <span>Competition</span>
                     <input
                       type="text"
                       value={details.competition}
                       onChange={(event) => setDetails((current) => ({ ...current, competition: event.target.value }))}
-                      placeholder="StarTimes Uganda Premier League"
+                      placeholder="Uganda Premier League"
                     />
                   </label>
                   <label className="wiz-field">
@@ -346,7 +334,7 @@ function CreateMarketWizard() {
                       type="text"
                       value={details.venue}
                       onChange={(event) => setDetails((current) => ({ ...current, venue: event.target.value }))}
-                      placeholder="St. Mary's Stadium, Kitende"
+                      placeholder="Mandela National Stadium"
                     />
                   </label>
                   <label className="wiz-field">
@@ -392,6 +380,7 @@ function CreateMarketWizard() {
                     placeholder="Resolves YES if Vipers SC win in regulation time."
                   />
                 </label>
+
               </div>
             )}
 
@@ -664,14 +653,6 @@ function CreateMarketWizard() {
                     <span className="wiz-kv-item__key">Created by</span>
                     <span className="wiz-kv-item__value">{market.createdBy}</span>
                   </div>
-                </div>
-
-                <div className="wiz-separation-notice">
-                  <FiShield aria-hidden="true" />
-                  <span>
-                    Creation and publishing stay separated where possible — if you created this market yourself, a
-                    different Market Admin (or a Super Admin) will need to publish it.
-                  </span>
                 </div>
               </div>
             )}

@@ -20,6 +20,13 @@ import FanProfile from './pages/fan/profile/FanProfile';
 import FanSettings from './pages/fan/settings/FanSettings';
 import FanWallet from './pages/fan/wallet/FanWallet';
 import MyPositions from './pages/fan/positions/MyPositions';
+import FanMembershipsPage from './pages/fan/memberships/FanMembershipsPage';
+import FanClubsPage from './pages/fan/clubs/FanClubsPage';
+import FanClubProfile from './pages/fan/clubs/FanClubProfile';
+import FanPlayerProfile from './pages/fan/clubs/FanPlayerProfile';
+import FanStorePage from './pages/fan/store/FanStorePage';
+import FanStoreCategoryPage from './pages/fan/store/FanStoreCategoryPage';
+import FanTicketsPage from './pages/fan/tickets/FanTicketsPage';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
@@ -68,6 +75,7 @@ import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
+import FantasyAdminPage from './pages/admin/fantasy/FantasyAdminPage';
 import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
 import SearchPage from './pages/search/SearchPage';
 import HelpCenter from './pages/support/HelpCenter';
@@ -115,6 +123,15 @@ function App() {
         <Route path="/settings" element={<FanSettings />} />
         <Route path="/wallet" element={<FanWallet />} />
         <Route path="/positions" element={<MyPositions />} />
+        <Route path="/memberships" element={<FanMembershipsPage />} />
+        <Route path="/fan/clubs" element={<FanClubsPage />} />
+        <Route path="/fan/clubs/:clubSlug" element={<FanClubProfile />} />
+        <Route path="/fan/clubs/:clubSlug/players/:playerId" element={<FanPlayerProfile />} />
+        <Route path="/fan/store" element={<FanStorePage />} />
+        <Route path="/fan/store/category/:categorySlug" element={<FanStoreCategoryPage />} />
+        <Route path="/fan/tickets" element={<FanTicketsPage />} />
+        <Route path="/markets" element={<Markets />} />
+        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 
         {/* Authenticated fan markets/trading flow */}
 
@@ -160,6 +177,7 @@ function App() {
         <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
         <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
         <Route path="/dashboard/admin/sports-data" element={<SportsDataAdmin />} />
+        <Route path="/dashboard/admin/fantasy" element={<FantasyAdminPage />} />
         <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
         <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
         <Route path="/dashboard/admin/payouts" element={<FinanceAdmin />} />

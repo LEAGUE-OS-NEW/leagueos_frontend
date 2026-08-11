@@ -35,7 +35,7 @@ function CrestPlaceholder() {
   );
 }
 
-function FeaturedClubStores() {
+function FeaturedClubStores({ clubsPath = '/clubs' }: { clubsPath?: string }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const scrollNext = () => {
@@ -46,7 +46,7 @@ function FeaturedClubStores() {
     <section className="store-panel featured-club-stores" aria-labelledby="featured-club-stores-heading">
       <div className="store-panel-heading">
         <h2 id="featured-club-stores-heading">Featured Club Stores</h2>
-        <Link to="/clubs" className="store-view-link">
+        <Link to={clubsPath} className="store-view-link">
           View all clubs
           <FiArrowRight />
         </Link>
@@ -55,7 +55,7 @@ function FeaturedClubStores() {
       <div className="club-store-row">
         <div className="club-store-scroller" ref={scrollerRef}>
           {CLUB_STORES.map((club) => (
-            <Link to="/clubs" className="club-store-card" style={{ backgroundColor: club.color }} key={club.name}>
+            <Link to={clubsPath} className="club-store-card" style={{ backgroundColor: club.color }} key={club.name}>
               <span className="club-store-crest">
                 {club.crest ? <img src={club.crest} alt={`${club.name} crest`} /> : <CrestPlaceholder />}
               </span>

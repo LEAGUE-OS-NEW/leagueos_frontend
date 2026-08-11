@@ -5,6 +5,7 @@
 // not any one specialist role's job).
 import {
   FiActivity,
+  FiAward,
   FiBarChart2,
   FiBell,
   FiCheckSquare,
@@ -42,6 +43,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { label: 'Dashboard', route: '/dashboard/admin', icon: FiGrid, allowedRoles: ALL_SPECIALIST_ROLES },
   { label: 'Markets', route: '/dashboard/admin/markets', icon: FiTrendingUp, allowedRoles: ['MARKET_OPERATIONS_ADMIN'] },
   { label: 'Sports Data', route: '/dashboard/admin/sports-data', icon: FiActivity, allowedRoles: ['SPORTS_DATA_STATISTICS_ADMIN'] },
+  { label: 'Fantasy', route: '/dashboard/admin/fantasy', icon: FiAward, allowedRoles: ['SPORTS_DATA_STATISTICS_ADMIN'] },
   { label: 'Verification', route: '/dashboard/admin/verification', icon: FiCheckSquare, allowedRoles: ['RESULT_VERIFICATION_ADMIN'] },
   { label: 'Compliance', route: '/dashboard/admin/compliance', icon: FiShield, allowedRoles: ['COMPLIANCE_ADMIN'] },
   { label: 'Payments', route: '/dashboard/admin/payments', icon: FiCreditCard, allowedRoles: ['FINANCE_ADMIN'] },

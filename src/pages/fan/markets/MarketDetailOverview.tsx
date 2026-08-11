@@ -12,6 +12,9 @@ import {
 } from 'react-icons/fi';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { isVerificationPending } from '../../../utils/rules.ts';
+import {
+  formatMarketSharePrice,
+} from '../../../utils/marketPricing.ts';
 import { fetchMarket } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
@@ -162,12 +165,12 @@ function MarketDetailOverview() {
                           <span className="yesno-card-label">{outcome.label}</span>
                           <span className="yesno-card-question">{outcome.description || market.question}</span>
                           <span className="yesno-card-price">
-                            UGX {outcome.price.toLocaleString()}
+                            {formatMarketSharePrice(outcome.price)}
                             {isYes ? <FiTrendingUp className="up" /> : <FiTrendingDown className="down" />}
                           </span>
                           <span className="yesno-card-probability">{outcome.probabilityPct}% Probability</span>
                           <span className={`yesno-card-cta yesno-card-cta--${isYes ? 'yes' : 'no'}`}>
-                            Buy {outcome.label} {outcome.price.toLocaleString()}
+                            Buy {outcome.label} · {formatMarketSharePrice(outcome.price)}
                           </span>
                         </button>
                       );
