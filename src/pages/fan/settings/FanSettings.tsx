@@ -22,11 +22,22 @@ const TABS: { id: TabId; label: string; icon: typeof FiShield }[] = [
 
 function FanSettings() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const requestedTab = searchParams.get('tab') as TabId | null;
-  const initialTab: TabId = requestedTab && TABS.some((t) => t.id === requestedTab) ? requestedTab : 'security';
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  // Derive the active tab directly from the URL instead of mirroring it into
+  // local state via an effect — the URL is the single source of truth, so
+  // both a direct tab click and navigating to /settings?tab=... stay in sync
+  // automatically without any cascading setState-in-effect.
+  const tabParam = searchParams.get('tab') as TabId | null;
+  const activeTab: TabId = tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : 'security';
+
+  const handleTabChange = (tabId: TabId) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tabId);
+      return next;
+    });
+  };
 
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
@@ -34,16 +45,6 @@ function FanSettings() {
       document.body.style.overflow = '';
     };
   }, [isSidebarOpen]);
-
-  // Keep the active tab in sync if the ?tab= query param changes after mount
-  // (e.g. navigating from /notifications -> /settings?tab=notifications while already on this page)
-  useEffect(() => {
-    const tabParam = searchParams.get('tab') as TabId | null;
-    if (tabParam && TABS.some((t) => t.id === tabParam) && tabParam !== activeTab) {
-      setActiveTab(tabParam);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   return (
     <div className="fan-settings">
@@ -66,7 +67,7 @@ function FanSettings() {
                   role="tab"
                   aria-selected={activeTab === tab.id}
                   className={`settings-tab${activeTab === tab.id ? ' is-active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                 >
                   <tab.icon /> {tab.label}
                 </button>

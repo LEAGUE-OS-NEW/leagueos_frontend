@@ -41,7 +41,7 @@ export async function fetchAccountStatus(): Promise<AccountStatus> {
     const data = unwrapApiData(response.data);
     return data.status;
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -52,7 +52,7 @@ export async function fetchAccountActivity(): Promise<AccountActivityEntry[]> {
     >(ENDPOINTS.activity);
     return normalizeApiList(response.data);
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -70,7 +70,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
       new_password: newPassword,
     });
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -81,7 +81,7 @@ export async function requestDeactivation(): Promise<AccountStatus> {
     );
     return unwrapApiData(response.data).status;
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -92,7 +92,7 @@ export async function reactivateAccount(): Promise<AccountStatus> {
     );
     return unwrapApiData(response.data).status;
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -103,7 +103,7 @@ export async function requestDeletion(): Promise<AccountStatus> {
     );
     return unwrapApiData(response.data).status;
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }
 
@@ -114,6 +114,6 @@ export async function cancelDeletion(): Promise<AccountStatus> {
     );
     return unwrapApiData(response.data).status;
   } catch (error) {
-    throw new Error(extractApiError(error).message);
+    throw new Error(extractApiError(error).message, { cause: error });
   }
 }

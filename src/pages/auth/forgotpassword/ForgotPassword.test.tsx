@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ForgotPassword from './ForgotPassword'
@@ -42,6 +42,20 @@ async function fastForward(ms: number) {
   // interval callback above to the DOM — without this, assertions right
   // after fastForward see the pre-jump render.
   await vi.advanceTimersByTimeAsync(0)
+}
+
+// `user.type()` simulates one keydown event per character, each scheduled
+// on its own internal delay timer. Under `shouldAdvanceTime: true` those
+// per-character timers are bridged to real wall-clock time, and that
+// bridging can occasionally race and replay/reorder a stray keystroke —
+// this is what produced "user@example.compas" instead of
+// "user@example.com" in CI. None of the fake-timer tests below need
+// keystroke-by-keystroke behavior for the email field (that's covered by
+// the OTP-code field test and the normalizeCodeInput unit test), so we set
+// the whole value in a single synchronous change event instead, which has
+// no per-character timer to race with.
+function setEmailValue(input: HTMLElement, value: string) {
+  fireEvent.change(input, { target: { value } })
 }
 
 vi.mock('../../../hooks/usePasswordValidation.ts', () => ({
@@ -166,7 +180,12 @@ describe('ForgotPassword page', () => {
         message: 'Password reset successful. Please log in with your new password.',
       },
     })
-  }, 10000)
+    // This test runs on real timers, so the component's own 250ms OTP-countdown
+    // interval keeps firing (and re-rendering) for the whole real-world duration
+    // of the test, on top of several realistic-delay user.type/click steps.
+    // 10s was too tight under CI load — other similarly-shaped e2e tests in this
+    // suite (see Login.test.tsx, Register.test.tsx) budget up to 18-20s.
+  }, 20000)
 
   it('counts the reset code down from 10 minutes and disables verification once it expires', async () => {
     // No `shouldAdvanceTime` here: it ties the fake clock to real wall-clock
@@ -189,7 +208,7 @@ describe('ForgotPassword page', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
+    setEmailValue(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
     await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
     await waitFor(() => {
@@ -228,7 +247,7 @@ describe('ForgotPassword page', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
+    setEmailValue(screen.getByPlaceholderText('you@example.com'), 'user@example.com')
     await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
     await waitFor(() => {
@@ -246,7 +265,8 @@ describe('ForgotPassword page', () => {
     expect(screen.getByRole('button', { name: /send reset code/i })).toBeInTheDocument()
     expect(screen.queryByText(/code expires in/i)).not.toBeInTheDocument()
 
-    // Submitting the request form again sends a fresh code and restarts the countdown.
+    // Submitting the request form again sends a fresh code and restarts the
+    // countdown — email state persists across resend without retyping.
     await user.click(screen.getByRole('button', { name: /send reset code/i }))
 
     await waitFor(() => {
