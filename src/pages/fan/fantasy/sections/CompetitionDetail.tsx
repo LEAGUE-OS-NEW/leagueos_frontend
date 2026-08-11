@@ -1,7 +1,8 @@
 
 import type { Competition } from '../types';
 import { SPORT_RULES } from '../data';
-import { SPORT_META, Badge } from './shared';
+import {  Badge } from './shared';
+import { SPORT_META } from '../SportMeta';
 
 interface Props {
   competition: Competition;

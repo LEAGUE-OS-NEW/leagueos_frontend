@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Sport } from '../types';
+import { SPORT_META } from '../SportMeta';
 
 // ---------------------------------------------------------------------------
 // Icons — plain inline SVG, no icon-font dependency
@@ -56,11 +57,6 @@ export const TrophyIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
-export const SPORT_META: Record<Sport, { label: string; emoji: string }> = {
-  football: { label: 'Football', emoji: '⚽' },
-  basketball: { label: 'Basketball', emoji: '🏀' },
-  rugby: { label: 'Rugby', emoji: '🏉' },
-};
 
 // ---------------------------------------------------------------------------
 // SearchBar

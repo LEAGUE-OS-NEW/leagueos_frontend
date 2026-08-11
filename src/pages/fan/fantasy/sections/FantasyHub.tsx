@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Competition, FantasyTeam, Sport } from '../types';
 import { COMPETITIONS } from '../data';
-import { SearchBar, SportFilter, SPORT_META, Badge, StatCard } from './shared';
+import { SearchBar, SportFilter, Badge, StatCard } from './shared';
+import { SPORT_META } from '../SportMeta';
 
 interface Props {
   teams: Record<string, FantasyTeam>;

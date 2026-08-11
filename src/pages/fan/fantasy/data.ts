@@ -126,10 +126,12 @@ const LAST_NAMES = [
 ];
 
 function generatedName(used: Set<string>): string {
-  let name = '';
+  let name: string;
+
   do {
     name = `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
   } while (used.has(name));
+
   used.add(name);
   return name;
 }

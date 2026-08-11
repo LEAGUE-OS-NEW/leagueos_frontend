@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Competition, FantasyTeam, MiniLeague } from '../types';
-import { Badge, SearchBar } from './shared';
+import { Badge } from './shared';
 import { Modal, Drawer } from './Modal';
 
 interface Props {

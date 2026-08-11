@@ -7,9 +7,10 @@ import SquadBuilder from './sections/SquadBuilder';
 import MyTeam from './sections/MyTeam';
 import Transfers from './sections/Transfers';
 import Leagues from './sections/Leagues';
-import { BellIcon, TrophyIcon, SPORT_META } from './sections/shared';
+import { BellIcon, TrophyIcon} from './sections/shared';
 import Sidebar from '../../../components/fan/Sidebar';
 import Footer from '../../../components/landing/Footer';
+import { SPORT_META } from './SportMeta';
 import './FantasyCompetitions.css';
 
 type Screen = 'hub' | 'competition' | 'build' | 'team' | 'transfers' | 'leagues';
