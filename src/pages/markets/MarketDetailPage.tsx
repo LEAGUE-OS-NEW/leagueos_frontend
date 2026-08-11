@@ -10,7 +10,7 @@ import {
   type OrderBook,
   type OutcomeId,
 } from '../../services/marketAdminService';
-import { fetchMyPositions, placeOrder, type Position } from '../../services/tradingService';
+import { fetchFanPositions, placeOrder, type Position } from '../../services/fanMarketsServices';
 import { useIdentityVerificationStore } from '../../store/identityVerificationStore';
 import './MarketDetailPage.css';
 
@@ -56,7 +56,7 @@ function MarketDetailPage() {
     Promise.all([
       fetchMarket(marketId),
       fetchOrderBook(marketId),
-      fetchMyPositions(),
+      fetchFanPositions(),
     ])
       .then(([marketResult, orderBookResult, positions]) => {
         if (cancelled) return;
@@ -86,7 +86,7 @@ function MarketDetailPage() {
     setOrderError(null);
     try {
       await placeOrder({ marketId: market.id, outcomeId: selectedOutcome, quantityUgx });
-      const positions = await fetchMyPositions();
+      const positions = await fetchFanPositions();
       setMyPositions(positions.filter((position) => position.market.id === market.id));
       setOrderSuccess(true);
       setAmount('');
