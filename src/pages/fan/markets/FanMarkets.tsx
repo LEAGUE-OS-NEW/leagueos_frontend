@@ -31,6 +31,9 @@ import {
   type UserPosition,
 } from '../../../services/fanMarketsServices';
 import { formatUgx } from '../../../utils/rules.ts';
+import {
+  formatMarketSharePrice,
+} from '../../../utils/marketPricing.ts';
 import '../sections/FanDashboard.css';
 import './Markets.css';
 
@@ -318,8 +321,11 @@ function Markets() {
                       })
                     }
                   >
-                    Yes
+                    Yes · {formatMarketSharePrice(
+                      selectedMarket.yesPrice,
+                    )}
                   </button>
+
                   <button
                     type="button"
                     className="buy-button buy-button--no"
@@ -330,7 +336,9 @@ function Markets() {
                       })
                     }
                   >
-                    No
+                    No · {formatMarketSharePrice(
+                      selectedMarket.noPrice,
+                    )}
                   </button>
                 </div>
 
@@ -693,8 +701,12 @@ function Markets() {
                         </span>
                         <span className="market-mini-question">{market.question}</span>
                         <span className="market-mini-actions">
-                          <span className="mini-yesno mini-yesno--yes">Yes</span>
-                          <span className="mini-yesno mini-yesno--no">No</span>
+                          <span className="mini-yesno mini-yesno--yes">
+                            Yes {formatMarketSharePrice(market.yesPrice)}
+                          </span>
+                          <span className="mini-yesno mini-yesno--no">
+                            No {formatMarketSharePrice(market.noPrice)}
+                          </span>
                         </span>
                         <span className="market-mini-footer">
                           <span>Volume UGX{market.volumeLabel}</span>
@@ -715,7 +727,7 @@ function Markets() {
                     <span>Type</span>
                     <span>Ends In</span>
                     <span>Volume (UGX)</span>
-                    <span>Odds</span>
+                    <span>Price / Share</span>
                     <span aria-hidden="true" />
                   </div>
                   {markets.map((market) => (
@@ -735,7 +747,8 @@ function Markets() {
                       </span>
                       <span role="cell">{market.volumeLabel}</span>
                       <span role="cell">
-                        {market.yesPrice.toFixed(2)} / {market.noPrice.toFixed(2)}
+                        {formatMarketSharePrice(market.yesPrice)} /{' '}
+                        {formatMarketSharePrice(market.noPrice)}
                       </span>
                       <span role="cell">
                         <button type="button" className="all-markets-view-btn" onClick={() => openMarketDetail(market.id)}>

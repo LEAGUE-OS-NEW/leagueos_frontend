@@ -165,14 +165,14 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-function ProductShowcase() {
+function ProductShowcase({ storePath = '/store' }: { storePath?: string }) {
   return (
     <section className="product-showcase" aria-label="Product showcase">
       {COLUMNS.map((column) => (
         <div className="product-column" key={column.title}>
           <div className="product-column-heading">
             <h2>{column.title}</h2>
-            <Link to="/store" className="store-view-link">
+            <Link to={storePath} className="store-view-link">
               View all
               <FiArrowRight />
             </Link>

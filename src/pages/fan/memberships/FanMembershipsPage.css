@@ -1,0 +1,178 @@
+.fmp-content {
+  z-index: 1;
+}
+
+.fmp-header {
+  position: relative;
+  z-index: 1;
+}
+
+.fmp-title {
+  margin: 0 0 6px;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.fmp-sub {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+}
+
+.fmp-section {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fmp-section-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fmp-section-sub {
+  margin: -8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.fmp-my-memberships {
+  max-width: 520px;
+}
+
+/* Tier cards grid */
+
+.fmp-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.fmp-tier-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 16px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+}
+
+.fmp-tier-card--bronze   { border-color: rgba(180, 83, 9, 0.3); }
+.fmp-tier-card--silver   { border-color: rgba(148, 163, 184, 0.3); }
+.fmp-tier-card--gold     { border-color: rgba(245, 158, 11, 0.4); }
+.fmp-tier-card--platinum { border-color: rgba(226, 232, 240, 0.2); }
+.fmp-tier-card--season   { border-color: rgba(139, 92, 246, 0.35); }
+
+.fmp-tier-card--popular {
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.2);
+}
+
+.fmp-popular-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.22);
+  color: #f59e0b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.fmp-tier-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+}
+
+.fmp-tier-icon--gold     { background: rgba(245, 158, 11, 0.16); color: #f59e0b; }
+.fmp-tier-icon--silver   { background: rgba(148, 163, 184, 0.16); color: #94a3b8; }
+.fmp-tier-icon--bronze   { background: rgba(180, 83, 9, 0.16); color: #b45309; }
+.fmp-tier-icon--platinum { background: rgba(226, 232, 240, 0.1); color: #e2e8f0; }
+.fmp-tier-icon--season   { background: rgba(139, 92, 246, 0.16); color: #8b5cf6; }
+
+.fmp-tier-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.fmp-tier-name--gold     { color: #f59e0b; }
+.fmp-tier-name--silver   { color: #94a3b8; }
+.fmp-tier-name--bronze   { color: #b45309; }
+.fmp-tier-name--platinum { color: #e2e8f0; }
+.fmp-tier-name--season   { color: #8b5cf6; }
+
+.fmp-tier-price {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.fmp-tier-price-note {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
+
+.fmp-tier-features {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fmp-tier-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.fmp-feature-check {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--color-open);
+}
+
+.fmp-join-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.fmp-join-btn:disabled { opacity: 0.6; cursor: default; }
+.fmp-join-btn:not(:disabled):hover { filter: brightness(1.15); }
+
+.fmp-join-btn--gold     { background: rgba(245, 158, 11, 0.22); color: #f59e0b; }
+.fmp-join-btn--silver   { background: rgba(148, 163, 184, 0.22); color: #94a3b8; }
+.fmp-join-btn--bronze   { background: rgba(180, 83, 9, 0.22); color: #b45309; }
+.fmp-join-btn--platinum { background: rgba(226, 232, 240, 0.14); color: #e2e8f0; }
+.fmp-join-btn--season   { background: rgba(139, 92, 246, 0.22); color: #8b5cf6; }

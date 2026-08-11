@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Markets from "./Markets.tsx";
 import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
-import { fetchContracts, fetchMarkets } from "../../services/marketAdminService.ts";
+import {
+  fetchContracts,
+  fetchPublishedMarkets,
+} from "../../services/marketAdminService.ts";
 import type { Market } from "../../services/marketAdminService.ts";
 
 vi.mock("../../components/landing/Navbar", () => ({
@@ -17,7 +20,7 @@ vi.mock("../../services/markets/publicMarketsService.ts", () => ({
   fetchPublicMarkets: vi.fn(),
 }));
 vi.mock("../../services/marketAdminService.ts", () => ({
-  fetchMarkets: vi.fn(),
+  fetchPublishedMarkets: vi.fn(),
   fetchContracts: vi.fn(),
 }));
 
@@ -47,8 +50,8 @@ const openMarket: Market = {
   description: "",
   tags: [],
   outcomes: [
-    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 5500 },
-    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 4500 },
+    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 550 },
+    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 450 },
   ],
   parameters: {
     opensAt: "2026-08-01T00:00:00Z",
@@ -80,13 +83,13 @@ function renderMarkets() {
 describe("Markets API states", () => {
   beforeEach(() => {
     vi.mocked(fetchPublicMarkets).mockReset().mockResolvedValue(emptyResponse);
-    vi.mocked(fetchMarkets).mockReset();
+    vi.mocked(fetchPublishedMarkets).mockReset();
     vi.mocked(fetchContracts).mockReset().mockResolvedValue([]);
   });
 
   it("shows the existing loading state", async () => {
     let resolveRequest!: (value: Market[]) => void;
-    vi.mocked(fetchMarkets).mockReturnValue(
+    vi.mocked(fetchPublishedMarkets).mockReturnValue(
       new Promise((resolve) => {
         resolveRequest = resolve;
       }),
@@ -98,7 +101,7 @@ describe("Markets API states", () => {
   });
 
   it("shows the existing empty state after a successful empty response", async () => {
-    vi.mocked(fetchMarkets).mockResolvedValue([]);
+    vi.mocked(fetchPublishedMarkets).mockResolvedValue([]);
     renderMarkets();
     expect(
       await screen.findByText("No open markets for this sport right now."),
@@ -107,7 +110,7 @@ describe("Markets API states", () => {
 
   it("shows a retryable error when the primary request fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchMarkets)
+    vi.mocked(fetchPublishedMarkets)
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce([]);
     renderMarkets();
@@ -125,7 +128,7 @@ describe("Markets API states", () => {
   it("returns to loading when retry is invoked", async () => {
     const user = userEvent.setup();
     let resolveRetry!: (value: Market[]) => void;
-    vi.mocked(fetchMarkets)
+    vi.mocked(fetchPublishedMarkets)
       .mockRejectedValueOnce(new Error("offline"))
       .mockReturnValueOnce(
         new Promise((resolve) => {
@@ -135,14 +138,14 @@ describe("Markets API states", () => {
     renderMarkets();
     await user.click(await screen.findByRole("button", { name: "Retry" }));
     expect(screen.getByText("Loading live markets…")).toBeInTheDocument();
-    expect(fetchMarkets).toHaveBeenCalledTimes(2);
+    expect(fetchPublishedMarkets).toHaveBeenCalledTimes(2);
     resolveRetry([]);
     await screen.findByText("No open markets for this sport right now.");
   });
 
   it("shows permission-aware copy for a 403 instead of the raw response", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetchMarkets)
+    vi.mocked(fetchPublishedMarkets)
       .mockRejectedValueOnce({
         isAxiosError: true,
         response: { status: 403, data: { detail: "raw axios forbidden" } },
@@ -163,7 +166,7 @@ describe("Markets API states", () => {
 
   it("keeps open markets visible when the fixtures widget fails", async () => {
     vi.mocked(fetchPublicMarkets).mockRejectedValue(new Error("fixtures endpoint down"));
-    vi.mocked(fetchMarkets).mockResolvedValue([openMarket]);
+    vi.mocked(fetchPublishedMarkets).mockResolvedValue([openMarket]);
     renderMarkets();
     expect(await screen.findByText("KCCA FC vs SC Villa")).toBeInTheDocument();
     await waitFor(() =>

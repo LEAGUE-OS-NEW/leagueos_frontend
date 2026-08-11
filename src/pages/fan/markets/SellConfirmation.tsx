@@ -8,6 +8,7 @@ import { formatUgx } from '../../../utils/rules.ts';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanTradeWallet.css';
+import { MARKET_FACE_VALUE_UGX } from '../../../utils/marketPricing.ts';
 
 const PLATFORM_FEE_RATE = 0.02;
 
@@ -41,7 +42,7 @@ function SellConfirmation({ order = SAMPLE_ORDER }: { order?: SellConfirmationDa
   const contracts = (location.state as { contracts?: number } | null)?.contracts ?? order.contracts;
 
   const { grossProceeds, platformFee, netTotal, remainingContracts } = useMemo(() => {
-    const gross = contracts * order.sellPrice * 10_000;
+    const gross = contracts * order.sellPrice * MARKET_FACE_VALUE_UGX;
     const fee = gross * PLATFORM_FEE_RATE;
     return {
       grossProceeds: gross,
