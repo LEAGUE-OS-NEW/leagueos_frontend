@@ -28,7 +28,7 @@ import {
   fetchMarketStats,
   type PublicMarketStats,
 } from "../../services/markets/publicMarketsService.ts";
-import { fetchContracts, fetchPublishedMarkets } from "../../services/marketAdminService.ts";
+import { fetchPublishedMarkets } from "../../services/marketAdminService.ts";
 import "./Markets.css";
 
 type Sport = "Football" | "Rugby" | "Basketball";
@@ -44,7 +44,6 @@ type FeaturedMarket = {
   question: string;
   closesIn: string;
   status: string;
-  probabilityPct: number;
   yesPrice: string;
   noPrice: string;
   volume: string;
@@ -199,11 +198,6 @@ function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string
   return { teamA: teamA ?? eventLabel, teamB: teamB ?? "Event market" };
 }
 
-function formatUgxVolume(amount: number): string {
-  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
-  return `UGX ${Math.round(amount / 1000)}K`;
-}
-
 function CrestPlaceholder() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -297,18 +291,6 @@ function Markets() {
           (market) => market.status !== "Draft" && isSupportedSport(market.category),
         );
 
-        const contractEntries = await Promise.all(
-          visible.map((market) => fetchContracts(market.id).then((contracts) => [market.id, contracts] as const)),
-        );
-        if (controller.signal.aborted) return;
-        const contractsByMarket = new Map(contractEntries);
-        const statsFor = (marketId: string) => {
-          const contracts = contractsByMarket.get(marketId) ?? [];
-          const totalUgx = contracts.reduce((sum, contract) => sum + contract.quantityUgx, 0);
-          const traders = new Set(contracts.flatMap((contract) => [contract.buyer, contract.seller])).size;
-          return { volume: formatUgxVolume(totalUgx), traders: traders.toLocaleString("en-US") };
-        };
-
         const openStatus = visible.filter((market) => market.status === "Live" || market.status === "Upcoming");
         const closedStatus = visible.filter(
           (market) => market.status === "Resolved" || market.status === "Cancelled" || market.status === "Voided",
@@ -316,7 +298,6 @@ function Markets() {
 
         setFeaturedMarkets(
           openStatus.slice(0, 5).map((market) => {
-            const yes = market.outcomes.find((outcome) => outcome.id === "YES")!;
             return {
               id: market.id,
               sport: market.category as Sport,
@@ -324,25 +305,24 @@ function Markets() {
               question: market.question,
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
               status: "OPEN",
-              probabilityPct: yes.probabilityPct,
-              yesPrice: `${yes.probabilityPct}¢`,
-              noPrice: `${100 - yes.probabilityPct}¢`,
-              ...statsFor(market.id),
+              yesPrice: "Price unavailable",
+              noPrice: "Price unavailable",
+              volume: "—",
+              traders: "—",
             };
           }),
         );
 
         setOpenMarkets(
           openStatus.map((market) => {
-            const yes = market.outcomes.find((outcome) => outcome.id === "YES")!;
             return {
               id: market.id,
               sport: market.category as Sport,
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              yesPrice: `${yes.probabilityPct}¢`,
-              noPrice: `${100 - yes.probabilityPct}¢`,
-              volume: statsFor(market.id).volume,
+              yesPrice: "—",
+              noPrice: "—",
+              volume: "—",
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
             };
           }),
@@ -355,7 +335,7 @@ function Markets() {
             ...teamsFromEventLabel(market.eventLabel),
             question: market.question,
             result: market.winningOutcomeId ?? "VOIDED",
-            volume: statsFor(market.id).volume,
+            volume: "—",
             closedAgo: new Date(market.resolvedAt ?? market.parameters.closesAt).toLocaleString(),
           })),
         );
@@ -367,7 +347,7 @@ function Markets() {
               sport: market.category as Sport,
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              fireCount: `${(contractsByMarket.get(market.id) ?? []).length} trades`,
+              fireCount: "Trading data unavailable",
             })),
         );
       })
@@ -521,7 +501,7 @@ function Markets() {
                   Explore trending questions. Trade your view.
                   <InfoTooltip
                     label="How prices work"
-                    text="A YES price of 67¢ means the market currently sees a 67% chance of YES. Prices move as more people trade."
+                    text="A winning share pays UGX 1,000. Current prices are shown in UGX per share when genuine trading data is available."
                   />
                   <InfoTooltip
                     label="What volume means"
@@ -566,18 +546,12 @@ function Markets() {
                   <p className="featured-market-closes">{market.closesIn}</p>
 
                   <div className="market-probability">
-                    <div className="market-probability-track">
-                      <div
-                        className="market-probability-fill"
-                        style={{ width: `${market.probabilityPct}%` }}
-                      />
-                    </div>
-                    <span className="market-probability-label">{market.probabilityPct}% likely YES</span>
+                    <span className="market-probability-label">Not traded yet</span>
                   </div>
 
                   <div className="featured-market-stats">
                     <span>
-                      <FiUsers /> {market.traders} traders
+                      {market.traders} traders
                     </span>
                     <span>Vol: {market.volume}</span>
                   </div>
@@ -655,7 +629,7 @@ function Markets() {
                       No
                       <InfoTooltip
                         label="What the NO price means"
-                        text="What it costs to buy a NO share — always 100¢ minus the YES price."
+                        text="The current NO price in UGX per share, when genuine trading data is available."
                       />
                     </span>
                     <span>

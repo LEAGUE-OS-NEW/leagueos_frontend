@@ -10,7 +10,8 @@ import {
   type OrderBook,
   type OutcomeId,
 } from '../../services/marketAdminService';
-import { fetchFanPositions, placeOrder, type Position } from '../../services/fanMarketsServices';
+import { fetchFanPositions, fetchMarketOrderBook, placeOrder, type Position } from '../../services/fanMarketsServices';
+import { normalizedPriceToUgxSharePrice } from '../../utils/marketPricing.ts';
 import { useIdentityVerificationStore } from '../../store/identityVerificationStore';
 import './MarketDetailPage.css';
 
@@ -46,9 +47,9 @@ function MarketDetailPage() {
 
   const [selectedOutcome, setSelectedOutcome] = useState<OutcomeId>(() => getInitialOutcome(searchParams));
   const [amount, setAmount] = useState('');
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [bestAsk, setBestAsk] = useState<number | null>(null);
 
   useEffect(() => {
     if (!marketId) return;
@@ -75,6 +76,19 @@ function MarketDetailPage() {
     };
   }, [marketId]);
 
+  useEffect(() => {
+    const outcome = market?.outcomes.find((item) => item.id === selectedOutcome);
+    if (!market || !outcome?.backendOutcomeId) return;
+    let cancelled = false;
+    // Clear the previous outcome's quote while this outcome is fetched.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBestAsk(null);
+    fetchMarketOrderBook(market.id, outcome.backendOutcomeId)
+      .then((book) => { if (!cancelled) setBestAsk(book.best_ask === null ? null : Number(book.best_ask)); })
+      .catch(() => { if (!cancelled) setBestAsk(null); });
+    return () => { cancelled = true; };
+  }, [market, selectedOutcome]);
+
   const handlePlaceOrder = async () => {
     if (!market) return;
     const quantityUgx = Number(amount);
@@ -82,18 +96,16 @@ function MarketDetailPage() {
       setOrderError('Enter an amount to trade.');
       return;
     }
-    setIsPlacingOrder(true);
     setOrderError(null);
     try {
-      await placeOrder({ marketId: market.id, outcomeId: selectedOutcome, quantityUgx });
+      if (bestAsk === null) { setOrderError('No sell liquidity is currently available for this outcome.'); return; }
+      await placeOrder({ marketId: market.id, outcomeId: selectedOutcome, quantityUgx, limitPrice: bestAsk });
       const positions = await fetchFanPositions();
       setMyPositions(positions.filter((position) => position.market.id === market.id));
       setOrderSuccess(true);
       setAmount('');
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Could not place this order.');
-    } finally {
-      setIsPlacingOrder(false);
     }
   };
 
@@ -133,7 +145,8 @@ function MarketDetailPage() {
   const isTradingOpen = market.status === 'Live';
   const isResolved = market.status === 'Resolved';
   const isCancelled = market.status === 'Cancelled' || market.status === 'Voided';
-  const estimatedShares = Number(amount) > 0 ? Number(amount) / selected.price : 0;
+  const selectedPrice = bestAsk === null ? null : normalizedPriceToUgxSharePrice(bestAsk);
+  const estimatedShares = selectedPrice && Number(amount) > 0 ? Number(amount) / selectedPrice : 0;
 
   return (
     <div className="pmd-page">
@@ -158,13 +171,13 @@ function MarketDetailPage() {
         <div className="pmd-outcomes">
           <div className="pmd-outcome-card pmd-outcome-card--yes">
             <span className="pmd-outcome-card__label">{yesOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(yesOutcome.price)}/share</span>
-            <span className="pmd-outcome-card__pct">{yesOutcome.probabilityPct}% likely</span>
+            <span className="pmd-outcome-card__price">Price unavailable</span>
+            <span className="pmd-outcome-card__pct">Not traded yet</span>
           </div>
           <div className="pmd-outcome-card pmd-outcome-card--no">
             <span className="pmd-outcome-card__label">{noOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(noOutcome.price)}/share</span>
-            <span className="pmd-outcome-card__pct">{noOutcome.probabilityPct}% likely</span>
+            <span className="pmd-outcome-card__price">Price unavailable</span>
+            <span className="pmd-outcome-card__pct">Not traded yet</span>
           </div>
         </div>
 
@@ -240,14 +253,14 @@ function MarketDetailPage() {
                 className={`pmd-outcome-choice pmd-outcome-choice--yes${selectedOutcome === 'YES' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('YES')}
               >
-                {yesOutcome.label} &middot; {formatUgx(yesOutcome.price)}/share
+                {yesOutcome.label}
               </button>
               <button
                 type="button"
                 className={`pmd-outcome-choice pmd-outcome-choice--no${selectedOutcome === 'NO' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('NO')}
               >
-                {noOutcome.label} &middot; {formatUgx(noOutcome.price)}/share
+                {noOutcome.label}
               </button>
             </div>
             <label className="pmd-field">
@@ -267,8 +280,9 @@ function MarketDetailPage() {
                 {selected.label} wins, UGX 0 if not.
               </p>
             )}
-            <button type="button" className="pmd-btn pmd-btn--gradient" disabled={isPlacingOrder} onClick={handlePlaceOrder}>
-              {isPlacingOrder ? 'Placing Order…' : `Buy ${selected.label}`}
+            {bestAsk === null && <p>No sell liquidity is currently available for this outcome.</p>}
+            <button type="button" className="pmd-btn pmd-btn--gradient" disabled={bestAsk === null} onClick={handlePlaceOrder}>
+              {bestAsk === null ? 'No sell liquidity' : `Buy at ${formatUgx(selectedPrice ?? 0)}/share`}
             </button>
           </div>
         )}
@@ -282,13 +296,14 @@ function MarketDetailPage() {
         {orderBook && isTradingOpen && (
           <div className="pmd-panel">
             <h2>Order Book</h2>
+            {orderBook.bids.length === 0 && orderBook.asks.length === 0 && <p>No orders yet.</p>}
             <div className="pmd-orderbook-grid">
               <div>
                 <h4 className="pmd-orderbook-col__title pmd-orderbook-col__title--bid">Bids</h4>
                 {orderBook.bids.map((level, index) => (
                   <div className="pmd-orderbook-row pmd-orderbook-row--bid" key={`bid-${index}`}>
                     <span>{formatUgx(level.price)}</span>
-                    <span>{formatUgx(level.quantityUgx)}</span>
+                    <span>{level.shares.toLocaleString()} shares</span>
                   </div>
                 ))}
               </div>
@@ -297,7 +312,7 @@ function MarketDetailPage() {
                 {orderBook.asks.map((level, index) => (
                   <div className="pmd-orderbook-row pmd-orderbook-row--ask" key={`ask-${index}`}>
                     <span>{formatUgx(level.price)}</span>
-                    <span>{formatUgx(level.quantityUgx)}</span>
+                    <span>{level.shares.toLocaleString()} shares</span>
                   </div>
                 ))}
               </div>

@@ -14,18 +14,18 @@
 // second look possible before money moves, mirroring the separation of
 // duties used elsewhere in the merged admin workflow.
 
+import apiClient from './apiClient.ts';
+import { normalizeApiList } from './apiUtils.ts';
+import { useAuthStore } from '../store/authStore.ts';
 import {
-  currentAdminIdentity,
-  fetchContracts,
   fetchMarket,
   fetchMarkets,
   resolveMarket,
   type OutcomeId,
 } from './marketAdminService';
-import { recordMarketPayout } from './walletService';
 
 export type VerificationStage = 'Awaiting Result' | 'Verified' | 'Finalised';
-export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved';
+export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved' | 'Unavailable';
 
 export interface AuditEvent {
   id: string;
@@ -82,6 +82,13 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function authenticatedAdminIdentity(): string {
+  const user = useAuthStore.getState().user;
+  if (!user) return 'Authenticated administrator';
+  const value = user as Record<string, unknown>;
+  return String(value.full_name || value.name || value.email || value.id || 'Authenticated administrator');
+}
+
 interface VerificationRecord {
   stage: VerificationStage;
   proposedWinningOutcomeId?: OutcomeId;
@@ -103,7 +110,7 @@ function recordFor(marketId: string): VerificationRecord {
 
 function pushRecordAudit(record: VerificationRecord, action: string, note?: string): void {
   record.auditHistory = [
-    { id: genId('audit'), timestamp: nowIso(), adminUser: currentAdminIdentity(), action, note },
+    { id: genId('audit'), timestamp: nowIso(), adminUser: authenticatedAdminIdentity(), action, note },
     ...record.auditHistory,
   ];
 }
@@ -156,7 +163,7 @@ export async function verifyResult(
   record.stage = 'Verified';
   record.proposedWinningOutcomeId = input.winningOutcomeId;
   record.evidenceNote = input.evidenceNote.trim();
-  record.verifiedBy = currentAdminIdentity();
+  record.verifiedBy = authenticatedAdminIdentity();
   record.verifiedAt = nowIso();
   pushRecordAudit(record, 'Result verified', input.evidenceNote.trim());
 
@@ -189,19 +196,6 @@ export async function finalizeResult(marketId: string): Promise<ResultVerificati
   record.finalizedAt = nowIso();
   pushRecordAudit(record, 'Finalised — payouts sent');
 
-  // Credit the current session's wallet for any winning contract it holds
-  // on this market — there's one shared mock wallet (the signed-in user's),
-  // so contracts bought under other demo trader names have no real wallet
-  // to credit, matching how a real multi-user backend would only ever
-  // touch the specific holder's own balance.
-  const identity = currentAdminIdentity();
-  const contracts = await fetchContracts(marketId);
-  for (const contract of contracts) {
-    if (contract.buyer === identity && contract.status === 'Settled' && (contract.payoutUgx ?? 0) > 0) {
-      recordMarketPayout(market.eventLabel, contract.payoutUgx!);
-    }
-  }
-
   return delay({
     marketId: market.id,
     eventLabel: market.eventLabel,
@@ -224,68 +218,32 @@ export async function finalizeResult(marketId: string): Promise<ResultVerificati
    DISPUTES
    ============================================================ */
 
-function hoursAgo(hours: number): string {
-  return new Date(Date.now() - hours * 60 * 60_000).toISOString();
-}
-
-const disputes: Dispute[] = [
-  {
-    id: genId('dispute'),
-    marketId: 'seed-dispute-1',
-    eventLabel: 'Uganda Cranes vs Tanzania Taifa Stars',
-    raisedBy: 'Fan #2231',
-    reason: 'The match report shows a disallowed goal that would change the result to a draw.',
-    status: 'Open',
-    createdAt: hoursAgo(20),
-    auditHistory: [],
-  },
-  {
-    id: genId('dispute'),
-    marketId: 'seed-dispute-2',
-    eventLabel: 'Onduparaka FC vs Wakiso Giants',
-    raisedBy: 'Fan #5560',
-    reason: 'Market was cancelled but the fixture was actually played — requesting a review.',
-    status: 'Escalated',
-    createdAt: hoursAgo(50),
-    auditHistory: [
-      { id: genId('audit'), timestamp: hoursAgo(40), adminUser: 'Dawa Nakato', action: 'Escalated to Compliance' },
-    ],
-  },
-];
-
-function cloneDispute(dispute: Dispute): Dispute {
-  return { ...dispute, auditHistory: dispute.auditHistory.map((event) => ({ ...event })) };
-}
-
-function findDisputeOrThrow(id: string): Dispute {
-  const dispute = disputes.find((item) => item.id === id);
-  if (!dispute) fail(`Dispute ${id} was not found.`);
-  return dispute;
-}
-
 export async function fetchDisputes(): Promise<Dispute[]> {
-  return delay(disputes.map(cloneDispute));
+  const [response, markets] = await Promise.all([
+    apiClient.get('/market-admin/result-disputes/'),
+    fetchMarkets(),
+  ]);
+  const labels = new Map(markets.map((market) => [market.id, market.eventLabel]));
+  return normalizeApiList<Record<string, unknown>>(response.data).map((value) => ({
+    id: String(value.id),
+    marketId: String(value.market_id),
+    eventLabel: labels.get(String(value.market_id)) ?? 'Market details unavailable',
+    raisedBy: value.participant_id ? String(value.participant_id) : 'Participant unavailable',
+    reason: String(value.explanation ?? ''),
+    status: 'Unavailable',
+    createdAt: String(value.submitted_at ?? ''),
+    auditHistory: [],
+  }));
 }
 
 export async function escalateDispute(id: string, note: string): Promise<Dispute> {
+  void id;
   if (!note.trim()) fail('Explain why this dispute is being escalated.');
-  const dispute = findDisputeOrThrow(id);
-  dispute.status = 'Escalated';
-  dispute.auditHistory = [
-    { id: genId('audit'), timestamp: nowIso(), adminUser: currentAdminIdentity(), action: 'Escalated', note: note.trim() },
-    ...dispute.auditHistory,
-  ];
-  return delay(cloneDispute(dispute));
+  throw new Error('Escalation requires a backend result-dispute decision and is not supported by this screen yet.');
 }
 
 export async function resolveDispute(id: string, resolutionNote: string): Promise<Dispute> {
+  void id;
   if (!resolutionNote.trim()) fail('A resolution note is required.');
-  const dispute = findDisputeOrThrow(id);
-  dispute.status = 'Resolved';
-  dispute.resolutionNote = resolutionNote.trim();
-  dispute.auditHistory = [
-    { id: genId('audit'), timestamp: nowIso(), adminUser: currentAdminIdentity(), action: 'Resolved', note: resolutionNote.trim() },
-    ...dispute.auditHistory,
-  ];
-  return delay(cloneDispute(dispute));
+  throw new Error('Resolution requires a backend result-dispute decision with evidence and is not supported by this screen yet.');
 }

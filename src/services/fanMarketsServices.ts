@@ -4,6 +4,8 @@ import type { Market as ApiMarket, MarketCategory as ApiMarketCategory } from '.
 import {
   MARKET_FACE_VALUE_UGX,
   backendQuantityToShares,
+  normalizedPriceToUgxSharePrice,
+  sharesToBackendQuantity,
   stakeUgxToBackendQuantity,
 } from '../utils/marketPricing.ts';
 
@@ -15,7 +17,6 @@ export type MarketCategoryName = string;
 export const MARKET_CATEGORIES = ['Football', 'Rugby', 'Basketball', 'Cricket', 'Athletics', 'Esports', 'Other'] as const;
 
 const PAYOUT_PER_CONTRACT_UGX = MARKET_FACE_VALUE_UGX;
-const DEFAULT_PROBABILITY = 50;
 const DEFAULT_MIN_TRADE_UGX = 1_000;
 const DEFAULT_MAX_TRADE_UGX = 500_000;
 const DEFAULT_FEE_PCT = 2;
@@ -32,13 +33,13 @@ export interface MarketListItem {
   scheduleLabel?: string;
   marketType: string;
   endsInLabel: string;
-  volumeLabel: string;
+  volumeLabel: string | null;
   question: string;
-  yesPrice: number;
-  noPrice: number;
-  changePct: number;
-  tradersCount: number;
-  totalContractsLabel: string;
+  yesPrice: number | null;
+  noPrice: number | null;
+  changePct: number | null;
+  tradersCount: number | null;
+  totalContractsLabel: string | null;
 }
 
 export interface MarketCategory {
@@ -52,8 +53,8 @@ export interface Outcome {
   backendOutcomeId: string;
   label: string;
   description: string;
-  probabilityPct: number;
-  price: number;
+  probabilityPct: number | null;
+  price: number | null;
 }
 
 export interface MarketParameters {
@@ -120,15 +121,57 @@ export interface Contract {
 export interface Position {
   contract: Contract;
   market: Market;
+  portfolio: PortfolioPosition;
 }
 
 export interface PlaceOrderInput {
   marketId: string;
   outcomeId: OutcomeId;
   quantityUgx: number;
+  limitPrice: number;
 }
 
-interface PortfolioPositionApi {
+export interface SellOrderInput {
+  marketId: string;
+  backendOutcomeId: string;
+  outcomeId: OutcomeId;
+  shares: number;
+  limitPrice: number;
+}
+
+export interface MarketOrderBookLevel { price: string; quantity: string; order_count: number }
+export interface MarketRecentTrade { id: string; price: string; quantity: string; executed_at: string }
+export interface MarketOrderBook {
+  market_id: string;
+  outcome: { id: string; side: string; label: string };
+  best_bid: string | null;
+  best_ask: string | null;
+  spread: string | null;
+  total_bid_quantity: string;
+  total_ask_quantity: string;
+  bids: MarketOrderBookLevel[];
+  asks: MarketOrderBookLevel[];
+  recent_trades: MarketRecentTrade[];
+}
+export interface RawPriceHistoryPoint { fill_id: string; executed_at: string; price: string; quantity: string }
+export interface AggregatePriceHistoryPoint {
+  bucket_start: string; open: string; high: string; low: string; close: string; volume: string; trade_count: number;
+}
+interface PriceHistoryBase { market_id: string; outcome_id: string; start?: string | null; end?: string | null }
+export interface RawPriceHistoryResponse extends PriceHistoryBase { interval: 'RAW'; points: RawPriceHistoryPoint[] }
+export interface AggregatePriceHistoryResponse extends PriceHistoryBase { interval: 'HOUR' | 'DAY'; points: AggregatePriceHistoryPoint[] }
+export type MarketPriceHistory = RawPriceHistoryResponse | AggregatePriceHistoryResponse;
+export interface PriceHistoryOptions { interval?: 'RAW' | 'HOUR' | 'DAY'; start?: string; end?: string; limit?: number }
+
+export interface PortfolioPosition {
+  id: string; marketId: string; backendOutcomeId: string; outcomeLabel: string; marketStatus: string;
+  quantity: number; availableQuantity: number; reservedQuantity: number; averageEntryPrice: number;
+  totalCostBasis: number; realizedPnl: number; markPrice: number | null; markSource: string;
+  marketValue: number | null; unrealizedPnl: number | null; totalPositionPnl: number | null;
+  valuationComplete: boolean; openSellOrderCount: number; reservedSellOrderQuantity: number;
+}
+
+export interface PortfolioPositionApi {
   id: string;
   market_id: string;
   outcome_id: string;
@@ -137,10 +180,18 @@ interface PortfolioPositionApi {
   market_status: string;
   quantity: string;
   available_quantity: string;
+  reserved_quantity: string;
   average_entry_price: string;
   total_cost_basis: string;
   market_value: string | null;
   mark_price: string | null;
+  mark_source: string;
+  realized_pnl: string;
+  unrealized_pnl: string | null;
+  total_position_pnl: string | null;
+  valuation_complete: boolean;
+  open_sell_order_count: number;
+  reserved_sell_order_quantity: string;
   created_at: string;
 }
 
@@ -204,19 +255,11 @@ function listStatusFromMarket(market: Market): MarketStatus {
   return 'closed';
 }
 
-function probabilityFromOutcome(outcome: ApiMarket['outcomes'][number], fallback: number): number {
-  const text = `${outcome.label} ${outcome.description ?? ''}`;
-  const match = text.match(/(\d{1,2})(?:\.\d+)?\s*%/);
-  return match ? Math.max(1, Math.min(99, Number(match[1]))) : fallback;
-}
-
 function adaptMarket(market: ApiMarket): Market {
   const subject = market.subject?.name || market.sporting_event?.name || market.question;
   const [teamA, teamB] = splitSubject(subject);
   const yesApi = market.outcomes.find((outcome) => outcome.side === 'YES') ?? market.outcomes[0];
   const noApi = market.outcomes.find((outcome) => outcome.side === 'NO') ?? market.outcomes[1];
-  const yesProbability = yesApi ? probabilityFromOutcome(yesApi, DEFAULT_PROBABILITY) : DEFAULT_PROBABILITY;
-  const noProbability = noApi ? probabilityFromOutcome(noApi, 100 - yesProbability) : 100 - yesProbability;
   const status = statusFromApi(market);
   const kickoff = market.sporting_event?.starts_at ?? market.closes_at ?? market.opens_at ?? market.created_at ?? new Date().toISOString();
 
@@ -237,16 +280,16 @@ function adaptMarket(market: ApiMarket): Market {
         backendOutcomeId: yesApi.id,
         label: yesApi.label || 'Yes',
         description: yesApi.description ?? '',
-        probabilityPct: yesProbability,
-        price: Math.round((yesProbability / 100) * PAYOUT_PER_CONTRACT_UGX),
+        probabilityPct: null,
+        price: null,
       },
       noApi && {
         id: 'NO' as const,
         backendOutcomeId: noApi.id,
         label: noApi.label || 'No',
         description: noApi.description ?? '',
-        probabilityPct: noProbability,
-        price: Math.round((noProbability / 100) * PAYOUT_PER_CONTRACT_UGX),
+        probabilityPct: null,
+        price: null,
       },
     ].filter(Boolean) as Outcome[],
     parameters: {
@@ -282,15 +325,15 @@ function adaptListItem(market: Market): MarketListItem {
     league: market.competition,
     status: listStatusFromMarket(market),
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
-    marketType: 'Yes / No',
+    marketType: market.category,
     endsInLabel: formatDurationUntil(market.parameters.closesAt),
-    volumeLabel: '0',
+    volumeLabel: null,
     question: market.question,
-    yesPrice: yes?.price ?? MARKET_FACE_VALUE_UGX / 2,
-    noPrice: no?.price ?? MARKET_FACE_VALUE_UGX / 2,
-    changePct: 0,
-    tradersCount: 0,
-    totalContractsLabel: '0',
+    yesPrice: yes?.price ?? null,
+    noPrice: no?.price ?? null,
+    changePct: null,
+    tradersCount: null,
+    totalContractsLabel: null,
   };
 }
 
@@ -332,6 +375,22 @@ export async function fetchMarketCategories(): Promise<MarketCategory[]> {
   } catch (error) {
     throw apiError(error);
   }
+}
+
+export async function fetchMarketOrderBook(marketId: string, backendOutcomeId: string): Promise<MarketOrderBook> {
+  try {
+    const response = await apiClient.get(`/markets/${encodeURIComponent(marketId)}/outcomes/${encodeURIComponent(backendOutcomeId)}/order-book/`);
+    return response.data as MarketOrderBook;
+  } catch (error) { throw apiError(error); }
+}
+
+export async function fetchMarketPriceHistory(
+  marketId: string, backendOutcomeId: string, options: PriceHistoryOptions = {},
+): Promise<MarketPriceHistory> {
+  try {
+    const response = await apiClient.get(`/markets/${encodeURIComponent(marketId)}/outcomes/${encodeURIComponent(backendOutcomeId)}/price-history/`, { params: options });
+    return response.data as MarketPriceHistory;
+  } catch (error) { throw apiError(error); }
 }
 
 async function fetchPositionMarkets(positions: PortfolioPositionApi[]): Promise<Map<string, Market>> {
@@ -406,11 +465,20 @@ export async function fetchFanPositions(): Promise<Position[]> {
             backendQuantity,
           );
 
-        const price =
-          Number(
-            position.average_entry_price,
-          ) *
-          PAYOUT_PER_CONTRACT_UGX;
+        const price = normalizedPriceToUgxSharePrice(Number(position.average_entry_price));
+        const portfolio: PortfolioPosition = {
+          id: position.id, marketId: position.market_id, backendOutcomeId: position.outcome_id,
+          outcomeLabel: position.outcome_label, marketStatus: position.market_status,
+          quantity: backendQuantityToShares(Number(position.quantity)), availableQuantity: shares,
+          reservedQuantity: backendQuantityToShares(Number(position.reserved_quantity)), averageEntryPrice: price,
+          totalCostBasis: Number(position.total_cost_basis), realizedPnl: Number(position.realized_pnl),
+          markPrice: position.mark_price === null ? null : normalizedPriceToUgxSharePrice(Number(position.mark_price)),
+          markSource: position.mark_source, marketValue: position.market_value === null ? null : Number(position.market_value),
+          unrealizedPnl: position.unrealized_pnl === null ? null : Number(position.unrealized_pnl),
+          totalPositionPnl: position.total_position_pnl === null ? null : Number(position.total_position_pnl),
+          valuationComplete: position.valuation_complete, openSellOrderCount: position.open_sell_order_count,
+          reservedSellOrderQuantity: backendQuantityToShares(Number(position.reserved_sell_order_quantity)),
+        };
 
         return {
           contract: {
@@ -434,6 +502,7 @@ export async function fetchFanPositions(): Promise<Position[]> {
             status: position.market_status,
           },
           market,
+          portfolio,
         };
       })
       .filter(Boolean) as Position[];
@@ -447,16 +516,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
     const market = await fetchMarket(input.marketId);
     const outcome = market.outcomes.find((item) => item.id === input.outcomeId);
     if (!outcome) throw new Error('Select YES or NO.');
-
-    const limitPrice =
-      Math.max(
-        0.00001,
-        Math.min(
-          0.99999,
-          outcome.price /
-            PAYOUT_PER_CONTRACT_UGX,
-        ),
-      );
+    const limitPrice = input.limitPrice;
+    if (!(limitPrice > 0 && limitPrice < 1)) throw new Error('A genuine executable quote is required.');
 
     const quantity =
       Math.max(
@@ -489,4 +550,23 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
     if (error instanceof Error && !('response' in error)) throw error;
     throw apiError(error);
   }
+}
+
+export async function sellPosition(input: SellOrderInput): Promise<Contract> {
+  if (!(input.limitPrice > 0 && input.limitPrice < 1)) throw new Error('A genuine executable quote is required.');
+  const quantity = sharesToBackendQuantity(input.shares);
+  if (quantity < 0.0001) throw new Error('Enter a valid number of shares.');
+  try {
+    const response = await apiClient.post(`/markets/${encodeURIComponent(input.marketId)}/orders/`, {
+      outcome_id: input.backendOutcomeId, side: 'SELL', quantity: quantity.toFixed(4),
+      limit_price: input.limitPrice.toFixed(5), time_in_force: 'GTC',
+    });
+    const order = response.data as MarketOrderApi;
+    return {
+      id: order.id, marketId: order.market, outcomeId: input.outcomeId,
+      price: normalizedPriceToUgxSharePrice(Number(order.limit_price)),
+      quantityUgx: Number(order.quantity) * Number(order.limit_price), buyer: 'Market', seller: 'You',
+      matchedAt: order.created_at, status: order.status,
+    };
+  } catch (error) { throw apiError(error); }
 }

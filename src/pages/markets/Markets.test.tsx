@@ -7,10 +7,7 @@ import {
   fetchMarketStats,
   fetchPublicMarkets,
 } from "../../services/markets/publicMarketsService.ts";
-import {
-  fetchContracts,
-  fetchPublishedMarkets,
-} from "../../services/marketAdminService.ts";
+import { fetchPublishedMarkets } from "../../services/marketAdminService.ts";
 import type { Market } from "../../services/marketAdminService.ts";
 
 vi.mock("../../components/landing/Navbar", () => ({
@@ -25,7 +22,6 @@ vi.mock("../../services/markets/publicMarketsService.ts", () => ({
 }));
 vi.mock("../../services/marketAdminService.ts", () => ({
   fetchPublishedMarkets: vi.fn(),
-  fetchContracts: vi.fn(),
 }));
 
 const emptyResponse = {
@@ -134,7 +130,6 @@ describe("Markets API states", () => {
       ],
     });
     vi.mocked(fetchPublishedMarkets).mockReset();
-    vi.mocked(fetchContracts).mockReset().mockResolvedValue([]);
   });
 
   it("renders sport counts from the live market stats API", async () => {
@@ -147,6 +142,15 @@ describe("Markets API states", () => {
     expect(screen.getByText("4 markets")).toBeInTheDocument();
 
     expect(fetchMarketStats).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fabricate prices or contract-derived metrics", async () => {
+    vi.mocked(fetchPublishedMarkets).mockResolvedValue([openMarket]);
+    renderMarkets();
+
+    expect(await screen.findAllByText("Price unavailable")).not.toHaveLength(0);
+    expect(screen.getByText("Not traded yet")).toBeInTheDocument();
+    expect(screen.queryByText("55% likely YES")).not.toBeInTheDocument();
   });
 
   it("shows the existing loading state", async () => {

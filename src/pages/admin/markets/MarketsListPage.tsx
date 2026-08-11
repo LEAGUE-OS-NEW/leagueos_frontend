@@ -9,13 +9,11 @@ import {
 } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
-  fetchContracts,
   fetchMarkets,
   fetchProposals,
   markProposalDuplicate,
   rejectProposal,
   startProposalReview,
-  type Contract,
   type Market,
   type MarketProposal,
   type MarketStatus,
@@ -39,12 +37,6 @@ function formatDateTime(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function formatUgx(amount: number): string {
-  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `UGX ${Math.round(amount / 1000)}K`;
-  return `UGX ${amount}`;
 }
 
 function statusPillClass(status: MarketStatus): string {
@@ -117,7 +109,6 @@ function MarketsListPage() {
   const navigate = useNavigate();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [proposals, setProposals] = useState<MarketProposal[]>([]);
-  const [contractsByMarket, setContractsByMarket] = useState<Record<string, Contract[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('Live');
@@ -129,20 +120,16 @@ function MarketsListPage() {
 
   const fetchAll = async () => {
     const [marketsResult, proposalsResult] = await Promise.all([fetchMarkets(), fetchProposals()]);
-    const contractEntries = await Promise.all(
-      marketsResult.map((market) => fetchContracts(market.id).then((contracts) => [market.id, contracts] as const)),
-    );
-    return { marketsResult, proposalsResult, contractsMap: Object.fromEntries(contractEntries) };
+    return { marketsResult, proposalsResult };
   };
 
   useEffect(() => {
     let cancelled = false;
     fetchAll()
-      .then(({ marketsResult, proposalsResult, contractsMap }) => {
+      .then(({ marketsResult, proposalsResult }) => {
         if (cancelled) return;
         setMarkets(marketsResult);
         setProposals(proposalsResult);
-        setContractsByMarket(contractsMap);
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load markets. Please try again.');
@@ -159,10 +146,9 @@ function MarketsListPage() {
     setIsLoading(true);
     setLoadError(null);
     fetchAll()
-      .then(({ marketsResult, proposalsResult, contractsMap }) => {
+      .then(({ marketsResult, proposalsResult }) => {
         setMarkets(marketsResult);
         setProposals(proposalsResult);
-        setContractsByMarket(contractsMap);
       })
       .catch(() => setLoadError('Could not load markets. Please try again.'))
       .finally(() => setIsLoading(false));
@@ -350,7 +336,8 @@ function MarketsListPage() {
                               <button
                                 type="button"
                                 className="mkt-btn mkt-btn--outline mkt-btn--sm"
-                                onClick={() => setPendingNote({ kind: 'duplicate', proposal })}
+                                title="A specific duplicate market or proposal must be selected; this screen does not support that yet."
+                                onClick={() => setActionError('Select a specific duplicate market or proposal before marking a duplicate. This screen does not support target selection yet.')}
                               >
                                 <FiCopy /> Duplicate
                               </button>
@@ -391,8 +378,6 @@ function MarketsListPage() {
                   </thead>
                   <tbody>
                     {visibleMarkets.map((market) => {
-                      const contracts = contractsByMarket[market.id] ?? [];
-                      const volume = contracts.reduce((sum, contract) => sum + contract.quantityUgx, 0);
                       return (
                         <tr key={market.id} onClick={() => navigate(`/dashboard/admin/markets/${market.id}`)}>
                           <td className="mkt-table__title-cell">
@@ -400,8 +385,8 @@ function MarketsListPage() {
                             <span className="mkt-table__subtext">{market.question}</span>
                           </td>
                           <td>{market.category}</td>
-                          <td>{formatUgx(volume)}</td>
-                          <td>{contracts.length}</td>
+                          <td aria-label="Volume unavailable">—</td>
+                          <td aria-label="Contract count unavailable">—</td>
                           <td>
                             <span className={statusPillClass(market.status)}>{market.status}</span>
                           </td>
