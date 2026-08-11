@@ -304,3 +304,14 @@
     animation: none;
   }
 }
+
+.fan-settings-main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .fan-settings-main {
+    margin-left: 260px;
+  }
+}

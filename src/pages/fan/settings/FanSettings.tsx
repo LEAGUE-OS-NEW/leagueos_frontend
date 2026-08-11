@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { FiActivity, FiBell, FiShield, FiUser } from 'react-icons/fi';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import SecurityTab from './sections/SecurityTab';
 import NotificationsTab from './sections/NotificationsTab';
+import NotificationsHistorySection from './sections/NotificationsHistorySection';
 import ActivityTab from './sections/ActivityTab';
 import AccountTab from './sections/AccountTab';
 import './FanSettings.css';
@@ -20,7 +22,11 @@ const TABS: { id: TabId; label: string; icon: typeof FiShield }[] = [
 
 function FanSettings() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>('security');
+  const [searchParams] = useSearchParams();
+
+  const requestedTab = searchParams.get('tab') as TabId | null;
+  const initialTab: TabId = requestedTab && TABS.some((t) => t.id === requestedTab) ? requestedTab : 'security';
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
@@ -28,6 +34,16 @@ function FanSettings() {
       document.body.style.overflow = '';
     };
   }, [isSidebarOpen]);
+
+  // Keep the active tab in sync if the ?tab= query param changes after mount
+  // (e.g. navigating from /notifications -> /settings?tab=notifications while already on this page)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as TabId | null;
+    if (tabParam && TABS.some((t) => t.id === tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div className="fan-settings">
@@ -58,7 +74,12 @@ function FanSettings() {
             </div>
 
             {activeTab === 'security' && <SecurityTab />}
-            {activeTab === 'notifications' && <NotificationsTab />}
+            {activeTab === 'notifications' && (
+              <>
+                <NotificationsHistorySection />
+                <NotificationsTab />
+              </>
+            )}
             {activeTab === 'activity' && <ActivityTab />}
             {activeTab === 'account' && <AccountTab />}
           </div>
