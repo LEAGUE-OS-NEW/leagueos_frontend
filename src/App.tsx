@@ -42,7 +42,7 @@ import SellConfirmation from './pages/fan/markets/SellConfirmation';
 // identity verification — wallet snapshot, live markets, categories, and
 // an open-positions summary in one place.
 import FanTradeHub from './pages/fan/markets/FanTradeHub';
-import Fantasy from './pages/fantasy/Fantasy';
+
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
@@ -76,7 +76,7 @@ import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
-import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
+import FantasyCompetitions from './pages/fan/fantasy/FantasyCompetitions';
 
 // import Personalize from "./pages/personalize/Personalize";
 
@@ -133,9 +133,11 @@ function App() {
         <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
         <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
 
-        <Route path="/fantasy" element={<Fantasy />} />
+        {/* Fantasy section */ }
         <Route path="/search" element={<SearchPage />} />
+        {/* Fantasy Home — Step 2 entry point into the Fantasy flow */}
         <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+        
 
        
 
