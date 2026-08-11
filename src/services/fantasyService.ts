@@ -8,7 +8,7 @@
 // TEMPORARY MOCK DATA — replace these consts with real API calls when the
 // fantasy backend becomes available.
 
-import type { Sport } from '../pages/fan/fantasy/FantasyCompetitions';
+import type { Sport } from '../pages/fan/fantasy/types';
 
 function delay<T>(value: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));

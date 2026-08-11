@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Competition, FantasyTeam, Player, PositionGroup } from '../types';
 import { SPORT_RULES, playersFor } from '../data';
 import { SearchBar, Badge, FilterIcon } from './shared';

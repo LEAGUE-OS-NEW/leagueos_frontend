@@ -1,4 +1,4 @@
-import React from 'react';
+
 import type { Player } from '../types';
 import { Drawer } from './Modal';
 import PlayerAvatar from './PlayerAvatar';
