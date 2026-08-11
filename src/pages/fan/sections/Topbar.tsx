@@ -1,7 +1,9 @@
-import { FiSearch, FiBell, FiChevronDown, FiMenu } from 'react-icons/fi';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiSearch, FiBell, FiChevronDown, FiMenu, FiUser, FiLogOut } from 'react-icons/fi';
+import { useAuthStore } from '../../../store/authStore';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
-import { fetchNotificationsPreview } from '../../../services/fanDashboardService';
+import { useNotificationsStore } from '../../../store/fanNotificationsStore';
 import './Topbar.css';
 
 type TopbarProps = {
@@ -9,9 +11,45 @@ type TopbarProps = {
 };
 
 function Topbar({ onMenuClick }: TopbarProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
   const { currentUser } = useCurrentUser();
-  const { data: notifications } = useDashboardSection(fetchNotificationsPreview);
-  const unreadCount = notifications?.filter((notification) => notification.isUnread).length ?? 0;
+  const displayName = currentUser?.name?.trim() || 'Fan';
+  const unreadCount = useNotificationsStore((state) => state.unreadCount);
+  const hasLoadedNotifications = useNotificationsStore((state) => state.hasLoaded);
+  const loadNotifications = useNotificationsStore((state) => state.load);
+
+  useEffect(() => {
+    if (!hasLoadedNotifications) loadNotifications();
+  }, [hasLoadedNotifications, loadNotifications]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isMenuOpen]);
+
+  const handleLogout = () => {
+    setIsMenuOpen(false);
+    clearAuth();
+    navigate('/login');
+  };
 
   return (
     <header className="fan-topbar">
@@ -29,22 +67,47 @@ function Topbar({ onMenuClick }: TopbarProps) {
           type="button"
           className="fan-topbar-bell"
           aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+          onClick={() => navigate('/notifications')}
         >
           <FiBell />
-          {unreadCount > 0 && <span className="fan-topbar-bell-badge">{unreadCount}</span>}
+          {unreadCount > 0 && (
+            <span className="fan-topbar-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
         </button>
 
-        <button type="button" className="fan-topbar-user">
-          {currentUser.avatarUrl ? (
-            <img src={currentUser.avatarUrl} alt="" className="fan-topbar-user-avatar" />
-          ) : (
-            <span className="fan-topbar-user-avatar-fallback" aria-hidden="true">
-              {currentUser.avatarInitials}
-            </span>
+        <div className="fan-topbar-user-wrap" ref={menuRef}>
+          <button
+            type="button"
+            className="fan-topbar-user"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+          >
+            {currentUser?.avatarUrl ? (
+              <img src={currentUser.avatarUrl} alt="" className="fan-topbar-user-avatar" />
+            ) : (
+              <img src="/players/player-avatar.png" alt="" className="fan-topbar-user-avatar" />
+            )}
+            <span className="fan-topbar-user-name">{displayName}</span>
+            <FiChevronDown className={`fan-topbar-user-chevron${isMenuOpen ? ' is-open' : ''}`} />
+          </button>
+
+          {isMenuOpen && (
+            <div className="fan-topbar-user-menu" role="menu">
+              <Link to="/profile" className="fan-topbar-user-menu-item" role="menuitem" onClick={() => setIsMenuOpen(false)}>
+                <FiUser /> Profile
+              </Link>
+              <button
+                type="button"
+                className="fan-topbar-user-menu-item fan-topbar-user-menu-item--danger"
+                role="menuitem"
+                onClick={handleLogout}
+              >
+                <FiLogOut /> Logout
+              </button>
+            </div>
           )}
-          <span className="fan-topbar-user-name">{currentUser.name}</span>
-          <FiChevronDown className="fan-topbar-user-chevron" />
-        </button>
+        </div>
       </div>
     </header>
   );

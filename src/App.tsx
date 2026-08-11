@@ -30,24 +30,19 @@ import FanTicketsPage from './pages/fan/tickets/FanTicketsPage';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
-// NOTE: these four already exist in src/pages/fan/markets/ (see the report
-// on that folder) but were never imported/routed. Adjust the path below if
-// they actually live somewhere else in the tree.
+
 import FanMarkets from './pages/fan/markets/FanMarkets';
 import MarketDetailOverview from './pages/fan/markets/MarketDetailOverview';
 import MarketDetailChart from './pages/fan/markets/MarketDetailChart';
 import PlaceOrder from './pages/fan/markets/PlaceOrder';
 import ReviewOrder from './pages/fan/markets/ReviewOrder';
 import OrderPlaced from './pages/fan/markets/OrderPlaced';
-// NOTE: same story for these three — PositionDetail/SellPosition/
-// SellConfirmation reference '../markets/Markets.css' via relative import,
-// which implies they sit in src/pages/fan/positions/ alongside MyPositions.
+
+
 import PositionDetail from './pages/fan/markets/PositionDetail';
 import SellPosition from './pages/fan/markets/SellPosition';
 import SellConfirmation from './pages/fan/markets/SellConfirmation';
-// Rich landing page verified fans are redirected to after completing
-// identity verification — wallet snapshot, live markets, categories, and
-// an open-positions summary in one place.
+
 import FanTradeHub from './pages/fan/markets/FanTradeHub';
 import Fantasy from './pages/fantasy/Fantasy';
 import Register from "./pages/auth/registration/Register";
@@ -156,8 +151,8 @@ function App() {
         <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
         <Route path="/fan/markets/:marketId/placed" element={<OrderPlaced />} />
         <Route path="/fan/verify" element={<FanVerification />} />
-        {/* Rich full-access trading hub — where newly verified fans land */}
         <Route path="/fan/trade" element={<FanTradeHub />} />
+        <Route path="/notifications" element={<Navigate to="/settings?tab=notifications" replace />} />
 
         {/* Positions / sell flow */}
         <Route path="/fan/positions/:positionId" element={<PositionDetail />} />

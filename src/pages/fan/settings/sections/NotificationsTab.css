@@ -48,8 +48,19 @@
   border-top: 1px solid var(--color-border);
 }
 
+.notif-category-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+  padding: 4px 16px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
 .notif-category-row--head {
   border-top: none;
+  padding-top: 8px;
   padding-bottom: 8px;
   color: var(--color-text-muted);
   font-size: 0.68rem;
@@ -210,8 +221,10 @@
 
 .notif-summary {
   margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  padding: 16px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
 }
 
 .notif-summary-title {
