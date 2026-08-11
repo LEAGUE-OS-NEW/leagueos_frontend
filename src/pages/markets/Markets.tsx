@@ -24,16 +24,7 @@ import Navbar from "../../components/landing/Navbar";
 import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
-import {
-  MARKET_FACE_VALUE_UGX,
-  formatMarketSharePrice,
-} from "../../utils/marketPricing.ts";
-import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
-import {
-  fetchContracts,
-  fetchPublishedMarkets,
-} from "../../services/marketAdminService.ts";
-import type { SportingEvent } from "../../types/api.ts";
+import { fetchContracts, fetchPublishedMarkets } from "../../services/marketAdminService.ts";
 import "./Markets.css";
 
 type Sport = "Football" | "Rugby" | "Basketball";
@@ -171,36 +162,8 @@ function marketStatusMeta(status: string) {
   return MARKET_STATUS_META[status] ?? { label: status, className: "open" };
 }
 
-function formatStartsIn(iso: string): string {
-  const date = new Date(iso);
-  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
-  const dayDiff = Math.round((startOfDay(date) - startOfDay(new Date())) / 86_400_000);
-  if (dayDiff === 0) return `Today, ${time}`;
-  if (dayDiff === 1) return `Tomorrow, ${time}`;
-  return `${date.toLocaleDateString("en-US", { weekday: "short" })}, ${time}`;
-}
-
 function isSupportedSport(sport: string): sport is Sport {
   return sport === "Football" || sport === "Rugby" || sport === "Basketball";
-}
-
-function mapEventToStartingSoon(event: SportingEvent): StartingSoonItem | null {
-  const sport = event.sport?.name;
-  if (!sport || !isSupportedSport(sport)) return null;
-
-  const [teamA, teamB] = [...event.participants]
-    .sort((a, b) => a.position - b.position)
-    .map((entry) => entry.participant.name);
-  if (!teamA || !teamB) return null;
-
-  return {
-    sport,
-    teamA,
-    teamB,
-    league: event.competition?.name ?? sport,
-    startsIn: formatStartsIn(event.starts_at),
-  };
 }
 
 function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
@@ -209,15 +172,8 @@ function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string
 }
 
 function formatUgxVolume(amount: number): string {
-  if (amount >= 1_000_000) {
-    return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
-  }
-
-  if (amount >= 1_000) {
-    return `UGX ${(amount / 1_000).toFixed(1)}K`;
-  }
-
-  return `UGX ${Math.round(amount).toLocaleString("en-UG")}`;
+  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
+  return `UGX ${Math.round(amount / 1000)}K`;
 }
 
 function CrestPlaceholder() {
@@ -287,7 +243,11 @@ function Markets() {
   const [openMarkets, setOpenMarkets] = useState<OpenMarketRow[]>(OPEN_MARKETS);
   const [closedMarkets, setClosedMarkets] =
     useState<ClosedMarketRow[]>(CLOSED_MARKETS);
-  const [startingSoon, setStartingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
+  // NOTE: "Starting Soon" previously read from a fixtures/events feed via a
+  // publicMarketsService.ts that doesn't exist in this codebase. Until a
+  // real fixtures/events endpoint is wired in, this stays empty rather than
+  // calling a service that doesn't exist. See the empty-state copy below.
+  const [startingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
   const [trendingMarkets, setTrendingMarkets] = useState<TrendingMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
@@ -295,26 +255,6 @@ function Markets() {
 
   useEffect(() => {
     const controller = new AbortController();
-
-    // Starting Soon reads the real fixtures/events feed — it's about
-    // upcoming fixtures whether or not a market exists for them yet, so it
-    // stays on the real backend rather than the admin-published market list.
-    fetchPublicMarkets(controller.signal)
-      .then((data) => {
-        if (controller.signal.aborted) return;
-        setStartingSoon(
-          data.events
-            .filter((event) => new Date(event.starts_at).getTime() > Date.now())
-            .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-            .map(mapEventToStartingSoon)
-            .filter((item): item is StartingSoonItem => item !== null)
-            .slice(0, 4),
-        );
-      })
-      .catch(() => {
-        // Starting Soon is a secondary widget — a failure here shouldn't
-        // block the markets that actually drive this page.
-      });
 
     // Featured / Open / Closed / Trending come from markets an admin has
     // actually published — this is what makes "admin publishes -> fan sees
@@ -354,17 +294,8 @@ function Markets() {
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
               status: "OPEN",
               probabilityPct: yes.probabilityPct,
-              yesPrice: formatMarketSharePrice(yes.price),
-              noPrice: formatMarketSharePrice(
-                market.outcomes.find(
-                  (outcome) =>
-                    outcome.id === "NO",
-                )?.price ??
-                  (
-                    MARKET_FACE_VALUE_UGX -
-                    yes.price
-                  ),
-              ),
+              yesPrice: `${yes.probabilityPct}¢`,
+              noPrice: `${100 - yes.probabilityPct}¢`,
               ...statsFor(market.id),
             };
           }),
@@ -378,17 +309,8 @@ function Markets() {
               sport: market.category as Sport,
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              yesPrice: formatMarketSharePrice(yes.price),
-              noPrice: formatMarketSharePrice(
-                market.outcomes.find(
-                  (outcome) =>
-                    outcome.id === "NO",
-                )?.price ??
-                  (
-                    MARKET_FACE_VALUE_UGX -
-                    yes.price
-                  ),
-              ),
+              yesPrice: `${yes.probabilityPct}¢`,
+              noPrice: `${100 - yes.probabilityPct}¢`,
               volume: statsFor(market.id).volume,
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
             };
@@ -553,7 +475,7 @@ function Markets() {
                   Explore trending questions. Trade your view.
                   <InfoTooltip
                     label="How prices work"
-                    text="A YES probability of 67% is UGX 670/share. A winning share settles at UGX 1,000. Prices move as people trade."
+                    text="A YES price of 67¢ means the market currently sees a 67% chance of YES. Prices move as more people trade."
                   />
                   <InfoTooltip
                     label="What volume means"
@@ -687,7 +609,7 @@ function Markets() {
                       No
                       <InfoTooltip
                         label="What the NO price means"
-                        text="What it costs to buy a NO share — the YES and NO prices together equal UGX 1,000/share."
+                        text="What it costs to buy a NO share — always 100¢ minus the YES price."
                       />
                     </span>
                     <span>

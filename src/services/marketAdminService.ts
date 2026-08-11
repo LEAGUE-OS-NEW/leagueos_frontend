@@ -9,27 +9,26 @@
 // swapping these bodies for real `apiClient` calls later is a drop-in
 // replacement, no component changes required.
 //
-// Creation and publishing are both handled by the merged Market Admin role —
-// no cross-check between two different admins. `createdBy` is kept purely
-// as an audit/display fact (who drafted this market), not as a publish gate.
+// Self-publish separation of duties: the old backend blocked a Market
+// Approval Admin from approving a market they themselves created as a
+// Market Operations Admin (403, keyed on creator identity, not role). Now
+// that one role does both jobs, that same identity check is preserved here
+// as an instance-level rule — you can't publish a market you personally
+// drafted; a different Market Admin (or a Super Admin, who sits above the
+// separation-of-duties concern) has to do it. A thrown error carries
+// `.status = 403` so callers can distinguish this from any other failure,
+// matching the old contract exactly.
 
-import { useAuthStore } from '../store/authStore.ts';
 import apiClient from './apiClient.ts';
-import {
-  extractApiError,
-  normalizeApiList,
-  unwrapApiData,
-} from './apiUtils.ts';
+import { extractApiError, normalizeApiList } from './apiUtils.ts';
+import { useAuthStore } from '../store/authStore.ts';
 import type {
-  AdminMarket,
+  AdminMarket as ApiAdminMarket,
+  Market as ApiMarket,
   MarketCategory as ApiMarketCategory,
-  SportingEvent,
   SportResource,
 } from '../types/api.ts';
-import {
-  probabilityPctToUgxSharePrice,
-} from '../utils/marketPricing.ts';
-
+import { getEntitlementsForDashboard } from '../utils/dashboardAccess.ts';
 
 export const MARKET_CATEGORIES = [
   'Football',
@@ -60,7 +59,7 @@ export interface Outcome {
   label: string;
   description: string;
   probabilityPct: number;
-  /** UGX/share — winning share settles at UGX 1,000 (see the contract explainer). */
+  /** UGX — price = implied probability x UGX 10,000 (see the contract explainer). */
   price: number;
 }
 
@@ -154,390 +153,32 @@ export interface MarketDetailsInput {
   tags: string[];
 }
 
+interface MarketAdminPayload {
+  sport_id: string;
+  category_id: string;
+  template_id?: string | null;
+  scope_type: 'EVENT' | 'COMPETITION' | 'PARTICIPANT' | 'CUSTOM';
+  sporting_event_id?: string | null;
+  competition_id?: string | null;
+  participant_id?: string | null;
+  custom_subject?: string;
+  question: string;
+  description?: string;
+  rules?: string;
+  resolution_source?: string;
+  resolution_criteria?: string;
+  opens_at?: string | null;
+  closes_at?: string | null;
+  is_featured?: boolean;
+  yes_label?: string;
+  no_label?: string;
+}
+
 export interface OutcomeInput {
   id: OutcomeId;
   label: string;
   description: string;
   probabilityPct: number;
-}
-
-function apiFailure(error: unknown): never {
-  const details = extractApiError(error);
-
-  throw Object.assign(
-    new Error(details.message),
-    {
-      status: details.status,
-    },
-  );
-}
-
-function normalizeName(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function isUuid(value?: string): boolean {
-  return Boolean(
-    value &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        value,
-      ),
-  );
-}
-
-function asMarketCategory(
-  name?: string,
-): MarketCategory {
-  const value =
-    (name || '').trim();
-
-  return (
-    MARKET_CATEGORIES.find(
-      (category) =>
-        category.toLowerCase() ===
-        value.toLowerCase(),
-    ) ?? 'Other'
-  ) as MarketCategory;
-}
-
-function mapBackendStatus(
-  market: AdminMarket,
-): MarketStatus {
-  switch (market.status) {
-    case 'OPEN':
-      return 'Live';
-
-    case 'APPROVED':
-      return 'Upcoming';
-
-    case 'RESOLVED':
-    case 'CLOSED':
-      return 'Resolved';
-
-    case 'VOIDED':
-      return 'Voided';
-
-    case 'SUSPENDED':
-      return 'Cancelled';
-
-    default:
-      return 'Draft';
-  }
-}
-
-function mapBackendMarket(
-  market: AdminMarket,
-): Market {
-  const kickoff =
-    market.sporting_event?.starts_at ||
-    market.opens_at ||
-    new Date().toISOString();
-
-  const defaults =
-    defaultParameters(kickoff);
-
-  const backendOutcomes =
-    market.outcomes || [];
-
-  const outcomeFor = (
-    side: OutcomeId,
-  ): Outcome => {
-    const backend =
-      backendOutcomes.find(
-        (item) =>
-          item.side === side,
-      );
-
-    return {
-      id: side,
-
-      label:
-        backend?.label ||
-        (
-          side === 'YES'
-            ? 'Yes'
-            : 'No'
-        ),
-
-      description:
-        backend?.description || '',
-
-      probabilityPct: 50,
-      price: probabilityPctToUgxSharePrice(50),
-    };
-  };
-
-  return {
-    id:
-      market.id,
-
-    sportingEventId:
-      market.sporting_event?.id,
-
-    eventLabel:
-      market.subject?.name ||
-      market.sporting_event?.name ||
-      market.question,
-
-    competition:
-      market.competition?.name ||
-      market.sporting_event
-        ?.competition?.name ||
-      'Competition unavailable',
-
-    venue:
-      market.sporting_event?.venue ||
-      'Venue unavailable',
-
-    kickoff,
-
-    category:
-      asMarketCategory(
-        market.sport?.name,
-      ),
-
-    question:
-      market.question,
-
-    description:
-      market.description || '',
-
-    tags: [],
-
-    outcomes: [
-      outcomeFor('YES'),
-      outcomeFor('NO'),
-    ],
-
-    parameters: {
-      ...defaults,
-
-      opensAt:
-        market.opens_at ||
-        defaults.opensAt,
-
-      closesAt:
-        market.closes_at ||
-        defaults.closesAt,
-
-      featured:
-        Boolean(
-          market.is_featured,
-        ),
-    },
-
-    status:
-      mapBackendStatus(
-        market,
-      ),
-
-    createdBy:
-      market.created_by?.full_name ||
-      market.created_by?.email ||
-      'Backend user',
-
-    createdAt:
-      market.created_at ||
-      new Date().toISOString(),
-
-    publishedAt:
-      market.status === 'OPEN'
-        ? market.updated_at
-        : undefined,
-
-    resolvedAt:
-      market.status === 'RESOLVED'
-        ? market.updated_at
-        : undefined,
-
-    winningOutcomeId:
-      market.winning_outcome
-        ? (
-            backendOutcomes.find(
-              (outcome) =>
-                outcome.id ===
-                market.winning_outcome,
-            )?.side === 'NO'
-              ? 'NO'
-              : 'YES'
-          )
-        : undefined,
-
-    auditHistory:
-      (
-        market.status_transitions ||
-        []
-      ).map(
-        (item) => ({
-          id:
-            item.id,
-
-          timestamp:
-            item.created_at,
-
-          adminUser:
-            'Authenticated admin',
-
-          action:
-            `${item.from_status} -> ${item.to_status}`,
-
-          note:
-            item.notes,
-        }),
-      ),
-  };
-}
-
-async function resolveCreateReferences(
-  input: MarketDetailsInput,
-) {
-  const [
-    { data: sportsData },
-    { data: eventsData },
-    { data: categoriesData },
-  ] = await Promise.all([
-    apiClient.get(
-      '/sports/',
-    ),
-
-    apiClient.get(
-      '/sporting-events/',
-    ),
-
-    apiClient.get(
-      '/markets/categories/',
-    ),
-  ]);
-
-  const sports =
-    normalizeApiList<SportResource>(
-      sportsData,
-    );
-
-  const events =
-    normalizeApiList<SportingEvent>(
-      eventsData,
-    );
-
-  const categories =
-    normalizeApiList<ApiMarketCategory>(
-      categoriesData,
-    );
-
-  const requestedSport =
-    normalizeName(
-      input.category,
-    );
-
-  const sport =
-    sports.find(
-      (item) =>
-        normalizeName(
-          item.name,
-        ) ===
-        requestedSport,
-    );
-
-  if (!sport) {
-    throw new Error(
-      `No active ${input.category} sport exists in the backend.`,
-    );
-  }
-
-  if (
-    categories.length === 0
-  ) {
-    throw new Error(
-      'No active market categories exist in the backend.',
-    );
-  }
-
-  const category =
-    categories.find(
-      (item) =>
-        normalizeName(
-          item.name,
-        ) ===
-        'match result',
-    ) ||
-    categories.find(
-      (item) =>
-        normalizeName(
-          item.name,
-        ) ===
-        normalizeName(
-          input.category,
-        ),
-    ) ||
-    categories[0];
-
-  const label =
-    normalizeName(
-      input.eventLabel,
-    );
-
-  const eventById =
-    isUuid(
-      input.sportingEventId,
-    )
-      ? events.find(
-          (item) =>
-            item.id ===
-            input.sportingEventId,
-        )
-      : undefined;
-
-  const eventByName =
-    events.find(
-      (item) => {
-        if (
-          item.sport?.id !==
-          sport.id
-        ) {
-          return false;
-        }
-
-        if (
-          normalizeName(
-            item.name,
-          ) ===
-          label
-        ) {
-          return true;
-        }
-
-        if (
-          item.participants.length === 0
-        ) {
-          return false;
-        }
-
-        return (
-          item.participants.every(
-            (participant) =>
-              label.includes(
-                normalizeName(
-                  participant
-                    .participant
-                    .name,
-                ),
-              ),
-          )
-        );
-      },
-    );
-
-  return {
-    sport,
-    category,
-
-    event:
-      eventById ||
-      eventByName,
-  };
 }
 
 function delay<T>(value: T, ms = 300): Promise<T> {
@@ -571,8 +212,13 @@ export function currentAdminIdentity(): string {
   return user?.full_name || user?.email || 'You';
 }
 
+function currentAdminIsSuperAdmin(): boolean {
+  const access = useAuthStore.getState().user?.dashboard_access;
+  return getEntitlementsForDashboard(access, 'SUPER_ADMIN').length > 0;
+}
+
 function priceFromProbability(probabilityPct: number): number {
-  return probabilityPctToUgxSharePrice(probabilityPct);
+  return Math.round(probabilityPct * 100);
 }
 
 function defaultOutcomes(): Outcome[] {
@@ -601,8 +247,156 @@ function defaultParameters(kickoffIso: string): MarketParameters {
   };
 }
 
+function deriveLifecycleStatus(parameters: MarketParameters): MarketStatus {
+  return new Date(parameters.opensAt).getTime() <= Date.now() ? 'Live' : 'Upcoming';
+}
+
+function cloneMarket(market: Market): Market {
+  return {
+    ...market,
+    outcomes: market.outcomes.map((outcome) => ({ ...outcome })),
+    parameters: { ...market.parameters },
+    tags: [...market.tags],
+    auditHistory: market.auditHistory.map((event) => ({ ...event })),
+  };
+}
+
 function cloneProposal(proposal: MarketProposal): MarketProposal {
   return { ...proposal, auditHistory: proposal.auditHistory.map((event) => ({ ...event })) };
+}
+
+function apiError(error: unknown): Error {
+  const details = extractApiError(error);
+  return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
+}
+
+function isUuid(value?: string): value is string {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+}
+
+function backendStatusToAdminStatus(market: ApiMarket): MarketStatus {
+  if (market.status === 'DRAFT' || market.status === 'REJECTED' || market.status === 'PENDING_APPROVAL' || market.status === 'APPROVED') {
+    return 'Draft';
+  }
+  if (market.status === 'RESOLVED') return 'Resolved';
+  if (market.status === 'VOIDED') return 'Voided';
+  if (market.status === 'CANCELLED' || market.status === 'CLOSED' || market.status === 'SUSPENDED') return 'Cancelled';
+  return market.sporting_event?.starts_at && new Date(market.sporting_event.starts_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
+}
+
+function probabilityFromOutcome(outcome: ApiMarket['outcomes'][number] | undefined, fallback: number): number {
+  if (!outcome) return fallback;
+  const match = `${outcome.label} ${outcome.description ?? ''}`.match(/(\d{1,2})(?:\.\d+)?\s*%/);
+  return match ? Math.max(1, Math.min(99, Number(match[1]))) : fallback;
+}
+
+function adminName(user: ApiAdminMarket['created_by']): string {
+  if (!user) return 'Market Admin';
+  const adminUser = user as ApiAdminMarket['created_by'] & { first_name?: string; last_name?: string; full_name?: string };
+  const names = [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ').trim();
+  return adminUser.full_name || names || adminUser.email || 'Market Admin';
+}
+
+function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
+  const status = backendStatusToAdminStatus(market);
+  const subject = market.subject?.name || market.sporting_event?.name || market.custom_subject || market.question;
+  const yesApi = market.outcomes.find((outcome) => outcome.side === 'YES') ?? market.outcomes[0];
+  const noApi = market.outcomes.find((outcome) => outcome.side === 'NO') ?? market.outcomes[1];
+  const yesProbability = probabilityFromOutcome(yesApi, 50);
+  const noProbability = probabilityFromOutcome(noApi, 100 - yesProbability);
+  const kickoff = market.sporting_event?.starts_at ?? market.closes_at ?? market.opens_at ?? market.created_at ?? new Date().toISOString();
+  const createdBy = 'created_by' in market ? adminName(market.created_by) : 'Market Admin';
+  const transitions = 'status_transitions' in market ? market.status_transitions ?? [] : [];
+
+  return {
+    id: market.id,
+    sportingEventId: market.sporting_event?.id,
+    eventLabel: subject,
+    competition: market.sporting_event?.competition?.name ?? market.competition?.name ?? market.sport?.name ?? 'League OS',
+    venue: market.sporting_event?.venue ?? 'Venue TBA',
+    kickoff,
+    category: ((market.sport?.name ?? market.category?.name ?? 'Other') as MarketCategory),
+    question: market.question,
+    description: market.description ?? '',
+    tags: [market.category?.slug, market.sport?.code].filter(Boolean) as string[],
+    outcomes: [
+      yesApi && {
+        id: 'YES' as const,
+        label: yesApi.label || 'Yes',
+        description: yesApi.description ?? '',
+        probabilityPct: yesProbability,
+        price: priceFromProbability(yesProbability),
+      },
+      noApi && {
+        id: 'NO' as const,
+        label: noApi.label || 'No',
+        description: noApi.description ?? '',
+        probabilityPct: noProbability,
+        price: priceFromProbability(noProbability),
+      },
+    ].filter(Boolean) as Outcome[],
+    parameters: {
+      opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
+      closesAt: market.closes_at ?? kickoff,
+      settlesBy: market.closes_at ?? kickoff,
+      initialLiquidityUgx: 0,
+      minTradeUgx: 1_000,
+      maxTradeUgx: 500_000,
+      feePct: 2,
+      featured: market.is_featured,
+      trending: market.is_featured,
+      recommended: market.is_featured,
+      inPlayTrading: status === 'Live',
+    },
+    status,
+    createdBy,
+    createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
+    publishedAt: market.opens_at,
+    winningOutcomeId: market.winning_outcome === yesApi?.id ? 'YES' : market.winning_outcome === noApi?.id ? 'NO' : undefined,
+    auditHistory: transitions.map((transition) => ({
+      id: transition.id,
+      timestamp: transition.created_at,
+      adminUser: transition.actor_email ?? 'Market Admin',
+      action: transition.action ?? `${transition.from_status} to ${transition.to_status}`,
+      note: transition.notes,
+    })),
+  };
+}
+
+async function fetchSports(): Promise<SportResource[]> {
+  const response = await apiClient.get('/sports/');
+  return normalizeApiList<SportResource>(response.data);
+}
+
+async function resolveMarketCatalogue(input: MarketDetailsInput): Promise<Pick<MarketAdminPayload, 'sport_id' | 'category_id'>> {
+  const [sports, categories] = await Promise.all([
+    fetchSports(),
+    apiClient.get('/markets/categories/').then((response) => normalizeApiList<ApiMarketCategory>(response.data)),
+  ]);
+  const sport =
+    sports.find((item) => item.name.toLowerCase() === input.category.toLowerCase()) ??
+    sports.find((item) => item.name.toLowerCase() === 'football') ??
+    sports[0];
+  const category =
+    categories.find((item) => item.name.toLowerCase() === 'match result') ??
+    categories.find((item) => item.name.toLowerCase() === input.category.toLowerCase()) ??
+    categories[0];
+
+  if (!sport) fail('No active sport catalogue is available. Seed sports before creating markets.');
+  if (!category) fail('No active market category is available. Seed market categories before creating markets.');
+
+  return { sport_id: sport.id, category_id: category.id };
+}
+
+function lifecycleNote(market: Market, action: string): { notes: string } {
+  return { notes: `${action}: ${market.question}` };
+}
+
+function pushAudit(market: Market, action: string, note?: string): void {
+  market.auditHistory = [
+    { id: genId('audit'), timestamp: nowIso(), adminUser: currentAdminIdentity(), action, note },
+    ...market.auditHistory,
+  ];
 }
 
 function findMarketOrThrow(id: string): Market {
@@ -712,7 +506,7 @@ const markets: Market[] = [
     winningOutcomeId: 'YES',
     resolvedAt: hoursFromNow(-45),
     outcomes: [
-      { id: 'YES', label: 'Yes', description: 'Uganda Cranes win', probabilityPct: 100, price: probabilityPctToUgxSharePrice(100) },
+      { id: 'YES', label: 'Yes', description: 'Uganda Cranes win', probabilityPct: 100, price: 10_000 },
       { id: 'NO', label: 'No', description: 'Draw or Tanzania win', probabilityPct: 0, price: 0 },
     ],
   }),
@@ -800,630 +594,248 @@ function contractsFor(market: Market): Contract[] {
 }
 
 /* ============================================================
-   MARKETS - BACKEND PERSISTED
+   MARKETS
    ============================================================ */
 
 export async function fetchMarkets(): Promise<Market[]> {
   try {
-    const { data } =
-      await apiClient.get(
-        '/market-admin/markets/',
-      );
-
-    return normalizeApiList<AdminMarket>(
-      data,
-    ).map(
-      mapBackendMarket,
-    );
+    const response = await apiClient.get('/market-admin/markets/');
+    return normalizeApiList<ApiAdminMarket>(response.data).map(adaptApiMarket);
   } catch (error) {
-    return apiFailure(error);
+    throw apiError(error);
   }
 }
 
-export async function fetchMarket(
-  id: string,
-): Promise<Market> {
+export async function fetchMarket(id: string): Promise<Market> {
   try {
-    const { data } =
-      await apiClient.get(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-      );
-
-    return mapBackendMarket(
-      unwrapApiData<AdminMarket>(
-        data,
-      ),
-    );
+    const response = await apiClient.get(`/market-admin/markets/${encodeURIComponent(id)}/`);
+    return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {
-    return apiFailure(error);
+    const local = markets.find((item) => item.id === id);
+    if (local) return delay(cloneMarket(local));
+    throw apiError(error);
   }
 }
 
 export async function fetchPublishedMarkets(): Promise<Market[]> {
   try {
-    const { data } =
-      await apiClient.get(
-        '/markets/',
-        {
-          params: {
-            status: 'OPEN',
-          },
-        },
-      );
-
-    return normalizeApiList<AdminMarket>(
-      data,
-    ).map(
-      mapBackendMarket,
-    );
+    const response = await apiClient.get('/markets/', { params: { status: 'OPEN' } });
+    return normalizeApiList<ApiMarket>(response.data).map(adaptApiMarket);
   } catch (error) {
-    return apiFailure(error);
+    throw apiError(error);
   }
 }
 
-export async function fetchPublishedMarket(
-  id: string,
-): Promise<Market> {
+export async function fetchFeaturedPublishedMarkets(limit = 5): Promise<Market[]> {
   try {
-    const { data } =
-      await apiClient.get(
-        `/markets/${encodeURIComponent(id)}/`,
-      );
-
-    return mapBackendMarket(
-      unwrapApiData<AdminMarket>(
-        data,
-      ),
-    );
+    const response = await apiClient.get('/markets/', { params: { status: 'OPEN', is_featured: true } });
+    return normalizeApiList<ApiMarket>(response.data).map(adaptApiMarket).slice(0, limit);
   } catch (error) {
-    return apiFailure(error);
+    throw apiError(error);
   }
 }
 
-export async function fetchFeaturedPublishedMarkets(
-  limit = 5,
-): Promise<Market[]> {
-  try {
-    const { data } =
-      await apiClient.get(
-        '/markets/',
-        {
-          params: {
-            status: 'OPEN',
-            is_featured: true,
-          },
-        },
-      );
-
-    const featured =
-      normalizeApiList<AdminMarket>(
-        data,
-      ).map(
-        mapBackendMarket,
-      );
-
-    if (
-      featured.length >=
-      limit
-    ) {
-      return featured.slice(
-        0,
-        limit,
-      );
-    }
-
-    const {
-      data: allData,
-    } =
-      await apiClient.get(
-        '/markets/',
-        {
-          params: {
-            status: 'OPEN',
-          },
-        },
-      );
-
-    const all =
-      normalizeApiList<AdminMarket>(
-        allData,
-      ).map(
-        mapBackendMarket,
-      );
-
-    const seen =
-      new Set(
-        featured.map(
-          (market) =>
-            market.id,
-        ),
-      );
-
-    return [
-      ...featured,
-
-      ...all.filter(
-        (market) =>
-          !seen.has(
-            market.id,
-          ),
-      ),
-    ].slice(
-      0,
-      limit,
-    );
-  } catch (error) {
-    return apiFailure(error);
-  }
-}
-
-export async function createMarketDraft(
-  input: MarketDetailsInput,
-): Promise<Market> {
-  if (
-    !input.eventLabel.trim()
-  ) {
-    fail(
-      'Select an event for this market.',
-    );
-  }
-
-  const question =
-    input.question.trim();
-
-  if (
-    question.length < 6 ||
-    !question.endsWith('?')
-  ) {
-    fail(
-      'Enter a single, unambiguous YES/NO question ending with a question mark.',
-    );
+export async function createMarketDraft(input: MarketDetailsInput): Promise<Market> {
+  if (!input.eventLabel.trim()) fail('Select an event for this market.');
+  const question = input.question.trim();
+  if (question.length < 6 || !question.endsWith('?')) {
+    fail('Enter a single, unambiguous YES/NO question ending with a question mark.');
   }
 
   try {
-    const {
-      sport,
-      category,
-      event,
-    } =
-      await resolveCreateReferences(
-        input,
-      );
-
-    const kickoff =
-      input.kickoff ||
-      event?.starts_at ||
-      new Date(
-        Date.now() +
-        24 * 60 * 60_000,
-      ).toISOString();
-
-    const initial =
-      defaultParameters(
-        kickoff,
-      );
-
-    const description =
-      input.description.trim();
-
-    const payload:
-      Record<string, unknown> = {
-        sport_id:
-          sport.id,
-
-        category_id:
-          category.id,
-
-        scope_type:
-          event
-            ? 'EVENT'
-            : 'CUSTOM',
-
-        question,
-
-        description,
-
-        rules:
-          description ||
-          question,
-
-        resolution_source:
-          'Official League OS sporting event result',
-
-        resolution_criteria:
-          description ||
-          question,
-
-        opens_at:
-          initial.opensAt,
-
-        closes_at:
-          initial.closesAt,
-
-        is_featured:
-          false,
-
-        yes_label:
-          'Yes',
-
-        no_label:
-          'No',
-      };
-
-    if (event) {
-      payload.sporting_event_id =
-        event.id;
-    } else {
-      payload.custom_subject =
-        input.eventLabel.trim();
-    }
-
-    const { data } =
-      await apiClient.post(
-        '/market-admin/markets/',
-        payload,
-      );
-
-    return mapBackendMarket(
-      unwrapApiData<AdminMarket>(
-        data,
-      ),
-    );
-  } catch (error) {
-    return apiFailure(error);
-  }
-}
-
-export async function updateOutcomes(
-  id: string,
-  outcomes: OutcomeInput[],
-): Promise<Market> {
-  const yes =
-    outcomes.find(
-      (outcome) =>
-        outcome.id === 'YES',
-    );
-
-  const no =
-    outcomes.find(
-      (outcome) =>
-        outcome.id === 'NO',
-    );
-
-  if (
-    !yes ||
-    !no
-  ) {
-    fail(
-      'Both YES and NO outcomes are required.',
-    );
-  }
-
-  if (
-    yes.probabilityPct <= 0 ||
-    yes.probabilityPct >= 100
-  ) {
-    fail(
-      'Probabilities must be between 1% and 99%.',
-    );
-  }
-
-  if (
-    Math.round(
-      yes.probabilityPct +
-      no.probabilityPct,
-    ) !== 100
-  ) {
-    fail(
-      'YES and NO probabilities must add up to 100%.',
-    );
-  }
-
-  try {
-    const { data } =
-      await apiClient.patch(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-        {
-          yes_label:
-            yes.label.trim() ||
-            'Yes',
-
-          no_label:
-            no.label.trim() ||
-            'No',
-        },
-      );
-
-    const mapped =
-      mapBackendMarket(
-        unwrapApiData<AdminMarket>(
-          data,
-        ),
-      );
-
-    mapped.outcomes =
-      [yes, no].map(
-        (outcome) => ({
-          id:
-            outcome.id,
-
-          label:
-            outcome.label.trim() ||
-            outcome.id,
-
-          description:
-            outcome.description.trim(),
-
-          probabilityPct:
-            outcome.probabilityPct,
-
-          price:
-            priceFromProbability(
-              outcome.probabilityPct,
-            ),
-        }),
-      );
-
-    return mapped;
-  } catch (error) {
-    return apiFailure(error);
-  }
-}
-
-export async function setParameters(
-  id: string,
-  parameters: MarketParameters,
-): Promise<Market> {
-  if (
-    new Date(
-      parameters.closesAt,
-    ).getTime() <=
-    new Date(
-      parameters.opensAt,
-    ).getTime()
-  ) {
-    fail(
-      'Trading must close after it opens.',
-    );
-  }
-
-  if (
-    new Date(
-      parameters.settlesBy,
-    ).getTime() <
-    new Date(
-      parameters.closesAt,
-    ).getTime()
-  ) {
-    fail(
-      'Settlement time must be at or after the trading close time.',
-    );
-  }
-
-  if (
-    parameters.minTradeUgx <= 0 ||
-    parameters.maxTradeUgx <
-      parameters.minTradeUgx
-  ) {
-    fail(
-      'Enter a valid minimum and maximum trade amount.',
-    );
-  }
-
-  try {
-    const { data } =
-      await apiClient.patch(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-        {
-          opens_at:
-            parameters.opensAt,
-
-          closes_at:
-            parameters.closesAt,
-
-          is_featured:
-            parameters.featured,
-        },
-      );
-
-    const mapped =
-      mapBackendMarket(
-        unwrapApiData<AdminMarket>(
-          data,
-        ),
-      );
-
-    mapped.parameters = {
-      ...mapped.parameters,
-      ...parameters,
+    const catalogue = await resolveMarketCatalogue(input);
+    const eventId = isUuid(input.sportingEventId) ? input.sportingEventId : undefined;
+    const eventLabel = input.eventLabel.trim();
+    const description = input.description.trim();
+    const payload: MarketAdminPayload = {
+      ...catalogue,
+      scope_type: eventId ? 'EVENT' : 'CUSTOM',
+      sporting_event_id: eventId ?? null,
+      custom_subject: eventId ? '' : eventLabel,
+      question,
+      description,
+      rules: description || `Resolve this market from the official result for ${eventLabel}.`,
+      resolution_source: input.competition.trim() || 'Official competition result',
+      resolution_criteria: description || `Use the verified final result for ${eventLabel} to resolve YES or NO.`,
+      opens_at: new Date(Date.now() - 60_000).toISOString(),
+      closes_at: input.kickoff || new Date(Date.now() + 60 * 60_000).toISOString(),
+      is_featured: input.tags.some((tag) => tag.toLowerCase() === 'featured'),
+      yes_label: 'Yes',
+      no_label: 'No',
     };
-
-    return mapped;
+    const response = await apiClient.post('/market-admin/markets/', payload);
+    return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {
-    return apiFailure(error);
+    throw apiError(error);
   }
 }
 
-async function lifecycleAction(
-  id: string,
-  action: string,
-  notes: string,
-): Promise<AdminMarket> {
-  const { data } =
-    await apiClient.post(
-      `/market-admin/markets/${encodeURIComponent(id)}/${action}/`,
-      {
-        notes,
-      },
-    );
+export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Promise<Market> {
+  const yes = outcomes.find((outcome) => outcome.id === 'YES');
+  const no = outcomes.find((outcome) => outcome.id === 'NO');
+  if (!yes || !no) fail('Both YES and NO outcomes are required.');
+  if (yes.probabilityPct <= 0 || yes.probabilityPct >= 100) {
+    fail('Probabilities must be between 1% and 99%.');
+  }
+  if (Math.round(yes.probabilityPct + no.probabilityPct) !== 100) {
+    fail('YES and NO probabilities must add up to 100%.');
+  }
 
-  return unwrapApiData<AdminMarket>(
-    data,
-  );
-}
-
-export async function publishMarket(
-  id: string,
-): Promise<Market> {
   try {
-    const { data } =
-      await apiClient.get(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-      );
-
-    let market =
-      unwrapApiData<AdminMarket>(
-        data,
-      );
-
-    if (
-      market.status === 'DRAFT' ||
-      market.status === 'REJECTED'
-    ) {
-      market =
-        await lifecycleAction(
-          id,
-          'submit',
-          'Submitted from the Market Admin publish flow.',
-        );
-    }
-
-    if (
-      market.status ===
-      'PENDING_APPROVAL'
-    ) {
-      market =
-        await lifecycleAction(
-          id,
-          'approve',
-          'Approved from the Market Admin publish flow.',
-        );
-    }
-
-    if (
-      market.status ===
-      'APPROVED'
-    ) {
-      market =
-        await lifecycleAction(
-          id,
-          'open',
-          'Opened from the Market Admin publish flow.',
-        );
-    }
-
-    if (
-      market.status !==
-      'OPEN'
-    ) {
-      throw new Error(
-        `Market publish stopped at backend status ${market.status}.`,
-      );
-    }
-
-    return mapBackendMarket(
-      market,
-    );
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
+      yes_label: yes.label.trim() || 'Yes',
+      no_label: no.label.trim() || 'No',
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {
-    return apiFailure(error);
+    const local = markets.find((item) => item.id === id);
+    if (!local) throw apiError(error);
+    const market = local;
+  market.outcomes = [yes, no].map((outcome) => ({
+    id: outcome.id,
+    label: outcome.label.trim() || outcome.id,
+    description: outcome.description.trim(),
+    probabilityPct: outcome.probabilityPct,
+    price: priceFromProbability(outcome.probabilityPct),
+  }));
+  pushAudit(market, 'Outcomes updated', `${yes.probabilityPct}% YES / ${no.probabilityPct}% NO`);
+  return delay(cloneMarket(market));
   }
 }
 
-export async function cancelMarket(
-  id: string,
-  reason: string,
-): Promise<Market> {
-  if (
-    !reason.trim()
-  ) {
+export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
+  if (new Date(parameters.closesAt).getTime() <= new Date(parameters.opensAt).getTime()) {
+    fail('Trading must close after it opens.');
+  }
+  if (new Date(parameters.settlesBy).getTime() < new Date(parameters.closesAt).getTime()) {
+    fail('Settlement time must be at or after the trading close time.');
+  }
+  if (parameters.minTradeUgx <= 0 || parameters.maxTradeUgx < parameters.minTradeUgx) {
+    fail('Enter a valid minimum and maximum trade amount.');
+  }
+
+  try {
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
+      opens_at: new Date(Math.min(new Date(parameters.opensAt).getTime(), Date.now() - 60_000)).toISOString(),
+      closes_at: parameters.closesAt,
+      is_featured: parameters.featured,
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    const local = markets.find((item) => item.id === id);
+    if (!local) throw apiError(error);
+    const market = local;
+  market.parameters = { ...parameters };
+  pushAudit(market, 'Parameters set');
+  return delay(cloneMarket(market));
+  }
+}
+
+export async function publishMarket(id: string): Promise<Market> {
+  if (isUuid(id)) {
+    try {
+      let market = await fetchMarket(id);
+      const detail = await apiClient.get(`/market-admin/markets/${encodeURIComponent(id)}/`);
+      let backendMarket = detail.data as ApiAdminMarket;
+
+      if (backendMarket.status === 'DRAFT' || backendMarket.status === 'REJECTED') {
+        const submitted = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/submit/`,
+          lifecycleNote(market, 'Submitted'),
+        );
+        backendMarket = submitted.data as ApiAdminMarket;
+        market = adaptApiMarket(backendMarket);
+      }
+
+      if (backendMarket.status === 'PENDING_APPROVAL') {
+        const approved = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/approve/`,
+          lifecycleNote(market, 'Approved'),
+        );
+        backendMarket = approved.data as ApiAdminMarket;
+        market = adaptApiMarket(backendMarket);
+      }
+
+      if (backendMarket.status === 'APPROVED') {
+        const opened = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/open/`,
+          lifecycleNote(market, 'Opened'),
+        );
+        backendMarket = opened.data as ApiAdminMarket;
+      }
+
+      return adaptApiMarket(backendMarket);
+    } catch (error) {
+      throw apiError(error);
+    }
+  }
+
+  const market = findMarketOrThrow(id);
+  if (market.status !== 'Draft') {
+    fail(`${market.eventLabel} is already ${market.status.toLowerCase()} — only draft markets can be published.`);
+  }
+  if (market.createdBy === currentAdminIdentity() && !currentAdminIsSuperAdmin()) {
     fail(
-      'A cancellation reason is required.',
+      'You created this market. A different Market Admin (or a Super Admin) must publish it to keep creation and publishing separated.',
+      403,
     );
   }
 
-  try {
-    const { data } =
-      await apiClient.get(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-      );
-
-    const market =
-      unwrapApiData<AdminMarket>(
-        data,
-      );
-
-    if (
-      market.status !==
-      'OPEN'
-    ) {
-      fail(
-        `Only an open market can be suspended. Current status: ${market.status}.`,
-      );
-    }
-
-    return mapBackendMarket(
-      await lifecycleAction(
-        id,
-        'suspend',
-        reason.trim(),
-      ),
-    );
-  } catch (error) {
-    return apiFailure(error);
-  }
+  market.status = deriveLifecycleStatus(market.parameters);
+  market.publishedAt = nowIso();
+  pushAudit(market, 'Published', `Market went ${market.status.toLowerCase()}.`);
+  return delay(cloneMarket(market));
 }
 
-export async function resolveMarket(
-  id: string,
-  winningOutcomeId: OutcomeId,
-): Promise<Market> {
-  try {
-    const { data } =
-      await apiClient.get(
-        `/market-admin/markets/${encodeURIComponent(id)}/`,
-      );
-
-    const market =
-      unwrapApiData<AdminMarket>(
-        data,
-      );
-
-    const winning =
-      market.outcomes.find(
-        (outcome) =>
-          outcome.side ===
-          winningOutcomeId,
-      );
-
-    if (!winning) {
-      fail(
-        `The ${winningOutcomeId} outcome was not found.`,
-      );
+export async function cancelMarket(id: string, reason: string): Promise<Market> {
+  if (!reason.trim()) fail('A cancellation reason is required.');
+  if (isUuid(id)) {
+    try {
+      const market = await fetchMarket(id);
+      if (market.status !== 'Live' && market.status !== 'Upcoming') {
+        fail('Only open backend markets can be closed from this screen.');
+      }
+      const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/close/`, { notes: reason.trim() });
+      return adaptApiMarket(response.data as ApiAdminMarket);
+    } catch (error) {
+      throw apiError(error);
     }
-
-    const response =
-      await apiClient.post(
-        `/market-admin/markets/${encodeURIComponent(id)}/resolve/`,
-        {
-          winning_outcome_id:
-            winning.id,
-
-          notes:
-            `Resolved as ${winningOutcomeId}.`,
-
-          evidence:
-            'Verified sporting event result.',
-        },
-      );
-
-    return mapBackendMarket(
-      unwrapApiData<AdminMarket>(
-        response.data,
-      ),
-    );
-  } catch (error) {
-    return apiFailure(error);
   }
+
+  const market = findMarketOrThrow(id);
+  if (market.status === 'Resolved' || market.status === 'Cancelled') {
+    fail(`${market.eventLabel} is already ${market.status.toLowerCase()}.`);
+  }
+
+  market.status = 'Cancelled';
+  pushAudit(market, 'Cancelled', reason.trim());
+  return delay(cloneMarket(market));
+}
+
+/**
+ * Settles a market once the Referee / Resolution Officer has verified the
+ * real-world result — marks every matched contract Settled and computes its
+ * payout (UGX 10,000 per share for the winning outcome, 0 otherwise; a
+ * "share" is quantityUgx / price, per the contract explainer).
+ */
+export async function resolveMarket(id: string, winningOutcomeId: OutcomeId): Promise<Market> {
+  const market = findMarketOrThrow(id);
+  if (market.status !== 'Live' && market.status !== 'Upcoming') {
+    fail(`${market.eventLabel} can't be resolved from ${market.status}.`);
+  }
+
+  market.status = 'Resolved';
+  market.winningOutcomeId = winningOutcomeId;
+  market.resolvedAt = nowIso();
+  pushAudit(market, 'Resolved', `Winning outcome: ${winningOutcomeId}`);
+
+  for (const contract of contractsFor(market)) {
+    contract.status = 'Settled';
+    const shares = contract.quantityUgx / contract.price;
+    contract.payoutUgx = contract.outcomeId === winningOutcomeId ? Math.round(shares * 10_000) : 0;
+  }
+
+  return delay(cloneMarket(market));
 }
 
 /* ============================================================
@@ -1474,145 +886,29 @@ export const requestProposalInfo = async (...args: [string?, string?]): Promise<
    CONTRACTS & ORDER BOOK (Trading tab)
    ============================================================ */
 
-export async function fetchContracts(
-  marketId: string,
-): Promise<Contract[]> {
-  const mockMarket =
-    markets.find(
-      (item) =>
-        item.id === marketId,
-    );
-
-  if (!mockMarket) {
-    return [];
-  }
-
-  return delay(
-    contractsFor(
-      mockMarket,
-    ).map(
-      (contract) => ({
-        ...contract,
-      }),
-    ),
-  );
+export async function fetchContracts(marketId: string): Promise<Contract[]> {
+  const market = markets.find((item) => item.id === marketId) ?? (await fetchMarket(marketId));
+  return delay(contractsFor(market).map((contract) => ({ ...contract })));
 }
 
-export async function fetchOrderBook(
-  marketId: string,
-): Promise<OrderBook> {
-  const mockMarket =
-    markets.find(
-      (item) =>
-        item.id === marketId,
-    );
+export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
+  const market = markets.find((item) => item.id === marketId) ?? (await fetchMarket(marketId));
+  const yes = market.outcomes.find((outcome) => outcome.id === 'YES')!;
+  const seed = seedFromId(marketId);
+  const lastPrice = yes.price;
+  const spread = 20 + (seed % 60);
 
-  const market =
-    mockMarket ??
-    (
-      await fetchPublishedMarket(
-        marketId,
-      ).catch(
-        () =>
-          fetchMarket(
-            marketId,
-          ),
-      )
-    );
-
-  const yes =
-    market.outcomes.find(
-      (outcome) =>
-        outcome.id === 'YES',
-    )!;
-
-  const seed =
-    seedFromId(
-      marketId,
-    );
-
-  const lastPrice =
-    yes.price;
-
-  const spread =
-    20 +
-    (
-      seed %
-      60
-    );
-
-  const levels = (
-    base: number,
-    direction: 1 | -1,
-  ): OrderBookLevel[] =>
-    Array.from(
-      {
-        length: 5,
-      },
-      (_, index) => ({
-        price:
-          Math.max(
-            1,
-            Math.min(
-              9_999,
-              base +
-                direction *
-                (
-                  index + 1
-                ) *
-                (
-                  10 +
-                  (
-                    (
-                      seed >>
-                      (
-                        index + 2
-                      )
-                    ) %
-                    15
-                  )
-                ),
-            ),
-          ),
-
-        quantityUgx:
-          5_000 +
-          (
-            (
-              seed >>
-              (
-                index + 1
-              )
-            ) %
-            45_000
-          ),
-      }),
-    );
+  const levels = (base: number, direction: 1 | -1): OrderBookLevel[] =>
+    Array.from({ length: 5 }, (_, index) => ({
+      price: Math.max(1, Math.min(9_999, base + direction * (index + 1) * (10 + ((seed >> (index + 2)) % 15)))),
+      quantityUgx: 5_000 + ((seed >> (index + 1)) % 45_000),
+    }));
 
   return delay({
     marketId,
-
-    outcomeId:
-      'YES',
-
-    bids:
-      levels(
-        lastPrice -
-          Math.round(
-            spread / 2,
-          ),
-        -1,
-      ),
-
-    asks:
-      levels(
-        lastPrice +
-          Math.round(
-            spread / 2,
-          ),
-        1,
-      ),
-
+    outcomeId: 'YES',
+    bids: levels(lastPrice - Math.round(spread / 2), -1),
+    asks: levels(lastPrice + Math.round(spread / 2), 1),
     lastPrice,
     spread,
   });

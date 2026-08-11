@@ -73,6 +73,7 @@ export interface Market {
   sporting_event?: SportingEvent | null;
   competition?: NamedResource | null;
   participant?: SportingParticipant | null;
+  custom_subject?: string;
   subject: { type: string; id: string | null; name: string };
   outcomes: MarketOutcome[];
   winning_outcome: string | null;
@@ -81,14 +82,17 @@ export interface Market {
   updated_at?: string;
 }
 export interface AdminMarket extends Market {
-  created_by?: { id: string; email?: string; full_name?: string } | null;
+  created_by?: { id: string; email?: string; first_name?: string; last_name?: string; full_name?: string } | null;
+  approved_by?: { id: string; email?: string; first_name?: string; last_name?: string; full_name?: string } | null;
   submitted_at?: string | null;
   approved_at?: string | null;
   rejected_at?: string | null;
   status_transitions?: Array<{
     id: string;
+    action?: string;
     from_status: string;
     to_status: string;
+    actor_email?: string;
     notes?: string;
     created_at: string;
   }>;
