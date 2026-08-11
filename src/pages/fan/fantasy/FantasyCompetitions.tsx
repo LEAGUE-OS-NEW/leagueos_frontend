@@ -321,6 +321,15 @@ const FantasyCompetitions: React.FC = () => {
       return '';
     }
   });
+  // Deep-link straight into a specific league from search (e.g.
+  // /fan/fantasy?league=fb-premier) — resolved once the leagues have loaded.
+  const [urlLeagueId] = useState<string>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('league') || '';
+    } catch {
+      return '';
+    }
+  });
   // Pre-fill invite code + open the private-join form if the URL carries a code.
   const [privateOpen, setPrivateOpen] = useState<boolean>(!!urlInviteCode);
   const [inviteCode, setInviteCode] = useState<string>(urlInviteCode);
@@ -436,6 +445,22 @@ const FantasyCompetitions: React.FC = () => {
     setSelectedCompetitionId(id);
     setStep('rules');
   };
+
+  useEffect(() => {
+    if (!urlLeagueId) return;
+    const match = competitions.find((c) => c.id === urlLeagueId);
+    if (match) {
+      // competitions loads asynchronously (see the fetch effect above), so
+      // this can only run once that external data actually arrives — not
+      // expressible as a plain useState initializer.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSport(match.sport);
+      handleSelectCompetition(match.id);
+    }
+    // Only re-run once the leagues have actually loaded — urlLeagueId is
+    // fixed at mount, mirroring the invite-code pattern above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlLeagueId, competitions]);
 
   /* ---------------------------- Join flow ---------------------------- */
 
