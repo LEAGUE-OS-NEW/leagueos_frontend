@@ -1,0 +1,57 @@
+.ca-dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.ca-dash-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ca-dash-module-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.ca-dash-module-link:hover {
+  background: var(--color-card-hover);
+}
+
+.ca-dash-module-code {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-light);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.ca-dash-module-label {
+  flex: 1;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.ca-dash-module-link:hover .ca-dash-module-label {
+  color: var(--color-text-primary);
+}
+
+.ca-dash-module-arrow {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1000px) {
+  .ca-dash-grid { grid-template-columns: 1fr; }
+}
