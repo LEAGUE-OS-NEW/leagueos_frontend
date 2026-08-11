@@ -24,7 +24,7 @@ const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'Tickets', route: '/fan/tickets', icon: <FiTag /> },
   { label: 'Memberships', route: '/memberships', icon: <FiAward /> },
   { label: 'Store', route: '/fan/store', icon: <FiShoppingCart /> },
-  { label: 'News', route: '/news', icon: <FiFileText /> },
+  { label: 'News', route: '/fan/news', icon: <FiFileText /> },
 ];
 
 const SECONDARY_LINKS: SidebarLink[] = [

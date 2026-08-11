@@ -1,0 +1,103 @@
+.ca-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  height: 58px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.ca-topbar-menu {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.ca-topbar-search {
+  flex: 1;
+  max-width: 400px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.ca-topbar-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--color-text-primary);
+}
+
+.ca-topbar-search input::placeholder { color: var(--color-text-muted); }
+
+.ca-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.ca-topbar-icon-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.ca-topbar-icon-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-card-hover);
+}
+
+.ca-topbar-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ca-topbar-identity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 959px) {
+  .ca-topbar-menu { display: flex; }
+  .ca-topbar-search { display: none; }
+}
