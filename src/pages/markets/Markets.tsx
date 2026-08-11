@@ -24,8 +24,7 @@ import Navbar from "../../components/landing/Navbar";
 import Footer from "../../components/landing/Footer";
 import InfoTooltip from "../../components/InfoTooltip/InfoTooltip.tsx";
 import { extractApiError } from "../../services/apiUtils.ts";
-import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
-import { fetchContracts, fetchMarkets } from "../../services/marketAdminService.ts";
+import { fetchPublicMarkets, type PublicMarketCard } from "../../services/markets/publicMarketsService.ts";
 import type { SportingEvent } from "../../types/api.ts";
 import "./Markets.css";
 
@@ -201,9 +200,77 @@ function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string
   return { teamA: teamA ?? eventLabel, teamB: teamB ?? "Event market" };
 }
 
+function teamsFromPublicMarket(market: PublicMarketCard): { teamA: string; teamB: string } {
+  if (market.teams.length >= 2) return { teamA: market.teams[0], teamB: market.teams[1] };
+  return teamsFromEventLabel(market.subject);
+}
+
 function formatUgxVolume(amount: number): string {
   if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
   return `UGX ${Math.round(amount / 1000)}K`;
+}
+
+function formatCloseTime(iso: string): string {
+  return new Date(iso).toLocaleString();
+}
+
+function marketProbability(market: PublicMarketCard): number {
+  const yes = market.outcomes.find((outcome) => outcome.toLowerCase().includes("yes"));
+  const match = yes?.match(/(\d{1,2})(?:\.\d+)?\s*%/);
+  return match ? Math.max(1, Math.min(99, Number(match[1]))) : 50;
+}
+
+function mapPublicToFeaturedMarket(market: PublicMarketCard): FeaturedMarket | null {
+  if (!isSupportedSport(market.sport)) return null;
+  const probabilityPct = marketProbability(market);
+  return {
+    id: market.id,
+    sport: market.sport,
+    ...teamsFromPublicMarket(market),
+    question: market.question,
+    closesIn: formatCloseTime(market.closesAt),
+    status: market.status,
+    probabilityPct,
+    yesPrice: `${probabilityPct}¢`,
+    noPrice: `${100 - probabilityPct}¢`,
+    volume: formatUgxVolume(0),
+    traders: "0",
+  };
+}
+
+async function fetchMarkets() {
+  const data = await fetchPublicMarkets();
+  return [...data.open, ...data.resolved].map((market) => {
+    const probabilityPct = marketProbability(market);
+    return {
+      id: market.id,
+      category: market.sport,
+      eventLabel: market.subject,
+      question: market.question,
+      status:
+        market.status === "OPEN"
+          ? "Live"
+          : market.status === "RESOLVED"
+            ? "Resolved"
+            : market.status === "VOIDED"
+              ? "Voided"
+              : "Cancelled",
+      outcomes: [
+        { id: "YES", probabilityPct },
+        { id: "NO", probabilityPct: 100 - probabilityPct },
+      ],
+      parameters: {
+        closesAt: market.closesAt,
+        trending: market.status === "OPEN",
+      },
+      winningOutcomeId: market.result,
+      resolvedAt: market.status === "RESOLVED" ? market.closesAt : undefined,
+    };
+  });
+}
+
+async function fetchContracts(_marketId: string) {
+  return [] as Array<{ quantityUgx: number; buyer: string; seller: string }>;
 }
 
 function CrestPlaceholder() {
