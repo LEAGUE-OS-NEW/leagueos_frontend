@@ -915,9 +915,11 @@ export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
 }
 
 /**
- * Records a newly matched contract against a market — the hook the fan
- * trading journey (tradingService.ts) calls into so a fan's buy shows up in
- * the admin's Contracts/Trading tabs within the same mock session.
+ * Records a newly matched contract against a market — historically the hook
+ * the fan trading journey called into so a fan's buy showed up in the
+ * admin's Contracts/Trading tabs within the same mock session. The fan side
+ * now trades through the real backend (fanMarketsServices.ts); kept here in
+ * case another mock consumer still needs it.
  */
 export function recordContract(input: {
   marketId: string;
