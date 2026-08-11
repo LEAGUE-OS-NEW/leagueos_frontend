@@ -160,7 +160,8 @@ function MarketDetailOverview() {
                           key={id}
                           type="button"
                           className={`yesno-card yesno-card--${isYes ? 'yes' : 'no'}`}
-                          onClick={() => goToTrade(id)}
+                          onClick={() => outcome.price !== null && goToTrade(id)}
+                          disabled={outcome.price === null}
                         >
                           <span className="yesno-card-label">{outcome.label}</span>
                           <span className="yesno-card-question">{outcome.description || market.question}</span>
@@ -168,7 +169,9 @@ function MarketDetailOverview() {
                             {formatMarketSharePrice(outcome.price)}
                             {isYes ? <FiTrendingUp className="up" /> : <FiTrendingDown className="down" />}
                           </span>
-                          <span className="yesno-card-probability">{outcome.probabilityPct}% Probability</span>
+                          <span className="yesno-card-probability">
+                            {outcome.probabilityPct === null ? 'Not traded yet' : `${outcome.probabilityPct}% Probability`}
+                          </span>
                           <span className={`yesno-card-cta yesno-card-cta--${isYes ? 'yes' : 'no'}`}>
                             Buy {outcome.label} · {formatMarketSharePrice(outcome.price)}
                           </span>

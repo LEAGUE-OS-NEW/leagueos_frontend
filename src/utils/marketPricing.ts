@@ -48,6 +48,10 @@ export function backendQuantityToShares(
     MARKET_FACE_VALUE_UGX;
 }
 
+export function sharesToBackendQuantity(shares: number): number {
+  return shares * MARKET_FACE_VALUE_UGX;
+}
+
 export function stakeUgxToBackendQuantity(
   stakeUgx: number,
   normalizedPrice: number,
@@ -81,8 +85,9 @@ export function formatMarketUgx(
 }
 
 export function formatMarketSharePrice(
-  amount: number,
+  amount: number | null,
 ): string {
+  if (amount === null) return 'Price unavailable';
   return `${formatMarketUgx(
     amount,
   )}/share`;

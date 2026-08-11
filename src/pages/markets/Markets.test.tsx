@@ -3,11 +3,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Markets from "./Markets.tsx";
-import { fetchPublicMarkets } from "../../services/markets/publicMarketsService.ts";
 import {
-  fetchContracts,
-  fetchPublishedMarkets,
-} from "../../services/marketAdminService.ts";
+  fetchMarketStats,
+  fetchPublicMarkets,
+} from "../../services/markets/publicMarketsService.ts";
+import { fetchPublishedMarkets } from "../../services/marketAdminService.ts";
 import type { Market } from "../../services/marketAdminService.ts";
 
 vi.mock("../../components/landing/Navbar", () => ({
@@ -18,10 +18,10 @@ vi.mock("../../components/landing/Footer", () => ({
 }));
 vi.mock("../../services/markets/publicMarketsService.ts", () => ({
   fetchPublicMarkets: vi.fn(),
+  fetchMarketStats: vi.fn(),
 }));
 vi.mock("../../services/marketAdminService.ts", () => ({
   fetchPublishedMarkets: vi.fn(),
-  fetchContracts: vi.fn(),
 }));
 
 const emptyResponse = {
@@ -83,8 +83,74 @@ function renderMarkets() {
 describe("Markets API states", () => {
   beforeEach(() => {
     vi.mocked(fetchPublicMarkets).mockReset().mockResolvedValue(emptyResponse);
+    vi.mocked(fetchMarketStats).mockReset().mockResolvedValue({
+      total_markets: 22,
+      open_markets: 18,
+      live_markets: 3,
+      featured_open_markets: 5,
+      total_volume_ugx: "0.00",
+      trader_count: 0,
+      sports: [
+        {
+          id: "football-id",
+          name: "Football",
+          code: "FOOTBALL",
+          slug: "football",
+          total_markets: 11,
+          open_markets: 9,
+          live_markets: 2,
+          featured_open_markets: 2,
+          total_volume_ugx: "0.00",
+          trader_count: 0,
+        },
+        {
+          id: "rugby-id",
+          name: "Rugby",
+          code: "RUGBY",
+          slug: "rugby",
+          total_markets: 7,
+          open_markets: 6,
+          live_markets: 1,
+          featured_open_markets: 2,
+          total_volume_ugx: "0.00",
+          trader_count: 0,
+        },
+        {
+          id: "basketball-id",
+          name: "Basketball",
+          code: "BASKETBALL",
+          slug: "basketball",
+          total_markets: 4,
+          open_markets: 3,
+          live_markets: 0,
+          featured_open_markets: 1,
+          total_volume_ugx: "0.00",
+          trader_count: 0,
+        },
+      ],
+    });
     vi.mocked(fetchPublishedMarkets).mockReset();
-    vi.mocked(fetchContracts).mockReset().mockResolvedValue([]);
+  });
+
+  it("renders sport counts from the live market stats API", async () => {
+    vi.mocked(fetchPublishedMarkets).mockResolvedValue([]);
+
+    renderMarkets();
+
+    expect(await screen.findByText("11 markets")).toBeInTheDocument();
+    expect(screen.getByText("7 markets")).toBeInTheDocument();
+    expect(screen.getByText("4 markets")).toBeInTheDocument();
+
+    expect(fetchMarketStats).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fabricate prices or contract-derived metrics", async () => {
+    vi.mocked(fetchPublishedMarkets).mockResolvedValue([openMarket]);
+    renderMarkets();
+
+    expect(await screen.findAllByText("Price unavailable")).not.toHaveLength(0);
+    expect(screen.getByText("Not traded yet")).toBeInTheDocument();
+    expect(screen.queryByText("55% likely YES")).not.toBeInTheDocument();
   });
 
   it("shows the existing loading state", async () => {

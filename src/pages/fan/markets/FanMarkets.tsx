@@ -26,7 +26,9 @@ import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { marketEligibilityActions, marketEligibilityMessage, marketEligibilityTitle } from '../../../utils/marketEligibilityCopy.ts';
 import {
   fetchMarkets,
+  fetchMarketCategories,
   fetchMyPositions,
+  type MarketCategory,
   type MarketListItem,
   type UserPosition,
 } from '../../../services/fanMarketsServices';
@@ -56,7 +58,6 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
 
 const PRESET_AMOUNTS = [10_000, 20_000, 50_000, 100_000];
 
-const MARKET_TYPE_OPTIONS = ['Match Result', 'Over/Under', 'Both Teams to Score', 'Goal Scorer', 'Combo Markets'];
 const STATUS_OPTIONS: { key: 'live' | 'upcoming' | 'trending'; label: string }[] = [
   { key: 'live', label: 'Live' },
   { key: 'upcoming', label: 'Upcoming' },
@@ -140,6 +141,12 @@ function Markets() {
 
   const { data: markets, isLoading, error, retry } = useDashboardSection<MarketListItem[]>(fetchMarkets);
   const { data: positions } = useDashboardSection<UserPosition[]>(fetchMyPositions);
+  const {
+    data: marketCategories,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+    retry: retryCategories,
+  } = useDashboardSection<MarketCategory[]>(fetchMarketCategories);
 
   const [tab, setTab] = useState<ListTab>('live');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -156,7 +163,7 @@ function Markets() {
     }
     return '';
   }, [amount, numericAmount]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(['Match Result']);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['live', 'upcoming']);
 
   // Lock background scroll whenever the mobile sidebar OR the market detail
@@ -171,10 +178,25 @@ function Markets() {
 
   const visibleMarkets = useMemo(() => {
     if (!markets) return [];
-    if (tab === 'all') return markets;
-    if (tab === 'trending') return markets.filter((m) => m.status === 'live' || m.status === 'trending');
-    return markets.filter((m) => m.status === tab);
-  }, [markets, tab]);
+    const byTab = tab === 'all'
+      ? markets
+      : tab === 'trending'
+        ? markets.filter((m) => m.status === 'live' || m.status === 'trending')
+        : markets.filter((m) => m.status === tab);
+    return byTab.filter((market) => {
+      const matchesType = selectedTypes.length === 0 || selectedTypes.includes(market.marketType);
+      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(market.status);
+      return matchesType && matchesStatus;
+    });
+  }, [markets, selectedStatuses, selectedTypes, tab]);
+
+  useEffect(() => {
+    if (!marketCategories) return;
+    const validNames = new Set(marketCategories.map((category) => category.label));
+    // API catalogue changes must invalidate selections that no longer exist.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedTypes((current) => current.filter((type) => validNames.has(type)));
+  }, [marketCategories]);
 
   // NOTE: previously this fell back to visibleMarkets[0] via a useEffect that
   // called setSelectedMarketId. That's a "derive state from state" pattern —
@@ -190,8 +212,9 @@ function Markets() {
 
   const potentialReturn = useMemo(() => {
     const numericAmount = Number(amount);
-    if (!selectedMarket || !numericAmount || Number.isNaN(numericAmount)) return 0;
+    if (!selectedMarket || !numericAmount || Number.isNaN(numericAmount)) return null;
     const price = tradeSide === 'buy' ? selectedMarket.yesPrice : selectedMarket.noPrice;
+    if (price === null) return null;
     return Math.round(numericAmount / price);
   }, [amount, selectedMarket, tradeSide]);
 
@@ -206,7 +229,7 @@ function Markets() {
   };
 
   const resetFilters = () => {
-    setSelectedTypes(['Match Result']);
+    setSelectedTypes([]);
     setSelectedStatuses(['live', 'upcoming']);
   };
 
@@ -292,15 +315,15 @@ function Markets() {
                 <div className="market-details-stats-row">
                   <div>
                     <span>Total Volume</span>
-                    <b>UGX {selectedMarket.volumeLabel}</b>
+                    <b>{selectedMarket.volumeLabel === null ? '—' : `UGX ${selectedMarket.volumeLabel}`}</b>
                   </div>
                   <div>
                     <span>Total Contracts</span>
-                    <b>{selectedMarket.totalContractsLabel}</b>
+                    <b>{selectedMarket.totalContractsLabel ?? '—'}</b>
                   </div>
                   <div>
                     <span>Traders</span>
-                    <b>{selectedMarket.tradersCount.toLocaleString()}</b>
+                    <b>{selectedMarket.tradersCount?.toLocaleString() ?? '—'}</b>
                   </div>
                   <div>
                     <span>Market Ends</span>
@@ -346,7 +369,7 @@ function Markets() {
                   <div className="market-details-verified-row">
                     <div>
                       <span>Your Potential Win</span>
-                      <b>{formatUgx(potentialReturn)}</b>
+                      <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
                     </div>
                     <div>
                       <span>Market Liquidity</span>
@@ -466,14 +489,14 @@ function Markets() {
 
                   <div className="potential-return-row">
                     <span>Potential Return</span>
-                    <b>{formatUgx(potentialReturn)}</b>
+                    <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
                   </div>
 
                  <div className="trade-actions">
                     <button
                       type="button"
                       className="buy-button buy-button--yes"
-                      disabled={!amount || Number(amount) <= 0}
+                      disabled={!amount || Number(amount) <= 0 || selectedMarket.yesPrice === null}
                       onClick={() =>
                         requireVerification(() =>
                           navigate(`/fan/markets/${selectedMarket.id}/review`, {
@@ -482,7 +505,7 @@ function Markets() {
                               side: 'buy',
                               price: selectedMarket.yesPrice,
                               amount: Number(amount) || 0,
-                              contracts: Number(amount) ? Number(amount) / selectedMarket.yesPrice : 0,
+                              contracts: Number(amount) && selectedMarket.yesPrice !== null ? Number(amount) / selectedMarket.yesPrice : 0,
                               feeRate: 0.02,
                             },
                           }),
@@ -494,7 +517,7 @@ function Markets() {
                     <button
                       type="button"
                       className="buy-button buy-button--no"
-                      disabled={!amount || Number(amount) <= 0}
+                      disabled={!amount || Number(amount) <= 0 || selectedMarket.yesPrice === null}
                       onClick={() =>
                         requireVerification(() =>
                           navigate(`/fan/markets/${selectedMarket.id}/review`, {
@@ -503,7 +526,7 @@ function Markets() {
                               side: 'sell',
                               price: selectedMarket.yesPrice,
                               amount: Number(amount) || 0,
-                              contracts: Number(amount) ? Number(amount) / selectedMarket.yesPrice : 0,
+                              contracts: Number(amount) && selectedMarket.yesPrice !== null ? Number(amount) / selectedMarket.yesPrice : 0,
                               feeRate: 0.02,
                             },
                           }),
@@ -621,12 +644,29 @@ function Markets() {
               <div className="filters-panel-groups">
                 <div className="filters-group">
                   <h3>Market Type</h3>
-                  {MARKET_TYPE_OPTIONS.map((type) => (
-                    <label key={type} className="filters-checkbox">
-                      <input type="checkbox" checked={selectedTypes.includes(type)} onChange={() => toggleType(type)} />
-                      {type}
-                    </label>
-                  ))}
+                  {categoriesLoading ? (
+                    <p>Loading categories…</p>
+                  ) : categoriesError ? (
+                    <DashboardNotice
+                      tone="error"
+                      title="Couldn't load market categories"
+                      message={categoriesError}
+                      onRetry={retryCategories}
+                    />
+                  ) : !marketCategories || marketCategories.length === 0 ? (
+                    <p>No market categories available.</p>
+                  ) : (
+                    marketCategories.map((category) => (
+                      <label key={category.id} className="filters-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedTypes.includes(category.label)}
+                          onChange={() => toggleType(category.label)}
+                        />
+                        {category.label}
+                      </label>
+                    ))
+                  )}
                 </div>
                 <div className="filters-group">
                   <h3>Status</h3>
@@ -709,9 +749,9 @@ function Markets() {
                           </span>
                         </span>
                         <span className="market-mini-footer">
-                          <span>Volume UGX{market.volumeLabel}</span>
-                          <span>Traders {market.tradersCount.toLocaleString()}</span>
-                          <span className="up">+{market.changePct}%</span>
+                          <span>Volume: {market.volumeLabel === null ? '—' : `UGX ${market.volumeLabel}`}</span>
+                          <span>Traders: {market.tradersCount?.toLocaleString() ?? '—'}</span>
+                          <span className="up">Change: {market.changePct === null ? '—' : `${market.changePct}%`}</span>
                         </span>
                       </button>
                     ))}
