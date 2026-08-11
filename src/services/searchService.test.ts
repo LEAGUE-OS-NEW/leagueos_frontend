@@ -4,6 +4,8 @@ import { getPublicClubs, getPublicCompetitions, getPublicFixtures } from './publ
 import { fetchOpenMarkets } from './markets/publicMarketsService';
 import { fetchNews } from './newsService';
 import { fetchClubs, fetchSquad } from './clubsService';
+import { getMatchTicketTypes } from './ticketCheckoutService';
+import { fetchFantasyLeagues } from './fantasyAdminService';
 
 vi.mock('./publicDashboardService', () => ({
   getPublicClubs: vi.fn(),
@@ -22,6 +24,14 @@ vi.mock('./newsService', () => ({
 vi.mock('./clubsService', () => ({
   fetchClubs: vi.fn(),
   fetchSquad: vi.fn(),
+}));
+
+vi.mock('./ticketCheckoutService', () => ({
+  getMatchTicketTypes: vi.fn(),
+}));
+
+vi.mock('./fantasyAdminService', () => ({
+  fetchFantasyLeagues: vi.fn(),
 }));
 
 describe('fetchSearchResults', () => {
@@ -83,17 +93,45 @@ describe('fetchSearchResults', () => {
         stats: [],
       },
     ]);
+    vi.mocked(getMatchTicketTypes).mockResolvedValue({
+      match: { id: 1, label: '', venue: '', match_date: '', status: '' },
+      count: 0,
+      ticket_types: [],
+    });
+    vi.mocked(fetchFantasyLeagues).mockResolvedValue([
+      {
+        id: 'fb-premier',
+        sport: 'football',
+        name: 'Uganda Fantasy Premier',
+        image: '/images/fantasy1.png',
+        entryType: 'public',
+        managers: 48200,
+        prizePool: 'UGX 20,000,000',
+        gameweek: 'Gameweek 3 · Live',
+        rulesSummary: 'Classic 8-player squads.',
+      },
+    ]);
 
     const { results, failedSources } = await fetchSearchResults();
 
-    expect(failedSources).toEqual(['fixtures']);
-    expect(results.map((r) => r.kind).sort()).toEqual(['club', 'competition', 'market', 'news', 'player'].sort());
+    // fetchTicketResults() depends on getPublicFixtures() too, so a fixtures
+    // outage also takes tickets down with it.
+    expect(failedSources.sort()).toEqual(['fixtures', 'tickets'].sort());
+    expect(results.map((r) => r.kind).sort()).toEqual(
+      ['club', 'competition', 'fantasyLeague', 'market', 'news', 'player'].sort(),
+    );
     expect(results.find((r) => r.kind === 'club')).toMatchObject({ name: 'Vipers SC', slug: 'vipers-sc', sport: 'Football' });
     expect(results.find((r) => r.kind === 'competition')).toMatchObject({ sport: 'Football' });
     expect(results.find((r) => r.kind === 'player')).toMatchObject({
       name: 'Allan Okello',
       clubSlug: 'vipers-sc',
       playerId: 'v-1',
+      sport: 'Football',
+    });
+    expect(results.find((r) => r.kind === 'fantasyLeague')).toMatchObject({
+      name: 'Uganda Fantasy Premier',
+      leagueId: 'fb-premier',
+      entryType: 'public',
       sport: 'Football',
     });
   });
@@ -105,12 +143,14 @@ describe('fetchSearchResults', () => {
     vi.mocked(fetchOpenMarkets).mockRejectedValue(new Error('down'));
     vi.mocked(fetchNews).mockRejectedValue(new Error('down'));
     vi.mocked(fetchClubs).mockRejectedValue(new Error('down'));
+    vi.mocked(getMatchTicketTypes).mockRejectedValue(new Error('down'));
+    vi.mocked(fetchFantasyLeagues).mockRejectedValue(new Error('down'));
 
     const { results, failedSources } = await fetchSearchResults();
 
     expect(results).toEqual([]);
     expect(failedSources.sort()).toEqual(
-      ['clubs', 'competitions', 'fixtures', 'markets', 'news', 'players'].sort(),
+      ['clubs', 'competitions', 'fixtures', 'markets', 'news', 'players', 'tickets', 'fantasy leagues'].sort(),
     );
   });
 });

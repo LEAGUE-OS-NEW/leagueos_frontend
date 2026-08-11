@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FiActivity, FiAlertTriangle, FiSearch } from 'react-icons/fi';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
@@ -25,6 +25,8 @@ const ENTITY_TABS: Array<{ value: 'All' | SearchResultKind; label: string }> = [
   { value: 'player', label: 'Players' },
   { value: 'news', label: 'News' },
   { value: 'market', label: 'Markets' },
+  { value: 'ticket', label: 'Tickets' },
+  { value: 'fantasyLeague', label: 'Fantasy Leagues' },
 ];
 
 function matchesQuery(result: SearchResult, query: string): boolean {
@@ -48,13 +50,18 @@ function matchesQuery(result: SearchResult, query: string): boolean {
         result.question.toLowerCase().includes(query) ||
         result.teams.some((team) => team.toLowerCase().includes(query))
       );
+    case 'ticket':
+      return result.homeTeam.toLowerCase().includes(query) || result.awayTeam.toLowerCase().includes(query);
+    case 'fantasyLeague':
+      return result.name.toLowerCase().includes(query);
   }
 }
 
 function SearchPage() {
   const isSignedIn = Boolean(useAuthStore((state) => state.accessToken));
+  const [searchParams] = useSearchParams();
 
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => searchParams.get('q') ?? '');
   const [sportFilter, setSportFilter] = useState<'All' | Sport>('All');
   const [entityTab, setEntityTab] = useState<'All' | SearchResultKind>('All');
   const [isLoading, setIsLoading] = useState(true);

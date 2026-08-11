@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import type { FormEvent, ReactNode } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   FiMenu,
   FiX,
@@ -37,7 +37,6 @@ const DEFAULT_LINKS: NavbarLink[] = [
   { label: 'Store', route: '/store' },
   { label: 'News', route: '/news' },
   { label: 'About', route: '/about' },
-  { label: 'Search', route: '/search' },
 ];
 
 const LINK_ICONS: Record<string, ReactNode> = {
@@ -48,15 +47,23 @@ const LINK_ICONS: Record<string, ReactNode> = {
   Store: <FiShoppingCart />,
   News: <FiFileText />,
   About: <FiInfo />,
-  Search: <FiSearch />,
 };
 
 function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isSignedIn = Boolean(useAuthStore((state) => state.accessToken));
   const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchText.trim();
+    if (!query) return;
+    navigate(`/search?q=${encodeURIComponent(query)}`);
+  };
 
   const openMenu = () => setIsMenuOpen(true);
 
@@ -106,6 +113,19 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
             </NavLink>
           ))}
         </nav>
+
+        <form className="navbar-search" role="search" onSubmit={handleSearchSubmit}>
+          <FiSearch className="navbar-search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            className="navbar-search-input"
+            placeholder="Search League OS"
+            aria-label="Search League OS"
+            enterKeyHint="search"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
+        </form>
 
         <div className="navbar-actions">
           {isSignedIn ? (
@@ -171,6 +191,27 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
             <FiX />
           </button>
         </div>
+
+        <form
+          className="navbar-search navbar-search--mobile"
+          role="search"
+          onSubmit={(event) => {
+            handleSearchSubmit(event);
+            closeMenu();
+          }}
+        >
+          <FiSearch className="navbar-search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            className="navbar-search-input"
+            placeholder="Search League OS"
+            aria-label="Search League OS"
+            enterKeyHint="search"
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            tabIndex={isMenuOpen ? 0 : -1}
+          />
+        </form>
 
         <nav className="navbar-mobile-links" aria-label="Mobile">
           {links.map((link) => (

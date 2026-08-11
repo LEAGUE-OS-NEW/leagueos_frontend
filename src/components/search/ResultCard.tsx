@@ -152,10 +152,33 @@ function ResultCard({ result }: { result: SearchResult }) {
 
     case 'market':
       return (
-        <CardShell to="/markets" kindLabel="Market">
+        <CardShell to={`/markets/${result.marketId}`} kindLabel="Market">
           <p className="rc-title">{result.question}</p>
           {result.teams.length > 0 && <p className="rc-subtitle">{result.teams.join(' vs ')}</p>}
           <p className="rc-meta">Closes {formatDateTime(result.closesAt)}</p>
+        </CardShell>
+      );
+
+    case 'ticket':
+      return (
+        <CardShell to={`/tickets/${result.fixtureId}/checkout`} kindLabel="Ticket">
+          <p className="rc-title rc-title--fixture">
+            {result.homeTeam} vs {result.awayTeam}
+          </p>
+          <p className="rc-meta">{formatDateTime(result.kickoff)}</p>
+          {result.lowestPrice !== null && (
+            <p className="rc-subtitle">
+              From {result.currency} {result.lowestPrice.toLocaleString('en-US')}
+            </p>
+          )}
+        </CardShell>
+      );
+
+    case 'fantasyLeague':
+      return (
+        <CardShell to={`/fan/fantasy?league=${result.leagueId}`} kindLabel="Fantasy League">
+          <p className="rc-title">{result.name}</p>
+          <p className="rc-subtitle">{result.entryType === 'public' ? 'Public league' : 'Private league'}</p>
         </CardShell>
       );
   }

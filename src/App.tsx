@@ -85,6 +85,20 @@ import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
 import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
+import FanNewsPage from './pages/fan/news/FanNewsPage';
+import FanArticleDetailPage from './pages/fan/news/FanArticleDetailPage';
+import ClubAdminDashboard from './pages/clubadmin/ClubAdminDashboard';
+import ClubProfilePage from './pages/clubadmin/profile/ClubProfilePage';
+import ClubFixturesPage from './pages/clubadmin/fixtures/ClubFixturesPage';
+import ClubSquadPage from './pages/clubadmin/squad/ClubSquadPage';
+import ClubNewsPage from './pages/clubadmin/news/ClubNewsPage';
+import ClubMembershipsPage from './pages/clubadmin/memberships/ClubMembershipsPage';
+import ClubTicketsAdminPage from './pages/clubadmin/tickets/ClubTicketsAdminPage';
+import ClubStorePage from './pages/clubadmin/store/ClubStorePage';
+import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
+import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
+import ClubSponsorsPage from './pages/clubadmin/sponsors/ClubSponsorsPage';
+import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
 
 // import Personalize from "./pages/personalize/Personalize";
 
@@ -153,6 +167,22 @@ function App() {
         <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+        <Route path="/fan/news" element={<FanNewsPage />} />
+        <Route path="/fan/news/:storyId" element={<FanArticleDetailPage />} />
+
+        {/* Club Admin */}
+        <Route path="/club-admin" element={<ClubAdminDashboard />} />
+        <Route path="/club-admin/profile" element={<ClubProfilePage />} />
+        <Route path="/club-admin/fixtures" element={<ClubFixturesPage />} />
+        <Route path="/club-admin/squad" element={<ClubSquadPage />} />
+        <Route path="/club-admin/news" element={<ClubNewsPage />} />
+        <Route path="/club-admin/memberships" element={<ClubMembershipsPage />} />
+        <Route path="/club-admin/tickets" element={<ClubTicketsAdminPage />} />
+        <Route path="/club-admin/store" element={<ClubStorePage />} />
+        <Route path="/club-admin/orders" element={<ClubOrdersPage />} />
+        <Route path="/club-admin/analytics" element={<ClubAnalyticsPage />} />
+        <Route path="/club-admin/staff" element={<ClubStaffPage />} />
+        <Route path="/club-admin/sponsors" element={<ClubSponsorsPage />} />
 
        
 

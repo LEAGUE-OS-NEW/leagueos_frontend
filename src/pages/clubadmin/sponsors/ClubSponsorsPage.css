@@ -1,0 +1,8 @@
+.ca-pipeline-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(43,35,68,0.5); }
+.ca-pipeline-row:last-child { border-bottom: none; }
+.ca-pipeline-name { flex: 1; font-size: 0.82rem; color: var(--color-text-secondary); font-weight: 600; }
+.ca-pipeline-value { font-size: 0.78rem; font-weight: 700; color: var(--color-primary-light); white-space: nowrap; }
+.ca-benefit-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(43,35,68,0.5); }
+.ca-benefit-row:last-child { border-bottom: none; }
+.ca-benefit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
+.ca-benefit-dot.done { background: #22c55e; }
