@@ -10,6 +10,9 @@ import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkelet
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import { formatUgx } from '../../../utils/rules.ts';
+import {
+  formatMarketSharePrice,
+} from '../../../utils/marketPricing.ts';
 import { fetchFanPositions, fetchPublishedMarkets, MARKET_CATEGORIES } from '../../../services/fanMarketsServices';
 import type { Market, Position } from '../../../services/fanMarketsServices';
 import { fetchWalletDetails } from '../../../services/walletService';
@@ -70,12 +73,12 @@ function MarketCard({ market, onNavigate }: { market: Market; onNavigate: Naviga
         <div className="trade-hub-market-actions">
           {yes && (
             <button type="button" className="trade-hub-yes-btn" onClick={() => onNavigate(`/fan/markets/${market.id}/trade`, { state: { outcomeId: 'YES' } })}>
-              Yes {yes.price.toLocaleString()}
+              Yes {formatMarketSharePrice(yes.price)}
             </button>
           )}
           {no && (
             <button type="button" className="trade-hub-no-btn" onClick={() => onNavigate(`/fan/markets/${market.id}/trade`, { state: { outcomeId: 'NO' } })}>
-              No {no.price.toLocaleString()}
+              No {formatMarketSharePrice(no.price)}
             </button>
           )}
         </div>

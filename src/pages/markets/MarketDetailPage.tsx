@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FiAlertTriangle, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
@@ -10,7 +10,7 @@ import {
   type OrderBook,
   type OutcomeId,
 } from '../../services/marketAdminService';
-import { fetchMyPositions, placeOrder, type Position } from '../../services/tradingService';
+import { fetchFanPositions, placeOrder, type Position } from '../../services/fanMarketsServices';
 import { useIdentityVerificationStore } from '../../store/identityVerificationStore';
 import './MarketDetailPage.css';
 
@@ -28,9 +28,14 @@ function formatUgx(amount: number): string {
   return `UGX ${Math.round(amount).toLocaleString('en-US')}`;
 }
 
+function getInitialOutcome(searchParams: URLSearchParams): OutcomeId {
+  return searchParams.get('outcome') === 'NO' ? 'NO' : 'YES';
+}
+
 function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
 
   const [market, setMarket] = useState<Market | null>(null);
@@ -39,7 +44,7 @@ function MarketDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selectedOutcome, setSelectedOutcome] = useState<OutcomeId>('YES');
+  const [selectedOutcome, setSelectedOutcome] = useState<OutcomeId>(() => getInitialOutcome(searchParams));
   const [amount, setAmount] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
@@ -48,12 +53,16 @@ function MarketDetailPage() {
   useEffect(() => {
     if (!marketId) return;
     let cancelled = false;
-    Promise.all([fetchMarket(marketId), fetchOrderBook(marketId), fetchMyPositions()])
+    Promise.all([
+      fetchMarket(marketId),
+      fetchOrderBook(marketId),
+      fetchFanPositions(),
+    ])
       .then(([marketResult, orderBookResult, positions]) => {
         if (cancelled) return;
         setMarket(marketResult);
         setOrderBook(orderBookResult);
-        setMyPositions(positions.filter((position) => position.market.id === marketId));
+        setMyPositions(positions.filter((position: Position) => position.market.id === marketId));
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load this market. Please try again.');
@@ -77,7 +86,7 @@ function MarketDetailPage() {
     setOrderError(null);
     try {
       await placeOrder({ marketId: market.id, outcomeId: selectedOutcome, quantityUgx });
-      const positions = await fetchMyPositions();
+      const positions = await fetchFanPositions();
       setMyPositions(positions.filter((position) => position.market.id === market.id));
       setOrderSuccess(true);
       setAmount('');
@@ -149,12 +158,12 @@ function MarketDetailPage() {
         <div className="pmd-outcomes">
           <div className="pmd-outcome-card pmd-outcome-card--yes">
             <span className="pmd-outcome-card__label">{yesOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(yesOutcome.price)}</span>
+            <span className="pmd-outcome-card__price">{formatUgx(yesOutcome.price)}/share</span>
             <span className="pmd-outcome-card__pct">{yesOutcome.probabilityPct}% likely</span>
           </div>
           <div className="pmd-outcome-card pmd-outcome-card--no">
             <span className="pmd-outcome-card__label">{noOutcome.label}</span>
-            <span className="pmd-outcome-card__price">{formatUgx(noOutcome.price)}</span>
+            <span className="pmd-outcome-card__price">{formatUgx(noOutcome.price)}/share</span>
             <span className="pmd-outcome-card__pct">{noOutcome.probabilityPct}% likely</span>
           </div>
         </div>
@@ -231,14 +240,14 @@ function MarketDetailPage() {
                 className={`pmd-outcome-choice pmd-outcome-choice--yes${selectedOutcome === 'YES' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('YES')}
               >
-                {yesOutcome.label} &middot; {formatUgx(yesOutcome.price)}
+                {yesOutcome.label} &middot; {formatUgx(yesOutcome.price)}/share
               </button>
               <button
                 type="button"
                 className={`pmd-outcome-choice pmd-outcome-choice--no${selectedOutcome === 'NO' ? ' is-selected' : ''}`}
                 onClick={() => setSelectedOutcome('NO')}
               >
-                {noOutcome.label} &middot; {formatUgx(noOutcome.price)}
+                {noOutcome.label} &middot; {formatUgx(noOutcome.price)}/share
               </button>
             </div>
             <label className="pmd-field">

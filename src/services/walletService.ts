@@ -181,6 +181,42 @@ export async function fetchWalletDetails(): Promise<WalletDetails> {
   return delay({ ...WALLET_DETAILS, transactions: [...WALLET_DETAILS.transactions] });
 }
 
+export function getWalletAvailableBalanceUgx(): number {
+  return parseUGX(WALLET_DETAILS.balance);
+}
+
+export function recordMarketStake(marketLabel: string, amountUgx: number): void {
+  if (amountUgx <= 0) return;
+
+  WALLET_DETAILS.balance = formatUGX(Math.max(0, parseUGX(WALLET_DETAILS.balance) - amountUgx));
+  WALLET_DETAILS.transactions = [
+    {
+      id: `stake-${Date.now().toString(36)}`,
+      label: `Market stake - ${marketLabel}`,
+      amount: `-${formatUGX(amountUgx)}`,
+      timestamp: 'Just now',
+      type: 'debit',
+    },
+    ...WALLET_DETAILS.transactions,
+  ];
+}
+
+export function recordWithdrawalTransaction(amountUgx: number, destination: string): void {
+  if (amountUgx <= 0) return;
+
+  WALLET_DETAILS.balance = formatUGX(Math.max(0, parseUGX(WALLET_DETAILS.balance) - amountUgx));
+  WALLET_DETAILS.transactions = [
+    {
+      id: `withdrawal-${Date.now().toString(36)}`,
+      label: `Withdrawal - ${destination}`,
+      amount: `-${formatUGX(amountUgx)}`,
+      timestamp: 'Just now',
+      type: 'debit',
+    },
+    ...WALLET_DETAILS.transactions,
+  ];
+}
+
 /** Credits a winning market position's payout — called when a Referee
  * finalises a market result (see resultVerificationService.finalizeResult). */
 export function recordMarketPayout(marketLabel: string, amountUgx: number): void {

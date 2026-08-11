@@ -3,8 +3,10 @@ import {
   type DashboardAccess,
   type AuthenticatedUser,
   isAuthenticatedUser,
+  isDashboardIdentifier,
 } from '../types/dashboardAccess.js';
 import { validateDashboardAccess } from '../utils/dashboardAccess.ts';
+import { getDefaultDashboardRoute as getRoleDefaultDashboardRoute } from '../utils/roleRoutes.ts';
 import { useClubWorkspaceStore } from './clubWorkspaceStore.ts';
 import {
   clearAuthStorage,
@@ -96,6 +98,64 @@ function buildLegacyDashboardAccess(user: AuthenticatedUser): DashboardAccess | 
   };
 }
 
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+    ? value
+    : [];
+}
+
+// user.role is often absent on the current backend payload — it sends
+// roles: ["Fan"] instead — so fall back to the first normalizable entry
+// in that array.
+function getUserRoleFallback(user: AuthenticatedUser): string {
+  const roles = Array.isArray(user.roles) ? user.roles : [];
+  return (
+    roles.map(normalizeRole).find((normalized) => isDashboardIdentifier(normalized)) ?? ''
+  );
+}
+
+// TEMPORARY SHIM: covers any role the backend sends in its legacy shape
+// (single `role`/`roles` array, no proper dashboard_access contract) that
+// isn't a club workspace role — FAN today, but also catches any admin
+// role that slips through with a malformed contract. Reuses
+// roleRoutes.ts's existing role→route map instead of duplicating it.
+// Remove once the backend ships the real dashboard_access contract for
+// every role (see dashboardAccess.test.ts for the target shape).
+function buildGenericLegacyDashboardAccess(user: AuthenticatedUser): DashboardAccess | null {
+  const normalizedRole = normalizeRole(user.role);
+  const role = isDashboardIdentifier(normalizedRole)
+    ? normalizedRole
+    : getUserRoleFallback(user);
+
+  if (!role || !isDashboardIdentifier(role)) {
+    return null;
+  }
+
+  const route = getRoleDefaultDashboardRoute(user);
+
+  if (!route) {
+    return null;
+  }
+
+  const id = `legacy-${role.toLowerCase()}`;
+
+  return {
+    version: 1,
+    default_entitlement_id: id,
+    entitlements: [
+      {
+        id,
+        dashboard: role,
+        route,
+        scope_type: null,
+        scope_id: null,
+        workspace_role: null,
+        permissions: toStringArray(user.permissions),
+      },
+    ],
+  };
+}
+
 export type AuthUser = AuthenticatedUser | null;
 export type AccessStatus =
   | 'unauthenticated'
@@ -131,7 +191,8 @@ function sanitizeUser(value: unknown) {
 
   const dashboardAccess =
     validateDashboardAccess(value.dashboard_access) ??
-    buildLegacyDashboardAccess(value);
+    buildLegacyDashboardAccess(value) ??
+    buildGenericLegacyDashboardAccess(value);
 
   return {
     user: {

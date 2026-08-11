@@ -1,0 +1,184 @@
+.fscp-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Back link ── */
+.fscp-back {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.fscp-back:hover {
+  color: var(--color-text-primary);
+}
+
+/* ── Category header ── */
+.fscp-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.fscp-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(109, 94, 252, 0.18);
+  color: #9d7bff;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.fscp-header-text {
+  flex: 1;
+  min-width: 160px;
+}
+
+.fscp-title {
+  margin: 0 0 4px;
+  font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.fscp-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.fscp-count {
+  margin-left: auto;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Club filter chips ── */
+.fscp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fscp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.fscp-chip:hover {
+  background: rgba(109, 94, 252, 0.12);
+  color: var(--color-text-primary);
+  border-color: rgba(109, 94, 252, 0.35);
+}
+
+.fscp-chip.active {
+  background: rgba(109, 94, 252, 0.22);
+  border-color: rgba(109, 94, 252, 0.5);
+  color: #c4b5fd;
+}
+
+.fscp-chip-crest {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: #fff;
+  padding: 1px;
+}
+
+/* ── Product grid ── */
+.fscp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+/* ── States ── */
+.fscp-loading {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  padding: 24px 0;
+}
+
+.fscp-empty,
+.fscp-not-found {
+  text-align: center;
+  padding: 48px 24px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+}
+
+.fscp-empty-title,
+.fscp-not-found-title {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.fscp-empty p,
+.fscp-not-found p {
+  margin: 0;
+}
+
+.fscp-not-found a {
+  color: #9d7bff;
+  text-decoration: none;
+}
+
+.fscp-not-found a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .fscp-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fscp-header {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fscp-back,
+  .fscp-chip {
+    transition: none;
+  }
+}

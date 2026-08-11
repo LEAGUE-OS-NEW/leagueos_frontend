@@ -101,6 +101,92 @@
   outline-offset: 2px;
 }
 
+.fan-wallet-withdraw-btn {
+  flex-shrink: 0;
+  padding: 12px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.fan-wallet-withdraw-btn:hover {
+  transform: scale(1.03);
+  filter: brightness(1.05);
+}
+
+.fan-wallet-withdraw-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fan-wallet-withdraw-panel {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: var(--color-card-bg);
+}
+
+.fan-wallet-withdraw-panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.fan-wallet-withdraw-panel label {
+  display: grid;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.fan-wallet-withdraw-panel input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.fan-wallet-withdraw-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.fan-wallet-withdraw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fan-wallet-withdraw-actions button {
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fan-wallet-withdraw-actions button:last-child {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
 .fan-wallet-history {
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
@@ -191,5 +277,15 @@
 @media (prefers-reduced-motion: reduce) {
   .fan-wallet-topup-btn {
     transition: none;
+  }
+}
+
+/* .fan-sidebar is position: fixed at all breakpoints (see Sidebar.css),
+   so it's out of document flow and never actually pushes sibling content
+   over. Reserve its desktop width here so page content clears it instead
+   of rendering underneath. */
+@media (min-width: 960px) {
+  .fan-wallet-main {
+    margin-left: 260px;
   }
 }

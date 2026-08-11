@@ -9,6 +9,7 @@ import Transfers from './sections/Transfers';
 import Leagues from './sections/Leagues';
 import { BellIcon, TrophyIcon, SPORT_META } from './sections/shared';
 import Sidebar from '../../../components/fan/Sidebar';
+import Footer from '../../../components/landing/Footer';
 import './FantasyCompetitions.css';
 
 type Screen = 'hub' | 'competition' | 'build' | 'team' | 'transfers' | 'leagues';
@@ -215,6 +216,8 @@ export default function App() {
         <span>League OS Fantasy · {teamCount} active team{teamCount === 1 ? '' : 's'}</span>
         <span>Football · Basketball · Rugby 15s</span>
       </footer>
+
+      <Footer />
     </div>
     </div>
   );

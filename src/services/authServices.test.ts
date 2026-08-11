@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import apiClient from "./apiClient.ts";
 import {
+  fetchCurrentUser,
   login,
   requestPasswordReset,
   resetPassword,
@@ -11,14 +12,19 @@ import {
 
 vi.mock("./apiClient.ts", () => ({
   default: {
+    get: vi.fn(),
     post: vi.fn(),
   },
 }));
 
+const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
 
 describe("authentication service contracts", () => {
-  beforeEach(() => post.mockReset());
+  beforeEach(() => {
+    get.mockReset();
+    post.mockReset();
+  });
 
   it("maps a login identifier to the backend email field and unwraps the response", async () => {
     post.mockResolvedValueOnce({
@@ -36,6 +42,31 @@ describe("authentication service contracts", () => {
       password: "secret",
     });
     expect(response.data).toMatchObject({ access: "a", refresh: "r" });
+  });
+
+  it("unwraps the current-user API envelope", async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: "Current user.",
+        data: {
+          user: {
+            id: "admin-1",
+            email: "admin@leagueos.com",
+            roles: ["Super Admin"],
+          },
+        },
+      },
+    });
+
+    const response = await fetchCurrentUser();
+
+    expect(get).toHaveBeenCalledWith("/auth/me/");
+    expect(response.data).toMatchObject({
+      id: "admin-1",
+      email: "admin@leagueos.com",
+      roles: ["Super Admin"],
+    });
   });
 
   it("maps code to otp for verification", async () => {

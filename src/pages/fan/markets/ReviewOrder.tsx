@@ -9,6 +9,7 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import { fetchMarket, placeOrder } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
+import { recordMarketStake } from '../../../services/walletService';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanMarketDetail.css';
@@ -81,6 +82,7 @@ function ReviewOrder() {
         outcomeId,
         quantityUgx: amount,
       });
+      recordMarketStake(market?.question ?? 'Market order', contract.quantityUgx);
       navigate(`/fan/markets/${marketId}/placed`, {
         state: {
           outcome: outcomeLabel,

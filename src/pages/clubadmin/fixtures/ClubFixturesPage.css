@@ -1,0 +1,44 @@
+.ca-next-match { text-align: center; }
+
+.ca-match-teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ca-match-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.ca-match-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.ca-match-badge-away { background: linear-gradient(135deg, #f97316, #ef4444); }
+.ca-match-vs { font-size: 0.72rem; font-weight: 800; color: var(--color-text-muted); }
+.ca-match-detail { font-size: 0.78rem; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; justify-content: center; margin: 4px 0; }
+
+.ca-checklist-row { display: flex; align-items: center; gap: 10px; }
+.ca-check-icon { display: flex; align-items: center; font-size: 1rem; flex-shrink: 0; }
+.ca-check-icon.done { color: #22c55e; }
+.ca-check-icon:not(.done) { color: #f97316; }
+.ca-check-text { font-size: 0.8rem; color: var(--color-text-secondary); }
+.ca-check-text.done { color: var(--color-text-muted); text-decoration: line-through; }

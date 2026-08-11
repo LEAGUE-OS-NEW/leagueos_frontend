@@ -9,6 +9,12 @@
   min-width: 0;
 }
 
+@media (min-width: 960px) {
+  .fan-profile-main {
+    margin-left: 260px;
+  }
+}
+
 .fan-profile-content {
   position: relative;
   background-image: url('/images/stadium-bg.png');

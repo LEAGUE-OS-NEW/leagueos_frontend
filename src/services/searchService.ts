@@ -1,10 +1,11 @@
 // Global search — aggregation service.
 //
-// Fans search across six unrelated domains at once (clubs, competitions,
-// fixtures, players, news, markets), each backed by a different source with
-// a different shape. This module is the single place that normalizes all
-// six into one SearchResult union so the Search page and its result cards
-// don't need to know where any given item came from.
+// Fans search across eight unrelated domains at once (clubs, competitions,
+// fixtures, players, news, markets, tickets, fantasy leagues), each backed
+// by a different source with a different shape. This module is the single
+// place that normalizes all of them into one SearchResult union so the
+// Search page, its result cards, and the navbar search field don't need to
+// know where any given item came from.
 //
 // None of the underlying public endpoints support server-side text search
 // or pagination, so this fetches full lists once; filtering/search/paging
@@ -18,10 +19,13 @@ import { fetchNews } from './newsService';
 import type { Story } from './newsService';
 import { fetchClubs, fetchSquad } from './clubsService';
 import type { ClubSummary, Player } from './clubsService';
+import { getMatchTicketTypes } from './ticketCheckoutService';
+import { fetchFantasyLeagues } from './fantasyAdminService';
+import type { Competition as FantasyLeague } from './fantasyAdminService';
 import { deriveSport, type Sport } from '../utils/sport';
 
 export type { Sport };
-export type SearchResultKind = 'club' | 'competition' | 'fixture' | 'player' | 'news' | 'market';
+export type SearchResultKind = 'club' | 'competition' | 'fixture' | 'player' | 'news' | 'market' | 'ticket' | 'fantasyLeague';
 
 interface SearchResultBase {
   id: string;
@@ -75,13 +79,39 @@ export interface NewsResult extends SearchResultBase {
 
 export interface MarketResult extends SearchResultBase {
   kind: 'market';
+  marketId: string;
   question: string;
   teams: string[];
   closesAt: string;
   status: string;
 }
 
-export type SearchResult = ClubResult | CompetitionResult | FixtureResult | PlayerResult | NewsResult | MarketResult;
+export interface TicketResult extends SearchResultBase {
+  kind: 'ticket';
+  fixtureId: string;
+  homeTeam: string;
+  awayTeam: string;
+  kickoff: string;
+  lowestPrice: number | null;
+  currency: string;
+}
+
+export interface FantasyLeagueResult extends SearchResultBase {
+  kind: 'fantasyLeague';
+  leagueId: string;
+  name: string;
+  entryType: 'public' | 'private';
+}
+
+export type SearchResult =
+  | ClubResult
+  | CompetitionResult
+  | FixtureResult
+  | PlayerResult
+  | NewsResult
+  | MarketResult
+  | TicketResult
+  | FantasyLeagueResult;
 
 function mapClub(club: PublicClubApi): ClubResult {
   return {
@@ -164,6 +194,7 @@ function mapMarket(market: PublicMarketCard): MarketResult {
   return {
     id: `market-${market.id}`,
     kind: 'market',
+    marketId: market.id,
     question: market.question,
     teams: market.teams,
     closesAt: market.closesAt,
@@ -172,14 +203,66 @@ function mapMarket(market: PublicMarketCard): MarketResult {
   };
 }
 
+function mapFantasyLeague(league: FantasyLeague): FantasyLeagueResult {
+  return {
+    id: `fantasy-${league.id}`,
+    kind: 'fantasyLeague',
+    leagueId: league.id,
+    name: league.name,
+    entryType: league.entryType,
+    sport: deriveSport(league.sport),
+  };
+}
+
+// Tickets aren't a standalone resource — a "ticket" is a fixture that has
+// active, available ticket types, exactly like TicketsLandingPage.tsx's own
+// aggregation (getPublicFixtures() + getMatchTicketTypes() per fixture,
+// keeping only ACTIVE ticket types with remaining_quantity left).
+async function fetchTicketResults(): Promise<TicketResult[]> {
+  const fixtures = await getPublicFixtures();
+
+  const rows = await Promise.all(
+    fixtures.map(async (fixture) => {
+      try {
+        const response = await getMatchTicketTypes(fixture.id);
+        const activeTypes = response.ticket_types.filter(
+          (ticketType) => ticketType.status === 'ACTIVE' && ticketType.remaining_quantity > 0,
+        );
+        return { fixture, activeTypes };
+      } catch {
+        return { fixture, activeTypes: [] };
+      }
+    }),
+  );
+
+  return rows
+    .filter((row) => row.activeTypes.length > 0)
+    .map(({ fixture, activeTypes }) => {
+      const prices = activeTypes.map((t) => Number(t.price)).filter((price) => Number.isFinite(price) && price > 0);
+      return {
+        id: `ticket-${fixture.id}`,
+        kind: 'ticket' as const,
+        fixtureId: String(fixture.id),
+        homeTeam: fixture.home_club_name,
+        awayTeam: fixture.away_club_name,
+        kickoff: fixture.match_date,
+        lowestPrice: prices.length ? Math.min(...prices) : null,
+        currency: activeTypes[0]?.currency ?? 'UGX',
+        sport: deriveSport(fixture.competition_name),
+      };
+    });
+}
+
 export async function fetchSearchResults(): Promise<{ results: SearchResult[]; failedSources: string[] }> {
-  const [clubs, competitions, fixtures, markets, news, players] = await Promise.allSettled([
+  const [clubs, competitions, fixtures, markets, news, players, tickets, fantasyLeagues] = await Promise.allSettled([
     getPublicClubs(),
     getPublicCompetitions(),
     getPublicFixtures(),
     fetchOpenMarkets(),
     fetchNews(),
     fetchAllPlayerResults(),
+    fetchTicketResults(),
+    fetchFantasyLeagues(),
   ]);
 
   const results: SearchResult[] = [];
@@ -219,6 +302,18 @@ export async function fetchSearchResults(): Promise<{ results: SearchResult[]; f
     results.push(...players.value);
   } else {
     failedSources.push('players');
+  }
+
+  if (tickets.status === 'fulfilled') {
+    results.push(...tickets.value);
+  } else {
+    failedSources.push('tickets');
+  }
+
+  if (fantasyLeagues.status === 'fulfilled') {
+    results.push(...fantasyLeagues.value.map(mapFantasyLeague));
+  } else {
+    failedSources.push('fantasy leagues');
   }
 
   return { results, failedSources };

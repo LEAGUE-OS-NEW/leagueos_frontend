@@ -1,0 +1,14 @@
+.ca-event-tickets-row { display: flex; justify-content: space-around; margin-top: 10px; gap: 8px; }
+.ca-event-tickets-row p { margin: 0; }
+.ca-fill-bar-wrap { flex: 1; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; min-width: 60px; }
+.ca-fill-bar { height: 100%; border-radius: 999px; background: var(--gradient-primary); }
+.ca-match-teams { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.ca-match-team { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 700; color: var(--color-text-primary); flex: 1; }
+.ca-match-badge { width: 44px; height: 44px; border-radius: 10px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 900; color: #fff; }
+.ca-match-badge-away { background: linear-gradient(135deg, #f97316, #ef4444); }
+.ca-match-vs { font-size: 0.7rem; font-weight: 800; color: var(--color-text-muted); }
+.ca-channel-row { display: flex; align-items: center; gap: 10px; }
+.ca-channel-label { font-size: 0.78rem; color: var(--color-text-secondary); }
+.ca-channel-bar-wrap { flex: 1; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.ca-channel-bar { height: 100%; border-radius: 999px; background: var(--gradient-primary); }
+.ca-channel-pct { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); width: 32px; text-align: right; flex-shrink: 0; }

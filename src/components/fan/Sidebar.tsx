@@ -20,11 +20,11 @@ const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'Home', route: '/dashboard/fan', icon: <FiHome /> },
   { label: 'Markets', route: '/fan/markets', icon: <FiTrendingUp /> },
   { label: 'Fantasy', route: '/fan/fantasy', icon: <GiTrophyCup /> },
-  { label: 'Clubs', route: '/clubs', icon: <FiShield /> },
-  { label: 'Tickets', route: '/tickets', icon: <FiTag /> },
+  { label: 'Clubs', route: '/fan/clubs', icon: <FiShield /> },
+  { label: 'Tickets', route: '/fan/tickets', icon: <FiTag /> },
   { label: 'Memberships', route: '/memberships', icon: <FiAward /> },
-  { label: 'Store', route: '/store', icon: <FiShoppingCart /> },
-  { label: 'News', route: '/news', icon: <FiFileText /> },
+  { label: 'Store', route: '/fan/store', icon: <FiShoppingCart /> },
+  { label: 'News', route: '/fan/news', icon: <FiFileText /> },
 ];
 
 const SECONDARY_LINKS: SidebarLink[] = [

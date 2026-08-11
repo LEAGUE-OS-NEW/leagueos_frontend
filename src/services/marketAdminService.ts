@@ -19,7 +19,15 @@
 // `.status = 403` so callers can distinguish this from any other failure,
 // matching the old contract exactly.
 
+import apiClient from './apiClient.ts';
+import { extractApiError, normalizeApiList } from './apiUtils.ts';
 import { useAuthStore } from '../store/authStore.ts';
+import type {
+  AdminMarket as ApiAdminMarket,
+  Market as ApiMarket,
+  MarketCategory as ApiMarketCategory,
+  SportResource,
+} from '../types/api.ts';
 import { getEntitlementsForDashboard } from '../utils/dashboardAccess.ts';
 
 export const MARKET_CATEGORIES = [
@@ -145,6 +153,27 @@ export interface MarketDetailsInput {
   tags: string[];
 }
 
+interface MarketAdminPayload {
+  sport_id: string;
+  category_id: string;
+  template_id?: string | null;
+  scope_type: 'EVENT' | 'COMPETITION' | 'PARTICIPANT' | 'CUSTOM';
+  sporting_event_id?: string | null;
+  competition_id?: string | null;
+  participant_id?: string | null;
+  custom_subject?: string;
+  question: string;
+  description?: string;
+  rules?: string;
+  resolution_source?: string;
+  resolution_criteria?: string;
+  opens_at?: string | null;
+  closes_at?: string | null;
+  is_featured?: boolean;
+  yes_label?: string;
+  no_label?: string;
+}
+
 export interface OutcomeInput {
   id: OutcomeId;
   label: string;
@@ -234,6 +263,133 @@ function cloneMarket(market: Market): Market {
 
 function cloneProposal(proposal: MarketProposal): MarketProposal {
   return { ...proposal, auditHistory: proposal.auditHistory.map((event) => ({ ...event })) };
+}
+
+function apiError(error: unknown): Error {
+  const details = extractApiError(error);
+  return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
+}
+
+function isUuid(value?: string): value is string {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+}
+
+function backendStatusToAdminStatus(market: ApiMarket): MarketStatus {
+  if (market.status === 'DRAFT' || market.status === 'REJECTED' || market.status === 'PENDING_APPROVAL' || market.status === 'APPROVED') {
+    return 'Draft';
+  }
+  if (market.status === 'RESOLVED') return 'Resolved';
+  if (market.status === 'VOIDED') return 'Voided';
+  if (market.status === 'CANCELLED' || market.status === 'CLOSED' || market.status === 'SUSPENDED') return 'Cancelled';
+  return market.sporting_event?.starts_at && new Date(market.sporting_event.starts_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
+}
+
+function probabilityFromOutcome(outcome: ApiMarket['outcomes'][number] | undefined, fallback: number): number {
+  if (!outcome) return fallback;
+  const match = `${outcome.label} ${outcome.description ?? ''}`.match(/(\d{1,2})(?:\.\d+)?\s*%/);
+  return match ? Math.max(1, Math.min(99, Number(match[1]))) : fallback;
+}
+
+function adminName(user: ApiAdminMarket['created_by']): string {
+  if (!user) return 'Market Admin';
+  const adminUser = user as ApiAdminMarket['created_by'] & { first_name?: string; last_name?: string; full_name?: string };
+  const names = [adminUser.first_name, adminUser.last_name].filter(Boolean).join(' ').trim();
+  return adminUser.full_name || names || adminUser.email || 'Market Admin';
+}
+
+function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
+  const status = backendStatusToAdminStatus(market);
+  const subject = market.subject?.name || market.sporting_event?.name || market.custom_subject || market.question;
+  const yesApi = market.outcomes.find((outcome) => outcome.side === 'YES') ?? market.outcomes[0];
+  const noApi = market.outcomes.find((outcome) => outcome.side === 'NO') ?? market.outcomes[1];
+  const yesProbability = probabilityFromOutcome(yesApi, 50);
+  const noProbability = probabilityFromOutcome(noApi, 100 - yesProbability);
+  const kickoff = market.sporting_event?.starts_at ?? market.closes_at ?? market.opens_at ?? market.created_at ?? new Date().toISOString();
+  const createdBy = 'created_by' in market ? adminName(market.created_by) : 'Market Admin';
+  const transitions = 'status_transitions' in market ? market.status_transitions ?? [] : [];
+
+  return {
+    id: market.id,
+    sportingEventId: market.sporting_event?.id,
+    eventLabel: subject,
+    competition: market.sporting_event?.competition?.name ?? market.competition?.name ?? market.sport?.name ?? 'League OS',
+    venue: market.sporting_event?.venue ?? 'Venue TBA',
+    kickoff,
+    category: ((market.sport?.name ?? market.category?.name ?? 'Other') as MarketCategory),
+    question: market.question,
+    description: market.description ?? '',
+    tags: [market.category?.slug, market.sport?.code].filter(Boolean) as string[],
+    outcomes: [
+      yesApi && {
+        id: 'YES' as const,
+        label: yesApi.label || 'Yes',
+        description: yesApi.description ?? '',
+        probabilityPct: yesProbability,
+        price: priceFromProbability(yesProbability),
+      },
+      noApi && {
+        id: 'NO' as const,
+        label: noApi.label || 'No',
+        description: noApi.description ?? '',
+        probabilityPct: noProbability,
+        price: priceFromProbability(noProbability),
+      },
+    ].filter(Boolean) as Outcome[],
+    parameters: {
+      opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
+      closesAt: market.closes_at ?? kickoff,
+      settlesBy: market.closes_at ?? kickoff,
+      initialLiquidityUgx: 0,
+      minTradeUgx: 1_000,
+      maxTradeUgx: 500_000,
+      feePct: 2,
+      featured: market.is_featured,
+      trending: market.is_featured,
+      recommended: market.is_featured,
+      inPlayTrading: status === 'Live',
+    },
+    status,
+    createdBy,
+    createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
+    publishedAt: market.opens_at,
+    winningOutcomeId: market.winning_outcome === yesApi?.id ? 'YES' : market.winning_outcome === noApi?.id ? 'NO' : undefined,
+    auditHistory: transitions.map((transition) => ({
+      id: transition.id,
+      timestamp: transition.created_at,
+      adminUser: transition.actor_email ?? 'Market Admin',
+      action: transition.action ?? `${transition.from_status} to ${transition.to_status}`,
+      note: transition.notes,
+    })),
+  };
+}
+
+async function fetchSports(): Promise<SportResource[]> {
+  const response = await apiClient.get('/sports/');
+  return normalizeApiList<SportResource>(response.data);
+}
+
+async function resolveMarketCatalogue(input: MarketDetailsInput): Promise<Pick<MarketAdminPayload, 'sport_id' | 'category_id'>> {
+  const [sports, categories] = await Promise.all([
+    fetchSports(),
+    apiClient.get('/markets/categories/').then((response) => normalizeApiList<ApiMarketCategory>(response.data)),
+  ]);
+  const sport =
+    sports.find((item) => item.name.toLowerCase() === input.category.toLowerCase()) ??
+    sports.find((item) => item.name.toLowerCase() === 'football') ??
+    sports[0];
+  const category =
+    categories.find((item) => item.name.toLowerCase() === 'match result') ??
+    categories.find((item) => item.name.toLowerCase() === input.category.toLowerCase()) ??
+    categories[0];
+
+  if (!sport) fail('No active sport catalogue is available. Seed sports before creating markets.');
+  if (!category) fail('No active market category is available. Seed market categories before creating markets.');
+
+  return { sport_id: sport.id, category_id: category.id };
+}
+
+function lifecycleNote(market: Market, action: string): { notes: string } {
+  return { notes: `${action}: ${market.question}` };
 }
 
 function pushAudit(market: Market, action: string, note?: string): void {
@@ -442,24 +598,41 @@ function contractsFor(market: Market): Contract[] {
    ============================================================ */
 
 export async function fetchMarkets(): Promise<Market[]> {
-  return delay(markets.map(cloneMarket));
+  try {
+    const response = await apiClient.get('/market-admin/markets/');
+    return normalizeApiList<ApiAdminMarket>(response.data).map(adaptApiMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
 }
 
 export async function fetchMarket(id: string): Promise<Market> {
-  return delay(cloneMarket(findMarketOrThrow(id)));
+  try {
+    const response = await apiClient.get(`/market-admin/markets/${encodeURIComponent(id)}/`);
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    const local = markets.find((item) => item.id === id);
+    if (local) return delay(cloneMarket(local));
+    throw apiError(error);
+  }
 }
 
 export async function fetchPublishedMarkets(): Promise<Market[]> {
-  return delay(
-    markets.filter((market) => market.status === 'Live' || market.status === 'Upcoming').map(cloneMarket),
-  );
+  try {
+    const response = await apiClient.get('/markets/', { params: { status: 'OPEN' } });
+    return normalizeApiList<ApiMarket>(response.data).map(adaptApiMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
 }
 
 export async function fetchFeaturedPublishedMarkets(limit = 5): Promise<Market[]> {
-  const published = markets.filter((market) => market.status === 'Live' || market.status === 'Upcoming');
-  const featured = published.filter((market) => market.parameters.featured);
-  const rest = published.filter((market) => !market.parameters.featured);
-  return delay([...featured, ...rest].slice(0, limit).map(cloneMarket));
+  try {
+    const response = await apiClient.get('/markets/', { params: { status: 'OPEN', is_featured: true } });
+    return normalizeApiList<ApiMarket>(response.data).map(adaptApiMarket).slice(0, limit);
+  } catch (error) {
+    throw apiError(error);
+  }
 }
 
 export async function createMarketDraft(input: MarketDetailsInput): Promise<Market> {
@@ -469,31 +642,35 @@ export async function createMarketDraft(input: MarketDetailsInput): Promise<Mark
     fail('Enter a single, unambiguous YES/NO question ending with a question mark.');
   }
 
-  const market: Market = {
-    id: genId('market'),
-    sportingEventId: input.sportingEventId,
-    eventLabel: input.eventLabel.trim(),
-    competition: input.competition.trim() || 'Competition unavailable',
-    venue: input.venue.trim() || 'Venue unavailable',
-    kickoff: input.kickoff,
-    category: input.category,
-    question,
-    description: input.description.trim(),
-    tags: input.tags.map((tag) => tag.trim()).filter(Boolean),
-    outcomes: defaultOutcomes(),
-    parameters: defaultParameters(input.kickoff),
-    status: 'Draft',
-    createdBy: currentAdminIdentity(),
-    createdAt: nowIso(),
-    auditHistory: [],
-  };
-  pushAudit(market, 'Draft created');
-  markets.unshift(market);
-  return delay(cloneMarket(market));
+  try {
+    const catalogue = await resolveMarketCatalogue(input);
+    const eventId = isUuid(input.sportingEventId) ? input.sportingEventId : undefined;
+    const eventLabel = input.eventLabel.trim();
+    const description = input.description.trim();
+    const payload: MarketAdminPayload = {
+      ...catalogue,
+      scope_type: eventId ? 'EVENT' : 'CUSTOM',
+      sporting_event_id: eventId ?? null,
+      custom_subject: eventId ? '' : eventLabel,
+      question,
+      description,
+      rules: description || `Resolve this market from the official result for ${eventLabel}.`,
+      resolution_source: input.competition.trim() || 'Official competition result',
+      resolution_criteria: description || `Use the verified final result for ${eventLabel} to resolve YES or NO.`,
+      opens_at: new Date(Date.now() - 60_000).toISOString(),
+      closes_at: input.kickoff || new Date(Date.now() + 60 * 60_000).toISOString(),
+      is_featured: input.tags.some((tag) => tag.toLowerCase() === 'featured'),
+      yes_label: 'Yes',
+      no_label: 'No',
+    };
+    const response = await apiClient.post('/market-admin/markets/', payload);
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
 }
 
 export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Promise<Market> {
-  const market = findMarketOrThrow(id);
   const yes = outcomes.find((outcome) => outcome.id === 'YES');
   const no = outcomes.find((outcome) => outcome.id === 'NO');
   if (!yes || !no) fail('Both YES and NO outcomes are required.');
@@ -504,6 +681,16 @@ export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Prom
     fail('YES and NO probabilities must add up to 100%.');
   }
 
+  try {
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
+      yes_label: yes.label.trim() || 'Yes',
+      no_label: no.label.trim() || 'No',
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    const local = markets.find((item) => item.id === id);
+    if (!local) throw apiError(error);
+    const market = local;
   market.outcomes = [yes, no].map((outcome) => ({
     id: outcome.id,
     label: outcome.label.trim() || outcome.id,
@@ -513,10 +700,10 @@ export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Prom
   }));
   pushAudit(market, 'Outcomes updated', `${yes.probabilityPct}% YES / ${no.probabilityPct}% NO`);
   return delay(cloneMarket(market));
+  }
 }
 
 export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
-  const market = findMarketOrThrow(id);
   if (new Date(parameters.closesAt).getTime() <= new Date(parameters.opensAt).getTime()) {
     fail('Trading must close after it opens.');
   }
@@ -527,12 +714,62 @@ export async function setParameters(id: string, parameters: MarketParameters): P
     fail('Enter a valid minimum and maximum trade amount.');
   }
 
+  try {
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
+      opens_at: new Date(Math.min(new Date(parameters.opensAt).getTime(), Date.now() - 60_000)).toISOString(),
+      closes_at: parameters.closesAt,
+      is_featured: parameters.featured,
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    const local = markets.find((item) => item.id === id);
+    if (!local) throw apiError(error);
+    const market = local;
   market.parameters = { ...parameters };
   pushAudit(market, 'Parameters set');
   return delay(cloneMarket(market));
+  }
 }
 
 export async function publishMarket(id: string): Promise<Market> {
+  if (isUuid(id)) {
+    try {
+      let market = await fetchMarket(id);
+      const detail = await apiClient.get(`/market-admin/markets/${encodeURIComponent(id)}/`);
+      let backendMarket = detail.data as ApiAdminMarket;
+
+      if (backendMarket.status === 'DRAFT' || backendMarket.status === 'REJECTED') {
+        const submitted = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/submit/`,
+          lifecycleNote(market, 'Submitted'),
+        );
+        backendMarket = submitted.data as ApiAdminMarket;
+        market = adaptApiMarket(backendMarket);
+      }
+
+      if (backendMarket.status === 'PENDING_APPROVAL') {
+        const approved = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/approve/`,
+          lifecycleNote(market, 'Approved'),
+        );
+        backendMarket = approved.data as ApiAdminMarket;
+        market = adaptApiMarket(backendMarket);
+      }
+
+      if (backendMarket.status === 'APPROVED') {
+        const opened = await apiClient.post(
+          `/market-admin/markets/${encodeURIComponent(id)}/open/`,
+          lifecycleNote(market, 'Opened'),
+        );
+        backendMarket = opened.data as ApiAdminMarket;
+      }
+
+      return adaptApiMarket(backendMarket);
+    } catch (error) {
+      throw apiError(error);
+    }
+  }
+
   const market = findMarketOrThrow(id);
   if (market.status !== 'Draft') {
     fail(`${market.eventLabel} is already ${market.status.toLowerCase()} — only draft markets can be published.`);
@@ -552,6 +789,19 @@ export async function publishMarket(id: string): Promise<Market> {
 
 export async function cancelMarket(id: string, reason: string): Promise<Market> {
   if (!reason.trim()) fail('A cancellation reason is required.');
+  if (isUuid(id)) {
+    try {
+      const market = await fetchMarket(id);
+      if (market.status !== 'Live' && market.status !== 'Upcoming') {
+        fail('Only open backend markets can be closed from this screen.');
+      }
+      const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/close/`, { notes: reason.trim() });
+      return adaptApiMarket(response.data as ApiAdminMarket);
+    } catch (error) {
+      throw apiError(error);
+    }
+  }
+
   const market = findMarketOrThrow(id);
   if (market.status === 'Resolved' || market.status === 'Cancelled') {
     fail(`${market.eventLabel} is already ${market.status.toLowerCase()}.`);
@@ -637,12 +887,12 @@ export const requestProposalInfo = async (...args: [string?, string?]): Promise<
    ============================================================ */
 
 export async function fetchContracts(marketId: string): Promise<Contract[]> {
-  const market = findMarketOrThrow(marketId);
+  const market = markets.find((item) => item.id === marketId) ?? (await fetchMarket(marketId));
   return delay(contractsFor(market).map((contract) => ({ ...contract })));
 }
 
 export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
-  const market = findMarketOrThrow(marketId);
+  const market = markets.find((item) => item.id === marketId) ?? (await fetchMarket(marketId));
   const yes = market.outcomes.find((outcome) => outcome.id === 'YES')!;
   const seed = seedFromId(marketId);
   const lastPrice = yes.price;
@@ -665,9 +915,11 @@ export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
 }
 
 /**
- * Records a newly matched contract against a market — the hook the fan
- * trading journey (tradingService.ts) calls into so a fan's buy shows up in
- * the admin's Contracts/Trading tabs within the same mock session.
+ * Records a newly matched contract against a market — historically the hook
+ * the fan trading journey called into so a fan's buy showed up in the
+ * admin's Contracts/Trading tabs within the same mock session. The fan side
+ * now trades through the real backend (fanMarketsServices.ts); kept here in
+ * case another mock consumer still needs it.
  */
 export function recordContract(input: {
   marketId: string;

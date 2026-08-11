@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import AdminSidebar from './AdminSidebar';
 import AdminTopbar from './AdminTopbar';
+import Footer from '../landing/Footer';
 import './AdminLayout.css';
 
 function AdminLayout({ children }: { children: ReactNode }) {
@@ -13,6 +14,7 @@ function AdminLayout({ children }: { children: ReactNode }) {
       <div className="admin-layout__main">
         <AdminTopbar onMenuClick={() => setIsSidebarOpen(true)} />
         <main className="admin-layout__content">{children}</main>
+        <Footer />
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ function delay<T>(value: T, ms = 300): Promise<T> {
 /* Quick stats (WelcomeStats)                                          */
 /* ------------------------------------------------------------------ */
 
-export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs';
+export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs' | 'memberships';
 
 export interface QuickStat {
   id: QuickStatId;
@@ -29,6 +29,7 @@ const QUICK_STATS: QuickStat[] = [
   { id: 'positions', value: '3', sublabel: 'Active positions' },
   { id: 'fantasy', value: '1,286', sublabel: 'Top 18%', positive: true },
   { id: 'clubs', value: '4', sublabel: 'Clubs joined' },
+  { id: 'memberships', value: '2', sublabel: 'Gold · Season Pass' },
 ];
 
 export async function fetchQuickStats(): Promise<QuickStat[]> {
