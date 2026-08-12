@@ -170,6 +170,7 @@ function App() {
         <Route path="/fan/news/:storyId" element={<FanArticleDetailPage />} />
 
         {/* Club Admin — requires CLUB_ADMIN entitlement */}
+        <Route path="/dashboard/club-admin" element={<Navigate to="/club-admin" replace />} />
         <Route path="/club-admin" element={<ClubAdminRoute><ClubAdminDashboard /></ClubAdminRoute>} />
         <Route path="/club-admin/profile" element={<ClubAdminRoute><ClubProfilePage /></ClubAdminRoute>} />
         <Route path="/club-admin/fixtures" element={<ClubAdminRoute><ClubFixturesPage /></ClubAdminRoute>} />
