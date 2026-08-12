@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../../components/admin/AdminLayout";
 import { extractApiError } from "../../../services/apiUtils.ts";
 import {
+  fetchAdminUserSummary,
   fetchComplianceDecisions,
   fetchKYCSessions,
   fetchRiskAssessments,
@@ -659,6 +660,12 @@ const ComplianceDecisionPanel: React.FC<{
             Actions are enabled based on your current compliance permissions
           </p>
         </div>
+      </div>
+
+      <div className="decision-panel__notice">
+        These actions log an internal note on this case only — they don't yet
+        change the fan's real KYC status or unlock trading. That requires
+        backend support that doesn't exist yet.
       </div>
 
       <div className="decision-groups">
@@ -1368,7 +1375,7 @@ const ComplianceAdmin: React.FC = () => {
       fetchRiskAssessments(),
       fetchComplianceDecisions(),
     ])
-      .then(([kycPage, profilePage, assessmentPage, decisionPage]) => {
+      .then(async ([kycPage, profilePage, assessmentPage, decisionPage]) => {
         if (!active) return;
         const riskLevel = (score: number): RiskLevel =>
           score >= 90
@@ -1411,6 +1418,37 @@ const ComplianceAdmin: React.FC = () => {
           auditHistory: [],
           restrictions: [],
         }));
+
+        // Resolve real name/email for each KYC case where possible.
+        // participant_id is the user's real id, but the lookup needs
+        // admin.users.view — a compliance-only admin may not hold that
+        // separately from manage_compliance, so a per-id failure just keeps
+        // the anonymized fallback already set above rather than erroring
+        // the whole page.
+        const uniqueParticipantIds = [
+          ...new Set(kycPage.results.map((item) => item.participant_id)),
+        ];
+        const identityEntries = await Promise.allSettled(
+          uniqueParticipantIds.map((id) =>
+            fetchAdminUserSummary(id).then((summary) => [id, summary] as const),
+          ),
+        );
+        const identityById = new Map(
+          identityEntries
+            .filter(
+              (entry): entry is PromiseFulfilledResult<readonly [string, Awaited<ReturnType<typeof fetchAdminUserSummary>>]> =>
+                entry.status === "fulfilled",
+            )
+            .map((entry) => entry.value),
+        );
+        kycCases.forEach((kycCase, index) => {
+          const identity = identityById.get(kycPage.results[index].participant_id);
+          if (!identity) return;
+          const fullName = `${identity.first_name} ${identity.last_name}`.trim();
+          kycCase.user.fullName = fullName || kycCase.user.fullName;
+          kycCase.user.email = identity.email || kycCase.user.email;
+        });
+
         const riskCases: ComplianceCase[] = profilePage.results.map((item) => {
           const latest = assessmentPage.results.find(
             (entry) => entry.participant_id === item.participant_id,

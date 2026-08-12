@@ -52,6 +52,22 @@ export const reassessRisk = async (participantId: string) =>
 export const fetchComplianceDecisions = (
   params?: Record<string, string | number>,
 ) => getPage<ComplianceDecision>("/admin/compliance/decisions/", params);
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+// Resolves a KYC session's participant_id (the user's real id) to their
+// real name/email via platform_admin's user-detail endpoint. Gated on the
+// backend by an internal admin.users.view permission check, separate from
+// manage_compliance — a compliance-only admin may not hold it, so callers
+// must treat a rejection as expected and fall back gracefully rather than
+// surfacing it as a page-level error.
+export const fetchAdminUserSummary = async (userId: string) =>
+  unwrapApiData<AdminUserSummary>(
+    (await apiClient.get(`/admin/users/${userId}/`)).data,
+  );
 export const proposeComplianceDecision = async (payload: {
   participant_id: string;
   decision_type: string;
