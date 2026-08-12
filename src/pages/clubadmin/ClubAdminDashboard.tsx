@@ -38,6 +38,12 @@ export default function ClubAdminDashboard() {
 
   const canAccess = (permission: string | null) => {
     if (!permission || !current) return true;
+    // Full access for club admin / owner roles regardless of granular permissions
+    if (
+      current.workspace_role === 'CLUB_ADMIN' ||
+      current.workspace_role === 'CLUB_OWNER' ||
+      current.permissions.includes('dashboard.club_admin')
+    ) return true;
     return current.permissions.includes(permission);
   };
 
