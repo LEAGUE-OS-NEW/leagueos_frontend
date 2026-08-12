@@ -1,0 +1,152 @@
+.fantasy-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  min-height: clamp(380px, 55vh, 520px);
+  display: flex;
+  align-items: center;
+  margin-top: clamp(16px, 3vw, 28px);
+}
+
+.fantasy-hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.fantasy-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(10, 7, 19, 0.75) 0%,
+    rgba(10, 7, 19, 0.5) 40%,
+    rgba(10, 7, 19, 0.15) 70%,
+    rgba(10, 7, 19, 0.05) 100%
+  );
+}
+
+.fantasy-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  padding: clamp(28px, 5vw, 48px);
+}
+
+.fantasy-hero-heading {
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
+.fantasy-hero-heading-gradient {
+  background: var(--gradient-hero-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.fantasy-hero-subtext {
+  margin: 0 0 24px;
+  max-width: 46ch;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+  line-height: 1.6;
+}
+
+.fantasy-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.fantasy-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  border: none;
+  transition: transform 0.15s ease, filter 0.2s ease, background-color 0.2s ease;
+}
+
+.fantasy-cta--primary {
+  background: var(--gradient-primary);
+}
+
+.fantasy-cta--outline {
+  background: rgba(10, 7, 19, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.fantasy-cta--outline:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.fantasy-cta:hover {
+  transform: scale(1.04);
+  filter: brightness(1.1);
+}
+
+.fantasy-cta:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fantasy-hero-features {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fantasy-hero-feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.fantasy-hero-feature-icon {
+  display: inline-flex;
+  color: var(--color-primary-light);
+  font-size: 1rem;
+}
+
+.fantasy-hero-feature-divider {
+  width: 1px;
+  height: 14px;
+  background-color: var(--color-border);
+  margin-right: 10px;
+}
+
+@media (max-width: 640px) {
+  .fantasy-hero-inner {
+    max-width: 100%;
+  }
+
+  .fantasy-hero-overlay {
+    background: linear-gradient(180deg, rgba(10, 7, 19, 0.55) 0%, rgba(10, 7, 19, 0.85) 100%);
+  }
+}
