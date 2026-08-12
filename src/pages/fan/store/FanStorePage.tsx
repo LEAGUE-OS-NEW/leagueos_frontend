@@ -3,9 +3,9 @@ import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import ShopByCategory from '../../landing/store/sections/ShopByCategory';
+import type { CategorySlug } from '../../landing/store/sections/shopCategories';
 import FeaturedClubStores from '../../landing/store/sections/FeaturedClubStores';
 import ProductShowcase from '../../landing/store/sections/ProductShowcase';
-import TrustBar from '../../landing/store/sections/TrustBar';
 import CommunityBanner from '../../landing/store/sections/CommunityBanner';
 import { fetchFollowedClubSlugs, fetchClubs, type ClubSummary } from '../../../services/clubsService';
 import { fetchProductsForClubs, type ClubProduct } from '../../../services/storeService';
@@ -34,6 +34,7 @@ function FanStorePage() {
   const [followedClubs, setFollowedClubs] = useState<ClubSummary[]>([]);
   const [products, setProducts] = useState<ClubProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<CategorySlug>('all');
 
   useEffect(() => {
     Promise.all([fetchFollowedClubSlugs(), fetchClubs()]).then(([slugs, allClubs]) => {
@@ -102,10 +103,9 @@ function FanStorePage() {
             </section>
 
             {/* ── General store sections ── */}
-            <ShopByCategory storePath="/fan/store" categoryBasePath="/fan/store/category" />
+            <ShopByCategory activeCategory={activeCategory} onSelect={setActiveCategory} />
             <FeaturedClubStores clubsPath="/fan/clubs" />
-            <ProductShowcase storePath="/fan/store" />
-            <TrustBar />
+            <ProductShowcase storePath="/fan/store" activeCategory={activeCategory} />
             <CommunityBanner />
 
           </div>
