@@ -183,6 +183,104 @@
   color: var(--color-text-primary);
 }
 
+/* ── Role badge ── */
+.ca-sidebar-role-badge {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(124,58,237,0.18);
+  color: var(--color-primary-light);
+}
+
+/* ── Switch button with chevron ── */
+.ca-sidebar-switcher-wrap { position: relative; flex-shrink: 0; }
+
+.ca-sidebar-switch {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.ca-sidebar-switch:hover { border-color: var(--color-primary-light); color: var(--color-text-primary); }
+
+/* ── Switcher dropdown ── */
+.ca-switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #1a1030;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+.ca-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid rgba(43,35,68,0.5);
+}
+
+.ca-switcher-item:last-child { border-bottom: none; }
+.ca-switcher-item:hover { background: rgba(255,255,255,0.04); }
+.ca-switcher-item.active { background: rgba(124,58,237,0.1); }
+
+.ca-switcher-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* ── Locked nav item ── */
+.ca-sidebar-link-locked {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ca-sidebar-link-locked:hover {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ca-sidebar-lock-icon {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* Mobile */
 @media (max-width: 959px) {
   .ca-sidebar {
