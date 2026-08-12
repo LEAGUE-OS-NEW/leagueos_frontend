@@ -105,13 +105,14 @@ function toStringArray(value: unknown): string[] {
 }
 
 // user.role is often absent on the current backend payload — it sends
-// roles: ["Fan"] instead — so fall back to the first normalizable entry
-// in that array.
+// roles: ["Fan", "CLUB_ADMIN"] instead — so find the most privileged role
+// by deprioritising FAN in favour of any other known dashboard identifier.
 function getUserRoleFallback(user: AuthenticatedUser): string {
   const roles = Array.isArray(user.roles) ? user.roles : [];
-  return (
-    roles.map(normalizeRole).find((normalized) => isDashboardIdentifier(normalized)) ?? ''
-  );
+  const normalized = roles.map(normalizeRole).filter(isDashboardIdentifier);
+  // Prefer any non-FAN dashboard role so club/admin users aren't sent to
+  // the fan dashboard when the backend sends both roles in the array.
+  return normalized.find((r) => r !== 'FAN') ?? normalized[0] ?? '';
 }
 
 // TEMPORARY SHIM: covers any role the backend sends in its legacy shape
