@@ -44,7 +44,7 @@ import SellPosition from './pages/fan/markets/SellPosition';
 import SellConfirmation from './pages/fan/markets/SellConfirmation';
 
 import FanTradeHub from './pages/fan/markets/FanTradeHub';
-import Fantasy from './pages/fantasy/Fantasy';
+
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
@@ -78,6 +78,7 @@ import HowItWorks from './pages/support/HowItWorks';
 import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
+
 
 import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
 import FanNewsPage from './pages/fan/news/FanNewsPage';
@@ -159,9 +160,11 @@ function App() {
         <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
         <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
 
-        <Route path="/fantasy" element={<Fantasy />} />
+        {/* Fantasy section */ }
         <Route path="/search" element={<SearchPage />} />
+        {/* Fantasy Home — Step 2 entry point into the Fantasy flow */}
         <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+        
         <Route path="/fan/news" element={<FanNewsPage />} />
         <Route path="/fan/news/:storyId" element={<FanArticleDetailPage />} />
 
