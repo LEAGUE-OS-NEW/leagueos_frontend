@@ -52,6 +52,7 @@ import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
+import Fantasy from "./pages/landing/fantasy/Fantasy";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -118,6 +119,7 @@ function App() {
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
+        <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/fixtures" element={<FixturesPage />} />
         <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
