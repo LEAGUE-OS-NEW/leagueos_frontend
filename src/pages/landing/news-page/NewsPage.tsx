@@ -1,23 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-    Trophy,
     Circle,
     Shield,
-    BarChart3,
     Bookmark,
     Clock,
     ArrowDown,
-    ArrowRight,
-    Star,
     Check,
 } from "lucide-react";
 import "./NewsPage.css";
 import Navbar from "../../../components/landing/Navbar";
 import Footer from "../../../components/landing/Footer";
 import { fetchNews, type Story } from "../../../services/newsService";
-
-/* ---------- Small inline brand icons (lucide dropped these) ---------- */
 
 
 
@@ -32,21 +26,9 @@ interface TrendingStory {
     time: string;
 }
 
-interface LiveMatch {
-    status: "LIVE" | "HT" | "FT";
-    minute: string;
-    homeTeam: string;
-    homeScore: number;
-    homeCrest: string;
-    awayTeam: string;
-    awayScore: number;
-    awayCrest: string;
-    league: string;
-}
-
 /* ---------- Sample content ---------- */
 
-const filters = ["All", "Football", "Rugby", "Basketball", "Clubs", "Markets", "Fantasy"] as const;
+const filters = ["All", "Football", "Rugby", "Basketball", "Clubs"] as const;
 
 const trendingStories: TrendingStory[] = [
     {
@@ -85,50 +67,10 @@ const trendingStories: TrendingStory[] = [
     },
 ];
 
-const liveMatches: LiveMatch[] = [
-    {
-        status: "LIVE",
-        minute: "78'",
-        homeTeam: "Vipers SC",
-        homeScore: 2,
-        homeCrest: "🛡️",
-        awayTeam: "KCCA FC",
-        awayScore: 1,
-        awayCrest: "🟡",
-        league: "StarTimes Premier League",
-    },
-    {
-        status: "LIVE",
-        minute: "62'",
-        homeTeam: "SC Villa",
-        homeScore: 1,
-        homeCrest: "🔴",
-        awayTeam: "Maroons FC",
-        awayScore: 0,
-        awayCrest: "🟤",
-        league: "StarTimes Premier League",
-    },
-    {
-        status: "HT",
-        minute: "HT",
-        homeTeam: "BUL FC",
-        homeScore: 0,
-        homeCrest: "🟨",
-        awayTeam: "URA FC",
-        awayScore: 0,
-        awayCrest: "🔵",
-        league: "StarTimes Premier League",
-    },
-];
-
-const scoreTabs = ["Football", "Rugby", "Basketball"] as const;
-
 /* ---------- Component ---------- */
 
 const NewsPage: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
-    const [activeScoreTab, setActiveScoreTab] =
-        useState<(typeof scoreTabs)[number]>("Football");
     const [email, setEmail] = useState("");
     const [stories, setStories] = useState<Story[]>([]);
 
@@ -211,13 +153,11 @@ const NewsPage: React.FC = () => {
                                     className={`filter-pill ${activeFilter === f ? "filter-pill--active" : ""}`}
                                     onClick={() => setActiveFilter(f)}
                                 >
-                                    {f === "All" && <BarChart3 size={16} />}
+                                    {f === "All" && null}
                                     {f === "Football" && <Circle size={16} />}
                                     {f === "Rugby" && <Circle size={16} />}
                                     {f === "Basketball" && <Circle size={16} />}
                                     {f === "Clubs" && <Shield size={16} />}
-                                    {f === "Markets" && <BarChart3 size={16} />}
-                                    {f === "Fantasy" && <Trophy size={16} />}
                                     {f}
                                 </button>
                             ))}
@@ -286,62 +226,6 @@ const NewsPage: React.FC = () => {
                                     </li>
                                 ))}
                             </ul>
-                        </div>
-
-                        {/* Live scores */}
-                        <div className="panel">
-                            <div className="panel__header">
-                                <h3>LIVE SCORES</h3>
-                                <a href="#view-all" className="panel__link">
-                                    View all
-                                </a>
-                            </div>
-                            <div className="score-tabs">
-                                {scoreTabs.map((tab) => (
-                                    <button
-                                        key={tab}
-                                        className={`score-tab ${activeScoreTab === tab ? "score-tab--active" : ""
-                                            }`}
-                                        onClick={() => setActiveScoreTab(tab)}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-                            <ul className="match-list">
-                                {liveMatches.map((m, idx) => (
-                                    <li className="match-item" key={idx}>
-                                        <div className="match-item__status">
-                                            <span
-                                                className={`status-pill ${m.status === "LIVE" ? "status-pill--live" : "status-pill--ht"
-                                                    }`}
-                                            >
-                                                {m.status}
-                                            </span>
-                                            <span className="match-item__minute">{m.minute}</span>
-                                        </div>
-                                        <div className="match-item__teams">
-                                            <div className="match-item__team">
-                                                <span className="crest">{m.homeCrest}</span>
-                                                <span className="team-name">{m.homeTeam}</span>
-                                                <span className="team-score">{m.homeScore}</span>
-                                            </div>
-                                            <div className="match-item__team">
-                                                <span className="crest">{m.awayCrest}</span>
-                                                <span className="team-name">{m.awayTeam}</span>
-                                                <span className="team-score">{m.awayScore}</span>
-                                            </div>
-                                            <span className="match-item__league">{m.league}</span>
-                                        </div>
-                                        <button className="icon-btn" aria-label="Favorite match">
-                                            <Star size={16} />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <a href="#view-all-scores" className="view-all-link">
-                                View all live scores <ArrowRight size={14} />
-                            </a>
                         </div>
 
                         {/* Newsletter */}

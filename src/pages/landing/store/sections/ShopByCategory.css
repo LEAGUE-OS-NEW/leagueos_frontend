@@ -25,6 +25,15 @@
   background-color: var(--color-card-hover);
 }
 
+.category-card--active {
+  border-color: var(--color-primary-light);
+  background: rgba(168, 85, 247, 0.14);
+}
+
+.category-card--active .category-card-label {
+  color: var(--color-primary-light);
+}
+
 .category-card-icon {
   display: flex;
   align-items: center;

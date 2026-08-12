@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Trophy, Circle, Shield, BarChart3, Bookmark, Clock, ArrowDown, ArrowRight, Star, Check,
+  Circle, Shield, Bookmark, Clock, ArrowDown, Check,
 } from 'lucide-react';
 import { FiSearch } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
@@ -11,7 +11,7 @@ import { fetchNews, type Story } from '../../../services/newsService';
 import '../sections/FanDashboard.css';
 import './FanNewsPage.css';
 
-const FILTERS = ['All', 'Football', 'Rugby', 'Basketball', 'Clubs', 'Markets', 'Fantasy'] as const;
+const FILTERS = ['All', 'Football', 'Rugby', 'Basketball', 'Clubs'] as const;
 type Filter = (typeof FILTERS)[number];
 
 const TRENDING = [
@@ -20,12 +20,6 @@ const TRENDING = [
   { rank: 3, image: 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?q=80&w=200&auto=format&fit=crop',   title: 'SC Villa prepare for crucial UPL clash',              time: '5h ago' },
   { rank: 4, image: '/images/fantasy.jfif',                                                                            title: 'Fantasy tips for Gameweek 28',                       time: '6h ago' },
   { rank: 5, image: '/images/express-fc.jfif',                                                                         title: 'Express FC unveil new home jersey',                  time: '8h ago' },
-];
-
-const LIVE_MATCHES = [
-  { status: 'LIVE', minute: "78'", home: 'Vipers SC',  homeScore: 2, away: 'KCCA FC',    awayScore: 1, league: 'StarTimes Premier League' },
-  { status: 'LIVE', minute: "62'", home: 'SC Villa',   homeScore: 1, away: 'Maroons FC', awayScore: 0, league: 'StarTimes Premier League' },
-  { status: 'HT',   minute: 'HT',  home: 'BUL FC',     homeScore: 0, away: 'URA FC',     awayScore: 0, league: 'StarTimes Premier League' },
 ];
 
 export default function FanNewsPage() {
@@ -98,10 +92,8 @@ export default function FanNewsPage() {
                   className={`fn-chip${activeFilter === f ? ' active' : ''}`}
                   onClick={() => setActiveFilter(f)}
                 >
-                  {f === 'Football' || f === 'Rugby' || f === 'Basketball' ? <Circle size={13} /> : null}
-                  {f === 'Clubs' ? <Shield size={13} /> : null}
-                  {f === 'Markets' ? <BarChart3 size={13} /> : null}
-                  {f === 'Fantasy' ? <Trophy size={13} /> : null}
+                  {(f === 'Football' || f === 'Rugby' || f === 'Basketball') && <Circle size={13} />}
+                  {f === 'Clubs' && <Shield size={13} />}
                   {f}
                 </button>
               ))}
@@ -171,34 +163,6 @@ export default function FanNewsPage() {
                           <p className="fn-trending-title">{t.title}</p>
                           <span className="fn-trending-time">{t.time}</span>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Live scores */}
-                <div className="fn-panel">
-                  <div className="fn-panel-header">
-                    <h3>LIVE SCORES</h3>
-                    <span className="fn-panel-link">View all <ArrowRight size={12} /></span>
-                  </div>
-                  <ul className="fn-live-list">
-                    {LIVE_MATCHES.map((m, i) => (
-                      <li key={i} className="fn-live-item">
-                        <span className={`fn-live-pill${m.status === 'LIVE' ? ' live' : ' ht'}`}>{m.status}</span>
-                        <div className="fn-live-teams">
-                          <div className="fn-live-team">
-                            <span className="fn-live-name">{m.home}</span>
-                            <span className="fn-live-score">{m.homeScore}</span>
-                          </div>
-                          <div className="fn-live-team">
-                            <span className="fn-live-name">{m.away}</span>
-                            <span className="fn-live-score">{m.awayScore}</span>
-                          </div>
-                        </div>
-                        <button type="button" className="fn-icon-btn" aria-label="Follow match">
-                          <Star size={14} />
-                        </button>
                       </li>
                     ))}
                   </ul>

@@ -3,6 +3,7 @@ import type { IconType } from 'react-icons';
 import { FiArrowRight, FiStar, FiShoppingCart } from 'react-icons/fi';
 import { GiTShirt, GiClothes } from 'react-icons/gi';
 import { FaHatCowboy } from 'react-icons/fa';
+import type { CategorySlug } from './shopCategories';
 import './ProductShowcase.css';
 
 type Product = {
@@ -16,6 +17,7 @@ type Product = {
   badge?: { label: string; tone: 'new' | 'discount' };
   icon: IconType;
   color: string;
+  category: CategorySlug;
 };
 
 type ProductColumn = {
@@ -37,6 +39,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: 'NEW', tone: 'new' },
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'kcca-training-top',
@@ -47,6 +50,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#1e3a8a',
+        category: 'training-wear',
       },
     ],
   },
@@ -62,6 +66,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'oilers-home-jersey',
@@ -72,6 +77,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#1d4ed8',
+        category: 'jerseys',
       },
     ],
   },
@@ -88,6 +94,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: '-15%', tone: 'discount' },
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'kcca-matchday-bundle',
@@ -99,6 +106,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: '-20%', tone: 'discount' },
         icon: GiTShirt,
         color: '#ca8a04',
+        category: 'accessories',
       },
     ],
   },
@@ -113,6 +121,7 @@ const COLUMNS: ProductColumn[] = [
         reviews: 38,
         icon: FaHatCowboy,
         color: '#18181b',
+        category: 'caps',
       },
       {
         id: 'heathens-scarf',
@@ -122,6 +131,7 @@ const COLUMNS: ProductColumn[] = [
         reviews: 21,
         icon: GiClothes,
         color: '#7f1d1d',
+        category: 'fan-gear',
       },
     ],
   },
@@ -165,26 +175,47 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-function ProductShowcase({ storePath = '/store' }: { storePath?: string }) {
+function ProductShowcase({
+  storePath = '/store',
+  activeCategory = 'all',
+}: {
+  storePath?: string;
+  activeCategory?: CategorySlug;
+}) {
+  // Filter columns — hide columns whose every product is excluded,
+  // and filter individual products within each column.
+  const visibleColumns = COLUMNS.map(col => ({
+    ...col,
+    products: activeCategory === 'all'
+      ? col.products
+      : col.products.filter(p => p.category === activeCategory),
+  })).filter(col => col.products.length > 0);
+
   return (
     <section className="product-showcase" aria-label="Product showcase">
-      {COLUMNS.map((column) => (
-        <div className="product-column" key={column.title}>
-          <div className="product-column-heading">
-            <h2>{column.title}</h2>
-            <Link to={storePath} className="store-view-link">
-              View all
-              <FiArrowRight />
-            </Link>
-          </div>
+      {visibleColumns.length === 0 ? (
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', padding: '24px 0' }}>
+          No products found in this category.
+        </p>
+      ) : (
+        visibleColumns.map((column) => (
+          <div className="product-column" key={column.title}>
+            <div className="product-column-heading">
+              <h2>{column.title}</h2>
+              <Link to={storePath} className="store-view-link">
+                View all
+                <FiArrowRight />
+              </Link>
+            </div>
 
-          <div className="product-column-list">
-            {column.products.map((product) => (
-              <ProductCard product={product} key={product.id} />
-            ))}
+            <div className="product-column-list">
+              {column.products.map((product) => (
+                <ProductCard product={product} key={product.id} />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </section>
   );
 }
