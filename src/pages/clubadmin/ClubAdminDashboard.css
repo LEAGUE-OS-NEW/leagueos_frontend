@@ -52,6 +52,147 @@
   flex-shrink: 0;
 }
 
+/* ── Locked module link ── */
+.ca-dash-module-locked {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ca-dash-module-locked:hover { background: transparent; }
+
+/* ── Club context bar ── */
+.ca-club-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(168,85,247,0.06));
+  border: 1px solid rgba(124,58,237,0.25);
+}
+
+.ca-club-context-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ca-club-context-info { flex: 1; overflow: hidden; }
+
+.ca-club-context-name {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 2px;
+  background: linear-gradient(90deg, #fff 60%, var(--color-primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ca-club-context-meta { font-size: 0.78rem; color: var(--color-text-muted); }
+
+.ca-club-context-role {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(124,58,237,0.18);
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+/* ── KPI card — clickable link ── */
+.ca-kpi-bar a { text-decoration: none; }
+.ca-kpi-bar a:hover .ca-kpi-card { border-color: rgba(124,58,237,0.4); }
+
+.ca-kpi-card-locked { opacity: 0.5; cursor: default; }
+
+/* ── Task row ── */
+.ca-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.02);
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ca-task-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(124,58,237,0.3); }
+
+.ca-task-text {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* ── No-assignment & access-denied full states ── */
+.ca-no-assignment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  min-height: 100vh;
+}
+
+.ca-no-assignment-inner,
+.ca-access-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  max-width: 400px;
+  padding: 40px 32px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+}
+
+.ca-no-assignment-icon,
+.ca-access-denied-icon {
+  font-size: 2.2rem;
+  color: #f97316;
+}
+
+.ca-no-assignment-title,
+.ca-access-denied-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.ca-no-assignment-body,
+.ca-access-denied-body {
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.ca-no-assignment-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+
 @media (max-width: 1000px) {
   .ca-dash-grid { grid-template-columns: 1fr; }
 }

@@ -1,101 +1,166 @@
 import { useState } from 'react';
-import { FiPlus, FiDownload, FiAlertTriangle, FiX, FiEdit2 } from 'react-icons/fi';
+import {
+  FiPlus, FiDownload, FiAlertTriangle, FiX, FiEdit2,
+  FiCheck, FiClock, FiAlertCircle, FiSend, FiRefreshCw,
+} from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubSquadPage.css';
 
-const KPI = [
-  { label: 'Registered Players', value: '28',        delta: '3 in academy', up: null },
-  { label: 'Suspended',          value: '3',         delta: 'this round',   up: false },
-  { label: 'Contract Expiry',    value: '7',         delta: 'in 60 days',   up: false },
-  { label: 'Squad Value',        value: 'UGX 12.6B', delta: '+8% YoY',      up: true },
-];
-
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CM', 'CAM', 'LW', 'RW', 'ST', 'CDM', 'CF'];
-type PlayerStatus = 'fit' | 'suspended' | 'injured';
-type Player = { name: string; pos: string; nat: string; status: PlayerStatus; contract: string; value: string };
 
-const INIT_PLAYERS: Player[] = [
-  { name: 'John Byamukama',   pos: 'GK',  nat: 'UG', status: 'fit',       contract: 'Jun 2027', value: 'UGX 420M' },
-  { name: 'Brian Kalumba',    pos: 'CB',  nat: 'UG', status: 'fit',       contract: 'Jun 2026', value: 'UGX 380M' },
-  { name: 'David Kato',       pos: 'CB',  nat: 'UG', status: 'suspended', contract: 'Jun 2028', value: 'UGX 350M' },
-  { name: 'Oscar Mwaka',      pos: 'LB',  nat: 'UG', status: 'fit',       contract: 'Jun 2027', value: 'UGX 310M' },
-  { name: 'James Alitho',     pos: 'RB',  nat: 'UG', status: 'injured',   contract: 'Jun 2026', value: 'UGX 290M' },
-  { name: 'Saidi Kyeyune',    pos: 'CM',  nat: 'UG', status: 'fit',       contract: 'Jun 2028', value: 'UGX 520M' },
-  { name: 'Rogers Mato',      pos: 'CM',  nat: 'UG', status: 'fit',       contract: 'Jun 2027', value: 'UGX 480M' },
-  { name: 'Patrick Kaddu',    pos: 'CAM', nat: 'UG', status: 'fit',       contract: 'Jun 2029', value: 'UGX 680M' },
-  { name: 'William Kizito',   pos: 'LW',  nat: 'UG', status: 'suspended', contract: 'Jun 2027', value: 'UGX 560M' },
-  { name: 'Allan Okello',     pos: 'RW',  nat: 'UG', status: 'fit',       contract: 'Jun 2028', value: 'UGX 620M' },
-  { name: 'Derrick Nsibambi', pos: 'ST',  nat: 'UG', status: 'fit',       contract: 'Jun 2026', value: 'UGX 750M' },
-];
+type PlayerStatus = 'fit' | 'suspended' | 'injured';
+type DataSource = 'verified' | 'club_submitted' | 'pending';
+type SubStatus = 'pending_review' | 'approved' | 'rejected' | 'needs_revision';
+
+type Player = {
+  name: string; pos: string; nat: string; status: PlayerStatus;
+  contract: string; value: string;
+  dataSource: DataSource;
+  subId?: string;
+};
+
+type Submission = {
+  id: string;
+  type: 'player_add' | 'player_update' | 'status_change' | 'squad_list';
+  subject: string;
+  submittedAt: string;
+  status: SubStatus;
+  feedback: string;
+  playerIdx?: number;
+  data: Partial<Player>;
+};
+
 
 const STATUS_CLASS: Record<string, string> = {
   fit: 'ca-pill-green', suspended: 'ca-pill-red', injured: 'ca-pill-orange',
 };
 
-const ACTIVITY = [
-  { text: 'Patrick Kaddu cleared for UPL Round 28', time: '1h ago' },
-  { text: 'James Alitho injured in training — hamstring', time: '2d ago' },
-  { text: 'David Kato served 1-match suspension', time: '3d ago' },
-  { text: 'New player registered: Moses Sserunkuuma', time: '5d ago' },
-];
+const SUB_STATUS_META: Record<SubStatus, { label: string; color: string; icon: typeof FiClock }> = {
+  pending_review:  { label: 'Pending Review', color: '#eab308', icon: FiClock },
+  approved:        { label: 'Approved',       color: '#22c55e', icon: FiCheck },
+  rejected:        { label: 'Rejected',       color: '#ef4444', icon: FiAlertCircle },
+  needs_revision:  { label: 'Needs Revision', color: '#f97316', icon: FiAlertCircle },
+};
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) return;
   const headers = Object.keys(rows[0]);
   const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '')}"`).join(','))].join('\n');
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: filename });
   a.click();
 }
 
-const BLANK: Player = { name: '', pos: 'GK', nat: 'UG', status: 'fit', contract: '', value: '' };
+const BLANK: Player = { name: '', pos: 'GK', nat: 'UG', status: 'fit', contract: '', value: '', dataSource: 'pending' };
+type ModalKind = null | 'add' | 'edit' | 'revise';
 
-type ModalKind = null | 'add' | 'edit';
+let subCounter = 10;
 
 export default function ClubSquadPage() {
-  const [players, setPlayers] = useState<Player[]>(INIT_PLAYERS);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [reviseId, setReviseId] = useState<string | null>(null);
   const [form, setForm] = useState<Player>(BLANK);
+  const [submitNote, setSubmitNote] = useState('');
   const [toast, setToast] = useState('');
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
-
+  const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
   const set = (k: keyof Player) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const openAdd = () => { setForm(BLANK); setEditIdx(null); setModal('add'); };
-  const openEdit = (idx: number) => { setForm({ ...players[idx] }); setEditIdx(idx); setModal('edit'); };
+  const openAdd = () => { setForm(BLANK); setEditIdx(null); setSubmitNote(''); setModal('add'); };
+  const openEdit = (idx: number) => { setForm({ ...players[idx] }); setEditIdx(idx); setSubmitNote(''); setModal('edit'); };
+  const openRevise = (sub: Submission) => {
+    setReviseId(sub.id);
+    if (sub.playerIdx !== undefined) setForm({ ...players[sub.playerIdx] });
+    else setForm({ ...BLANK, ...sub.data } as Player);
+    setSubmitNote('');
+    setModal('revise');
+  };
 
-  const savePlayer = () => {
+  const submitPlayer = (asDraft = false) => {
     if (!form.name.trim()) return;
-    if (editIdx !== null) {
-      setPlayers(prev => prev.map((p, i) => i === editIdx ? form : p));
-      showToast(`${form.name} updated`);
-    } else {
-      setPlayers(prev => [...prev, form]);
-      showToast(`${form.name} added to squad`);
+    const newId = `sub-${String(subCounter++).padStart(3, '0')}`;
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    if (modal === 'add') {
+      const newPlayer: Player = { ...form, dataSource: asDraft ? 'club_submitted' : 'pending', subId: asDraft ? undefined : newId };
+      setPlayers(prev => [...prev, newPlayer]);
+      if (!asDraft) {
+        setSubmissions(prev => [...prev, {
+          id: newId, type: 'player_add',
+          subject: `New player: ${form.name} (${form.pos})`,
+          submittedAt: today, status: 'pending_review', feedback: '',
+          playerIdx: players.length, data: { ...form },
+        }]);
+        notify(`${form.name} submitted to League OS for review`);
+      } else {
+        notify(`${form.name} saved as draft`);
+      }
+    } else if ((modal === 'edit' || modal === 'revise') && editIdx !== null) {
+      setPlayers(prev => prev.map((p, i) => i === editIdx ? { ...form, dataSource: 'pending', subId: newId } : p));
+      if (modal === 'revise' && reviseId) {
+        setSubmissions(prev => prev.map(s => s.id === reviseId ? { ...s, status: 'pending_review', feedback: '', submittedAt: today } : s));
+        notify('Resubmission sent to League OS');
+      } else {
+        setSubmissions(prev => [...prev, {
+          id: newId, type: 'player_update',
+          subject: `${form.name} — player update`,
+          submittedAt: today, status: 'pending_review', feedback: '',
+          playerIdx: editIdx, data: { ...form },
+        }]);
+        notify(`Update for ${form.name} submitted for review`);
+      }
     }
     setModal(null);
   };
 
-  const updateStatus = (idx: number, status: PlayerStatus) => {
-    setPlayers(prev => prev.map((p, i) => i === idx ? { ...p, status } : p));
-    showToast(`${players[idx].name} status updated to ${status}`);
+  const submitSquadList = () => {
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    setSubmissions(prev => [...prev, {
+      id: `sub-${String(subCounter++).padStart(3, '0')}`,
+      type: 'squad_list',
+      subject: `Squad list submitted — ${today}`,
+      submittedAt: today, status: 'pending_review', feedback: '', data: {},
+    }]);
+    notify('Squad list submitted to League OS');
   };
 
   const contractAlerts = players.filter(p => p.contract.includes('2026'));
+  const pendingCount = submissions.filter(s => s.status === 'pending_review').length;
+  const needsRevision = submissions.filter(s => s.status === 'needs_revision');
+
+  const modalTitle = modal === 'add' ? 'Add Player' : modal === 'revise' ? 'Revise & Resubmit' : 'Edit Player';
 
   return (
     <ClubAdminLayout>
-      {toast && <div className="ca-toast">{toast}</div>}
+      {toast && <div className="ca-toast"><FiCheck /> {toast}</div>}
 
-      {(modal === 'add' || modal === 'edit') && (
+      {/* Add / Edit / Revise modal */}
+      {(modal === 'add' || modal === 'edit' || modal === 'revise') && (
         <div className="ca-modal-overlay" onClick={() => setModal(null)}>
           <div className="ca-modal" onClick={e => e.stopPropagation()}>
             <div className="ca-modal-header">
-              <h2 className="ca-modal-title">{modal === 'add' ? 'Add Player' : 'Edit Player'}</h2>
+              <h2 className="ca-modal-title">{modalTitle}</h2>
               <button type="button" className="ca-modal-close" onClick={() => setModal(null)}><FiX /></button>
             </div>
+
+            {/* Revision context banner */}
+            {modal === 'revise' && reviseId && (() => {
+              const sub = submissions.find(s => s.id === reviseId);
+              return sub?.feedback ? (
+                <div className="ca-revision-banner">
+                  <FiAlertCircle style={{ color: '#f97316', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reviewer Feedback</p>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{sub.feedback}</p>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             <div className="ca-modal-body">
               <div className="ca-form-grid">
                 <div className="ca-field ca-form-grid-full">
@@ -124,16 +189,29 @@ export default function ClubSquadPage() {
                   <label className="ca-label">Contract End</label>
                   <input className="ca-input" value={form.contract} onChange={set('contract')} placeholder="e.g. Jun 2027" />
                 </div>
-                <div className="ca-field ca-form-grid-full">
+                <div className="ca-field">
                   <label className="ca-label">Market Value</label>
                   <input className="ca-input" value={form.value} onChange={set('value')} placeholder="e.g. UGX 400M" />
+                </div>
+                <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Submission Note {modal === 'revise' ? '(required)' : '(optional)'}</label>
+                  <textarea
+                    className="ca-textarea"
+                    rows={2}
+                    value={submitNote}
+                    onChange={e => setSubmitNote(e.target.value)}
+                    placeholder={modal === 'revise' ? 'Explain the changes made in response to feedback…' : 'Any notes for the League OS reviewer…'}
+                  />
                 </div>
               </div>
             </div>
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={savePlayer}>
-                {modal === 'add' ? 'Add Player' : 'Save Changes'}
+              {modal === 'add' && (
+                <button type="button" className="ca-btn ca-btn-secondary" onClick={() => submitPlayer(true)}>Save as Draft</button>
+              )}
+              <button type="button" className="ca-btn ca-btn-primary" onClick={() => submitPlayer(false)}>
+                <FiSend /> {modal === 'revise' ? 'Resubmit' : 'Submit to League OS'}
               </button>
             </div>
           </div>
@@ -142,11 +220,14 @@ export default function ClubSquadPage() {
 
       <div className="ca-page-header">
         <div>
-          <p className="ca-page-eyebrow">CA-03</p>
+
           <h1 className="ca-page-title">Squad &amp; Team Management</h1>
-          <p className="ca-page-subtitle">Manage players, staff, contracts, and optimise squad performance.</p>
+          <p className="ca-page-subtitle">Manage players, submit updates to League OS and track review status.</p>
         </div>
         <div className="ca-page-actions">
+          <button type="button" className="ca-btn ca-btn-secondary" onClick={submitSquadList}>
+            <FiSend /> Submit Squad List
+          </button>
           <button type="button" className="ca-btn ca-btn-secondary"
             onClick={() => exportCSV(players as unknown as Record<string, unknown>[], 'squad.csv')}>
             <FiDownload /> Export
@@ -155,50 +236,77 @@ export default function ClubSquadPage() {
         </div>
       </div>
 
-      <div className="ca-kpi-bar">
-        {KPI.map(k => (
-          <div key={k.label} className="ca-kpi-card">
-            <p className="ca-kpi-label">{k.label}</p>
-            <p className="ca-kpi-value">{k.value}</p>
-            <span className={`ca-kpi-delta ${k.up === true ? 'up' : k.up === false ? 'down' : 'neutral'}`}>
-              {k.up === false ? '↓ ' : k.up === true ? '↑ ' : ''}{k.delta}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Needs revision alerts */}
+      {needsRevision.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {needsRevision.map(sub => (
+            <div key={sub.id} className="ca-revision-alert">
+              <FiAlertCircle style={{ color: '#f97316', fontSize: '1rem', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '0.82rem', color: 'var(--color-text-primary)' }}>
+                  Revision required: {sub.subject}
+                </p>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                  {sub.feedback}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ca-btn ca-btn-secondary ca-btn-sm"
+                onClick={() => {
+                  const idx = sub.playerIdx;
+                  if (idx !== undefined) { setEditIdx(idx); openRevise(sub); }
+                }}
+              >
+                <FiRefreshCw /> Revise
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="ca-content-grid">
         <div className="ca-content-main">
           <div className="ca-panel">
             <div className="ca-panel-header">
               <h2 className="ca-panel-title">Squad Roster</h2>
-              <span className="ca-panel-count">{players.length} players</span>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span className="ca-panel-count">{players.length} players</span>
+                <div className="ca-legend">
+                  <span className="ca-legend-dot" style={{ background: '#22c55e' }} /><span>Verified</span>
+                  <span className="ca-legend-dot" style={{ background: '#eab308', marginLeft: 8 }} /><span>Pending</span>
+                  <span className="ca-legend-dot" style={{ background: 'rgba(255,255,255,0.2)', marginLeft: 8 }} /><span>Draft</span>
+                </div>
+              </div>
             </div>
             <div className="ca-table-wrap">
               <table className="ca-table">
                 <thead>
-                  <tr><th>Player</th><th>Pos</th><th>Nat</th><th>Status</th><th>Contract Ends</th><th>Value</th><th></th></tr>
+                  <tr><th>Player</th><th>Pos</th><th>Nat</th><th>Status</th><th>Contract</th><th>Value</th><th>Data</th><th></th></tr>
                 </thead>
                 <tbody>
+                  {players.length === 0 && (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No players yet. Add a player to build your squad roster.</td></tr>
+                  )}
                   {players.map((p, i) => (
-                    <tr key={i}>
+                    <tr key={i} className={p.dataSource === 'pending' ? 'ca-row-pending' : p.dataSource === 'club_submitted' ? 'ca-row-draft' : ''}>
                       <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{p.name}</td>
                       <td><span className="ca-pill ca-pill-muted">{p.pos}</span></td>
                       <td>{p.nat}</td>
-                      <td>
-                        <select
-                          className="ca-pill"
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: STATUS_CLASS[p.status].includes('green') ? '#22c55e' : STATUS_CLASS[p.status].includes('red') ? '#ef4444' : '#f97316', fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                          value={p.status}
-                          onChange={e => updateStatus(i, e.target.value as PlayerStatus)}
-                        >
-                          <option value="fit">fit</option>
-                          <option value="injured">injured</option>
-                          <option value="suspended">suspended</option>
-                        </select>
-                      </td>
+                      <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                       <td>{p.contract}</td>
                       <td style={{ fontWeight: 700 }}>{p.value}</td>
+                      <td>
+                        {p.dataSource === 'verified' && (
+                          <span className="ca-data-badge ca-data-badge-verified"><FiCheck style={{ fontSize: '0.7rem' }} /> Verified</span>
+                        )}
+                        {p.dataSource === 'pending' && (
+                          <span className="ca-data-badge ca-data-badge-pending"><FiClock style={{ fontSize: '0.7rem' }} /> Pending</span>
+                        )}
+                        {p.dataSource === 'club_submitted' && (
+                          <span className="ca-data-badge ca-data-badge-draft">Draft</span>
+                        )}
+                      </td>
                       <td>
                         <button type="button" className="ca-icon-btn" onClick={() => openEdit(i)}><FiEdit2 /></button>
                       </td>
@@ -211,6 +319,51 @@ export default function ClubSquadPage() {
         </div>
 
         <div className="ca-content-aside">
+          {/* Submission queue */}
+          <div className="ca-panel">
+            <div className="ca-panel-header">
+              <h2 className="ca-panel-title">Submission Queue</h2>
+              <span className="ca-panel-count">{pendingCount} pending</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {submissions.map(sub => {
+                const meta = SUB_STATUS_META[sub.status];
+                const Icon = meta.icon;
+                return (
+                  <div key={sub.id} className="ca-sub-item">
+                    <div className="ca-sub-item-top">
+                      <Icon style={{ color: meta.color, fontSize: '0.9rem', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.3 }}>{sub.subject}</p>
+                        <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{sub.submittedAt}</p>
+                      </div>
+                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', flexShrink: 0 }}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    {sub.feedback && (
+                      <div className="ca-sub-feedback">
+                        <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                          <strong style={{ color: '#f97316' }}>Reviewer: </strong>{sub.feedback}
+                        </p>
+                        {sub.status === 'needs_revision' && sub.playerIdx !== undefined && (
+                          <button
+                            type="button"
+                            className="ca-btn ca-btn-secondary ca-btn-sm"
+                            style={{ marginTop: 6 }}
+                            onClick={() => { setEditIdx(sub.playerIdx!); openRevise(sub); }}
+                          >
+                            <FiRefreshCw /> Revise &amp; Resubmit
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="ca-panel ca-formation-panel">
             <div className="ca-panel-header">
               <h2 className="ca-panel-title">Formation</h2>
@@ -246,28 +399,12 @@ export default function ClubSquadPage() {
                   </div>
                 </div>
                 <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm"
-                  onClick={() => showToast(`Contract offer sent to ${c.name}`)}>
-                  Offer
-                </button>
+                  onClick={() => notify(`Contract offer sent to ${c.name}`)}>Offer</button>
                 <FiAlertTriangle style={{ color: '#f97316', fontSize: '0.9rem', marginLeft: 4 }} />
               </div>
             ))}
           </div>
 
-          <div className="ca-panel">
-            <div className="ca-panel-header"><h2 className="ca-panel-title">Recent Squad Activity</h2></div>
-            <div className="ca-activity-list">
-              {ACTIVITY.map((a, i) => (
-                <div key={i} className="ca-activity-item">
-                  <div className="ca-activity-dot" />
-                  <div>
-                    <p className="ca-activity-text">{a.text}</p>
-                    <p className="ca-activity-time">{a.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </ClubAdminLayout>
