@@ -179,3 +179,18 @@
   line-height: 1.7;
   color: var(--color-text-secondary);
 }
+
+/* Full article body rendered from backend `body` field */
+.article-content {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.article-content p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--color-text-secondary, #a5a0ba);
+}

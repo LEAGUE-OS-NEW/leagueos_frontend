@@ -1,237 +1,318 @@
-// Admin Users & Roles — service layer.
+// Admin Users, Roles & Invitations — service layer, backed by
+// platform_admin's real REST surface (`/admin/users/`, `/admin/roles/`,
+// `/admin/invitations/`). There is no direct "create a user with a
+// password" endpoint — accounts are created by inviting an email address
+// to one or more platform roles; the invitee sets their own password when
+// they accept.
 //
-// No backend endpoint exists for admin user management yet, so this is
-// in-memory mock, following the same convention as every other admin
-// service this pass: typed async functions, delay()-wrapped, shaped for a
-// drop-in real-backend swap later.
-//
-// Per explicit instruction, this does not build a free-form permission
-// builder — each role's permission set is fixed (see ROLE_PERMISSIONS) and
-// only assignment (which user holds which of the existing roles) is
-// editable. The team wants fewer roles, not a way to invent more.
+// Platform roles (fetchAdminRoles/inviteAdminUser) are real end-to-end.
+// Club Admin invites are a special case, kept separate below: the backend's
+// generic Role/UserRole system has no club-scoping field, so a real Club
+// Admin invite needs backend work that doesn't exist yet (see
+// inviteClubAdmin's own comment) — that path is mock-backed for now, not
+// wired to /admin/invitations/.
 
-import { ALL_SPECIALIST_ROLES } from '../config/adminNav';
-import type { DashboardIdentifier } from '../types/dashboardAccess';
-import { fetchClubs, type ClubSummary } from './clubsService';
+import apiClient from './apiClient.ts';
+import { normalizeApiList } from './apiUtils.ts';
+import type { DashboardIdentifier } from '../types/dashboardAccess.ts';
 
-export type AdminRole = Exclude<DashboardIdentifier, 'FAN' | 'TICKETING_OFFICER'>;
-export const ASSIGNABLE_ADMIN_ROLES: AdminRole[] = ['SUPER_ADMIN', ...ALL_SPECIALIST_ROLES, 'CLUB_ADMIN'] as AdminRole[];
+export interface AdminRole {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  dashboardUrl: string;
+  isSystem: boolean;
+  permissions: string[];
+}
 
-export type AdminUserStatus = 'Active' | 'Inactive';
+// Matches User.AccountStatus on the backend (accounts/models.py) — only
+// these three values are real. There is no "pending invitation" account
+// status; invitation lifecycle lives on AdminInvitation.status instead.
+export type AdminAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
 
 export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
-  role: AdminRole;
-  status: AdminUserStatus;
+  phone: string | null;
+  roles: string[];
+  isActive: boolean;
+  isVerified: boolean;
+  isSuperuser: boolean;
+  accountStatus: AdminAccountStatus;
+  failedLoginAttempts: number;
+  avatarUrl: string | null;
+  lastActiveAt: string | null;
+  // NOTE: the exact set of non-"CLEAR" values for marketRestrictionStatus
+  // isn't enumerated in AdminUserListSerializer (get_market_restriction_status
+  // just proxies compliance.restriction_status). Confirm the real choices
+  // against the compliance model before branching UI on specific strings
+  // other than 'CLEAR'.
+  marketKycStatus: string;
+  marketRestrictionStatus: string;
+  isMarketVerified: boolean;
   createdAt: string;
-  lastActiveAt?: string;
-  clubSlug?: string;
-  clubName?: string;
+  updatedAt: string;
 }
 
-export interface CreateAdminUserInput {
-  fullName: string;
+export interface AdminInvitation {
+  id: string;
   email: string;
-  role: AdminRole;
-  password: string;
-  clubSlug?: string;
-}
-
-export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
-  SUPER_ADMIN: [
-    'Assign and deactivate admin users across every role',
-    'Full access to every module, including all specialist workspaces',
-    'Publish or cancel any market, regardless of who created it',
-    'Configure platform-wide System Settings',
-  ],
-  SPORTS_DATA_STATISTICS_ADMIN: [
-    'Manage competitions and provider mappings',
-    'Resolve fixture, player and statistic data issues',
-    'Approve or reject incoming data-provider changes',
-  ],
-  MARKET_OPERATIONS_ADMIN: [
-    'Create markets from verified sporting events',
-    'Define outcomes and set trading parameters',
-    'Review fan-submitted market proposals',
-    'Publish markets so they appear on the landing page and Markets page',
-  ],
-  RESULT_VERIFICATION_ADMIN: [
-    'Verify real-world results against an official source',
-    'Finalise markets, which triggers fan payouts',
-    'Escalate or resolve market-result disputes',
-  ],
-  COMPLIANCE_ADMIN: [
-    'Review KYC sessions and reassess participant risk',
-    'Propose and countersign compliance decisions',
-    'Apply account restrictions for responsible participation',
-  ],
-  FINANCE_ADMIN: [
-    'Reconcile provider and ledger totals',
-    'Investigate and resolve settlement mismatches',
-    'Approve refunds under dual control',
-    'View fund segregation and payout reports',
-  ],
-  CUSTOMER_SUPPORT_ADMIN: [
-    'Read-only access to support cases and case history',
-    'Assign, escalate and reply to fan support tickets',
-    'Cannot approve KYC, modify balances, or decide market results',
-  ],
-  CLUB_ADMIN: [
-    "Manage their own club's profile, squad, and fixtures",
-    'Scoped to exactly one club — cannot see or affect other clubs',
-    'Assigned and revoked only by a Super Admin',
-  ],
-};
-
-function delay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+  assignedRoles: string[];
+  invitedByEmail: string | null;
+  status: string;
+  tokenExpiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
 }
 
 function fail(message: string): never {
   throw new Error(message);
 }
 
-async function resolveClub(clubSlug: string | undefined): Promise<ClubSummary> {
-  if (!clubSlug) fail('Select a club for this Club Admin.');
-  const clubs = await fetchClubs();
-  const club = clubs.find((item) => item.slug === clubSlug);
-  if (!club) fail('Select a club for this Club Admin.');
-  return club;
-}
-
-let idCounter = 0;
-function genId(prefix: string): string {
-  idCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}${idCounter.toString(36)}`;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-function hoursAgo(hours: number): string {
-  return new Date(Date.now() - hours * 60 * 60_000).toISOString();
-}
-
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const users: AdminUser[] = [
-  {
-    id: genId('user'),
-    fullName: 'Grace Nabirye',
-    email: 'grace.nabirye@leagueos.ug',
-    role: 'SUPER_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(2000),
-    lastActiveAt: hoursAgo(1),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Dennis Kato',
-    email: 'dennis.kato@leagueos.ug',
-    role: 'MARKET_OPERATIONS_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(1500),
-    lastActiveAt: hoursAgo(3),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Dennis Kato',
-    email: 'dennis.kato@leagueos.ug',
-    role: 'SPORTS_DATA_STATISTICS_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(1500),
-    lastActiveAt: hoursAgo(6),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Dawa Nakato',
-    email: 'dawa.nakato@leagueos.ug',
-    role: 'RESULT_VERIFICATION_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(1200),
-    lastActiveAt: hoursAgo(20),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Merab Aceng',
-    email: 'merab.aceng@leagueos.ug',
-    role: 'COMPLIANCE_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(900),
-    lastActiveAt: hoursAgo(5),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Merab Aceng',
-    email: 'merab.aceng@leagueos.ug',
-    role: 'FINANCE_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(900),
-    lastActiveAt: hoursAgo(30),
-  },
-  {
-    id: genId('user'),
-    fullName: 'Marble Ochieng',
-    email: 'marble.ochieng@leagueos.ug',
-    role: 'CUSTOMER_SUPPORT_ADMIN',
-    status: 'Active',
-    createdAt: hoursAgo(700),
-    lastActiveAt: hoursAgo(2),
-  },
-];
-
-function cloneUser(user: AdminUser): AdminUser {
-  return { ...user };
+function adaptRole(raw: Record<string, unknown>): AdminRole {
+  return {
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+    displayName: String(raw.display_name ?? raw.name ?? 'Unnamed role'),
+    description: String(raw.description ?? ''),
+    dashboardUrl: String(raw.dashboard_url ?? ''),
+    isSystem: Boolean(raw.is_system),
+    permissions: Array.isArray(raw.permissions) ? raw.permissions.map(String) : [],
+  };
 }
 
-function findUserOrThrow(id: string): AdminUser {
-  const user = users.find((item) => item.id === id);
-  if (!user) fail(`Admin user ${id} was not found.`);
-  return user;
+function adaptUser(raw: Record<string, unknown>): AdminUser {
+  const firstName = String(raw.first_name ?? '').trim();
+  const lastName = String(raw.last_name ?? '').trim();
+  const email = String(raw.email ?? '');
+  return {
+    id: String(raw.id),
+    fullName: [firstName, lastName].filter(Boolean).join(' ') || email,
+    email,
+    phone: raw.phone_number ? String(raw.phone_number) : null,
+    roles: Array.isArray(raw.roles) ? raw.roles.map(String) : [],
+    isActive: Boolean(raw.is_active),
+    isVerified: Boolean(raw.is_verified),
+    isSuperuser: Boolean(raw.is_superuser),
+    accountStatus: (String(raw.account_status ?? 'ACTIVE') as AdminAccountStatus),
+    failedLoginAttempts: Number(raw.failed_attempts ?? 0),
+    avatarUrl: raw.avatar_url ? String(raw.avatar_url) : null,
+    lastActiveAt: raw.last_active_at ? String(raw.last_active_at) : null,
+    marketKycStatus: String(raw.market_kyc_status ?? 'NOT_STARTED'),
+    marketRestrictionStatus: String(raw.market_restriction_status ?? 'CLEAR'),
+    isMarketVerified: Boolean(raw.is_market_verified),
+    createdAt: String(raw.created_at ?? ''),
+    updatedAt: String(raw.updated_at ?? ''),
+  };
+}
+
+function adaptInvitation(raw: Record<string, unknown>): AdminInvitation {
+  return {
+    id: String(raw.id),
+    email: String(raw.email ?? ''),
+    assignedRoles: Array.isArray(raw.assigned_roles) ? raw.assigned_roles.map(String) : [],
+    invitedByEmail: raw.invited_by_email ? String(raw.invited_by_email) : null,
+    status: String(raw.status ?? ''),
+    tokenExpiresAt: String(raw.token_expires_at ?? ''),
+    acceptedAt: raw.accepted_at ? String(raw.accepted_at) : null,
+    createdAt: String(raw.created_at ?? ''),
+  };
+}
+
+// GET /admin/roles/ returns every Role in the system — fan/club/system-tier
+// roles included (Fan, Visitor, Club Member, External Systems, etc.), not
+// just platform specialist-admin ones. Allow-list (not a block-list) so a
+// new fan/system role added later doesn't silently show up here — matches
+// the real Role.name strings from seed_roles.py. "Club Admin" deliberately
+// excluded too — that's handled separately via the invite modal's sentinel.
+const PLATFORM_ADMIN_ROLE_NAMES = new Set([
+  'Super Admin',
+  'Sports Data & Statistics Admin',
+  'Market Operations & Approval Admin',
+  'Result Verification Admin',
+  'Compliance Admin',
+  'Finance Admin',
+  'Customer Support Admin',
+]);
+
+export async function fetchAdminRoles(): Promise<AdminRole[]> {
+  const response = await apiClient.get('/admin/roles/');
+  return normalizeApiList<Record<string, unknown>>(response.data)
+    .map(adaptRole)
+    .filter((role) => PLATFORM_ADMIN_ROLE_NAMES.has(role.name));
+}
+
+// Inverse of PLATFORM_ADMIN_ROLE_NAMES — resolves a real Role.name string
+// (as returned by GET /admin/me/) to the frontend's DashboardIdentifier, so
+// useActiveAdminRole can drive the shell's role switcher off the admin's
+// actual permissions instead of login-time dashboard_access entitlements.
+const PLATFORM_ROLE_NAME_TO_IDENTIFIER: Record<string, DashboardIdentifier> = {
+  'Super Admin': 'SUPER_ADMIN',
+  'Sports Data & Statistics Admin': 'SPORTS_DATA_STATISTICS_ADMIN',
+  'Market Operations & Approval Admin': 'MARKET_OPERATIONS_ADMIN',
+  'Result Verification Admin': 'RESULT_VERIFICATION_ADMIN',
+  'Compliance Admin': 'COMPLIANCE_ADMIN',
+  'Finance Admin': 'FINANCE_ADMIN',
+  'Customer Support Admin': 'CUSTOMER_SUPPORT_ADMIN',
+};
+
+export interface MyAdminAccess {
+  roles: DashboardIdentifier[];
+  permissions: string[];
+}
+
+// Real — GET /admin/me/. Returns the logged-in admin's actual roles and
+// permissions, unlike dashboard_access (set once at login/hydration, which
+// can drift from what the backend currently grants this account).
+export async function fetchMyAdminAccess(): Promise<MyAdminAccess> {
+  const response = await apiClient.get('/admin/me/');
+  const raw = response.data as Record<string, unknown>;
+  const rawRoles = Array.isArray(raw.roles) ? raw.roles.map(String) : [];
+  const rawPermissions = Array.isArray(raw.permissions) ? raw.permissions.map(String) : [];
+  const roles = rawRoles
+    .map((name) => PLATFORM_ROLE_NAME_TO_IDENTIFIER[name])
+    .filter((identifier): identifier is DashboardIdentifier => Boolean(identifier));
+  return { roles, permissions: rawPermissions };
 }
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
-  return delay(users.map(cloneUser));
+  const response = await apiClient.get('/admin/users/');
+  return normalizeApiList<Record<string, unknown>>(response.data).map(adaptUser);
 }
 
-export async function createAdminUser(input: CreateAdminUserInput): Promise<AdminUser> {
-  if (!input.fullName.trim()) fail('Enter the admin\'s full name.');
+export async function fetchAdminInvitations(): Promise<AdminInvitation[]> {
+  const response = await apiClient.get('/admin/invitations/');
+  return normalizeApiList<Record<string, unknown>>(response.data).map(adaptInvitation);
+}
+
+export async function inviteAdminUser(input: { email: string; roleId: string }): Promise<AdminInvitation> {
   if (!EMAIL_PATTERN.test(input.email.trim())) fail('Enter a valid email address.');
-  if (input.password.trim().length < 8) fail('Password must be at least 8 characters.');
-  if (users.some((user) => user.email.toLowerCase() === input.email.trim().toLowerCase() && user.role === input.role)) {
-    fail('This person already holds that role.');
-  }
-
-  const club = input.role === 'CLUB_ADMIN' ? await resolveClub(input.clubSlug) : null;
-
-  const user: AdminUser = {
-    id: genId('user'),
-    fullName: input.fullName.trim(),
+  if (!input.roleId) fail('Select a role for this invitation.');
+  const response = await apiClient.post('/admin/invitations/', {
     email: input.email.trim(),
-    role: input.role,
-    status: 'Active',
-    createdAt: nowIso(),
-    clubSlug: club?.slug,
-    clubName: club?.name,
+    role_ids: [input.roleId],
+  });
+  return adaptInvitation(response.data);
+}
+
+export async function revokeAdminInvitation(id: string): Promise<AdminInvitation> {
+  const response = await apiClient.post(`/admin/invitations/${encodeURIComponent(id)}/revoke/`);
+  return adaptInvitation(response.data);
+}
+
+export async function setAdminUserActive(userId: string, isActive: boolean): Promise<AdminUser> {
+  const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, { is_active: isActive });
+  return adaptUser(response.data);
+}
+
+// Soft-deactivate — there is no hard-delete endpoint for admin/fan
+// accounts. Uses the same PATCH surface as setAdminUserActive, driven by
+// AdminUserRoleUpdateSerializer's account_status field.
+export async function deactivateAdminUser(userId: string): Promise<AdminUser> {
+  const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, {
+    account_status: 'DEACTIVATED',
+  });
+  return adaptUser(response.data);
+}
+
+export async function assignAdminRole(userId: string, roleId: string): Promise<AdminUser> {
+  const response = await apiClient.post(`/admin/users/${encodeURIComponent(userId)}/roles/assign/`, {
+    role_id: roleId,
+  });
+  return adaptUser(response.data);
+}
+
+export async function revokeAdminRole(userId: string, roleId: string): Promise<AdminUser> {
+  const response = await apiClient.delete(`/admin/users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}/`);
+  return adaptUser(response.data);
+}
+
+/* ------------------------------------------------------------------ */
+/* Incompatible-role guard — client-side, ahead of the backend         */
+/*                                                                       */
+/* The backend has no segregation-of-duties enforcement yet (only a     */
+/* "can't remove the last Super Admin" guard) — flagged in the backend  */
+/* report as a real ask. This is a real, useful stand-in in the         */
+/* meantime, not a mock: it genuinely prevents conflicting assignments  */
+/* through this UI, it just can't stop a direct API call the way a real */
+/* server-side rule eventually should.                                  */
+/* ------------------------------------------------------------------ */
+
+const CONFLICTING_ROLE_PAIRS: [string, string][] = [
+  ['Finance Admin', 'Result Verification Admin'],
+  ['Finance Admin', 'Market Operations & Approval Admin'],
+  ['Compliance Admin', 'Finance Admin'],
+  ['Market Operations & Approval Admin', 'Result Verification Admin'],
+];
+
+// Super Admin is exempt — it already legitimately holds full authority by
+// design, so it isn't a "conflict" for it to also carry a specialist role.
+export function findRoleConflict(currentRoleNames: string[], candidateRoleName: string): string | null {
+  if (candidateRoleName === 'Super Admin' || currentRoleNames.includes('Super Admin')) return null;
+  for (const [a, b] of CONFLICTING_ROLE_PAIRS) {
+    if (candidateRoleName === a && currentRoleNames.includes(b)) return b;
+    if (candidateRoleName === b && currentRoleNames.includes(a)) return a;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Club Admin invites — a special case, see file header                */
+/* ------------------------------------------------------------------ */
+
+export interface RealClubSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+// Real — GET /profiles/clubs/. Deliberately not clubsService.ts's
+// fetchClubs(), which is 100% hardcoded mock data and doesn't reflect
+// what clubs actually exist in the database.
+export async function fetchRealClubs(): Promise<RealClubSummary[]> {
+  const response = await apiClient.get('/profiles/clubs/');
+  return normalizeApiList<Record<string, unknown>>(response.data).map((raw) => ({
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+    slug: String(raw.slug ?? ''),
+  }));
+}
+
+export interface MockClubAdminInvite {
+  email: string;
+  notifyEmail: string;
+  clubName: string;
+  createdAt: string;
+}
+
+// Mock-backed — there is no real endpoint for this yet. The real
+// /admin/invitations/ endpoint accepts only email + role_ids, with no
+// club-scoping field and no separate delivery-address field, so a Club
+// Admin invite can't actually be sent via it today. This simulates the
+// target flow (create the club if new, "send" the scoped invite to the
+// personal address) so the UI is ready to swap in a real call once the
+// backend adds club-scoping + a notify_email field to invitations (see the
+// plan/backend report for the exact service points needed).
+export async function inviteClubAdmin(input: { email: string; notifyEmail: string; clubName: string }): Promise<MockClubAdminInvite> {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(input.email.trim())) {
+    throw new Error('Enter a valid LeagueOS email address.');
+  }
+  if (!emailPattern.test(input.notifyEmail.trim())) {
+    throw new Error('Enter a valid personal email address.');
+  }
+  if (!input.clubName.trim()) {
+    throw new Error('A club is required for a Club Admin invite.');
+  }
+  const result: MockClubAdminInvite = {
+    email: input.email.trim(),
+    notifyEmail: input.notifyEmail.trim(),
+    clubName: input.clubName.trim(),
+    createdAt: new Date().toISOString(),
   };
-  users.unshift(user);
-  return delay(cloneUser(user));
-}
-
-export async function updateAdminUserRole(id: string, role: AdminRole, clubSlug?: string): Promise<AdminUser> {
-  const user = findUserOrThrow(id);
-  const club = role === 'CLUB_ADMIN' ? await resolveClub(clubSlug ?? user.clubSlug) : null;
-  user.role = role;
-  user.clubSlug = club?.slug;
-  user.clubName = club?.name;
-  return delay(cloneUser(user));
-}
-
-export async function deactivateAdminUser(id: string): Promise<AdminUser> {
-  const user = findUserOrThrow(id);
-  user.status = user.status === 'Active' ? 'Inactive' : 'Active';
-  return delay(cloneUser(user));
+  return new Promise((resolve) => setTimeout(() => resolve(result), 300));
 }

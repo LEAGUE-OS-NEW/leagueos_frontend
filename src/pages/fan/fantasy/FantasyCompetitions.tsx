@@ -1,237 +1,29 @@
-import { useState } from 'react';
-import type { Competition, FantasyTeam, SquadSlot, Toast } from './types';
-import { SPORT_RULES } from './data';
-import FantasyHub from './sections/FantasyHub';
-import CompetitionDetail from './sections/CompetitionDetail';
-import SquadBuilder from './sections/SquadBuilder';
-import MyTeam from './sections/MyTeam';
-import Transfers from './sections/Transfers';
-import Leagues from './sections/Leagues';
-import { BellIcon, TrophyIcon} from './sections/shared';
-import Sidebar from '../../../components/fan/Sidebar';
-import Footer from '../../../components/landing/Footer';
-import { SPORT_META } from './SportMeta';
-import './FantasyCompetitions.css';
+import { useEffect, useState } from 'react';
+import type { Competition, FantasyTeam, Player, SquadSlot, Toast } from './types';
+import { competitionFromApi, playerFromApi, teamFromApi } from './data';
+import { createFantasyTeam, fetchFantasyCompetitions, fetchFantasyPlayers, fetchMyLeagues, fetchMyTeams, fetchTeamPoints, makeFantasyTransfer, updateFantasyLineup, type FantasyTeamSelection } from '../../../services/fantasyService';
+import { fetchFanNotificationSummary, markFanNotificationRead, type NotificationItem } from '../../../services/fanNotificationsServices';
+import FantasyHub from './sections/FantasyHub'; import CompetitionDetail from './sections/CompetitionDetail'; import SquadBuilder from './sections/SquadBuilder'; import MyTeam from './sections/MyTeam'; import Transfers from './sections/Transfers'; import Leagues from './sections/Leagues';
+import { BellIcon,TrophyIcon } from './sections/shared'; import { Drawer } from './sections/Modal'; import Sidebar from '../../../components/fan/Sidebar'; import Footer from '../../../components/landing/Footer'; import { SPORT_META } from './SportMeta'; import './FantasyCompetitions.css';
 
-type Screen = 'hub' | 'competition' | 'build' | 'team' | 'transfers' | 'leagues';
+type Screen='hub'|'competition'|'build'|'team'|'transfers'|'leagues';
+function selections(squad:SquadSlot[],captain:string|null,vice:string|null):FantasyTeamSelection[]{return squad.map(s=>({fantasy_player:s.playerId,is_starter:s.isStarter,bench_order:s.isStarter?null:s.benchOrder??0,is_captain:s.playerId===captain,is_vice_captain:s.playerId===vice}));}
 
-const MANAGER_NAME = 'Happy Fan';
-
-export default function App() {
-  const [screen, setScreen] = useState<Screen>('hub');
-  const [activeCompetition, setActiveCompetition] = useState<Competition | null>(null);
-  const [teams, setTeams] = useState<Record<string, FantasyTeam>>({});
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  function pushToast(message: string, tone: Toast['tone'] = 'success') {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((t) => [...t, { id, message, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
-  }
-
-  function goHub() {
-    setScreen('hub');
-    setActiveCompetition(null);
-  }
-
-  function openCompetition(c: Competition) {
-    setActiveCompetition(c);
-    setScreen('competition');
-  }
-
-  function manageTeam(c: Competition) {
-    setActiveCompetition(c);
-    setScreen('team');
-  }
-
-  function startBuild(c: Competition) {
-    setActiveCompetition(c);
-    setScreen('build');
-  }
-
-  function handleSubmitted(
-    competition: Competition,
-    result: { squad: SquadSlot[]; captainId: string; viceCaptainId: string; teamName: string },
-  ) {
-    const rules = SPORT_RULES[competition.sport];
-    setTeams((prev) => ({
-      ...prev,
-      [competition.id]: {
-        competitionId: competition.id,
-        teamName: result.teamName,
-        managerName: MANAGER_NAME,
-        budgetRemaining: rules.budget - 0, // recalculated lazily by screens that need it
-        squad: result.squad,
-        captainId: result.captainId,
-        viceCaptainId: result.viceCaptainId || null,
-        freeTransfers: 1,
-        totalPoints: 0,
-        gwPoints: 0,
-        overallRank: null,
-        submitted: true,
-      },
-    }));
-    pushToast(`${result.teamName} entered ${competition.shortName}. Good luck this gameweek!`);
-    setScreen('team');
-  }
-
-  function handleTransfersConfirmed(
-    competition: Competition,
-    moves: { outId: string; inId: string; pointsCost: number }[],
-    newBudget: number,
-  ) {
-    setTeams((prev) => {
-      const team = prev[competition.id];
-      if (!team) return prev;
-      let squad = team.squad;
-      moves.forEach((m) => {
-        squad = squad.map((s) => (s.playerId === m.outId ? { ...s, playerId: m.inId } : s));
-      });
-      const totalCost = moves.reduce((s, m) => s + m.pointsCost, 0);
-      return {
-        ...prev,
-        [competition.id]: {
-          ...team,
-          squad,
-          budgetRemaining: newBudget,
-          freeTransfers: Math.max(0, team.freeTransfers - moves.length),
-          totalPoints: Math.max(0, team.totalPoints - totalCost),
-        },
-      };
-    });
-    pushToast(`${moves.length} transfer${moves.length > 1 ? 's' : ''} confirmed.`, 'success');
-    setScreen('team');
-  }
-
-  const activeTeam = activeCompetition ? teams[activeCompetition.id] : undefined;
-
-
-  return (
-    <div className="app-shell">
-        <Sidebar
-  isOpen={sidebarOpen}
-  onClose={() => setSidebarOpen(false)}
-/>
-<div className="fantasy-content">
-      <header className="topbar">
-        
-        <nav className="topnav">
-          <button className={screen === 'hub' ? 'active' : ''} onClick={goHub}>
-            Fantasy Hub
-          </button>
-          <button
-            className={screen === 'team' ? 'active' : ''}
-            disabled={!activeTeam}
-            onClick={() => activeCompetition && setScreen('team')}
-          >
-            My Team
-          </button>
-          <button
-            className={screen === 'transfers' ? 'active' : ''}
-            disabled={!activeTeam}
-            onClick={() => activeCompetition && setScreen('transfers')}
-          >
-            Transfers
-          </button>
-          <button
-            className={screen === 'leagues' ? 'active' : ''}
-            disabled={!activeTeam}
-            onClick={() => activeCompetition && setScreen('leagues')}
-          >
-            Leagues
-          </button>
-        </nav>
-        <div className="topbar-right">
-          <button className="icon-btn" aria-label="Notifications">
-            <BellIcon />
-          </button>
-          <div className="user-chip">
-            <TrophyIcon size={14} />
-            {MANAGER_NAME}
-          </div>
-        </div>
-      </header>
-
-      <main className="app-main">
-        {screen === 'hub' && (
-          <FantasyHub teams={teams} onOpenCompetition={openCompetition} onManageTeam={manageTeam} />
-        )}
-
-        {screen === 'competition' && activeCompetition && (
-          <CompetitionDetail
-            competition={activeCompetition}
-            hasTeam={!!activeTeam}
-            onBack={goHub}
-            onCreateTeam={() => startBuild(activeCompetition)}
-            onManageTeam={() => setScreen('team')}
-          />
-        )}
-
-        {screen === 'build' && activeCompetition && (
-          <SquadBuilder
-            competition={activeCompetition}
-            teamName={`${MANAGER_NAME.split(' ')[0]}'s ${SPORT_META[activeCompetition.sport].label} XI`}
-            onCancel={() => setScreen('competition')}
-            onSubmitted={(result) => handleSubmitted(activeCompetition, result)}
-          />
-        )}
-
-        {screen === 'team' && activeCompetition && activeTeam && (
-          <MyTeam
-            competition={activeCompetition}
-            team={activeTeam}
-            onGoTransfers={() => setScreen('transfers')}
-            onSwapLineup={(starterId, benchId) => {
-              setTeams((prev) => {
-                const t = prev[activeCompetition.id];
-                if (!t) return prev;
-                const squad = t.squad.map((s) => {
-                  if (s.playerId === starterId) return { ...s, isStarter: false };
-                  if (s.playerId === benchId)   return { ...s, isStarter: true };
-                  return s;
-                });
-                return { ...prev, [activeCompetition.id]: { ...t, squad } };
-              });
-            }}
-          />
-        )}
-
-        {screen === 'transfers' && activeCompetition && activeTeam && (
-          <Transfers
-            competition={activeCompetition}
-            team={activeTeam}
-            onBack={() => setScreen('team')}
-            onConfirm={(moves, budget) => handleTransfersConfirmed(activeCompetition, moves, budget)}
-          />
-        )}
-
-        {screen === 'leagues' && activeCompetition && activeTeam && (
-          <Leagues competition={activeCompetition} team={activeTeam} />
-        )}
-
-        {(screen === 'team' || screen === 'transfers' || screen === 'leagues') && (!activeCompetition || !activeTeam) && (
-          <div className="empty-state">
-            <h3>No team selected</h3>
-            <p>Head back to the Fantasy Hub and create or open a team first.</p>
-            <button className="btn btn-primary" onClick={goHub}>
-              Go to Fantasy Hub
-            </button>
-          </div>
-        )}
-      </main>
-
-      <div className="toast-stack" aria-live="polite">
-        {toasts.map((t) => (
-          <div className={`toast toast-${t.tone}`} key={t.id}>
-            {t.message}
-          </div>
-        ))}
-      </div>
-
-      <Footer />
-
-    </div>
-    </div>
-  );
+export default function FantasyCompetitions(){
+ const [screen,setScreen]=useState<Screen>('hub'); const [competitions,setCompetitions]=useState<Competition[]>([]); const [active,setActive]=useState<Competition|null>(null); const [teams,setTeams]=useState<Record<string,FantasyTeam>>({}); const [players,setPlayers]=useState<Record<string,Player[]>>({}); const [leagueCount,setLeagueCount]=useState(0); const [notifications,setNotifications]=useState<NotificationItem[]>([]); const [notificationsOpen,setNotificationsOpen]=useState(false); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [toasts,setToasts]=useState<Toast[]>([]); const [sidebarOpen,setSidebarOpen]=useState(false);
+ function toast(message:string,tone:Toast['tone']='success'){setToasts(t=>[...t,{id:String(Date.now()),message,tone}]);}
+ async function load(){setLoading(true);setError('');try{const [apiCompetitions,apiTeams,myLeagues,noteSummary]=await Promise.all([fetchFantasyCompetitions(),fetchMyTeams(),fetchMyLeagues(),fetchFanNotificationSummary()]);const cs=apiCompetitions.map(competitionFromApi);setCompetitions(cs);setLeagueCount(myLeagues.length);setNotifications(noteSummary.notifications.filter(n=>n.eventType?.startsWith('FANTASY_')));const mapped:Record<string,FantasyTeam>={};await Promise.all(apiTeams.map(async t=>{const c=cs.find(x=>x.id===t.fantasy_competition);if(c)mapped[c.id]=teamFromApi(t,c,await fetchTeamPoints(t.id));}));setTeams(mapped);}catch(e){setError(e instanceof Error?e.message:'Could not load Fantasy.');}finally{setLoading(false);}}
+ // Initial API hydration is intentionally performed once on mount.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
+ useEffect(()=>{void load();},[]);
+ async function ensurePlayers(c:Competition){if(players[c.id])return players[c.id];const rows=(await fetchFantasyPlayers(c.id)).map(p=>playerFromApi(p,c.sport));setPlayers(prev=>({...prev,[c.id]:rows}));return rows;}
+ async function openCompetition(c:Competition,next:Screen='competition'){setActive(c);setScreen(next);try{await ensurePlayers(c);}catch(e){setError(e instanceof Error?e.message:'Could not load players.');}}
+ async function submitted(c:Competition,result:{squad:SquadSlot[];captainId:string;viceCaptainId:string;teamName:string}){try{const row=await createFantasyTeam({name:result.teamName,fantasy_competition:c.id,selections:selections(result.squad,result.captainId,result.viceCaptainId)});setTeams(prev=>({...prev,[c.id]:teamFromApi(row,c)}));toast(`${result.teamName} saved.`);setScreen('team');}catch(e){toast(e instanceof Error?e.message:'Could not save team.','warning');}}
+ async function saveSquad(c:Competition,squad:SquadSlot[],captain:string|null,vice:string|null){const team=teams[c.id];const row=await updateFantasyLineup(team.id,selections(squad,captain,vice));setTeams(prev=>({...prev,[c.id]:teamFromApi(row,c)}));toast('Lineup saved.');}
+ async function transfer(c:Competition,outId:string,inId:string){const team=teams[c.id];const gameweek=c.api.current_gameweek?.id;if(!gameweek)throw new Error('No current gameweek is available.');const row=await makeFantasyTransfer(team.id,{gameweek,player_out:outId,player_in:inId});const scores=await fetchTeamPoints(team.id);setTeams(prev=>({...prev,[c.id]:teamFromApi(row,c,scores)}));toast('Transfer confirmed.');}
+ const activeTeam=active?teams[active.id]:undefined; const pool=active?players[active.id]??[]:[];
+ return <div className="app-shell"><Sidebar isOpen={sidebarOpen} onClose={()=>setSidebarOpen(false)}/><div className="fantasy-content"><header className="topbar"><nav className="topnav"><button className={screen==='hub'?'active':''} onClick={()=>{setScreen('hub');setActive(null)}}>Fantasy Hub</button><button disabled={!activeTeam} onClick={()=>setScreen('team')}>My Team</button><button disabled={!activeTeam} onClick={()=>setScreen('transfers')}>Transfers</button><button disabled={!activeTeam} onClick={()=>setScreen('leagues')}>Leagues</button></nav><div className="topbar-right"><button className="icon-btn" aria-label="Fantasy notifications" onClick={()=>setNotificationsOpen(true)}><BellIcon/>{notifications.filter(n=>!n.isRead).length||''}</button><div className="user-chip"><TrophyIcon size={14}/>Fantasy Manager</div></div></header><main className="app-main">
+ {loading&&<div className="empty-state"><h3>Loading Fantasy…</h3></div>}{error&&<div className="empty-state" role="alert"><h3>Fantasy unavailable</h3><p>{error}</p><button className="btn btn-primary" onClick={()=>void load()}>Try again</button></div>}
+ {!loading&&!error&&screen==='hub'&&<FantasyHub teams={teams} competitions={competitions} leagueCount={leagueCount} onOpenCompetition={c=>void openCompetition(c)} onManageTeam={c=>void openCompetition(c,'team')}/>} {screen==='competition'&&active&&<CompetitionDetail competition={active} hasTeam={!!activeTeam} onBack={()=>setScreen('hub')} onCreateTeam={()=>setScreen('build')} onManageTeam={()=>setScreen('team')}/>} {screen==='build'&&active&&<SquadBuilder competition={active} players={pool} teamName={`My ${SPORT_META[active.sport].label} Team`} onCancel={()=>setScreen('competition')} onSubmitted={r=>void submitted(active,r)}/>} {screen==='team'&&active&&activeTeam&&<MyTeam competition={active} team={activeTeam} players={pool} onGoTransfers={()=>setScreen('transfers')} onSwapLineup={(starter,bench)=>{const squad=activeTeam.squad.map(s=>s.playerId===starter?{...s,isStarter:false}:s.playerId===bench?{...s,isStarter:true}:s);void saveSquad(active,squad,activeTeam.captainId,activeTeam.viceCaptainId).catch(e=>toast(e instanceof Error?e.message:'Could not save lineup.','warning'));}}/>} {screen==='transfers'&&active&&activeTeam&&<Transfers competition={active} team={activeTeam} players={pool} onBack={()=>setScreen('team')} onConfirm={(o,i)=>transfer(active,o,i)}/>} {screen==='leagues'&&active&&activeTeam&&<Leagues competition={active} team={activeTeam}/>}</main>
+ {notificationsOpen&&<Drawer title="Fantasy notifications" subtitle={`${notifications.filter(n=>!n.isRead).length} unread`} onClose={()=>setNotificationsOpen(false)}>{notifications.length?notifications.map(n=><button className="league-card" key={n.id} onClick={()=>void markFanNotificationRead(n.id).then(()=>setNotifications(rows=>rows.map(x=>x.id===n.id?{...x,isRead:true}:x)))}><strong>{n.title}</strong><span>{n.message}</span></button>):<p>No Fantasy notifications.</p>}</Drawer>}<div className="toast-stack" aria-live="polite">{toasts.map(t=><div className={`toast toast-${t.tone}`} key={t.id}>{t.message}</div>)}</div><Footer/></div></div>;
 }

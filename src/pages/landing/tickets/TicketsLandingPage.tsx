@@ -231,6 +231,7 @@ export default function TicketsLandingPage() {
       <Navbar />
 
       <main className="tickets-main">
+        <div className="tickets-inner">
         <div className="tickets-page-actions">
           <BackButton />
 
@@ -251,14 +252,6 @@ export default function TicketsLandingPage() {
         </div>
 
         <section className="tickets-header tickets-hero-panel">
-          <div className="tickets-breadcrumb">
-            <button type="button" onClick={() => navigate('/')}>
-              Home
-            </button>
-            <span>›</span>
-            <span>Tickets</span>
-          </div>
-
           <h1>
             <span className="tickets-header-plain">Match </span>
             <span className="tickets-header-accent">Tickets</span>
@@ -380,6 +373,7 @@ export default function TicketsLandingPage() {
             No ticketable backend fixtures are currently available.
           </div>
         )}
+        </div>{/* end tickets-inner */}
       </main>
 
       <Footer />

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     Circle,
-    Shield,
     Bookmark,
     Clock,
     ArrowDown,
@@ -13,59 +12,9 @@ import Navbar from "../../../components/landing/Navbar";
 import Footer from "../../../components/landing/Footer";
 import { fetchNews, type Story } from "../../../services/newsService";
 
+/* ---------- Constants ---------- */
 
-
-
-
-/* ---------- Types ---------- */
-
-interface TrendingStory {
-    rank: number;
-    image: string;
-    title: string;
-    time: string;
-}
-
-/* ---------- Sample content ---------- */
-
-const filters = ["All", "Football", "Rugby", "Basketball", "Clubs"] as const;
-
-const trendingStories: TrendingStory[] = [
-    {
-        rank: 1,
-        image:  "/images/vipersvs.jfif",
-        title: "Vipers edge KCCA in title race clash",
-        time: "2h ago",
-    },
-    {
-        rank: 2,
-        image:
-            "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=200&auto=format&fit=crop",
-        title: "City Oilers strengthen roster ahead of NBL second round",
-        time: "4h ago",
-    },
-    {
-        rank: 3,
-        image:
-            "https://images.unsplash.com/photo-1518063319789-7217e6706b04?q=80&w=200&auto=format&fit=crop",
-        title: "SC Villa prepare for crucial Uganda Premier League clash",
-        time: "5h ago",
-    },
-    {
-        rank: 4,
-        image:
-            "/images/fantasy.jfif",
-        title: "Fantasy tips for Gameweek 28",
-        time: "6h ago",
-    },
-    {
-        rank: 5,
-        image:
-            "/images/express-fc.jfif",
-        title: "Express FC unveil new home jersey",
-        time: "8h ago",
-    },
-];
+const filters = ["All", "Football", "Rugby", "Basketball"] as const;
 
 /* ---------- Component ---------- */
 
@@ -86,8 +35,25 @@ const NewsPage: React.FC = () => {
         };
     }, []);
 
+    const heroStory: Story | undefined =
+        stories.find((s) => (s as Story & { isFeatured?: boolean }).isFeatured) ?? stories[0];
+
+    const trendingStories = stories.slice(0, 5);
+
+    const INITIAL_COUNT = 6;
+    const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+
+    // Reset count when filter changes so we always start at 2 rows
+    const handleFilterChange = (f: (typeof filters)[number]) => {
+        setActiveFilter(f);
+        setVisibleCount(INITIAL_COUNT);
+    };
+
     const visibleStories =
         activeFilter === "All" ? stories : stories.filter((s) => s.category === activeFilter);
+
+    const displayedStories = visibleStories.slice(0, visibleCount);
+    const hasMore = visibleCount < visibleStories.length;
 
     return (
         <div className="news-page">
@@ -100,50 +66,51 @@ const NewsPage: React.FC = () => {
                     <div className="news-content">
                         {/* Hero */}
                         <section className="news-hero">
-    <h1 className="news-hero__title">
-        The latest from{" "}
-        <span className="news-hero__title-accent">
-            Ugandan sport.
-        </span>
-    </h1>
+                            <h1 className="news-hero__title">
+                                The latest from{" "}
+                                <span className="news-hero__title-accent">
+                                    Ugandan sport.
+                                </span>
+                            </h1>
 
-    <p className="news-hero__subtitle">
-        Stories, match previews, results, transfers and fan updates across football,
-        rugby and basketball.
-    </p>
+                            <p className="news-hero__subtitle">
+                                Stories, match previews, results, transfers and fan updates across football,
+                                rugby and basketball.
+                            </p>
 
-    <div className="news-hero-card">
-        <img
-            src="/images/vipersvs.jfif"
-            alt="Vipers edge KCCA in title race clash"
-            className="news-hero-card__image"
-        />
+                            {heroStory && (
+                                <div className="news-hero-card">
+                                    <img
+                                        src={heroStory.image}
+                                        alt={heroStory.title}
+                                        className="news-hero-card__image"
+                                    />
 
-        <div className="news-hero-card__overlay" />
+                                    <div className="news-hero-card__overlay" />
 
-        <div className="news-hero-card__content">
-            <span className="news-badge news-badge--top-story">
-                TOP STORY
-            </span>
+                                    <div className="news-hero-card__content">
+                                        <span className="news-badge news-badge--top-story">
+                                            TOP STORY
+                                        </span>
 
-            <h2 className="news-hero-card__title">
-                Vipers edge KCCA in title race clash
-            </h2>
+                                        <h2 className="news-hero-card__title">
+                                            {heroStory.title}
+                                        </h2>
 
-            <p className="news-hero-card__desc">
-                A late strike from Allan Okello sealed all three points for Vipers SC in a
-                tense encounter at St. Mary's Stadium.
-            </p>
+                                        <p className="news-hero-card__desc">
+                                            {heroStory.description}
+                                        </p>
 
-            <div className="news-hero-card__meta">
-                <Clock size={14} />
-                <span>2h ago</span>
-                <span className="news-dot">•</span>
-                <span>Football</span>
-            </div>
-        </div>
-    </div>
-</section>
+                                        <div className="news-hero-card__meta">
+                                            <Clock size={14} />
+                                            <span>{heroStory.time}</span>
+                                            <span className="news-dot">•</span>
+                                            <span>{heroStory.category}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </section>
 
                         {/* Filters */}
                         <div className="filters">
@@ -151,13 +118,12 @@ const NewsPage: React.FC = () => {
                                 <button
                                     key={f}
                                     className={`filter-pill ${activeFilter === f ? "filter-pill--active" : ""}`}
-                                    onClick={() => setActiveFilter(f)}
+                                    onClick={() => handleFilterChange(f)}
                                 >
                                     {f === "All" && null}
                                     {f === "Football" && <Circle size={16} />}
                                     {f === "Rugby" && <Circle size={16} />}
                                     {f === "Basketball" && <Circle size={16} />}
-                                    {f === "Clubs" && <Shield size={16} />}
                                     {f}
                                 </button>
                             ))}
@@ -165,7 +131,7 @@ const NewsPage: React.FC = () => {
 
                         {/* Story grid */}
                         <div className="story-grid">
-                            {visibleStories.map((story) => (
+                            {displayedStories.map((story) => (
                                 <article className="story-card" key={story.id}>
                                     <div className="story-card__image-wrap">
                                         <Link to={`/news/${story.id}`} className="story-card__image-link">
@@ -199,9 +165,21 @@ const NewsPage: React.FC = () => {
                             ))}
                         </div>
 
-                        <button className="load-more">
-                            Load more stories <ArrowDown size={16} />
-                        </button>
+                        {hasMore ? (
+                            <button
+                                className="load-more"
+                                onClick={() => setVisibleCount((c) => c + INITIAL_COUNT)}
+                            >
+                                Load more stories <ArrowDown size={16} />
+                            </button>
+                        ) : visibleCount > INITIAL_COUNT ? (
+                            <button
+                                className="load-more"
+                                onClick={() => setVisibleCount(INITIAL_COUNT)}
+                            >
+                                View less <ArrowDown size={16} style={{ transform: 'rotate(180deg)' }} />
+                            </button>
+                        ) : null}
                     </div>
 
                     {/* Sidebar */}
@@ -209,21 +187,20 @@ const NewsPage: React.FC = () => {
                         {/* Trending */}
                         <div className="panel">
                             <div className="panel__header">
-                                <h3>TRENDING STORIES</h3>
-                                <a href="#view-all" className="panel__link">
-                                    View all
-                                </a>
+                                <h3>TOP 5 TRENDING STORIES</h3>
                             </div>
                             <ul className="trending-list">
-                                {trendingStories.map((t) => (
-                                    <li className="trending-item" key={t.rank}>
-                                        <span className="trending-item__rank">{t.rank}</span>
-                                        <img src={t.image} alt={t.title} className="trending-item__image" />
+                                {trendingStories.map((story, index) => (
+                                    <Link to={`/news/${story.id}`} className="trending-item-link" key={story.id}>
+                                    <li className="trending-item">
+                                        <span className="trending-item__rank">{index + 1}</span>
+                                        <img src={story.image} alt={story.title} className="trending-item__image" />
                                         <div className="trending-item__body">
-                                            <p className="trending-item__title">{t.title}</p>
-                                            <span className="trending-item__time">{t.time}</span>
+                                            <p className="trending-item__title">{story.title}</p>
+                                            <span className="trending-item__time">{story.time}</span>
                                         </div>
                                     </li>
+                                    </Link>
                                 ))}
                             </ul>
                         </div>
@@ -252,7 +229,7 @@ const NewsPage: React.FC = () => {
             </main>
 
             {/* Footer */}
-          <Footer />
+            <Footer />
         </div>
     );
 };

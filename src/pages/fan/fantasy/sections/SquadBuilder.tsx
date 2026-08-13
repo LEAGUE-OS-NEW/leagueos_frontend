@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { Competition, Player, PositionGroup, SquadSlot } from '../types';
-import { SPORT_RULES, playersFor } from '../data';
+import { rulesFor } from '../data';
 import { SearchBar, FilterIcon, Badge, ChevronIcon } from './shared';
 import PlayerAvatar from './PlayerAvatar';
 import PlayerDrawer from './PlayerDrawer';
@@ -10,14 +10,14 @@ type Step = 'squad' | 'lineup' | 'review';
 
 interface Props {
   competition: Competition;
+  players: Player[];
   teamName: string;
   onCancel: () => void;
   onSubmitted: (result: { squad: SquadSlot[]; captainId: string; viceCaptainId: string; teamName: string }) => void;
 }
 
-export default function SquadBuilder({ competition, teamName: initialTeamName, onCancel, onSubmitted }: Props) {
-  const rules = SPORT_RULES[competition.sport];
-  const pool = useMemo(() => playersFor(competition.id), [competition.id]);
+export default function SquadBuilder({ competition, players: pool, teamName: initialTeamName, onCancel, onSubmitted }: Props) {
+  const rules = rulesFor(competition);
 
   const [step, setStep] = useState<Step>('squad');
   const [squadIds, setSquadIds] = useState<string[]>([]);
@@ -78,7 +78,7 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
     .filter((p) => (activeSlotGroup ? p.position === activeSlotGroup : posFilter === 'all' || p.position === posFilter))
     .filter((p) => clubFilter === 'all' || p.club === clubFilter)
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.club.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => b.totalPoints - a.totalPoints);
+    .sort((a, b) => (b.totalPoints ?? -1) - (a.totalPoints ?? -1));
 
   // -------------------------------------------------------------- lineup step
   function toggleStarter(id: string) {
@@ -255,8 +255,8 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
                       </span>
                     </button>
                     <span>{p.price.toFixed(1)}</span>
-                    <span className={p.form >= 6 ? 'good' : ''}>{p.form.toFixed(1)}</span>
-                    <span>{p.totalPoints}</span>
+                    <span className={p.form !== null && p.form >= 6 ? 'good' : ''}>{p.form === null ? 'Unavailable' : p.form.toFixed(1)}</span>
+                    <span>{p.totalPoints ?? 'Awaiting statistics'}</span>
                     <button className="btn btn-add" disabled={!canAdd(p)} onClick={() => addPlayer(p)}>
                       +
                     </button>

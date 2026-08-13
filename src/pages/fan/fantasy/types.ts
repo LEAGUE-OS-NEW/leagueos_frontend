@@ -25,10 +25,10 @@ export interface Player {
   position: PositionGroup;
   positionLabel: string;
   price: number; // in "M" fantasy currency
-  form: number; // last 5 gameweeks avg
-  totalPoints: number;
-  gwPoints: number;
-  ownership: number; // percent of managers who own this player
+  form: number | null;
+  totalPoints: number | null;
+  gwPoints: number | null;
+  ownership: number | null;
   status: PlayerStatus;
   statusNote?: string;
 }
@@ -45,6 +45,8 @@ export interface SportRules {
   multiplierLabel: string; // "Captain" / "Star Player"
 }
 
+import type { FantasyCompetition, FantasyTeamScore } from '../../../services/fantasyService';
+
 export interface Competition {
   id: string;
   sport: Sport;
@@ -58,6 +60,7 @@ export interface Competition {
   deadline: string; // display string
   deadlineISO: string;
   description: string;
+  api: FantasyCompetition;
 }
 
 export interface SquadSlot {
@@ -67,6 +70,7 @@ export interface SquadSlot {
 }
 
 export interface FantasyTeam {
+  id: string;
   competitionId: string;
   teamName: string;
   managerName: string;
@@ -79,6 +83,8 @@ export interface FantasyTeam {
   gwPoints: number;
   overallRank: number | null;
   submitted: boolean;
+  score?: FantasyTeamScore;
+  competition?: Competition;
 }
 
 export interface MiniLeague {

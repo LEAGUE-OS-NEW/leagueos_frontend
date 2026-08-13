@@ -1,18 +1,19 @@
 import apiClient from './apiClient.ts';
-import { extractApiError, normalizeApiList, unwrapApiData } from './apiUtils.ts';
+import { extractApiError, unwrapApiData } from './apiUtils.ts';
 
-const NOTIFICATIONS_PATH = '/notifications/';
-const UNREAD_COUNT_PATH = '/notifications/unread-count/';
+// NOTE: adjust these to match your backend's actual routes if different.
+const NOTIFICATIONS_SUMMARY_PATH = '/notifications/summary/';
 const NOTIFICATION_READ_PATH = (id: string) => `/notifications/${encodeURIComponent(id)}/read/`;
-const NOTIFICATIONS_MARK_ALL_READ_PATH = '/notifications/mark-all-read/';
+const NOTIFICATIONS_READ_ALL_PATH = '/notifications/read-all/';
 
 export interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  createdAt: string;
   isRead: boolean;
+  createdAt: string;
   link?: string;
+  eventType?: string;
 }
 
 export interface NotificationSummary {
@@ -20,17 +21,19 @@ export interface NotificationSummary {
   unreadCount: number;
 }
 
-interface BackendNotification {
+// Backend (snake_case) shapes — adjust field names here if they differ.
+interface NotificationApi {
   id: string;
   title: string;
   message: string;
-  deep_link_path?: string | null;
-  occurred_at?: string | null;
+  is_read: boolean;
   created_at: string;
-  read_at?: string | null;
+  link?: string | null;
+  event_type?: string;
 }
 
-interface UnreadCountResponse {
+interface NotificationSummaryApi {
+  notifications: NotificationApi[];
   unread_count: number;
 }
 
@@ -39,58 +42,46 @@ function apiError(error: unknown): Error {
   return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
 }
 
-function adaptNotification(notification: BackendNotification): NotificationItem {
+function adaptNotification(notification: NotificationApi): NotificationItem {
   return {
     id: notification.id,
     title: notification.title,
     message: notification.message,
-    createdAt: notification.occurred_at ?? notification.created_at,
-    isRead: Boolean(notification.read_at),
-    link: notification.deep_link_path ?? undefined,
+    isRead: notification.is_read,
+    createdAt: notification.created_at,
+    link: notification.link ?? undefined,
+    eventType: notification.event_type,
   };
 }
 
-export async function fetchFanNotifications(): Promise<NotificationItem[]> {
-  try {
-    const response = await apiClient.get(NOTIFICATIONS_PATH);
-    return normalizeApiList<BackendNotification>(response.data).map(adaptNotification);
-  } catch (error) {
-    throw apiError(error);
-  }
-}
-
-export async function fetchFanUnreadNotificationCount(): Promise<number> {
-  try {
-    const response = await apiClient.get(UNREAD_COUNT_PATH);
-    const data = unwrapApiData<UnreadCountResponse>(response.data);
-    return data.unread_count;
-  } catch (error) {
-    throw apiError(error);
-  }
-}
-
 export async function fetchFanNotificationSummary(): Promise<NotificationSummary> {
-  const [notifications, unreadCount] = await Promise.all([
-    fetchFanNotifications(),
-    fetchFanUnreadNotificationCount(),
-  ]);
-
-  return { notifications, unreadCount };
+  try {
+    const response = await apiClient.get(NOTIFICATIONS_SUMMARY_PATH);
+    const data = unwrapApiData<NotificationSummaryApi>(response.data);
+    return {
+      notifications: data.notifications.map(adaptNotification),
+      unreadCount: data.unread_count,
+    };
+  } catch (error) {
+    throw apiError(error);
+  }
 }
 
 export async function markFanNotificationRead(id: string): Promise<NotificationItem> {
   try {
-    const response = await apiClient.post(NOTIFICATION_READ_PATH(id));
-    const data = unwrapApiData<BackendNotification>(response.data);
+    const response = await apiClient.patch(NOTIFICATION_READ_PATH(id), { is_read: true });
+    const data = unwrapApiData<NotificationApi>(response.data);
     return adaptNotification(data);
   } catch (error) {
     throw apiError(error);
   }
 }
 
-export async function markAllFanNotificationsRead(): Promise<void> {
+export async function markAllFanNotificationsRead(): Promise<NotificationItem[]> {
   try {
-    await apiClient.post(NOTIFICATIONS_MARK_ALL_READ_PATH);
+    const response = await apiClient.post(NOTIFICATIONS_READ_ALL_PATH);
+    const data = unwrapApiData<NotificationApi[]>(response.data);
+    return data.map(adaptNotification);
   } catch (error) {
     throw apiError(error);
   }

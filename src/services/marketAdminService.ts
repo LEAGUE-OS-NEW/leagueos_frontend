@@ -22,7 +22,7 @@ export const MARKET_CATEGORIES = [
 ] as const;
 export type MarketCategory = (typeof MARKET_CATEGORIES)[number];
 
-export type MarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Resolved' | 'Voided' | 'Cancelled';
+export type MarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Suspended' | 'Resolved' | 'Voided' | 'Cancelled';
 export type OutcomeId = 'YES' | 'NO';
 export type ProposalStatus = 'New' | 'Under Review' | 'Converted' | 'Rejected' | 'Duplicate';
 
@@ -178,7 +178,8 @@ function backendStatusToAdminStatus(market: ApiMarket): MarketStatus {
   }
   if (market.status === 'RESOLVED') return 'Resolved';
   if (market.status === 'VOIDED') return 'Voided';
-  if (market.status === 'CANCELLED' || market.status === 'CLOSED' || market.status === 'SUSPENDED') return 'Cancelled';
+  if (market.status === 'SUSPENDED') return 'Suspended';
+  if (market.status === 'CANCELLED' || market.status === 'CLOSED') return 'Cancelled';
   return market.sporting_event?.starts_at && new Date(market.sporting_event.starts_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
 }
 
@@ -301,6 +302,33 @@ export async function fetchMarket(id: string): Promise<Market> {
   try {
     const response = await apiClient.get(`/market-admin/markets/${encodeURIComponent(id)}/`);
     return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export interface MarketStats {
+  volumeUgx: number;
+  fillCount: number;
+}
+
+/** Real fill-derived UGX volume + contract counts, keyed by market id. */
+export async function fetchMarketAdminStats(marketIds: string[]): Promise<Map<string, MarketStats>> {
+  if (marketIds.length === 0) return new Map();
+
+  try {
+    const response = await apiClient.get('/market-admin/markets/stats/', {
+      params: { market_ids: marketIds.join(',') },
+    });
+    const data = response.data as {
+      markets: Array<{ market_id: string; total_volume_ugx: string; fill_count: number }>;
+    };
+    return new Map(
+      data.markets.map((item) => [
+        item.market_id,
+        { volumeUgx: Number(item.total_volume_ugx), fillCount: item.fill_count },
+      ]),
+    );
   } catch (error) {
     throw apiError(error);
   }
@@ -444,6 +472,36 @@ export async function cancelMarket(id: string, reason: string): Promise<Market> 
       }
       const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/close/`, { notes: reason.trim() });
       return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function suspendMarket(id: string, reason: string): Promise<Market> {
+  if (!reason.trim()) fail('A suspension reason is required.');
+  try {
+    const market = await fetchMarket(id);
+    if (market.status !== 'Live' && market.status !== 'Upcoming') {
+      fail('Only open markets can be suspended.');
+    }
+    const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/suspend/`, { notes: reason.trim() });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function reopenMarket(id: string): Promise<Market> {
+  try {
+    const market = await fetchMarket(id);
+    if (market.status !== 'Suspended') {
+      fail('Only suspended markets can be reopened.');
+    }
+    const response = await apiClient.post(
+      `/market-admin/markets/${encodeURIComponent(id)}/reopen/`,
+      lifecycleNote(market, 'Reopened'),
+    );
+    return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {
     throw apiError(error);
   }

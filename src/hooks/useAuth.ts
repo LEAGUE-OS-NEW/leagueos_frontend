@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.ts';
 import * as authApi from '../services/authServices.ts';
 import type {
@@ -7,6 +8,7 @@ import type {
 import { unwrapApiData } from '../services/apiUtils.ts';
 
 export function useAuth() {
+  const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
@@ -30,6 +32,7 @@ export function useAuth() {
 
   const logout = () => {
     clearAuth();
+    navigate('/login', { replace: true });
   };
 
   return { login, logout };

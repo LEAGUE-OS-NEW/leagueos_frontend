@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
+import { useAuth } from '../../hooks/useAuth';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY as FULL_REGISTRY, ROLE_LABELS } from './clubAdminData';
 import type { DashboardEntitlement } from '../../types/dashboardAccess';
 import './ClubAdminSidebar.css';
@@ -41,6 +42,7 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
+  const { logout } = useAuth();
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId, selectEntitlement } = useClubWorkspaceStore();
 
@@ -179,7 +181,7 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
         </nav>
 
         <div className="ca-sidebar-bottom">
-          <button type="button" className="ca-sidebar-logout">
+          <button type="button" className="ca-sidebar-logout" onClick={logout}>
             <FiLogOut />
             {!collapsed && <span>Log Out</span>}
           </button>
