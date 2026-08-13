@@ -14,6 +14,7 @@
 
 import apiClient from './apiClient.ts';
 import { normalizeApiList } from './apiUtils.ts';
+import type { DashboardIdentifier } from '../types/dashboardAccess.ts';
 
 export interface AdminRole {
   id: string;
@@ -119,6 +120,39 @@ export async function fetchAdminRoles(): Promise<AdminRole[]> {
     .filter((role) => PLATFORM_ADMIN_ROLE_NAMES.has(role.name));
 }
 
+// Inverse of PLATFORM_ADMIN_ROLE_NAMES — resolves a real Role.name string
+// (as returned by GET /admin/me/) to the frontend's DashboardIdentifier, so
+// useActiveAdminRole can drive the shell's role switcher off the admin's
+// actual permissions instead of login-time dashboard_access entitlements.
+const PLATFORM_ROLE_NAME_TO_IDENTIFIER: Record<string, DashboardIdentifier> = {
+  'Super Admin': 'SUPER_ADMIN',
+  'Sports Data & Statistics Admin': 'SPORTS_DATA_STATISTICS_ADMIN',
+  'Market Operations & Approval Admin': 'MARKET_OPERATIONS_ADMIN',
+  'Result Verification Admin': 'RESULT_VERIFICATION_ADMIN',
+  'Compliance Admin': 'COMPLIANCE_ADMIN',
+  'Finance Admin': 'FINANCE_ADMIN',
+  'Customer Support Admin': 'CUSTOMER_SUPPORT_ADMIN',
+};
+
+export interface MyAdminAccess {
+  roles: DashboardIdentifier[];
+  permissions: string[];
+}
+
+// Real — GET /admin/me/. Returns the logged-in admin's actual roles and
+// permissions, unlike dashboard_access (set once at login/hydration, which
+// can drift from what the backend currently grants this account).
+export async function fetchMyAdminAccess(): Promise<MyAdminAccess> {
+  const response = await apiClient.get('/admin/me/');
+  const raw = response.data as Record<string, unknown>;
+  const rawRoles = Array.isArray(raw.roles) ? raw.roles.map(String) : [];
+  const rawPermissions = Array.isArray(raw.permissions) ? raw.permissions.map(String) : [];
+  const roles = rawRoles
+    .map((name) => PLATFORM_ROLE_NAME_TO_IDENTIFIER[name])
+    .filter((identifier): identifier is DashboardIdentifier => Boolean(identifier));
+  return { roles, permissions: rawPermissions };
+}
+
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
   const response = await apiClient.get('/admin/users/');
   return normalizeApiList<Record<string, unknown>>(response.data).map(adaptUser);
@@ -159,6 +193,35 @@ export async function assignAdminRole(userId: string, roleId: string): Promise<A
 export async function revokeAdminRole(userId: string, roleId: string): Promise<AdminUser> {
   const response = await apiClient.delete(`/admin/users/${encodeURIComponent(userId)}/roles/${encodeURIComponent(roleId)}/`);
   return adaptUser(response.data);
+}
+
+/* ------------------------------------------------------------------ */
+/* Incompatible-role guard — client-side, ahead of the backend         */
+/*                                                                       */
+/* The backend has no segregation-of-duties enforcement yet (only a     */
+/* "can't remove the last Super Admin" guard) — flagged in the backend  */
+/* report as a real ask. This is a real, useful stand-in in the         */
+/* meantime, not a mock: it genuinely prevents conflicting assignments  */
+/* through this UI, it just can't stop a direct API call the way a real */
+/* server-side rule eventually should.                                  */
+/* ------------------------------------------------------------------ */
+
+const CONFLICTING_ROLE_PAIRS: [string, string][] = [
+  ['Finance Admin', 'Result Verification Admin'],
+  ['Finance Admin', 'Market Operations & Approval Admin'],
+  ['Compliance Admin', 'Finance Admin'],
+  ['Market Operations & Approval Admin', 'Result Verification Admin'],
+];
+
+// Super Admin is exempt — it already legitimately holds full authority by
+// design, so it isn't a "conflict" for it to also carry a specialist role.
+export function findRoleConflict(currentRoleNames: string[], candidateRoleName: string): string | null {
+  if (candidateRoleName === 'Super Admin' || currentRoleNames.includes('Super Admin')) return null;
+  for (const [a, b] of CONFLICTING_ROLE_PAIRS) {
+    if (candidateRoleName === a && currentRoleNames.includes(b)) return b;
+    if (candidateRoleName === b && currentRoleNames.includes(a)) return a;
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

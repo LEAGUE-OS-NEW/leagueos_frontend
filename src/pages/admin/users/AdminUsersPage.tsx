@@ -7,6 +7,7 @@ import {
   fetchAdminRoles,
   fetchAdminUsers,
   fetchRealClubs,
+  findRoleConflict,
   inviteAdminUser,
   inviteClubAdmin,
   revokeAdminInvitation,
@@ -395,6 +396,17 @@ function AdminUsersPage() {
   const handleAddRole = async (userId: string) => {
     if (!pendingRoleId) return;
     setActionError(null);
+
+    const targetUser = users.find((item) => item.id === userId);
+    const candidateRole = roles.find((item) => item.id === pendingRoleId);
+    if (targetUser && candidateRole) {
+      const conflict = findRoleConflict(targetUser.roles, candidateRole.name);
+      if (conflict) {
+        setActionError(`Can't add ${candidateRole.displayName} — conflicts with ${conflict}, already held by this admin.`);
+        return;
+      }
+    }
+
     try {
       const updated = await assignAdminRole(userId, pendingRoleId);
       setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));

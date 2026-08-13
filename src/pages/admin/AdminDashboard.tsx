@@ -75,7 +75,7 @@ function buildStatCards(summary: AdminDashboardSummary): { key: string; icon: Ic
 }
 
 function AdminDashboard() {
-  const { activeRole } = useActiveAdminRole();
+  const { activeRole, isLoading: isRoleLoading } = useActiveAdminRole();
   const isSuperAdmin = activeRole === 'SUPER_ADMIN';
 
   const myModules = ADMIN_NAV_ITEMS.filter(
@@ -110,11 +110,15 @@ function AdminDashboard() {
       <div className="admin-dashboard">
         <div className="admin-dashboard__header">
           <p className="admin-dashboard__eyebrow">Welcome back</p>
-          <h1>{isSuperAdmin ? 'Platform Overview' : `${ADMIN_ROLE_LABELS[activeRole]} Overview`}</h1>
+          <h1>
+            {isRoleLoading ? 'Overview' : isSuperAdmin ? 'Platform Overview' : `${ADMIN_ROLE_LABELS[activeRole]} Overview`}
+          </h1>
           <p>
-            {isSuperAdmin
-              ? 'A snapshot of markets, users and platform health across League OS.'
-              : 'Your queues and workspace at a glance.'}
+            {isRoleLoading
+              ? 'Loading your workspace…'
+              : isSuperAdmin
+                ? 'A snapshot of markets, users and platform health across League OS.'
+                : 'Your queues and workspace at a glance.'}
           </p>
         </div>
 

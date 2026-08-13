@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useAuthStore } from '../store/authStore.ts';
-import { getEntitlementsForDashboard } from '../utils/dashboardAccess.ts';
+import { useEffect, useState } from 'react';
+import { fetchMyAdminAccess } from '../services/adminUsersService.ts';
 import type { DashboardIdentifier } from '../types/dashboardAccess.ts';
 
 export const ADMIN_ROLES: DashboardIdentifier[] = [
@@ -17,27 +16,47 @@ interface UseActiveAdminRole {
   activeRole: DashboardIdentifier;
   availableRoles: DashboardIdentifier[];
   switchRole: (role: DashboardIdentifier) => void;
+  isLoading: boolean;
 }
 
 // Picks which admin role the shared shell renders for right now, and lets
-// an admin holding more than one specialist entitlement switch between
-// them (the workbook's "Active Permission Group switcher").
+// an admin holding more than one specialist role switch between them (the
+// workbook's "Active Permission Group switcher").
 //
-// Frontend-only affordance, not a security control: while the backend's
-// dashboard_access payload for these merged/rebuilt admin roles is still
-// catching up, this defaults to full Super Admin visibility whenever no
-// matching entitlement is present, so the shell stays fully navigable for
-// review and demo purposes. Once real entitlements arrive it reflects them.
+// Backed by the real GET /admin/me/ (via fetchMyAdminAccess) — the
+// logged-in admin's actual roles, not the dashboard_access entitlements
+// captured once at login, which can drift from what the backend currently
+// grants this account. AdminRoute.tsx remains the real security gate for
+// whether this user belongs in the admin shell at all; this hook only
+// decides which of possibly-several specialist views to show once they're
+// already in.
 export function useActiveAdminRole(): UseActiveAdminRole {
-  const dashboardAccess = useAuthStore((state) => state.user?.dashboard_access);
+  const [availableRoles, setAvailableRoles] = useState<DashboardIdentifier[]>(['SUPER_ADMIN']);
   const [manualRole, setManualRole] = useState<DashboardIdentifier | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const availableRoles = useMemo(() => {
-    const found = ADMIN_ROLES.filter(
-      (role) => getEntitlementsForDashboard(dashboardAccess, role).length > 0,
-    );
-    return found.length > 0 ? found : (['SUPER_ADMIN'] as DashboardIdentifier[]);
-  }, [dashboardAccess]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyAdminAccess()
+      .then((access) => {
+        if (cancelled) return;
+        // access.roles is the real, current set — replaces the initial
+        // ['SUPER_ADMIN'] placeholder even when it turns out to be a
+        // single, non-Super-Admin specialist role.
+        if (access.roles.length > 0) setAvailableRoles(access.roles);
+      })
+      .catch(() => {
+        // Real fetch failure — leave the placeholder rather than guess.
+        // AdminRoute already gated entry to this shell, so this doesn't
+        // grant access; it only affects which nav items render.
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeRole =
     (manualRole && availableRoles.includes(manualRole) ? manualRole : null) ??
@@ -47,5 +66,6 @@ export function useActiveAdminRole(): UseActiveAdminRole {
     activeRole,
     availableRoles,
     switchRole: setManualRole,
+    isLoading,
   };
 }
