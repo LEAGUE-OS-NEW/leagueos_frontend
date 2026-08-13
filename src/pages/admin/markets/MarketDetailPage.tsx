@@ -7,6 +7,8 @@ import {
   fetchMarket,
   fetchOrderBook,
   publishMarket,
+  reopenMarket,
+  suspendMarket,
   updateOutcomes,
   type Market,
   type MarketStatus,
@@ -40,6 +42,8 @@ function statusPillClass(status: MarketStatus): string {
       return 'mdp-status-pill mdp-status-pill--draft';
     case 'Resolved':
       return 'mdp-status-pill mdp-status-pill--resolved';
+    case 'Suspended':
+      return 'mdp-status-pill mdp-status-pill--suspended';
     default:
       return 'mdp-status-pill mdp-status-pill--cancelled';
   }
@@ -69,6 +73,30 @@ function CancelModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
   );
 }
 
+function SuspendModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: (reason: string) => void }) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="mdp-modal-overlay" role="dialog" aria-modal="true" onClick={onCancel}>
+      <div className="mdp-modal" onClick={(event) => event.stopPropagation()}>
+        <h3>Suspend this market?</h3>
+        <p>Trading pauses immediately. The market can be reopened later — nothing is finalized.</p>
+        <label className="mdp-field-label" htmlFor="mdp-suspend-reason">
+          Reason
+        </label>
+        <textarea id="mdp-suspend-reason" rows={3} value={reason} onChange={(event) => setReason(event.target.value)} />
+        <div className="mdp-modal__footer">
+          <button type="button" className="mdp-btn mdp-btn--ghost" onClick={onCancel}>
+            Keep Trading Open
+          </button>
+          <button type="button" className="mdp-btn mdp-btn--danger" disabled={!reason.trim()} onClick={() => onConfirm(reason.trim())}>
+            Suspend Market
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
@@ -81,6 +109,7 @@ function MarketDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [publishNotice, setPublishNotice] = useState<{ kind: 'published' } | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [yesProbability, setYesProbability] = useState(50);
@@ -150,6 +179,35 @@ function MarketDetailPage() {
     }
   };
 
+  const handleSuspendMarket = async (reason: string) => {
+    if (!market) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await suspendMarket(market.id, reason);
+      applyMarket(updated);
+      setShowSuspendModal(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not suspend this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleReopenMarket = async () => {
+    if (!market) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      const updated = await reopenMarket(market.id);
+      applyMarket(updated);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not reopen this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveOutcomes = async () => {
     if (!market) return;
     setIsSaving(true);
@@ -194,6 +252,8 @@ function MarketDetailPage() {
 
   const canPublish = market.status === 'Draft';
   const canCancel = market.status !== 'Resolved' && market.status !== 'Cancelled' && market.status !== 'Voided';
+  const canSuspend = market.status === 'Live' || market.status === 'Upcoming';
+  const canReopen = market.status === 'Suspended';
   const yesOutcome = market.outcomes.find((outcome) => outcome.id === 'YES')!;
   const noOutcome = market.outcomes.find((outcome) => outcome.id === 'NO')!;
 
@@ -214,6 +274,16 @@ function MarketDetailPage() {
             {canPublish && (
               <button type="button" className="mdp-btn mdp-btn--gradient" disabled={isSaving} onClick={handlePublish}>
                 Publish Market
+              </button>
+            )}
+            {canReopen && (
+              <button type="button" className="mdp-btn mdp-btn--gradient" disabled={isSaving} onClick={handleReopenMarket}>
+                Reopen Market
+              </button>
+            )}
+            {canSuspend && (
+              <button type="button" className="mdp-btn mdp-btn--outline" disabled={isSaving} onClick={() => setShowSuspendModal(true)}>
+                Suspend Market
               </button>
             )}
             {canCancel && (
@@ -454,6 +524,7 @@ function MarketDetailPage() {
       </div>
 
       {showCancelModal && <CancelModal onCancel={() => setShowCancelModal(false)} onConfirm={handleCancelMarket} />}
+      {showSuspendModal && <SuspendModal onCancel={() => setShowSuspendModal(false)} onConfirm={handleSuspendMarket} />}
     </AdminLayout>
   );
 }

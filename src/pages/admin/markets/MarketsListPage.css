@@ -320,6 +320,11 @@
   color: var(--color-accent-light);
 }
 
+.mkt-status-pill--suspended {
+  background: rgba(249, 115, 22, 0.14);
+  color: #f97316;
+}
+
 /* ---------- Modal ---------- */
 
 .mkt-modal-overlay {

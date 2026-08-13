@@ -63,6 +63,8 @@ export interface Competition {
   mappingStatus: MappingStatus;
   active: boolean;
   season: string;
+  /** ISO-3166 alpha-2, for parity with the real backend's country_code field. */
+  country?: string;
 }
 
 function delay<T>(value: T, ms = 300): Promise<T> {
@@ -454,4 +456,22 @@ export async function updateCompetition(
   const updated: Competition = { ...competitions[index], ...patch };
   competitions = [...competitions.slice(0, index), updated, ...competitions.slice(index + 1)];
   return delay(updated);
+}
+
+export async function createCompetition(input: { name: string; sport: Sport; country?: string }): Promise<Competition> {
+  if (!input.name.trim()) {
+    throw new Error('Enter a competition name.');
+  }
+  const competition: Competition = {
+    id: `comp-${Date.now().toString(36)}${competitions.length}`,
+    name: input.name.trim(),
+    sport: input.sport,
+    provider: 'Unmapped',
+    mappingStatus: 'Unmapped',
+    active: false,
+    season: String(new Date().getFullYear()),
+    country: input.country?.trim() || 'UG',
+  };
+  competitions = [competition, ...competitions];
+  return delay(competition);
 }

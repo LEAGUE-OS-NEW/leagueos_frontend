@@ -1,7 +1,7 @@
 // Fan notification & communication preferences — service layer (US-2.2).
 //
 // No real backend endpoint exists for this yet, so this is mock-backed,
-// following the same convention as accountService.ts / the General Admin
+// following the same convention as accountService.ts / the specialist admin
 // services: typed interfaces, in-memory mock data, async delay()-wrapped
 // functions, shaped so a real backend swap later only touches this file.
 
