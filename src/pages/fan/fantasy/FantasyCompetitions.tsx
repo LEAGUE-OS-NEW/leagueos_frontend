@@ -105,7 +105,7 @@ export default function App() {
   }
 
   const activeTeam = activeCompetition ? teams[activeCompetition.id] : undefined;
-  const teamCount = Object.keys(teams).length;
+
 
   return (
     <div className="app-shell">
@@ -229,12 +229,8 @@ export default function App() {
         ))}
       </div>
 
-      <footer className="app-footer">
-        <span>League OS Fantasy · {teamCount} active team{teamCount === 1 ? '' : 's'}</span>
-        <span>Football · Basketball · Rugby 15s</span>
-      </footer>
+      <Footer />
 
-     
     </div>
     </div>
   );

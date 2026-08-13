@@ -27,7 +27,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
     return sum + p.gwPoints * mult;
   }, 0);
 
-  const doubtfulStarters = starters.filter((p) => p.status !== 'ready');
+  
 
   return (
     <div className="my-team">
