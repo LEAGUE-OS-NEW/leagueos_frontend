@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
+  fetchMarketAdminStats,
   fetchMarkets,
   fetchProposals,
   markProposalDuplicate,
@@ -16,9 +17,11 @@ import {
   startProposalReview,
   type Market,
   type MarketProposal,
+  type MarketStats,
   type MarketStatus,
   type ProposalStatus,
 } from '../../../services/marketAdminService';
+import { formatUgx } from '../../../utils/rules';
 import './MarketsListPage.css';
 
 type TabKey = 'Live' | 'Upcoming' | 'Draft' | 'Resolved' | 'Cancelled' | 'Proposals';
@@ -27,7 +30,7 @@ const MARKET_TABS: { key: TabKey; statuses: MarketStatus[] }[] = [
   { key: 'Upcoming', statuses: ['Upcoming'] },
   { key: 'Draft', statuses: ['Draft'] },
   { key: 'Resolved', statuses: ['Resolved'] },
-  { key: 'Cancelled', statuses: ['Cancelled', 'Voided'] },
+  { key: 'Cancelled', statuses: ['Cancelled', 'Voided', 'Suspended'] },
 ];
 
 function formatDateTime(iso: string): string {
@@ -49,6 +52,8 @@ function statusPillClass(status: MarketStatus): string {
       return 'mkt-status-pill mkt-status-pill--draft';
     case 'Resolved':
       return 'mkt-status-pill mkt-status-pill--resolved';
+    case 'Suspended':
+      return 'mkt-status-pill mkt-status-pill--suspended';
     default:
       return 'mkt-status-pill mkt-status-pill--cancelled';
   }
@@ -109,6 +114,7 @@ function MarketsListPage() {
   const navigate = useNavigate();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [proposals, setProposals] = useState<MarketProposal[]>([]);
+  const [marketStats, setMarketStats] = useState<Map<string, MarketStats>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('Live');
@@ -141,6 +147,22 @@ function MarketsListPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMarketAdminStats(markets.map((market) => market.id))
+      .then((stats) => {
+        if (!cancelled) setMarketStats(stats);
+      })
+      .catch(() => {
+        // Non-critical: the list is fully usable without volume/contract data,
+        // so a failed stats fetch just leaves those columns showing "—".
+        if (!cancelled) setMarketStats(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [markets]);
 
   const handleRetry = () => {
     setIsLoading(true);
@@ -378,6 +400,7 @@ function MarketsListPage() {
                   </thead>
                   <tbody>
                     {visibleMarkets.map((market) => {
+                      const stats = marketStats.get(market.id);
                       return (
                         <tr key={market.id} onClick={() => navigate(`/dashboard/admin/markets/${market.id}`)}>
                           <td className="mkt-table__title-cell">
@@ -385,8 +408,12 @@ function MarketsListPage() {
                             <span className="mkt-table__subtext">{market.question}</span>
                           </td>
                           <td>{market.category}</td>
-                          <td aria-label="Volume unavailable">—</td>
-                          <td aria-label="Contract count unavailable">—</td>
+                          <td aria-label={stats ? undefined : 'Volume unavailable'}>
+                            {stats ? formatUgx(stats.volumeUgx) : '—'}
+                          </td>
+                          <td aria-label={stats ? undefined : 'Contract count unavailable'}>
+                            {stats ? stats.fillCount : '—'}
+                          </td>
                           <td>
                             <span className={statusPillClass(market.status)}>{market.status}</span>
                           </td>
