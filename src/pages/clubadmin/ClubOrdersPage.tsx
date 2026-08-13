@@ -1,45 +1,82 @@
 import { useState } from 'react';
-import { FiDownload, FiTruck } from 'react-icons/fi';
+import { FiDownload, FiTruck, FiPackage } from 'react-icons/fi';
 import ClubAdminLayout from '../../components/clubadmin/ClubAdminLayout';
+import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
+import { useAuthStore } from '../../store/authStore';
+import { DEMO_ENTITLEMENTS } from '../../components/clubadmin/clubAdminData';
+import { useCartStore } from '../../store/cartStore';
 import '../../components/clubadmin/ClubAdminLayout.css';
 
-type Order = { id: string; item: string; buyer: string; amt: string; date: string; status: 'pending' | 'shipped' | 'delivered' };
+// Map clubSlug → club admin scope_id via the registry
+import { CLUB_REGISTRY } from '../../components/clubadmin/clubAdminData';
 
-const INIT: Order[] = [
-  { id: '#ORD-4821', item: 'Home Jersey (XL)',  buyer: 'Brian Ssempa',  amt: 'UGX 120,000', date: '10 May 2026', status: 'pending' },
-  { id: '#ORD-4820', item: 'Training Kit (M)',  buyer: 'Grace Nakirya', amt: 'UGX 75,000',  date: '10 May 2026', status: 'pending' },
-  { id: '#ORD-4819', item: 'Scarf x2',          buyer: 'David Kato',   amt: 'UGX 50,000',  date: '9 May 2026',  status: 'shipped' },
-  { id: '#ORD-4818', item: 'Away Jersey (S)',    buyer: 'Joan Nassanga', amt: 'UGX 120,000', date: '9 May 2026',  status: 'shipped' },
-  { id: '#ORD-4817', item: 'KCCA FC Mug',        buyer: 'Moses Onen',   amt: 'UGX 18,000',  date: '8 May 2026',  status: 'delivered' },
-  { id: '#ORD-4816', item: 'Cap + Scarf bundle', buyer: 'Ruth Akello',  amt: 'UGX 47,000',  date: '7 May 2026',  status: 'delivered' },
-];
+type FulfilmentStatus = 'pending' | 'shipped' | 'delivered';
 
-const STATUS_CLASS: Record<string, string> = {
-  pending: 'ca-pill-orange', shipped: 'ca-pill-blue', delivered: 'ca-pill-green',
+const STATUS_CLASS: Record<FulfilmentStatus, string> = {
+  pending: 'ca-pill-orange',
+  shipped: 'ca-pill-blue',
+  delivered: 'ca-pill-green',
 };
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) return;
   const headers = Object.keys(rows[0]);
   const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '')}"`).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: filename });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: filename,
+  });
   a.click();
 }
 
+/** Derive a slug-like string from a club registry entry name, e.g. "KCCA FC" → "kcca-fc" */
+function nameToSlug(name: string) {
+  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
 export default function ClubOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(INIT);
+  const user = useAuthStore(s => s.user);
+  const { selectedEntitlementId } = useClubWorkspaceStore();
+
+  // Resolve the current club scope
+  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
+  const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
+  const scopeId = current?.scope_id ?? 1;
+  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
+  const currentClubSlug = nameToSlug(clubInfo.name);
+
+  // Pull cart items that belong to this club and treat them as "pending" orders
+  const cartItems = useCartStore(s => s.items);
+  const removeItem = useCartStore(s => s.removeItem);
+
+  // Fulfilment status overlay — lives in local state (would be API-backed in prod)
+  const [statuses, setStatuses] = useState<Record<string, FulfilmentStatus>>({});
   const [toast, setToast] = useState('');
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
+  const clubOrders = cartItems.filter(item => item.clubSlug === currentClubSlug);
+
+  const getStatus = (id: string): FulfilmentStatus => statuses[id] ?? 'pending';
+
   const markShipped = (id: string) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'shipped' } : o));
-    showToast(`Order ${id} marked as shipped`);
+    setStatuses(s => ({ ...s, [id]: 'shipped' }));
+    showToast(`Order marked as shipped`);
   };
 
   const markDelivered = (id: string) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'delivered' } : o));
-    showToast(`Order ${id} marked as delivered`);
+    setStatuses(s => ({ ...s, [id]: 'delivered' }));
+    showToast(`Order marked as delivered`);
   };
+
+  const exportRows = clubOrders.map(o => ({
+    item: o.name,
+    size: o.size ?? '—',
+    qty: o.qty,
+    amount: o.price,
+    status: getStatus(o.id),
+  }));
 
   return (
     <ClubAdminLayout>
@@ -52,8 +89,12 @@ export default function ClubOrdersPage() {
           <p className="ca-page-subtitle">Track and manage all store orders, fulfilment and delivery status.</p>
         </div>
         <div className="ca-page-actions">
-          <button type="button" className="ca-btn ca-btn-secondary"
-            onClick={() => exportCSV(orders as unknown as Record<string, unknown>[], 'orders.csv')}>
+          <button
+            type="button"
+            className="ca-btn ca-btn-secondary"
+            disabled={clubOrders.length === 0}
+            onClick={() => exportCSV(exportRows as unknown as Record<string, unknown>[], 'orders.csv')}
+          >
             <FiDownload /> Export
           </button>
         </div>
@@ -62,41 +103,81 @@ export default function ClubOrdersPage() {
       <div className="ca-panel">
         <div className="ca-panel-header">
           <h2 className="ca-panel-title">All Orders</h2>
-          <span className="ca-panel-count">{orders.length} orders</span>
+          <span className="ca-panel-count">{clubOrders.length} orders</span>
         </div>
-        <div className="ca-table-wrap">
-          <table className="ca-table">
-            <thead>
-              <tr><th>Order ID</th><th>Item</th><th>Buyer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o.id}>
-                  <td style={{ fontWeight: 700, color: 'var(--color-primary-light)' }}>{o.id}</td>
-                  <td style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{o.item}</td>
-                  <td>{o.buyer}</td>
-                  <td>{o.amt}</td>
-                  <td>{o.date}</td>
-                  <td><span className={`ca-pill ${STATUS_CLASS[o.status]}`}>{o.status}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {o.status === 'pending' && (
-                        <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => markShipped(o.id)}>
-                          <FiTruck /> Mark Shipped
-                        </button>
-                      )}
-                      {o.status === 'shipped' && (
-                        <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => markDelivered(o.id)}>
-                          Mark Delivered
-                        </button>
-                      )}
-                    </div>
-                  </td>
+
+        {clubOrders.length === 0 ? (
+          <div className="ca-empty-state">
+            <FiPackage className="ca-empty-icon" />
+            <p className="ca-empty-title">No orders yet</p>
+            <p className="ca-empty-sub">
+              Orders from your store will appear here once customers start purchasing.
+            </p>
+          </div>
+        ) : (
+          <div className="ca-table-wrap">
+            <table className="ca-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Size</th>
+                  <th>Qty</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {clubOrders.map((o) => {
+                  const status = getStatus(o.id);
+                  return (
+                    <tr key={o.id}>
+                      <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{o.name}</td>
+                      <td>{o.size ?? '—'}</td>
+                      <td>{o.qty}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--color-primary-light)' }}>{o.price}</td>
+                      <td>
+                        <span className={`ca-pill ${STATUS_CLASS[status]}`}>{status}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {status === 'pending' && (
+                            <button
+                              type="button"
+                              className="ca-btn ca-btn-secondary ca-btn-sm"
+                              onClick={() => markShipped(o.id)}
+                            >
+                              <FiTruck /> Mark Shipped
+                            </button>
+                          )}
+                          {status === 'shipped' && (
+                            <button
+                              type="button"
+                              className="ca-btn ca-btn-secondary ca-btn-sm"
+                              onClick={() => markDelivered(o.id)}
+                            >
+                              Mark Delivered
+                            </button>
+                          )}
+                          {status === 'delivered' && (
+                            <button
+                              type="button"
+                              className="ca-btn ca-btn-secondary ca-btn-sm"
+                              style={{ color: '#ef4444' }}
+                              onClick={() => { removeItem(o.id); showToast('Order removed'); }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </ClubAdminLayout>
   );

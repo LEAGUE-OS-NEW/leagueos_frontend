@@ -7,7 +7,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchMarket, placeOrder } from '../../../services/fanMarketsServices';
+import { fetchMarket, fetchMarketOrderBook, placeOrder } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
 import { recordMarketStake } from '../../../services/walletService';
 import '../sections/FanDashboard.css';
@@ -22,6 +22,7 @@ interface TradeReviewState {
   marketId?: string;
   outcomeId?: OutcomeId;
   price?: number;
+  limitPrice?: number;
   amount?: number;
   contracts?: number;
 }
@@ -39,6 +40,7 @@ function ReviewOrder() {
   const marketId = order.marketId ?? routeMarketId ?? '';
   const outcomeId: OutcomeId = order.outcomeId ?? 'YES';
   const price = order.price ?? 0;
+  const limitPrice = order.limitPrice ?? 0;
   const amount = order.amount ?? 0;
   const contracts = order.contracts ?? (price > 0 ? amount / price : 0);
 
@@ -69,7 +71,7 @@ function ReviewOrder() {
   const goBack = () => navigate(`/fan/markets/${marketId}/trade`, { state: { outcomeId } });
 
   const confirmOrder = async () => {
-    if (!marketId || amount <= 0) {
+    if (!marketId || amount <= 0 || !(limitPrice > 0 && limitPrice < 1)) {
       setSubmitError('Missing order details — go back and re-enter your amount.');
       return;
     }
@@ -77,10 +79,16 @@ function ReviewOrder() {
     setIsSubmitting(true);
     setSubmitError('');
     try {
+      const selectedOutcome = market?.outcomes.find((item) => item.id === outcomeId);
+      if (!selectedOutcome) throw new Error('The selected outcome is unavailable.');
+      const currentBook = await fetchMarketOrderBook(marketId, selectedOutcome.backendOutcomeId);
+      if (currentBook.best_ask === null) throw new Error('No sell liquidity is currently available for this outcome.');
+      const currentLimitPrice = Number(currentBook.best_ask);
       const contract = await placeOrder({
         marketId,
         outcomeId,
         quantityUgx: amount,
+        limitPrice: currentLimitPrice,
       });
       recordMarketStake(market?.question ?? 'Market order', contract.quantityUgx);
       navigate(`/fan/markets/${marketId}/placed`, {

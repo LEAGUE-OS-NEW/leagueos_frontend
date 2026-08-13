@@ -40,6 +40,7 @@ type LoginResult = {
     requires_email_verification?: boolean;
     is_new_user?: boolean;
     user?: AuthenticatedUser | null;
+    frontend_dashboard_route?: string | null;
 };
 
 type ApiError = {
@@ -123,6 +124,16 @@ function resolvePostLoginRoute(
         canAccessDashboardRoute(dashboardAccess, postLoginRedirect)
     ) {
         return postLoginRedirect;
+    }
+
+    // Use the route the backend explicitly computed for this user — most
+    // reliable signal, avoids any frontend role-resolution ambiguity.
+    if (
+        result.frontend_dashboard_route &&
+        typeof result.frontend_dashboard_route === 'string' &&
+        result.frontend_dashboard_route.startsWith('/')
+    ) {
+        return result.frontend_dashboard_route;
     }
 
     // Prefer the canonical v1 dashboard_access contract when available.
@@ -303,14 +314,17 @@ export default function Login() {
                             getUserEmail(result.user?.email) ??
                             getUserEmail(identifier.trim()),
                         message: 'Please verify your email address before continuing.',
-                        postLoginRedirect: resolvePostLoginRoute(result, postLoginRedirect),
+                        postLoginRedirect: resolvePostLoginRoute(
+                            { user: result.user, frontend_dashboard_route: result.frontend_dashboard_route },
+                            postLoginRedirect,
+                        ),
                     },
                 });
                 return;
             }
 
             const redirectRoute = resolvePostLoginRoute(
-                result,
+                { user: result.user, frontend_dashboard_route: result.frontend_dashboard_route },
                 postLoginRedirect,
             );
 

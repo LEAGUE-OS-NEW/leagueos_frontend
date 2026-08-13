@@ -6,6 +6,7 @@ import DashboardNotice from '../../../../components/fan/dashboard/DashboardNotic
 import { useNotificationsStore } from '../../../../store/fanNotificationsStore';
 import type { NotificationItem } from '../../../../services/fanNotificationsServices';
 import './NotificationsHistorySection.css';
+import '../../notifications/FanNotificationsPage.css';
 
 const PREVIEW_COUNT = 4;
 

@@ -58,10 +58,9 @@ function MarketCard({ market, onNavigate }: { market: Market; onNavigate: Naviga
 
       {!isClosed && yes && (
         <div className="market-probability">
-          <div className="market-probability-track">
-            <div className="market-probability-fill" style={{ width: `${yes.probabilityPct}%` }} />
-          </div>
-          <span className="market-probability-label">{yes.probabilityPct}% likely YES</span>
+          <span className="market-probability-label">
+            {yes.probabilityPct === null ? 'Not traded yet' : `${yes.probabilityPct}% likely YES`}
+          </span>
         </div>
       )}
 

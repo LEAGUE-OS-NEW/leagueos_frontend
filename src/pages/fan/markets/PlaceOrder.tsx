@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowLeft } from 'react-icons/fi';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { formatUgx } from '../../../utils/rules.ts';
 import {
   MARKET_FACE_VALUE_UGX,
   formatMarketSharePrice,
+  normalizedPriceToUgxSharePrice,
 } from '../../../utils/marketPricing.ts';
-import { fetchMarket } from '../../../services/fanMarketsServices';
+import { fetchMarket, fetchMarketOrderBook } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
@@ -48,6 +49,8 @@ function PlaceOrder() {
   const [market, setMarket] = useState<Market | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [bestAsk, setBestAsk] = useState<number | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   useEffect(() => {
     if (!marketId) return;
@@ -78,7 +81,20 @@ function PlaceOrder() {
   const [amountError, setAmountError] = useState('');
 
   const outcome = market?.outcomes.find((item) => item.id === outcomeId);
-  const price = outcome?.price ?? 0;
+  useEffect(() => {
+    if (!market || !outcome) return;
+    let cancelled = false;
+    // Reset the selected outcome's quote before the asynchronous request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuoteLoading(true);
+    setBestAsk(null);
+    fetchMarketOrderBook(market.id, outcome.backendOutcomeId)
+      .then((book) => { if (!cancelled) setBestAsk(book.best_ask === null ? null : Number(book.best_ask)); })
+      .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not load the order book.'); })
+      .finally(() => { if (!cancelled) setQuoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [market, outcome]);
+  const price = bestAsk === null ? 0 : normalizedPriceToUgxSharePrice(bestAsk);
   const numericAmount = Number(amount);
 
   const amountValidationMessage = useMemo(() => {
@@ -98,7 +114,7 @@ function PlaceOrder() {
   const contracts = useMemo(() => (numericAmount > 0 && price > 0 ? numericAmount / price : 0), [numericAmount, price]);
   const potentialReturn = useMemo(() => contracts * PLATFORM_PAYOUT_PER_CONTRACT, [contracts]);
 
-  const canReview = Boolean(market) && numericAmount > 0 && !amountValidationMessage;
+  const canReview = Boolean(market) && bestAsk !== null && numericAmount > 0 && !amountValidationMessage;
   const presetAmounts = market
     ? [market.parameters.minTradeUgx, market.parameters.minTradeUgx * 5, market.parameters.minTradeUgx * 20, market.parameters.maxTradeUgx].filter(
         (value, index, all) => all.indexOf(value) === index,
@@ -120,6 +136,7 @@ function PlaceOrder() {
         marketId: market.id,
         outcomeId,
         price,
+        limitPrice: bestAsk,
         amount: numericAmount,
         contracts,
       },
@@ -206,8 +223,7 @@ function PlaceOrder() {
                   <div>
                     <span>Current {outcome.label} Price</span>
                     <b>
-                      {formatMarketSharePrice(price)} <FiTrendingUp className="up" />{' '}
-                      <span className="up">{outcome.probabilityPct}% probability</span>
+                      {quoteLoading ? 'Loading quote…' : bestAsk === null ? 'No sell liquidity' : formatMarketSharePrice(price)}
                     </b>
                   </div>
                 </div>
@@ -228,6 +244,7 @@ function PlaceOrder() {
                   }}
                 />
                 {amountError && <p className="field-error">{amountError}</p>}
+                {!quoteLoading && bestAsk === null && <p className="field-error">No sell liquidity is currently available for this outcome.</p>}
                 {!amountError && amountValidationMessage && <p className="field-error">{amountValidationMessage}</p>}
 
                 <div className="preset-chips">

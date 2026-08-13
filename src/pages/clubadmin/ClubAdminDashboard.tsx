@@ -1,98 +1,137 @@
-import { FiUsers, FiCalendar, FiTrendingUp, FiTag, FiShoppingCart, FiStar, FiArrowRight } from 'react-icons/fi';
+import { FiShoppingCart, FiArrowRight, FiAlertCircle } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import ClubAdminLayout from '../../components/clubadmin/ClubAdminLayout';
+import { useAuthStore } from '../../store/authStore';
+import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
+import { DEMO_ENTITLEMENTS, CLUB_REGISTRY, ROLE_LABELS } from '../../components/clubadmin/clubAdminData';
 import '../../components/clubadmin/ClubAdminLayout.css';
 import './ClubAdminDashboard.css';
 
-const QUICK_STATS = [
-  { label: 'Total Members',   value: '8,642',     delta: '+4.1%', up: true,  icon: FiUsers },
-  { label: 'Upcoming Fixtures', value: '6',       delta: 'next 30 days', up: null, icon: FiCalendar },
-  { label: 'Monthly Revenue', value: 'UGX 214.8M', delta: '+12%', up: true,  icon: FiTrendingUp },
-  { label: 'Tickets Sold',    value: '12,842',    delta: '+8.3%', up: true,  icon: FiTag },
-  { label: 'Store Orders',    value: '36',        delta: 'pending', up: null, icon: FiShoppingCart },
-  { label: 'Active Sponsors', value: '12',        delta: '6 agreements', up: null, icon: FiStar },
-];
 
 const QUICK_LINKS = [
-  { label: 'Club Profile & Branding',   route: '/club-admin/profile',     code: 'CA-01' },
-  { label: 'Fixtures & Match Ops',      route: '/club-admin/fixtures',     code: 'CA-02' },
-  { label: 'Squad & Team Management',   route: '/club-admin/squad',        code: 'CA-03' },
-  { label: 'News & Communications',     route: '/club-admin/news',         code: 'CA-04' },
-  { label: 'Memberships & Renewals',    route: '/club-admin/memberships',  code: 'CA-05' },
-  { label: 'Ticketing & Match Events',  route: '/club-admin/tickets',      code: 'CA-06' },
-  { label: 'Store & Orders',            route: '/club-admin/store',        code: 'CA-07' },
-  { label: 'Analytics & Finance',       route: '/club-admin/analytics',    code: 'CA-08' },
-  { label: 'Staff & Permissions',       route: '/club-admin/staff',        code: 'CA-09' },
-  { label: 'Sponsors & Partnerships',   route: '/club-admin/sponsors',     code: 'CA-10' },
+  { label: 'Club Profile & Branding',  route: '/club-admin/profile',     permission: 'club.profile.view' },
+  { label: 'Fixtures & Match Ops',     route: '/club-admin/fixtures',     permission: 'club.matches.manage' },
+  { label: 'Squad & Team Management',  route: '/club-admin/squad',        permission: 'club.squad.manage' },
+  { label: 'News & Communications',    route: '/club-admin/news',         permission: 'club.communications.manage' },
+  { label: 'Ticketing & Match Events', route: '/club-admin/tickets',      permission: 'club.ticketing.manage' },
+  { label: 'Store & Orders',           route: '/club-admin/store',        permission: null },
+  { label: 'Analytics & Finance',      route: '/club-admin/analytics',    permission: 'club.reports.view' },
+  { label: 'Compliance & Documents',   route: '/club-admin/compliance',   permission: 'club.communications.manage' },
+  { label: 'Staff & Permissions',      route: '/club-admin/staff',        permission: 'club.admin.manage' },
 ];
 
-const RECENT = [
-  { text: 'Membership renewed — Brian Ssempa (Premium Gold)', time: '5m ago' },
-  { text: 'New fixture added vs SC Villa — 18 May 2026', time: '1h ago' },
-  { text: 'Store order #4821 placed — KCCA Jersey (XL)', time: '2h ago' },
-  { text: 'Squad submitted for CAF CC Round 2', time: '3h ago' },
-  { text: 'Sponsor agreement renewed — Airtel Uganda', time: 'Yesterday' },
-];
+const RECENT: { text: string; time: string }[] = [];
+
+const TASK_SUMMARY: { text: string; route: string; color: string; icon: typeof FiShoppingCart }[] = [];
 
 export default function ClubAdminDashboard() {
+  const user = useAuthStore(s => s.user);
+  const { selectedEntitlementId } = useClubWorkspaceStore();
+
+  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
+  const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
+
+  const scopeId = current?.scope_id ?? 1;
+  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: 'Uganda Premier League', season: 'Season 2025/26', badge: String(scopeId).slice(0, 2).toUpperCase() };
+  const roleLabel = current?.workspace_role ? (ROLE_LABELS[current.workspace_role] ?? current.workspace_role) : '—';
+
+  const canAccess = (permission: string | null) => {
+    if (!permission || !current) return true;
+    // Full access for club admin / owner roles regardless of granular permissions
+    if (
+      current.workspace_role === 'CLUB_ADMIN' ||
+      current.workspace_role === 'CLUB_OWNER' ||
+      current.permissions.includes('dashboard.club_admin')
+    ) return true;
+    return current.permissions.includes(permission);
+  };
+
   return (
     <ClubAdminLayout>
-      <div className="ca-page-header">
-        <div>
-          <p className="ca-page-eyebrow">Club Admin</p>
-          <h1 className="ca-page-title">Dashboard</h1>
-          <p className="ca-page-subtitle">KCCA FC · Uganda Premier League · Season 2025/26</p>
+      {/* ── Club context header ── */}
+      <div className="ca-club-context-bar">
+        <div className="ca-club-context-badge">{clubInfo.badge}</div>
+        <div className="ca-club-context-info">
+          <h1 className="ca-club-context-name">{clubInfo.name}</h1>
+          <span className="ca-club-context-meta">{clubInfo.league} · {clubInfo.season}</span>
         </div>
+        <span className="ca-club-context-role">{roleLabel}</span>
       </div>
 
-      {/* KPI bar */}
-      <div className="ca-kpi-bar">
-        {QUICK_STATS.map((s) => (
-          <div key={s.label} className="ca-kpi-card">
-            <s.icon style={{ color: 'var(--color-primary-light)', fontSize: '1.1rem' }} />
-            <p className="ca-kpi-label">{s.label}</p>
-            <p className="ca-kpi-value">{s.value}</p>
-            {s.delta && (
-              <span className={`ca-kpi-delta ${s.up === true ? 'up' : s.up === false ? 'down' : 'neutral'}`}>
-                {s.up === true ? '↑' : s.up === false ? '↓' : ''} {s.delta}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
 
       <div className="ca-dash-grid">
-        {/* Quick links */}
+        {/* ── Quick links ── */}
         <div className="ca-panel">
           <div className="ca-panel-header">
             <h2 className="ca-panel-title">All Sections</h2>
           </div>
           <div className="ca-dash-modules">
-            {QUICK_LINKS.map((l) => (
-              <Link key={l.route} to={l.route} className="ca-dash-module-link">
-                <span className="ca-dash-module-code">{l.code}</span>
-                <span className="ca-dash-module-label">{l.label}</span>
-                <FiArrowRight className="ca-dash-module-arrow" />
-              </Link>
-            ))}
+            {QUICK_LINKS.map((l) => {
+              const allowed = canAccess(l.permission);
+              if (!allowed) {
+                return (
+                  <div key={l.route} className="ca-dash-module-link ca-dash-module-locked" title="Access restricted">
+                    <span className="ca-dash-module-label">{l.label}</span>
+                    <FiAlertCircle className="ca-dash-module-arrow" style={{ color: 'var(--color-text-muted)' }} />
+                  </div>
+                );
+              }
+              return (
+                <Link key={l.route} to={l.route} className="ca-dash-module-link">
+                  <span className="ca-dash-module-label">{l.label}</span>
+                  <FiArrowRight className="ca-dash-module-arrow" />
+                </Link>
+              );
+            })}
           </div>
         </div>
 
-        {/* Recent activity */}
-        <div className="ca-panel">
-          <div className="ca-panel-header">
-            <h2 className="ca-panel-title">Recent Activity</h2>
-          </div>
-          <div className="ca-activity-list">
-            {RECENT.map((r, i) => (
-              <div key={i} className="ca-activity-item">
-                <div className="ca-activity-dot" />
-                <div>
-                  <p className="ca-activity-text">{r.text}</p>
-                  <p className="ca-activity-time">{r.time}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* ── Task summary ── */}
+          <div className="ca-panel">
+            <div className="ca-panel-header">
+              <h2 className="ca-panel-title">Pending Tasks</h2>
+              <span className="ca-panel-count">{TASK_SUMMARY.length} items</span>
+            </div>
+            {TASK_SUMMARY.length === 0
+              ? <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No pending tasks.</p>
+              : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {TASK_SUMMARY.map((t, i) => (
+                    <Link key={i} to={t.route} className="ca-task-row">
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.color, flexShrink: 0, marginTop: 2 }} />
+                      <t.icon style={{ color: t.color, fontSize: '0.9rem', flexShrink: 0 }} />
+                      <span className="ca-task-text">{t.text}</span>
+                      <FiArrowRight style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginLeft: 'auto', flexShrink: 0 }} />
+                    </Link>
+                  ))}
                 </div>
-              </div>
-            ))}
+              )
+            }
+          </div>
+
+          {/* ── Recent activity ── */}
+          <div className="ca-panel">
+            <div className="ca-panel-header">
+              <h2 className="ca-panel-title">Recent Activity</h2>
+            </div>
+            {RECENT.length === 0
+              ? <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No recent activity.</p>
+              : (
+                <div className="ca-activity-list">
+                  {RECENT.map((r, i) => (
+                    <div key={i} className="ca-activity-item">
+                      <div className="ca-activity-dot" />
+                      <div>
+                        <p className="ca-activity-text">{r.text}</p>
+                        <p className="ca-activity-time">{r.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            }
           </div>
         </div>
       </div>

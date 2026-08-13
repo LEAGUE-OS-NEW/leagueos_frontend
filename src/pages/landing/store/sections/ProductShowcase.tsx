@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { IconType } from 'react-icons';
-import { FiArrowRight, FiStar, FiShoppingCart } from 'react-icons/fi';
+import { FiArrowRight, FiStar, FiShoppingCart, FiCheck } from 'react-icons/fi';
 import { GiTShirt, GiClothes } from 'react-icons/gi';
 import { FaHatCowboy } from 'react-icons/fa';
+import type { CategorySlug } from './shopCategories';
+import { useCartStore, parseUGX } from '../../../../store/cartStore';
 import './ProductShowcase.css';
 
 type Product = {
@@ -16,6 +19,7 @@ type Product = {
   badge?: { label: string; tone: 'new' | 'discount' };
   icon: IconType;
   color: string;
+  category: CategorySlug;
 };
 
 type ProductColumn = {
@@ -37,6 +41,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: 'NEW', tone: 'new' },
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'kcca-training-top',
@@ -47,6 +52,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#1e3a8a',
+        category: 'training-wear',
       },
     ],
   },
@@ -62,6 +68,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'oilers-home-jersey',
@@ -72,6 +79,7 @@ const COLUMNS: ProductColumn[] = [
         sizes: ['S', 'M', 'L', 'XL'],
         icon: GiTShirt,
         color: '#1d4ed8',
+        category: 'jerseys',
       },
     ],
   },
@@ -88,6 +96,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: '-15%', tone: 'discount' },
         icon: GiTShirt,
         color: '#dc2626',
+        category: 'jerseys',
       },
       {
         id: 'kcca-matchday-bundle',
@@ -99,6 +108,7 @@ const COLUMNS: ProductColumn[] = [
         badge: { label: '-20%', tone: 'discount' },
         icon: GiTShirt,
         color: '#ca8a04',
+        category: 'accessories',
       },
     ],
   },
@@ -113,6 +123,7 @@ const COLUMNS: ProductColumn[] = [
         reviews: 38,
         icon: FaHatCowboy,
         color: '#18181b',
+        category: 'caps',
       },
       {
         id: 'heathens-scarf',
@@ -122,12 +133,33 @@ const COLUMNS: ProductColumn[] = [
         reviews: 21,
         icon: GiClothes,
         color: '#7f1d1d',
+        category: 'fan-gear',
       },
     ],
   },
 ];
 
 function ProductCard({ product }: { product: Product }) {
+  const addItem = useCartStore((s) => s.addItem);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(
+    product.sizes?.[0],
+  );
+  const [added, setAdded] = useState(false);
+
+  const handleAdd = () => {
+    addItem({
+      productId: product.id,
+      clubSlug: product.id.split('-')[0], // derive club from product id prefix
+      name: product.name,
+      price: product.price,
+      priceValue: parseUGX(product.price),
+      size: selectedSize,
+      color: product.color,
+    });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
   return (
     <article className="product-card">
       <div className="product-card-image" style={{ backgroundColor: product.color }}>
@@ -151,40 +183,73 @@ function ProductCard({ product }: { product: Product }) {
         {product.sizes && (
           <div className="product-card-sizes">
             {product.sizes.map((size) => (
-              <span className="product-card-size" key={size}>
+              <span
+                key={size}
+                className={`product-card-size${selectedSize === size ? ' selected' : ''}`}
+                onClick={() => setSelectedSize(size)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedSize(size)}
+              >
                 {size}
               </span>
             ))}
           </div>
         )}
-        <button type="button" className="product-card-cart-btn" aria-label={`Add ${product.name} to cart`}>
-          <FiShoppingCart />
+        <button
+          type="button"
+          className={`product-card-cart-btn${added ? ' added' : ''}`}
+          aria-label={`Add ${product.name} to cart`}
+          onClick={handleAdd}
+        >
+          {added ? <FiCheck /> : <FiShoppingCart />}
         </button>
       </div>
     </article>
   );
 }
 
-function ProductShowcase({ storePath = '/store' }: { storePath?: string }) {
+function ProductShowcase({
+  storePath = '/store',
+  activeCategory = 'all',
+}: {
+  storePath?: string;
+  activeCategory?: CategorySlug;
+}) {
+  // Filter columns — hide columns whose every product is excluded,
+  // and filter individual products within each column.
+  const visibleColumns = COLUMNS.map(col => ({
+    ...col,
+    products: activeCategory === 'all'
+      ? col.products
+      : col.products.filter(p => p.category === activeCategory),
+  })).filter(col => col.products.length > 0);
+
   return (
     <section className="product-showcase" aria-label="Product showcase">
-      {COLUMNS.map((column) => (
-        <div className="product-column" key={column.title}>
-          <div className="product-column-heading">
-            <h2>{column.title}</h2>
-            <Link to={storePath} className="store-view-link">
-              View all
-              <FiArrowRight />
-            </Link>
-          </div>
+      {visibleColumns.length === 0 ? (
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', padding: '24px 0' }}>
+          No products found in this category.
+        </p>
+      ) : (
+        visibleColumns.map((column) => (
+          <div className="product-column" key={column.title}>
+            <div className="product-column-heading">
+              <h2>{column.title}</h2>
+              <Link to={storePath} className="store-view-link">
+                View all
+                <FiArrowRight />
+              </Link>
+            </div>
 
-          <div className="product-column-list">
-            {column.products.map((product) => (
-              <ProductCard product={product} key={product.id} />
-            ))}
+            <div className="product-column-list">
+              {column.products.map((product) => (
+                <ProductCard product={product} key={product.id} />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </section>
   );
 }

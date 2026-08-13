@@ -1,5 +1,5 @@
-import Navbar from '../../components/landing/Navbar';
-import Footer from '../../components/landing/Footer';
+import Navbar from '../../../components/landing/Navbar';
+import Footer from '../../../components/landing/Footer';
 import FantasyHero from './sections/FantasyHero';
 import FeaturedLeagues from './sections/FeaturedLeagues';
 import HowFantasyWorks from './sections/HowFantasyWorks';

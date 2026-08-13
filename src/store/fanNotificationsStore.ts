@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  fetchFanNotifications,
+  fetchFanNotificationSummary,
   markAllFanNotificationsRead,
   markFanNotificationRead,
   type NotificationItem,
@@ -10,7 +10,8 @@ type NotificationsState = {
   items: NotificationItem[];
   unreadCount: number;
   isLoading: boolean;
-  error: string;
+  error: string | null;
+  hasLoaded: boolean;
   load: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
@@ -22,36 +23,61 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   items: [],
   unreadCount: 0,
   isLoading: false,
-  error: '',
+  error: null,
+  hasLoaded: false,
+
   load: async () => {
-    set({ isLoading: true, error: '' });
+    set({ isLoading: true, error: null });
+
     try {
-      const items = await fetchFanNotifications();
-      set({ items, unreadCount: countUnread(items), isLoading: false });
+      const summary = await fetchFanNotificationSummary();
+      set({
+        items: summary.notifications,
+        unreadCount: summary.unreadCount,
+        isLoading: false,
+        error: null,
+        hasLoaded: true,
+      });
     } catch {
-      set({ error: 'Could not load your notifications.', isLoading: false });
+      set({
+        isLoading: false,
+        error: 'Could not load your notifications.',
+        hasLoaded: true,
+      });
     }
   },
+
   markRead: async (id) => {
     const previous = get().items;
     const optimistic = previous.map((item) => (item.id === id ? { ...item, isRead: true } : item));
-    set({ items: optimistic, unreadCount: countUnread(optimistic) });
+    set({ items: optimistic, unreadCount: countUnread(optimistic), error: null });
+
     try {
       const updated = await markFanNotificationRead(id);
       const next = get().items.map((item) => (item.id === id ? updated : item));
-      set({ items: next, unreadCount: countUnread(next) });
+      set({ items: next, unreadCount: countUnread(next), error: null });
     } catch {
-      set({ items: previous, unreadCount: countUnread(previous), error: 'Could not mark notification as read.' });
+      set({
+        items: previous,
+        unreadCount: countUnread(previous),
+        error: 'Could not mark notification as read.',
+      });
     }
   },
+
   markAllRead: async () => {
     const previous = get().items;
     const optimistic = previous.map((item) => ({ ...item, isRead: true }));
-    set({ items: optimistic, unreadCount: 0 });
+    set({ items: optimistic, unreadCount: 0, error: null });
+
     try {
       await markAllFanNotificationsRead();
     } catch {
-      set({ items: previous, unreadCount: countUnread(previous), error: 'Could not mark notifications as read.' });
+      set({
+        items: previous,
+        unreadCount: countUnread(previous),
+        error: 'Could not mark notifications as read.',
+      });
     }
   },
 }));

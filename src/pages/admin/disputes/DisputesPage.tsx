@@ -25,6 +25,8 @@ function statusPillClass(status: DisputeStatus): string {
       return 'dsp-status-pill dsp-status-pill--open';
     case 'Escalated':
       return 'dsp-status-pill dsp-status-pill--escalated';
+    case 'Unavailable':
+      return 'dsp-status-pill';
     default:
       return 'dsp-status-pill dsp-status-pill--resolved';
   }

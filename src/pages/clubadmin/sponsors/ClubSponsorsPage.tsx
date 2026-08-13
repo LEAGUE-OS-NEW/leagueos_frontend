@@ -1,58 +1,14 @@
 import { useState } from 'react';
-import { FiPlus, FiDownload, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiPlus, FiDownload, FiX } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubSponsorsPage.css';
-
-const KPI = [
-  { label: 'Total Sponsors',      value: '12',         delta: '+2 this season',   up: true },
-  { label: 'Confirmed',           value: '6',          delta: 'signed contracts', up: null },
-  { label: 'Active Agreements',   value: '3',          delta: 'in progress',      up: null },
-  { label: 'Upcoming Renewals',   value: '3',          delta: 'next 60 days',     up: null },
-  { label: 'Sponsorship Rev.',    value: 'UGX 124.6M', delta: '+9% YoY',          up: true },
-];
 
 const TIERS = ['Title', 'Gold', 'Silver', 'Bronze'];
 type SponsorStatus = 'active' | 'negotiating' | 'pending';
 type Sponsor = { name: string; tier: string; value: string; start: string; end: string; status: SponsorStatus };
 type BenefitItem = { sponsor: string; benefit: string; done: boolean };
 
-const INIT_SPONSORS: Sponsor[] = [
-  { name: 'Airtel Uganda',  tier: 'Title',  value: 'UGX 45M', start: '1 Jan 2026', end: '31 Dec 2026', status: 'active' },
-  { name: 'Stanbic Bank',   tier: 'Gold',   value: 'UGX 25M', start: '1 Feb 2026', end: '31 Jan 2027', status: 'active' },
-  { name: 'Nile Breweries', tier: 'Silver', value: 'UGX 15M', start: '1 Mar 2026', end: '28 Feb 2027', status: 'active' },
-  { name: 'MTN Uganda',     tier: 'Gold',   value: 'UGX 22M', start: '1 Apr 2026', end: '31 Mar 2027', status: 'active' },
-  { name: 'Roofings Group', tier: 'Bronze', value: 'UGX 8M',  start: '1 May 2026', end: '30 Apr 2027', status: 'negotiating' },
-  { name: 'UAP Insurance',  tier: 'Bronze', value: 'UGX 5M',  start: '—',          end: '—',           status: 'pending' },
-];
-
-const INIT_BENEFITS: BenefitItem[] = [
-  { sponsor: 'Airtel Uganda',   benefit: 'Jersey logo placement',           done: true },
-  { sponsor: 'Airtel Uganda',   benefit: 'Stadium branding boards',         done: true },
-  { sponsor: 'Stanbic Bank',    benefit: 'Social media mentions (8/mo)',    done: false },
-  { sponsor: 'Nile Breweries',  benefit: 'Matchday activation rights',      done: true },
-  { sponsor: 'MTN Uganda',      benefit: 'Digital platform branding',       done: false },
-];
-
-const RENEWAL_ALERTS = [
-  { name: 'Airtel Uganda', exp: '31 Dec 2026', days: 55 },
-  { name: 'Stanbic Bank',  exp: '31 Jan 2027', days: 86 },
-];
-
-const PIPELINE = [
-  { name: 'Airtel Uganda',  value: 'UGX 45M', stage: 'Signed' },
-  { name: 'Stanbic Bank',   value: 'UGX 25M', stage: 'Signed' },
-  { name: 'MTN Uganda',     value: 'UGX 22M', stage: 'Signed' },
-  { name: 'Roofings Group', value: 'UGX 8M',  stage: 'Negotiating' },
-  { name: 'UAP Insurance',  value: 'UGX 5M',  stage: 'Proposal Sent' },
-];
-
-const ACTIVITY = [
-  { text: 'Airtel Uganda agreement renewed early', time: '3d ago' },
-  { text: 'Roofings Group entered negotiation phase', time: '1w ago' },
-  { text: 'Stanbic Bank social delivery — 8 posts done', time: '1w ago' },
-  { text: 'UAP Insurance proposal sent for review', time: '2w ago' },
-];
 
 const TIER_CLASS: Record<string, string> = {
   Title: 'ca-pill-purple', Gold: 'ca-pill-orange', Silver: 'ca-pill-blue', Bronze: 'ca-pill-muted',
@@ -62,6 +18,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
+  if (!rows.length) return;
   const headers = Object.keys(rows[0]);
   const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '')}"`).join(','))].join('\n');
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: filename });
@@ -71,8 +28,8 @@ function exportCSV(rows: Record<string, unknown>[], filename: string) {
 const BLANK: Sponsor = { name: '', tier: 'Gold', value: '', start: '', end: '', status: 'pending' };
 
 export default function ClubSponsorsPage() {
-  const [sponsors, setSponsors] = useState<Sponsor[]>(INIT_SPONSORS);
-  const [benefits, setBenefits] = useState<BenefitItem[]>(INIT_BENEFITS);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [benefits, setBenefits] = useState<BenefitItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<Sponsor>(BLANK);
   const [toast, setToast] = useState('');
@@ -152,7 +109,7 @@ export default function ClubSponsorsPage() {
 
       <div className="ca-page-header">
         <div>
-          <p className="ca-page-eyebrow">CA-10</p>
+
           <h1 className="ca-page-title">Sponsors &amp; Partnerships</h1>
           <p className="ca-page-subtitle">Manage sponsorships, agreements, partnerships and benefit delivery.</p>
         </div>
@@ -163,18 +120,6 @@ export default function ClubSponsorsPage() {
           </button>
           <button type="button" className="ca-btn ca-btn-primary" onClick={() => setShowModal(true)}><FiPlus /> Add Sponsor</button>
         </div>
-      </div>
-
-      <div className="ca-kpi-bar">
-        {KPI.map(k => (
-          <div key={k.label} className="ca-kpi-card">
-            <p className="ca-kpi-label">{k.label}</p>
-            <p className="ca-kpi-value">{k.value}</p>
-            <span className={`ca-kpi-delta ${k.up === true ? 'up' : k.up === false ? 'down' : 'neutral'}`}>
-              {k.up === true ? '↑ ' : ''}{k.delta}
-            </span>
-          </div>
-        ))}
       </div>
 
       <div className="ca-content-grid">
@@ -190,6 +135,9 @@ export default function ClubSponsorsPage() {
                   <tr><th>Sponsor</th><th>Tier</th><th>Value</th><th>Start</th><th>End</th><th>Status</th></tr>
                 </thead>
                 <tbody>
+                  {sponsors.length === 0 && (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No sponsors yet. Add a sponsor to track partnerships.</td></tr>
+                  )}
                   {sponsors.map((s, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{s.name}</td>
@@ -208,8 +156,11 @@ export default function ClubSponsorsPage() {
           <div className="ca-panel">
             <div className="ca-panel-header">
               <h2 className="ca-panel-title">Benefit Delivery Checklist</h2>
-              <span className="ca-panel-count">{doneCount} / {benefits.length} delivered</span>
+              {benefits.length > 0 && <span className="ca-panel-count">{doneCount} / {benefits.length} delivered</span>}
             </div>
+            {benefits.length === 0 && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No benefit obligations yet.</p>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {benefits.map((b, i) => (
                 <button
@@ -237,55 +188,26 @@ export default function ClubSponsorsPage() {
         <div className="ca-content-aside">
           <div className="ca-panel">
             <div className="ca-panel-header"><h2 className="ca-panel-title">Partnership Pipeline</h2></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {PIPELINE.map((p, i) => (
-                <div key={i} className="ca-pipeline-row">
-                  <span className="ca-pipeline-name">{p.name}</span>
-                  <span className="ca-pipeline-value">{p.value}</span>
-                  <span className={`ca-pill ${p.stage === 'Signed' ? 'ca-pill-green' : p.stage === 'Negotiating' ? 'ca-pill-orange' : 'ca-pill-muted'}`} style={{ fontSize: '0.6rem' }}>
-                    {p.stage}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>
+              No pipeline deals yet. Add a sponsor to start tracking partnerships.
+            </p>
           </div>
 
           <div className="ca-panel">
             <div className="ca-panel-header">
               <h2 className="ca-panel-title">Renewal Alerts</h2>
-              <span className="ca-panel-count">{RENEWAL_ALERTS.length} upcoming</span>
+              <span className="ca-panel-count">0 upcoming</span>
             </div>
-            {RENEWAL_ALERTS.map((r, i) => (
-              <div key={i} className="ca-alert-item" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                  <div className="ca-alert-dot-orange" />
-                  <div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-primary)', fontWeight: 600 }}>{r.name}</p>
-                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Expires {r.exp} · {r.days} days left</p>
-                  </div>
-                </div>
-                <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm"
-                  onClick={() => showToast(`Renewal started for ${r.name}`)}>
-                  Renew
-                </button>
-                <FiAlertTriangle style={{ color: '#f97316', fontSize: '0.9rem', marginLeft: 4 }} />
-              </div>
-            ))}
+            <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>
+              No upcoming renewals.
+            </p>
           </div>
 
           <div className="ca-panel">
             <div className="ca-panel-header"><h2 className="ca-panel-title">Recent Sponsorship Activity</h2></div>
-            <div className="ca-activity-list">
-              {ACTIVITY.map((a, i) => (
-                <div key={i} className="ca-activity-item">
-                  <div className="ca-activity-dot" />
-                  <div>
-                    <p className="ca-activity-text">{a.text}</p>
-                    <p className="ca-activity-time">{a.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>
+              No recent activity.
+            </p>
           </div>
         </div>
       </div>

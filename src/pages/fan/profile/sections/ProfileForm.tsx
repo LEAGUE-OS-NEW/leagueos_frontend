@@ -24,7 +24,6 @@ type FormErrors = Partial<Record<keyof FormValues | 'form', string>>;
 
 const nameLengthRange = { min: 2, max: 50 };
 const bioMaxLength = 240;
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function toFormValues(profile?: BackendProfile | null): FormValues {
   return {
@@ -40,12 +39,15 @@ function toFormValues(profile?: BackendProfile | null): FormValues {
   };
 }
 
+// Email is read-only in this form (see the email <label> below), so it is
+// intentionally not validated here — it can't be edited into an invalid
+// state through this UI. Changing email is handled elsewhere (e.g. a
+// dedicated account-security flow), not through the general profile form.
 function validate(values: FormValues): FormErrors {
   const errors: FormErrors = {};
 
   const firstName = values.firstName.trim();
   const lastName = values.lastName.trim();
-  const email = values.email.trim();
 
   if (!firstName) {
     errors.firstName = 'First name is required.';
@@ -57,12 +59,6 @@ function validate(values: FormValues): FormErrors {
     errors.lastName = 'Last name is required.';
   } else if (lastName.length < nameLengthRange.min || lastName.length > nameLengthRange.max) {
     errors.lastName = `Last name must be ${nameLengthRange.min} to ${nameLengthRange.max} characters.`;
-  }
-
-  if (!email) {
-    errors.email = 'Email address is required.';
-  } else if (!emailPattern.test(email)) {
-    errors.email = 'Enter a valid email address.';
   }
 
   if (values.bio.length > bioMaxLength) {
@@ -124,7 +120,6 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
       await updateProfile({
         first_name: values.firstName.trim(),
         last_name: values.lastName.trim(),
-        email: values.email.trim(),
         phone_number: values.phoneNumber.trim(),
         location: values.location.trim(),
         favourite_sport: values.favoriteSport.trim(),
@@ -262,15 +257,17 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
             {errors.lastName && <span className="profile-field-error">{errors.lastName}</span>}
           </label>
 
-          <label className={errors.email ? 'has-error' : undefined}>
+          <label className="profile-field--readonly">
             Email address
             <input
               type="email"
               value={values.email}
-              onChange={(event) => updateField('email', event.target.value)}
-              disabled={isLoading}
+              readOnly
+              disabled
+              aria-readonly="true"
+              title="Contact support to change your email address"
             />
-            {errors.email && <span className="profile-field-error">{errors.email}</span>}
+            <span className="profile-field-hint">Contact support to change your email address.</span>
           </label>
 
           <label>

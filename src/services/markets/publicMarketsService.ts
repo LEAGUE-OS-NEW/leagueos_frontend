@@ -54,6 +54,39 @@ export const fetchMarketEvents = async () =>
   );
 export const fetchMarketDiscovery = async () =>
   (await apiClient.get("/markets/discovery/")).data;
+export interface PublicMarketSportStats {
+  id: string;
+  name: string;
+  code: string;
+  slug: string;
+  total_markets: number;
+  open_markets: number;
+  live_markets: number;
+  featured_open_markets: number;
+  total_volume_ugx: string;
+  trader_count: number;
+}
+
+export interface PublicMarketStats {
+  total_markets: number;
+  open_markets: number;
+  live_markets: number;
+  featured_open_markets: number;
+  total_volume_ugx: string;
+  trader_count: number;
+  sports: PublicMarketSportStats[];
+}
+
+export async function fetchMarketStats(
+  signal?: AbortSignal,
+): Promise<PublicMarketStats> {
+  const response = await apiClient.get<PublicMarketStats>("/markets/stats/", {
+    signal,
+  });
+
+  return response.data;
+}
+
 export async function fetchPublicMarkets(signal?: AbortSignal) {
   const config = { signal };
   const [categories, open] = await Promise.all([

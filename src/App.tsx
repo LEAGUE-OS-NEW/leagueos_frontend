@@ -30,26 +30,21 @@ import FanTicketsPage from './pages/fan/tickets/FanTicketsPage';
 import Markets from './pages/markets/Markets';
 import PublicMarketDetailPage from './pages/markets/MarketDetailPage';
 import FanVerification from './pages/fan/markets/FanVerification';
-// NOTE: these four already exist in src/pages/fan/markets/ (see the report
-// on that folder) but were never imported/routed. Adjust the path below if
-// they actually live somewhere else in the tree.
+
 import FanMarkets from './pages/fan/markets/FanMarkets';
 import MarketDetailOverview from './pages/fan/markets/MarketDetailOverview';
 import MarketDetailChart from './pages/fan/markets/MarketDetailChart';
 import PlaceOrder from './pages/fan/markets/PlaceOrder';
 import ReviewOrder from './pages/fan/markets/ReviewOrder';
 import OrderPlaced from './pages/fan/markets/OrderPlaced';
-// NOTE: same story for these three — PositionDetail/SellPosition/
-// SellConfirmation reference '../markets/Markets.css' via relative import,
-// which implies they sit in src/pages/fan/positions/ alongside MyPositions.
+
+
 import PositionDetail from './pages/fan/markets/PositionDetail';
 import SellPosition from './pages/fan/markets/SellPosition';
 import SellConfirmation from './pages/fan/markets/SellConfirmation';
-// Rich landing page verified fans are redirected to after completing
-// identity verification — wallet snapshot, live markets, categories, and
-// an open-positions summary in one place.
+
 import FanTradeHub from './pages/fan/markets/FanTradeHub';
-import Fantasy from './pages/fantasy/Fantasy';
+
 import Register from "./pages/auth/registration/Register";
 import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
@@ -57,6 +52,7 @@ import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
+import Fantasy from "./pages/landing/fantasy/Fantasy";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -84,6 +80,7 @@ import Safety from './pages/support/Safety';
 import ContactUs from './pages/support/ContactUs';
 import Community from './pages/support/Community';
 
+
 import FantasyCompetitions from "./pages/fan/fantasy/FantasyCompetitions";
 import FanNewsPage from './pages/fan/news/FanNewsPage';
 import FanArticleDetailPage from './pages/fan/news/FanArticleDetailPage';
@@ -92,13 +89,14 @@ import ClubProfilePage from './pages/clubadmin/profile/ClubProfilePage';
 import ClubFixturesPage from './pages/clubadmin/fixtures/ClubFixturesPage';
 import ClubSquadPage from './pages/clubadmin/squad/ClubSquadPage';
 import ClubNewsPage from './pages/clubadmin/news/ClubNewsPage';
-import ClubMembershipsPage from './pages/clubadmin/memberships/ClubMembershipsPage';
 import ClubTicketsAdminPage from './pages/clubadmin/tickets/ClubTicketsAdminPage';
 import ClubStorePage from './pages/clubadmin/store/ClubStorePage';
 import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
 import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
-import ClubSponsorsPage from './pages/clubadmin/sponsors/ClubSponsorsPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
+import ClubCompliancePage from './pages/clubadmin/compliance/ClubCompliancePage';
+import ClubAdminRoute from './components/clubadmin/ClubAdminRoute';
+import Unauthorized from './pages/auth/unauthorized/Unauthorized';
 
 // import Personalize from "./pages/personalize/Personalize";
 
@@ -121,6 +119,7 @@ function App() {
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
+        <Route path="/fantasy" element={<Fantasy />} />
         <Route path="/fixtures" element={<FixturesPage />} />
         <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
@@ -156,36 +155,40 @@ function App() {
         <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
         <Route path="/fan/markets/:marketId/placed" element={<OrderPlaced />} />
         <Route path="/fan/verify" element={<FanVerification />} />
-        {/* Rich full-access trading hub — where newly verified fans land */}
         <Route path="/fan/trade" element={<FanTradeHub />} />
+        <Route path="/notifications" element={<Navigate to="/settings?tab=notifications" replace />} />
 
         {/* Positions / sell flow */}
         <Route path="/fan/positions/:positionId" element={<PositionDetail />} />
         <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
         <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
 
-        <Route path="/fantasy" element={<Fantasy />} />
+        {/* Fantasy section */ }
         <Route path="/search" element={<SearchPage />} />
+        {/* Fantasy Home — Step 2 entry point into the Fantasy flow */}
         <Route path="/fan/fantasy" element={<FantasyCompetitions />} />
+        
         <Route path="/fan/news" element={<FanNewsPage />} />
         <Route path="/fan/news/:storyId" element={<FanArticleDetailPage />} />
 
-        {/* Club Admin */}
-        <Route path="/club-admin" element={<ClubAdminDashboard />} />
-        <Route path="/club-admin/profile" element={<ClubProfilePage />} />
-        <Route path="/club-admin/fixtures" element={<ClubFixturesPage />} />
-        <Route path="/club-admin/squad" element={<ClubSquadPage />} />
-        <Route path="/club-admin/news" element={<ClubNewsPage />} />
-        <Route path="/club-admin/memberships" element={<ClubMembershipsPage />} />
-        <Route path="/club-admin/tickets" element={<ClubTicketsAdminPage />} />
-        <Route path="/club-admin/store" element={<ClubStorePage />} />
-        <Route path="/club-admin/orders" element={<ClubOrdersPage />} />
-        <Route path="/club-admin/analytics" element={<ClubAnalyticsPage />} />
-        <Route path="/club-admin/staff" element={<ClubStaffPage />} />
-        <Route path="/club-admin/sponsors" element={<ClubSponsorsPage />} />
+        {/* Club Admin — requires CLUB_ADMIN entitlement */}
+        <Route path="/dashboard/club-admin" element={<Navigate to="/club-admin" replace />} />
+        <Route path="/club-admin" element={<ClubAdminRoute><ClubAdminDashboard /></ClubAdminRoute>} />
+        <Route path="/club-admin/profile" element={<ClubAdminRoute><ClubProfilePage /></ClubAdminRoute>} />
+        <Route path="/club-admin/fixtures" element={<ClubAdminRoute><ClubFixturesPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/squad" element={<ClubAdminRoute><ClubSquadPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/news" element={<ClubAdminRoute><ClubNewsPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/tickets" element={<ClubAdminRoute><ClubTicketsAdminPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/store" element={<ClubAdminRoute><ClubStorePage /></ClubAdminRoute>} />
+        <Route path="/club-admin/orders" element={<ClubAdminRoute><ClubOrdersPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/analytics" element={<ClubAdminRoute><ClubAnalyticsPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/staff" element={<ClubAdminRoute><ClubStaffPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/compliance" element={<ClubAdminRoute><ClubCompliancePage /></ClubAdminRoute>} />
+
+        {/* Access denied */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
        
-
 
         {/* authentication routes */}
         <Route path="/register" element={<Register />} />

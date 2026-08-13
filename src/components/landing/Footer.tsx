@@ -29,11 +29,8 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: 'Support',
     links: [
-      { label: 'Help Center', route: '/help' },
       { label: 'How It Works', route: '/how-it-works' },
-      { label: 'Safety', route: '/safety' },
       { label: 'Contact Us', route: '/contact' },
-      { label: 'Community', route: '/community' },
     ],
   },
   {

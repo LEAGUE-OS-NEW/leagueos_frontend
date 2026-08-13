@@ -32,3 +32,85 @@
 .ca-pitch-dot-gk {
   background: linear-gradient(135deg, #f97316, #ef4444);
 }
+
+/* ── Data source badges ── */
+.ca-data-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.ca-data-badge-verified { background: rgba(34,197,94,0.15); color: #22c55e; }
+.ca-data-badge-pending  { background: rgba(234,179,8,0.15);  color: #eab308; }
+.ca-data-badge-draft    { background: rgba(255,255,255,0.08); color: var(--color-text-muted); }
+
+/* ── Roster row states ── */
+.ca-row-pending td { background: rgba(234,179,8,0.04); }
+.ca-row-draft td   { background: rgba(255,255,255,0.02); opacity: 0.75; }
+
+/* ── Submission queue items ── */
+.ca-sub-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.02);
+}
+
+.ca-sub-item-top { display: flex; align-items: flex-start; gap: 8px; }
+
+.ca-sub-feedback {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(249,115,22,0.06);
+  border: 1px solid rgba(249,115,22,0.2);
+  margin-left: 18px;
+}
+
+/* ── Revision alert banner (top of page) ── */
+.ca-revision-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(249,115,22,0.3);
+  background: rgba(249,115,22,0.06);
+}
+
+/* ── Revision context banner inside modal ── */
+.ca-revision-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(249,115,22,0.3);
+  background: rgba(249,115,22,0.06);
+  margin: 0 0 4px;
+}
+
+/* ── Legend ── */
+.ca-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.ca-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

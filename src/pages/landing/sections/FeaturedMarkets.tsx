@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import InfoTooltip from '../../../components/InfoTooltip/InfoTooltip';
-import { fetchContracts, fetchFeaturedPublishedMarkets } from '../../../services/marketAdminService';
+import { fetchFeaturedPublishedMarkets } from '../../../services/marketAdminService';
 import type { Market as AdminMarket, MarketCategory } from '../../../services/marketAdminService';
 import './FeaturedMarkets.css';
 
@@ -23,7 +23,6 @@ type Market = {
   crestB?: string;
   volume: string;
   traders: string;
-  probabilityPct: number;
   yesPrice: string;
   noPrice: string;
 };
@@ -43,11 +42,6 @@ function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string
   return { teamA: teamA ?? eventLabel, teamB: teamB ?? 'Event market' };
 }
 
-function formatUgxVolume(amount: number): string {
-  if (amount >= 1_000_000) return `UGX ${(amount / 1_000_000).toFixed(1)}M`;
-  return `UGX ${Math.round(amount / 1000)}K`;
-}
-
 function formatClosesIn(iso: string): string {
   const diffMs = new Date(iso).getTime() - Date.now();
   if (diffMs <= 0) return 'Closing soon';
@@ -61,17 +55,7 @@ async function loadFeaturedMarkets(): Promise<Market[]> {
   const published = await fetchFeaturedPublishedMarkets(5);
   const supported = published.filter((market): market is AdminMarket => isSupportedSport(market.category));
 
-  const contractEntries = await Promise.all(
-    supported.map((market) => fetchContracts(market.id).then((contracts) => [market.id, contracts] as const)),
-  );
-  const contractsByMarket = new Map(contractEntries);
-
   return supported.map((market) => {
-    const yes = market.outcomes.find((outcome) => outcome.id === 'YES')!;
-    const contracts = contractsByMarket.get(market.id) ?? [];
-    const totalUgx = contracts.reduce((sum, contract) => sum + contract.quantityUgx, 0);
-    const traders = new Set(contracts.flatMap((contract) => [contract.buyer, contract.seller])).size;
-
     return {
       id: market.id,
       sport: market.category as Sport,
@@ -81,11 +65,10 @@ async function loadFeaturedMarkets(): Promise<Market[]> {
           : { label: 'OPEN', meta: formatClosesIn(market.parameters.closesAt) },
       question: market.question,
       ...teamsFromEventLabel(market.eventLabel),
-      volume: formatUgxVolume(totalUgx),
-      traders: traders.toLocaleString('en-US'),
-      probabilityPct: yes.probabilityPct,
-      yesPrice: `${yes.probabilityPct}¢`,
-      noPrice: `${100 - yes.probabilityPct}¢`,
+      volume: '—',
+      traders: '—',
+      yesPrice: 'Price unavailable',
+      noPrice: 'Price unavailable',
     };
   });
 }
@@ -151,7 +134,7 @@ function FeaturedMarkets() {
               Live predictions. Real outcomes. Trade your view.
               <InfoTooltip
                 label="How prices work"
-                text="A YES price of 62¢ means the market currently sees a 62% chance of YES. Prices move as more people trade."
+                text="A winning share pays UGX 1,000. Current prices are shown in UGX per share when genuine trading data is available."
               />
             </p>
           </div>
@@ -194,10 +177,7 @@ function FeaturedMarkets() {
               </div>
 
               <div className="market-probability">
-                <div className="market-probability-track">
-                  <div className="market-probability-fill" style={{ width: `${market.probabilityPct}%` }} />
-                </div>
-                <span className="market-probability-label">{market.probabilityPct}% likely YES</span>
+                <span className="market-probability-label">Not traded yet</span>
               </div>
 
               <div className="market-stats">

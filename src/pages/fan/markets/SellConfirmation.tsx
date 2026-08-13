@@ -1,120 +1,14 @@
-import { useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
-import Sidebar from '../../../components/fan/Sidebar';
-import Topbar from '../sections/Topbar';
-import Footer from '../../../components/landing/Footer';
-import { formatUgx } from '../../../utils/rules.ts';
-import '../sections/FanDashboard.css';
-import '../markets/Markets.css';
-import './FanTradeWallet.css';
-import { MARKET_FACE_VALUE_UGX } from '../../../utils/marketPricing.ts';
-
-const PLATFORM_FEE_RATE = 0.02;
-
-export interface SellConfirmationData {
-  id: string;
-  marketQuestion: string;
-  outcome: 'Yes' | 'No';
-  sellPrice: number;
-  contracts: number;
-  contractsOwned: number;
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom'; import { FiArrowLeft } from 'react-icons/fi';
+import Sidebar from '../../../components/fan/Sidebar'; import Topbar from '../sections/Topbar'; import Footer from '../../../components/landing/Footer'; import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
+import { fetchFanPositions, fetchMarketOrderBook, sellPosition, type Position } from '../../../services/fanMarketsServices'; import { formatMarketSharePrice, formatMarketUgx, normalizedPriceToUgxSharePrice, sharesToBackendQuantity } from '../../../utils/marketPricing.ts';
+import '../sections/FanDashboard.css'; import '../markets/Markets.css'; import './FanTradeWallet.css';
+function SellConfirmation() { const navigate=useNavigate(); const location=useLocation(); const {positionId}=useParams(); const state=(location.state as {shares?:number;limitPrice?:number}|null)??{};
+ const [isSidebarOpen,setIsSidebarOpen]=useState(false); const [position,setPosition]=useState<Position|null>(null); const [error,setError]=useState(''); const [submitting,setSubmitting]=useState(false);
+ useEffect(()=>{ fetchFanPositions().then((items)=>setPosition(items.find((item)=>item.contract.id===positionId)??null)).catch(()=>setError("Couldn't load this position.")); },[positionId]);
+ const submit=async()=>{ if(!position||!state.shares) return; setSubmitting(true); setError(''); try { const book=await fetchMarketOrderBook(position.market.id,position.portfolio.backendOutcomeId); if(book.best_bid===null) throw new Error('No buy liquidity is currently available for this position.'); const quote=Number(book.best_bid); await sellPosition({marketId:position.market.id,backendOutcomeId:position.portfolio.backendOutcomeId,outcomeId:position.contract.outcomeId,shares:state.shares,limitPrice:quote}); navigate('/fan/positions'); } catch(e){setError(e instanceof Error?e.message:'Could not place the sell order.');setSubmitting(false);} };
+ const quote=state.limitPrice??null; const proceeds=quote===null||!state.shares?null:sharesToBackendQuantity(state.shares)*quote;
+ return <div className="fan-dashboard"><Sidebar isOpen={isSidebarOpen} onClose={()=>setIsSidebarOpen(false)}/><div className="fan-dashboard-main"><Topbar onMenuClick={()=>setIsSidebarOpen(true)}/><div className="fan-dashboard-content flow-page-content"><button type="button" className="flow-back-btn" onClick={()=>navigate(-1)}><FiArrowLeft/> Back</button><section className="dashboard-card flow-card"><h1 className="flow-card-title">Confirm Sell Order</h1>
+ {!state.shares||quote===null?<DashboardNotice tone="empty" title="Sell confirmation unavailable" message="Return to the position and select shares using a genuine best-bid quote."/>:<><div className="flow-meta-row"><span>Shares</span><b>{state.shares.toFixed(4)}</b></div><div className="flow-meta-row"><span>Confirmed quote</span><b>{formatMarketSharePrice(normalizedPriceToUgxSharePrice(quote))}</b></div><div className="flow-meta-row"><span>Estimated proceeds</span><b>{formatMarketUgx(proceeds??0)}</b></div>{error&&<p className="field-error">{error}</p>}<button type="button" className="verify-btn verify-btn--primary" disabled={!position||submitting} onClick={()=>void submit()}>{submitting?'Submitting…':'Confirm Sell Order'}</button></>}</section></div><Footer/></div></div>;
 }
-
-
-const SAMPLE_ORDER: SellConfirmationData = {
-  id: 'pos_1',
-  marketQuestion: 'SC Villa Clean Sheet?',
-  outcome: 'Yes',
-  sellPrice: 2.15,
-  contracts: 20,
-  contractsOwned: 20,
-};
-
-
-function SellConfirmation({ order = SAMPLE_ORDER }: { order?: SellConfirmationData }) {
-  const navigate = useNavigate();
-  const { positionId } = useParams();
-  const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const contracts = (location.state as { contracts?: number } | null)?.contracts ?? order.contracts;
-
-  const { grossProceeds, platformFee, netTotal, remainingContracts } = useMemo(() => {
-    const gross = contracts * order.sellPrice * MARKET_FACE_VALUE_UGX;
-    const fee = gross * PLATFORM_FEE_RATE;
-    return {
-      grossProceeds: gross,
-      platformFee: fee,
-      netTotal: gross - fee,
-      remainingContracts: Math.max(0, order.contractsOwned - contracts),
-    };
-  }, [contracts, order.contractsOwned, order.sellPrice]);
-
-  const handleConfirm = () => {
-    setIsSubmitting(true);
-    // TODO: call the sell-position mutation here, then navigate on success.
-    navigate('/positions', { state: { soldPositionId: positionId ?? order.id } });
-  };
-
-  return (
-    <div className="fan-dashboard">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="fan-dashboard-main">
-        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <div className="fan-dashboard-content flow-page-content">
-          <button type="button" className="flow-back-btn" onClick={() => navigate(-1)}>
-            <FiArrowLeft /> Back
-          </button>
-
-          <section className="dashboard-card flow-card">
-            <h1 className="flow-card-title">Confirm Sell Order</h1>
-
-            <div className="flow-meta-list">
-              <div className="flow-meta-row">
-                <span>Market</span>
-                <b>{order.marketQuestion}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>Outcome</span>
-                <b className={order.outcome === 'Yes' ? 'up' : 'down'}>{order.outcome}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>Sell Price (UGX)</span>
-                <b>{order.sellPrice.toFixed(2)}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>Contracts</span>
-                <b>{contracts}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>You will receive (UGX)</span>
-                <b>{formatUgx(grossProceeds)}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>Platform Fee (2%)</span>
-                <b>{formatUgx(platformFee)}</b>
-              </div>
-              <div className="flow-meta-row flow-meta-row--total">
-                <span>Total (UGX)</span>
-                <b>{formatUgx(netTotal)}</b>
-              </div>
-              <div className="flow-meta-row">
-                <span>Remaining Contracts</span>
-                <b>{remainingContracts}</b>
-              </div>
-            </div>
-
-            <button type="button" className="flow-danger-btn" disabled={isSubmitting} onClick={handleConfirm}>
-              {isSubmitting ? 'Confirming…' : 'Confirm & Sell'}
-            </button>
-          </section>
-        </div>
-        <Footer />
-      </div>
-    </div>
-  );
-}
-
 export default SellConfirmation;

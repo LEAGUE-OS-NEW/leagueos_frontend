@@ -4,12 +4,10 @@ import { FiAlertTriangle, FiActivity, FiArrowLeft, FiShield } from 'react-icons/
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   cancelMarket,
-  fetchContracts,
   fetchMarket,
   fetchOrderBook,
   publishMarket,
   updateOutcomes,
-  type Contract,
   type Market,
   type MarketStatus,
   type OrderBook,
@@ -76,7 +74,6 @@ function MarketDetailPage() {
   const navigate = useNavigate();
 
   const [market, setMarket] = useState<Market | null>(null);
-  const [contracts, setContracts] = useState<Contract[]>([]);
   const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -106,11 +103,10 @@ function MarketDetailPage() {
   useEffect(() => {
     if (!marketId) return;
     let cancelled = false;
-    Promise.all([fetchMarket(marketId), fetchContracts(marketId), fetchOrderBook(marketId)])
-      .then(([marketResult, contractsResult, orderBookResult]) => {
+    Promise.all([fetchMarket(marketId), fetchOrderBook(marketId)])
+      .then(([marketResult, orderBookResult]) => {
         if (cancelled) return;
         applyMarket(marketResult);
-        setContracts(contractsResult);
         setOrderBook(orderBookResult);
       })
       .catch(() => {
@@ -314,16 +310,7 @@ function MarketDetailPage() {
                       <span>Description</span>
                       <textarea rows={2} value={yesDescription} onChange={(event) => setYesDescription(event.target.value)} />
                     </label>
-                    <label className="mdp-field">
-                      <span>Probability: {yesProbability}%</span>
-                      <input
-                        type="range"
-                        min={1}
-                        max={99}
-                        value={yesProbability}
-                        onChange={(event) => setYesProbability(Number(event.target.value))}
-                      />
-                    </label>
+                    <p>Opening probability is unavailable; prices come from genuine trading.</p>
                   </>
                 ) : (
                   <>
@@ -331,7 +318,7 @@ function MarketDetailPage() {
                     {yesOutcome.description && <p className="mdp-outcome-card__desc">{yesOutcome.description}</p>}
                   </>
                 )}
-                <p className="mdp-outcome-card__price">{formatUgx(yesOutcome.price)}</p>
+                <p className="mdp-outcome-card__price">{yesOutcome.price === null ? 'Price unavailable' : formatUgx(yesOutcome.price)}</p>
               </div>
 
               <div className="mdp-outcome-card mdp-outcome-card--no">
@@ -346,10 +333,7 @@ function MarketDetailPage() {
                       <span>Description</span>
                       <textarea rows={2} value={noDescription} onChange={(event) => setNoDescription(event.target.value)} />
                     </label>
-                    <label className="mdp-field">
-                      <span>Probability: {100 - yesProbability}%</span>
-                      <input type="range" min={1} max={99} value={100 - yesProbability} disabled />
-                    </label>
+                    <p>Opening probability is unavailable; prices come from genuine trading.</p>
                   </>
                 ) : (
                   <>
@@ -357,7 +341,7 @@ function MarketDetailPage() {
                     {noOutcome.description && <p className="mdp-outcome-card__desc">{noOutcome.description}</p>}
                   </>
                 )}
-                <p className="mdp-outcome-card__price">{formatUgx(noOutcome.price)}</p>
+                <p className="mdp-outcome-card__price">{noOutcome.price === null ? 'Price unavailable' : formatUgx(noOutcome.price)}</p>
               </div>
             </div>
             {canPublish && (
@@ -370,43 +354,7 @@ function MarketDetailPage() {
 
         {activeTab === 'Contracts' && (
           <div className="mdp-panel">
-            <div className="mdp-table-scroll">
-              <table className="mdp-table">
-                <thead>
-                  <tr>
-                    <th>Contract</th>
-                    <th>Outcome</th>
-                    <th>Price</th>
-                    <th>Stake</th>
-                    <th>Buyer</th>
-                    <th>Seller</th>
-                    <th>Matched</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contracts.map((contract) => (
-                    <tr key={contract.id}>
-                      <td>{contract.id}</td>
-                      <td>{contract.outcomeId}</td>
-                      <td>{formatUgx(contract.price)}</td>
-                      <td>{formatUgx(contract.quantityUgx)}</td>
-                      <td>{contract.buyer}</td>
-                      <td>{contract.seller}</td>
-                      <td>{formatDateTime(contract.matchedAt)}</td>
-                      <td>{contract.status}</td>
-                    </tr>
-                  ))}
-                  {contracts.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="mdp-table__empty">
-                        No contracts have been matched yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <p className="mdp-table__empty">Admin-wide contracts are unavailable because the backend does not expose a whole-market contracts endpoint.</p>
           </div>
         )}
 
@@ -417,11 +365,11 @@ function MarketDetailPage() {
                 <div className="mdp-orderbook-summary">
                   <div>
                     <span className="mdp-kv-item__key">Last Price</span>
-                    <p className="mdp-orderbook-summary__value">{formatUgx(orderBook.lastPrice)}</p>
+                    <p className="mdp-orderbook-summary__value">{orderBook.lastPrice === null ? 'Not traded yet' : formatUgx(orderBook.lastPrice)}</p>
                   </div>
                   <div>
                     <span className="mdp-kv-item__key">Spread</span>
-                    <p className="mdp-orderbook-summary__value">{formatUgx(orderBook.spread)}</p>
+                    <p className="mdp-orderbook-summary__value">{orderBook.spread === null ? '—' : formatUgx(orderBook.spread)}</p>
                   </div>
                 </div>
                 <div className="mdp-orderbook-grid">
@@ -430,7 +378,7 @@ function MarketDetailPage() {
                     {orderBook.bids.map((level, index) => (
                       <div className="mdp-orderbook-row mdp-orderbook-row--bid" key={`bid-${index}`}>
                         <span>{formatUgx(level.price)}</span>
-                        <span>{formatUgx(level.quantityUgx)}</span>
+                        <span>{level.shares.toLocaleString()} shares</span>
                       </div>
                     ))}
                   </div>
@@ -439,11 +387,14 @@ function MarketDetailPage() {
                     {orderBook.asks.map((level, index) => (
                       <div className="mdp-orderbook-row mdp-orderbook-row--ask" key={`ask-${index}`}>
                         <span>{formatUgx(level.price)}</span>
-                        <span>{formatUgx(level.quantityUgx)}</span>
+                        <span>{level.shares.toLocaleString()} shares</span>
                       </div>
                     ))}
                   </div>
                 </div>
+                {orderBook.bids.length === 0 && orderBook.asks.length === 0 && (
+                  <p>No order-book data is available.</p>
+                )}
               </>
             )}
 
@@ -454,20 +405,20 @@ function MarketDetailPage() {
                   <tr>
                     <th>Outcome</th>
                     <th>Price</th>
-                    <th>Stake</th>
+                    <th>Quantity</th>
                     <th>Matched</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {contracts.slice(0, 8).map((contract) => (
-                    <tr key={contract.id}>
-                      <td>{contract.outcomeId}</td>
-                      <td>{formatUgx(contract.price)}</td>
-                      <td>{formatUgx(contract.quantityUgx)}</td>
-                      <td>{formatDateTime(contract.matchedAt)}</td>
+                  {orderBook?.recentTrades.slice(0, 8).map((trade) => (
+                    <tr key={trade.id}>
+                      <td>{orderBook.outcomeId}</td>
+                      <td>{formatUgx(trade.price)}</td>
+                      <td>{trade.shares.toLocaleString()} shares</td>
+                      <td>{formatDateTime(trade.executedAt)}</td>
                     </tr>
                   ))}
-                  {contracts.length === 0 && (
+                  {!orderBook?.recentTrades.length && (
                     <tr>
                       <td colSpan={4} className="mdp-table__empty">
                         No trades yet.

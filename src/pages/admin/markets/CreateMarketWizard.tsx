@@ -38,10 +38,6 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function formatUgx(amount: number): string {
-  return `UGX ${amount.toLocaleString('en-US')}`;
-}
-
 interface DetailsForm {
   sportingEventId?: string;
   eventLabel: string;
@@ -300,7 +296,7 @@ function CreateMarketWizard() {
                       type="text"
                       value={details.eventLabel}
                       onChange={(event) => setDetails((current) => ({ ...current, eventLabel: event.target.value }))}
-                      placeholder="Vipers SC vs Express FC"
+                      placeholder="Home team vs Away team"
                     />
                   </label>
                   <label className="wiz-field">
@@ -388,8 +384,8 @@ function CreateMarketWizard() {
               <div className="wiz-panel">
                 <h3>Outcomes</h3>
                 <p className="wiz-hint">
-                  Every League OS market resolves to exactly one of two fixed outcomes. Set the starting implied
-                  probability — this becomes the opening price fans see (UGX 10,000 x probability).
+                  Every League OS market resolves to exactly one of two fixed outcomes. Opening probability and
+                  liquidity are not configured here; genuine prices appear only from the trading order book.
                 </p>
                 <div className="wiz-outcomes-grid">
                   <div className="wiz-outcome-card wiz-outcome-card--yes">
@@ -410,19 +406,7 @@ function CreateMarketWizard() {
                         onChange={(event) => setOutcomes((current) => ({ ...current, yesDescription: event.target.value }))}
                       />
                     </label>
-                    <label className="wiz-field">
-                      <span>Probability: {outcomes.yesProbability}%</span>
-                      <input
-                        type="range"
-                        min={1}
-                        max={99}
-                        value={outcomes.yesProbability}
-                        onChange={(event) =>
-                          setOutcomes((current) => ({ ...current, yesProbability: Number(event.target.value) }))
-                        }
-                      />
-                    </label>
-                    <p className="wiz-outcome-card__price">{formatUgx(outcomes.yesProbability * 100)}</p>
+                    <p className="wiz-outcome-card__price">Opening price unavailable</p>
                   </div>
 
                   <div className="wiz-outcome-card wiz-outcome-card--no">
@@ -443,11 +427,7 @@ function CreateMarketWizard() {
                         onChange={(event) => setOutcomes((current) => ({ ...current, noDescription: event.target.value }))}
                       />
                     </label>
-                    <label className="wiz-field">
-                      <span>Probability: {100 - outcomes.yesProbability}%</span>
-                      <input type="range" min={1} max={99} value={100 - outcomes.yesProbability} disabled />
-                    </label>
-                    <p className="wiz-outcome-card__price">{formatUgx((100 - outcomes.yesProbability) * 100)}</p>
+                    <p className="wiz-outcome-card__price">Opening price unavailable</p>
                   </div>
                 </div>
               </div>
@@ -494,10 +474,9 @@ function CreateMarketWizard() {
                       type="number"
                       min={0}
                       value={parameters.initialLiquidityUgx}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, initialLiquidityUgx: Number(event.target.value) })
-                      }
+                      disabled
                     />
+                    <small>Opening liquidity is not supported by the backend workflow.</small>
                   </label>
                   <label className="wiz-field">
                     <span>Min trade (UGX)</span>

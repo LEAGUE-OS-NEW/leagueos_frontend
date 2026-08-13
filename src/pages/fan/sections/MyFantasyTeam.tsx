@@ -24,7 +24,7 @@ function MyFantasyTeam() {
     <div className="my-fantasy-team dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">My Fantasy Team</h2>
-        <Link to="/fantasy" className="dashboard-card-link">
+        <Link to="/fan/fantasy" className="dashboard-card-link">
           View team
         </Link>
       </div>
@@ -67,7 +67,7 @@ function MyFantasyTeam() {
 
           <div className="fantasy-footer">
             <span className="fantasy-gameweek">{team.gameweek}</span>
-            <Link to="/fantasy" className="dashboard-card-link">
+            <Link to="/fan/fantasy" className="dashboard-card-link">
               View full team
             </Link>
           </div>
