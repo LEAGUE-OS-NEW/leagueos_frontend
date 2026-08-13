@@ -65,6 +65,7 @@ describe('fetchSearchResults', () => {
         description: 'desc',
         author: 'Author',
         avatar: '/avatar.jpg',
+        isFeatured: false,
       },
     ]);
     vi.mocked(fetchClubs).mockResolvedValue([
