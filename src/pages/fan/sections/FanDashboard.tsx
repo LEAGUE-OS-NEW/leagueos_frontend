@@ -53,10 +53,11 @@ function FanDashboard() {
   const isRestricted = accountStatus === 'Deactivated' || accountStatus === 'Pending Deletion';
 
   return (
-    <div className="fan-dashboard">
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-      <div className="fan-dashboard-main">
-        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
+    <div className="fan-dashboard-shell">
+      <div className="fan-dashboard">
+        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+        <div className="fan-dashboard-main">
+          <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-dashboard-content">
           {isRestricted ? (
             <DashboardNotice
@@ -96,8 +97,9 @@ function FanDashboard() {
             </>
           )}
         </div>
-        <Footer />
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,18 +1,20 @@
+.fan-profile-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
 .fan-profile {
   display: flex;
-  min-height: 100vh;
-  background-color: var(--color-bg);
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
 }
 
 .fan-profile-main {
   flex: 1;
   min-width: 0;
-}
-
-@media (min-width: 960px) {
-  .fan-profile-main {
-    margin-left: 260px;
-  }
 }
 
 .fan-profile-content {
