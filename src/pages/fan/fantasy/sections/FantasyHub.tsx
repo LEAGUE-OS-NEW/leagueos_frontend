@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { Competition, FantasyTeam, Sport } from '../types';
-import { COMPETITIONS } from '../data';
 import { SearchBar, SportFilter, Badge, StatCard } from './shared';
 import { SPORT_META } from '../SportMeta';
 
 interface Props {
   teams: Record<string, FantasyTeam>;
+  competitions: Competition[];
+  leagueCount: number;
   onOpenCompetition: (c: Competition) => void;
   onManageTeam: (c: Competition) => void;
 }
 
-export default function FantasyHub({ teams, onOpenCompetition, onManageTeam }: Props) {
+export default function FantasyHub({ teams, competitions, leagueCount, onOpenCompetition, onManageTeam }: Props) {
   const [sport, setSport] = useState<Sport | 'all'>('all');
   const [search, setSearch] = useState('');
 
@@ -21,7 +22,7 @@ export default function FantasyHub({ teams, onOpenCompetition, onManageTeam }: P
   }, null);
   const totalPoints = active.reduce((s, t) => s + t.totalPoints, 0);
 
-  const filtered = COMPETITIONS.filter((c) => sport === 'all' || c.sport === sport).filter(
+  const filtered = competitions.filter((c) => sport === 'all' || c.sport === sport).filter(
     (c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.shortName.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -39,7 +40,7 @@ export default function FantasyHub({ teams, onOpenCompetition, onManageTeam }: P
         <StatCard label="Active teams" value={active.length} accent="#6c5ce7" />
         <StatCard label="Best overall rank" value={bestRank ? `#${bestRank.toLocaleString()}` : '—'} accent="#f4661b" />
         <StatCard label="Total points" value={totalPoints} accent="#ec4899" />
-        <StatCard label="Mini-leagues" value="4" sub="2 private, 2 public" accent="#22c55e" />
+        <StatCard label="Mini-leagues" value={leagueCount} accent="#22c55e" />
       </div>
 
       {withTeams.length > 0 && (
@@ -96,7 +97,7 @@ export default function FantasyHub({ teams, onOpenCompetition, onManageTeam }: P
                   <strong>{c.name}</strong>
                   <span className="hub-comp-sub">
                     {c.status === 'upcoming' ? 'Entries open soon' : `GW ${c.currentGameweek}/${c.totalGameweeks}`} ·{' '}
-                    {c.entries.toLocaleString()} entries
+                    Registration {c.api.registration_state.toLowerCase()}
                   </span>
                 </div>
               </div>

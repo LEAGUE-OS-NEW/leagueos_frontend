@@ -5,7 +5,7 @@ import { fetchOpenMarkets } from './markets/publicMarketsService';
 import { fetchNews } from './newsService';
 import { fetchClubs, fetchSquad } from './clubsService';
 import { getMatchTicketTypes } from './ticketCheckoutService';
-import { fetchFantasyLeagues } from './fantasyAdminService';
+import { fetchFantasyCompetitions } from './fantasyService';
 
 vi.mock('./publicDashboardService', () => ({
   getPublicClubs: vi.fn(),
@@ -30,8 +30,8 @@ vi.mock('./ticketCheckoutService', () => ({
   getMatchTicketTypes: vi.fn(),
 }));
 
-vi.mock('./fantasyAdminService', () => ({
-  fetchFantasyLeagues: vi.fn(),
+vi.mock('./fantasyService', () => ({
+  fetchFantasyCompetitions: vi.fn(),
 }));
 
 describe('fetchSearchResults', () => {
@@ -98,18 +98,13 @@ describe('fetchSearchResults', () => {
       count: 0,
       ticket_types: [],
     });
-    vi.mocked(fetchFantasyLeagues).mockResolvedValue([
+    vi.mocked(fetchFantasyCompetitions).mockResolvedValue([
       {
         id: 'fb-premier',
         sport: 'football',
         name: 'Uganda Fantasy Premier',
-        image: '/images/fantasy1.png',
-        entryType: 'public',
-        managers: 48200,
-        prizePool: 'UGX 20,000,000',
-        gameweek: 'Gameweek 3 · Live',
-        rulesSummary: 'Classic 8-player squads.',
-      },
+        visibility: 'PUBLIC',
+      } as never,
     ]);
 
     const { results, failedSources } = await fetchSearchResults();
@@ -144,7 +139,7 @@ describe('fetchSearchResults', () => {
     vi.mocked(fetchNews).mockRejectedValue(new Error('down'));
     vi.mocked(fetchClubs).mockRejectedValue(new Error('down'));
     vi.mocked(getMatchTicketTypes).mockRejectedValue(new Error('down'));
-    vi.mocked(fetchFantasyLeagues).mockRejectedValue(new Error('down'));
+    vi.mocked(fetchFantasyCompetitions).mockRejectedValue(new Error('down'));
 
     const { results, failedSources } = await fetchSearchResults();
 

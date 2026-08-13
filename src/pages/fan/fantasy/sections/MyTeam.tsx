@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Competition, FantasyTeam, Player } from '../types';
-import { SPORT_RULES, PLAYERS } from '../data';
+import { rulesFor } from '../data';
 import { Badge, StatCard } from './shared';
 import PlayerAvatar from './PlayerAvatar';
 import PlayerDrawer from './PlayerDrawer';
@@ -9,23 +9,25 @@ import { Drawer } from './Modal';
 interface Props {
   competition: Competition;
   team: FantasyTeam;
+  players: Player[];
   onGoTransfers: () => void;
   onSwapLineup: (starterId: string, benchId: string) => void;
 }
 
-export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup }: Props) {
-  const rules = SPORT_RULES[competition.sport];
-  const byId = useMemo(() => new Map(PLAYERS.map((p) => [p.id, p])), []);
+export default function MyTeam({ competition, team, players, onGoTransfers, onSwapLineup }: Props) {
+  const rules = rulesFor(competition);
+  const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const [viewPlayer, setViewPlayer] = useState<Player | null>(null);
   const [showPointsFor, setShowPointsFor] = useState<Player | null>(null);
 
   const starters = team.squad.filter((s) => s.isStarter).map((s) => byId.get(s.playerId)!);
   const bench = team.squad.filter((s) => !s.isStarter).map((s) => byId.get(s.playerId)!);
+  const scoreRows = !Array.isArray(team.score?.breakdown) ? team.score?.breakdown.players ?? [] : [];
+  const scoreFor = (playerId: string) => scoreRows.find((row) => row.player_id === playerId);
+  const pointsFor = (playerId: string) => Number(scoreFor(playerId)?.final_points ?? 0);
+  const pointsLabel = (playerId: string) => scoreFor(playerId)?.statistics_available ? `${pointsFor(playerId)} pts` : 'Awaiting statistics';
 
-  const gwPoints = starters.reduce((sum, p) => {
-    const mult = p.id === team.captainId ? 2 : 1;
-    return sum + p.gwPoints * mult;
-  }, 0);
+  const gwPoints = team.gwPoints;
 
   
 
@@ -61,7 +63,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
                         {p.id === team.viceCaptainId && <span className="vice-badge">V</span>}
                         <span className="pitch-slot-name">{p.name.split(' ').slice(-1)[0]}</span>
                         <span className="pitch-slot-price">
-                          {p.gwPoints * (p.id === team.captainId ? 2 : 1)} pts
+                          {pointsLabel(p.id)}
                         </span>
                       </button>
                     ))}
@@ -78,7 +80,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
                 <button className="bench-chip" key={p.id} onClick={() => setViewPlayer(p)}>
                   <PlayerAvatar player={p} size={32} />
                   {p.name.split(' ').slice(-1)[0]}
-                  <em>{p.gwPoints} pts</em>
+                  <em>{pointsLabel(p.id)}</em>
                 </button>
               ))}
             </div>
@@ -159,7 +161,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
               <span className="breakdown-stat-label">Captain points</span>
               <span className="breakdown-stat-value breakdown-stat-orange">
                 {team.captainId
-                  ? (() => { const c = byId.get(team.captainId); return c ? `${c.gwPoints * 2}` : '—'; })()
+                  ? pointsLabel(team.captainId)
                   : '—'}
               </span>
               <span className="breakdown-stat-sub">
@@ -172,15 +174,15 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
               <span className="breakdown-stat-label">Best player</span>
               <span className="breakdown-stat-value breakdown-stat-green">
                 {starters.length > 0
-                  ? Math.max(...starters.map((p) => p.gwPoints * (p.id === team.captainId ? 2 : 1)))
+                  ? Math.max(...starters.map((p) => pointsFor(p.id)))
                   : '—'}
               </span>
               <span className="breakdown-stat-sub">
                 {starters.length > 0
                   ? (() => {
                       const top = starters.reduce((best, p) => {
-                        const pts = p.gwPoints * (p.id === team.captainId ? 2 : 1);
-                        const bestPts = best.gwPoints * (best.id === team.captainId ? 2 : 1);
+                        const pts = pointsFor(p.id);
+                        const bestPts = pointsFor(best.id);
                         return pts > bestPts ? p : best;
                       });
                       return `${top.name.split(' ').slice(-1)[0]} pts`;
@@ -191,7 +193,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
             <div className="breakdown-stat">
               <span className="breakdown-stat-label">Bench points</span>
               <span className="breakdown-stat-value breakdown-stat-dim">
-                {bench.reduce((sum, p) => sum + p.gwPoints, 0)}
+                {bench.reduce((sum, p) => sum + pointsFor(p.id), 0)}
               </span>
               <span className="breakdown-stat-sub">Not counted in GW total</span>
             </div>
@@ -217,7 +219,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
                   </strong>
                   <span>{p.club}</span>
                 </div>
-                <div className="points-breakdown-value">{p.gwPoints * (p.id === team.captainId ? 2 : 1)} pts</div>
+                <div className="points-breakdown-value">{pointsLabel(p.id)}</div>
               </div>
             ))}
           </div>
@@ -233,7 +235,7 @@ export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup 
                       <strong>{p.name}</strong>
                       <span>{p.club}</span>
                     </div>
-                    <div className="points-breakdown-value breakdown-stat-dim">{p.gwPoints} pts</div>
+                    <div className="points-breakdown-value breakdown-stat-dim">{pointsLabel(p.id)}</div>
                   </div>
                 ))}
               </div>
