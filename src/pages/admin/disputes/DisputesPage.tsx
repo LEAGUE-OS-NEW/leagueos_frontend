@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { FiAlertTriangle, FiActivity } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
-  escalateDispute,
+  decideResultDispute,
+  fetchDisputeMarketOutcomes,
   fetchDisputes,
-  resolveDispute,
   type Dispute,
+  type DisputeDecisionType,
+  type DisputeMarketOutcome,
   type DisputeStatus,
 } from '../../../services/resultVerificationService';
+import type { OutcomeId } from '../../../services/marketAdminService';
 import './DisputesPage.css';
 
 function formatDateTime(iso: string): string {
@@ -32,32 +35,167 @@ function statusPillClass(status: DisputeStatus): string {
   }
 }
 
-function NoteModal({
-  title,
-  confirmLabel,
+const DECISION_LABELS: Record<DisputeDecisionType, string> = {
+  CONFIRM: 'Confirm the provisional result',
+  CORRECT: 'Correct the winning outcome',
+  VOID: 'Void the market',
+  EXTEND_REVIEW: 'Extend the review window',
+};
+
+function DecisionModal({
+  dispute,
   onCancel,
   onConfirm,
 }: {
-  title: string;
-  confirmLabel: string;
+  dispute: Dispute;
   onCancel: () => void;
-  onConfirm: (note: string) => void;
+  onConfirm: (input: {
+    decisionType: DisputeDecisionType;
+    winningOutcomeId?: OutcomeId;
+    reviewExtensionHours?: number;
+    notes: string;
+    evidence: string;
+  }) => Promise<void>;
 }) {
-  const [note, setNote] = useState('');
+  const [decisionType, setDecisionType] = useState<DisputeDecisionType>('CONFIRM');
+  const [outcomes, setOutcomes] = useState<DisputeMarketOutcome[]>([]);
+  const [winningOutcomeId, setWinningOutcomeId] = useState<OutcomeId | ''>('');
+  const [reviewExtensionHours, setReviewExtensionHours] = useState('24');
+  const [notes, setNotes] = useState('');
+  const [evidence, setEvidence] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDisputeMarketOutcomes(dispute.marketId)
+      .then((result) => {
+        if (!cancelled) setOutcomes(result);
+      })
+      .catch(() => {
+        /* Confirm/Correct just won't offer an outcome picker if this fails. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispute.marketId]);
+
+  const needsOutcome = decisionType === 'CONFIRM' || decisionType === 'CORRECT';
+  const needsExtension = decisionType === 'EXTEND_REVIEW';
+
+  const canSubmit =
+    notes.trim() &&
+    evidence.trim() &&
+    (!needsOutcome || winningOutcomeId) &&
+    (!needsExtension || Number(reviewExtensionHours) > 0);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onConfirm({
+        decisionType,
+        winningOutcomeId: needsOutcome && winningOutcomeId ? winningOutcomeId : undefined,
+        reviewExtensionHours: needsExtension ? Number(reviewExtensionHours) : undefined,
+        notes: notes.trim(),
+        evidence: evidence.trim(),
+      });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Could not record this decision.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="dsp-modal-overlay" role="dialog" aria-modal="true" onClick={onCancel}>
       <div className="dsp-modal" onClick={(event) => event.stopPropagation()}>
-        <h3>{title}</h3>
-        <label className="dsp-field-label" htmlFor="dsp-note">
-          Note
+        <h3>Decide Result — {dispute.eventLabel}</h3>
+        {error && (
+          <div className="dsp-error-banner">
+            <FiAlertTriangle aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <label className="dsp-field-label" htmlFor="dsp-decision-type">
+          Decision
         </label>
-        <textarea id="dsp-note" rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
+        <select
+          id="dsp-decision-type"
+          value={decisionType}
+          onChange={(event) => setDecisionType(event.target.value as DisputeDecisionType)}
+        >
+          {(Object.keys(DECISION_LABELS) as DisputeDecisionType[]).map((type) => (
+            <option key={type} value={type}>
+              {DECISION_LABELS[type]}
+            </option>
+          ))}
+        </select>
+
+        {needsOutcome && (
+          <>
+            <label className="dsp-field-label" htmlFor="dsp-winning-outcome">
+              Winning outcome
+            </label>
+            <select
+              id="dsp-winning-outcome"
+              value={winningOutcomeId}
+              onChange={(event) => setWinningOutcomeId(event.target.value as OutcomeId)}
+            >
+              <option value="">Select the winning outcome…</option>
+              {outcomes.map((outcome) => (
+                <option key={outcome.id} value={outcome.id}>
+                  {outcome.label}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {needsExtension && (
+          <>
+            <label className="dsp-field-label" htmlFor="dsp-extension-hours">
+              Extend review by (hours)
+            </label>
+            <input
+              id="dsp-extension-hours"
+              type="number"
+              min={1}
+              max={168}
+              value={reviewExtensionHours}
+              onChange={(event) => setReviewExtensionHours(event.target.value)}
+            />
+          </>
+        )}
+
+        <label className="dsp-field-label" htmlFor="dsp-notes">
+          Notes
+        </label>
+        <textarea id="dsp-notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+
+        <label className="dsp-field-label" htmlFor="dsp-evidence">
+          Evidence
+        </label>
+        <textarea
+          id="dsp-evidence"
+          rows={3}
+          placeholder="Cite the official source used for this decision…"
+          value={evidence}
+          onChange={(event) => setEvidence(event.target.value)}
+        />
+
         <div className="dsp-modal__footer">
           <button type="button" className="dsp-btn dsp-btn--ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="dsp-btn dsp-btn--gradient" disabled={!note.trim()} onClick={() => onConfirm(note.trim())}>
-            {confirmLabel}
+          <button
+            type="button"
+            className="dsp-btn dsp-btn--gradient"
+            disabled={!canSubmit || isSubmitting}
+            onClick={handleSubmit}
+          >
+            {isSubmitting ? 'Submitting…' : 'Confirm Decision'}
           </button>
         </div>
       </div>
@@ -70,7 +208,16 @@ function DisputesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<{ kind: 'escalate' | 'resolve'; dispute: Dispute } | null>(null);
+  const [pendingDispute, setPendingDispute] = useState<Dispute | null>(null);
+
+  const loadDisputes = () => {
+    setIsLoading(true);
+    setLoadError(null);
+    return fetchDisputes()
+      .then(setDisputes)
+      .catch(() => setLoadError('Could not load disputes. Please try again.'))
+      .finally(() => setIsLoading(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -89,27 +236,22 @@ function DisputesPage() {
     };
   }, []);
 
-  const handleRetry = () => {
-    setIsLoading(true);
-    setLoadError(null);
-    fetchDisputes()
-      .then(setDisputes)
-      .catch(() => setLoadError('Could not load disputes. Please try again.'))
-      .finally(() => setIsLoading(false));
-  };
-
-  const handleConfirm = async (note: string) => {
-    if (!pendingAction) return;
-    try {
-      const updated =
-        pendingAction.kind === 'escalate'
-          ? await escalateDispute(pendingAction.dispute.id, note)
-          : await resolveDispute(pendingAction.dispute.id, note);
-      setDisputes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      setPendingAction(null);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Could not update this dispute.');
-    }
+  const handleConfirm = async (input: {
+    decisionType: DisputeDecisionType;
+    winningOutcomeId?: OutcomeId;
+    reviewExtensionHours?: number;
+    notes: string;
+    evidence: string;
+  }) => {
+    if (!pendingDispute) return;
+    // Errors propagate to DecisionModal's own try/catch, which displays
+    // them inline next to the fields the admin is filling in.
+    await decideResultDispute(pendingDispute.marketId, input);
+    setPendingDispute(null);
+    setActionError(null);
+    // One decision can resolve every dispute on this market, so refetch
+    // the whole list rather than optimistically patch a single row.
+    await loadDisputes();
   };
 
   return (
@@ -126,7 +268,7 @@ function DisputesPage() {
             <FiAlertTriangle aria-hidden="true" />
             <span>{loadError ?? actionError}</span>
             {loadError && (
-              <button type="button" className="dsp-btn dsp-btn--outline dsp-btn--sm" onClick={handleRetry}>
+              <button type="button" className="dsp-btn dsp-btn--outline dsp-btn--sm" onClick={loadDisputes}>
                 Retry
               </button>
             )}
@@ -165,21 +307,12 @@ function DisputesPage() {
                       <td>
                         {dispute.status !== 'Resolved' && (
                           <div className="dsp-row-actions">
-                            {dispute.status === 'Open' && (
-                              <button
-                                type="button"
-                                className="dsp-btn dsp-btn--outline dsp-btn--sm"
-                                onClick={() => setPendingAction({ kind: 'escalate', dispute })}
-                              >
-                                Escalate
-                              </button>
-                            )}
                             <button
                               type="button"
                               className="dsp-btn dsp-btn--gradient dsp-btn--sm"
-                              onClick={() => setPendingAction({ kind: 'resolve', dispute })}
+                              onClick={() => setPendingDispute(dispute)}
                             >
-                              Resolve
+                              Decide Result
                             </button>
                           </div>
                         )}
@@ -203,11 +336,10 @@ function DisputesPage() {
         )}
       </div>
 
-      {pendingAction && (
-        <NoteModal
-          title={pendingAction.kind === 'escalate' ? 'Escalate Dispute' : 'Resolve Dispute'}
-          confirmLabel={pendingAction.kind === 'escalate' ? 'Escalate' : 'Resolve'}
-          onCancel={() => setPendingAction(null)}
+      {pendingDispute && (
+        <DecisionModal
+          dispute={pendingDispute}
+          onCancel={() => setPendingDispute(null)}
           onConfirm={handleConfirm}
         />
       )}

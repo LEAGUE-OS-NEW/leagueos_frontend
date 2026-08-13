@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore.ts';
 import { getEntitlementsForDashboard } from '../utils/dashboardAccess.ts';
 import type { DashboardIdentifier } from '../types/dashboardAccess.ts';
 
-const ADMIN_ROLES: DashboardIdentifier[] = [
+export const ADMIN_ROLES: DashboardIdentifier[] = [
   'SUPER_ADMIN',
   'SPORTS_DATA_STATISTICS_ADMIN',
   'MARKET_OPERATIONS_ADMIN',

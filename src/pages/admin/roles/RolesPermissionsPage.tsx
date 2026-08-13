@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react';
 import { FiAlertTriangle, FiActivity, FiCheck } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
-import { ADMIN_ROLE_LABELS } from '../../../config/adminNav';
-import {
-  ASSIGNABLE_ADMIN_ROLES,
-  fetchAdminUsers,
-  ROLE_PERMISSIONS,
-  type AdminUser,
-} from '../../../services/adminUsersService';
+import { fetchAdminRoles, fetchAdminUsers, type AdminRole, type AdminUser } from '../../../services/adminUsersService';
 import './RolesPermissionsPage.css';
 
+function formatPermission(name: string): string {
+  const spaced = name.replace(/[._]+/g, ' ').trim();
+  return spaced.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function RolesPermissionsPage() {
+  const [roles, setRoles] = useState<AdminRole[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchAdminUsers()
-      .then((result) => {
-        if (!cancelled) setUsers(result);
+    Promise.all([fetchAdminRoles(), fetchAdminUsers()])
+      .then(([roleResult, userResult]) => {
+        if (cancelled) return;
+        setRoles(roleResult);
+        setUsers(userResult);
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load role assignments. Please try again.');
@@ -58,27 +60,33 @@ function RolesPermissionsPage() {
           </div>
         ) : (
           <div className="rp-grid">
-            {ASSIGNABLE_ADMIN_ROLES.map((role) => {
-              const activeCount = users.filter((user) => user.role === role && user.status === 'Active').length;
+            {roles.map((role) => {
+              const activeCount = users.filter((user) => user.isActive && user.roles.includes(role.name)).length;
               return (
-                <div className="rp-card" key={role}>
+                <div className="rp-card" key={role.id}>
                   <div className="rp-card__header">
-                    <h2>{ADMIN_ROLE_LABELS[role]}</h2>
+                    <h2>{role.displayName}</h2>
                     <span className="rp-card__count">
                       {activeCount} {activeCount === 1 ? 'user' : 'users'}
                     </span>
                   </div>
+                  {role.description && <p className="rp-card__description">{role.description}</p>}
                   <ul className="rp-permission-list">
-                    {ROLE_PERMISSIONS[role].map((permission) => (
-                      <li key={permission}>
-                        <FiCheck aria-hidden="true" />
-                        <span>{permission}</span>
-                      </li>
-                    ))}
+                    {role.permissions.length === 0 ? (
+                      <li className="rp-permission-list__empty">No permissions configured for this role yet.</li>
+                    ) : (
+                      role.permissions.map((permission) => (
+                        <li key={permission}>
+                          <FiCheck aria-hidden="true" />
+                          <span>{formatPermission(permission)}</span>
+                        </li>
+                      ))
+                    )}
                   </ul>
                 </div>
               );
             })}
+            {roles.length === 0 && <p className="rp-empty">No roles are configured on this platform yet.</p>}
           </div>
         )}
       </div>

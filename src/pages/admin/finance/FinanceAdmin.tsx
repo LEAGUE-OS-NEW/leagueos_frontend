@@ -169,7 +169,14 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ icon, title, value, descripti
    MAIN COMPONENT
    ========================================================================= */
 
-const FinanceAdminDashboard: React.FC = () => {
+// Payments and Payouts are two nav entries into the same reconciliation
+// dashboard — initialQueue is what tells them apart (Payments opens on
+// incoming money/Deposits, Payouts opens on outgoing money/Withdrawals).
+interface FinanceAdminDashboardProps {
+  initialQueue?: QueueKey;
+}
+
+const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQueue = "deposits" }) => {
   /* --------------------------- data state (backend-ready) --------------------------- */
   // All of these are populated from financeService on mount. Every setter is
   // exposed (not just deposits') so status-update workflows can be extended
@@ -236,7 +243,7 @@ const FinanceAdminDashboard: React.FC = () => {
       cancelled = true;
     };  }, []);
 
-  const [activeQueue, setActiveQueue] = useState<QueueKey>("deposits");
+  const [activeQueue, setActiveQueue] = useState<QueueKey>(initialQueue);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 

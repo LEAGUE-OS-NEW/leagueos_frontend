@@ -55,6 +55,7 @@ import Store from "./pages/landing/store/Store";
 import Fantasy from "./pages/landing/fantasy/Fantasy";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
+import AdminRoute from './components/admin/AdminRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import MarketsListPage from './pages/admin/markets/MarketsListPage';
 import CreateMarketWizard from './pages/admin/markets/CreateMarketWizard';
@@ -62,17 +63,20 @@ import AdminMarketDetailPage from './pages/admin/markets/MarketDetailPage';
 import ResultVerificationPage from './pages/admin/verification/ResultVerificationPage';
 import DisputesPage from './pages/admin/disputes/DisputesPage';
 import AdminUsersPage from './pages/admin/users/AdminUsersPage';
+import FansPage from './pages/admin/fans/FansPage';
+import PlatformMembershipPage from './pages/admin/membership/PlatformMembershipPage';
 import RolesPermissionsPage from './pages/admin/roles/RolesPermissionsPage';
+import AuditLogPage from './pages/admin/audit/AuditLogPage';
 import NotificationsPage from './pages/admin/notifications/NotificationsPage';
 import ReportsPage from './pages/admin/reports/ReportsPage';
 import SystemSettingsPage from './pages/admin/settings/SystemSettingsPage';
-import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
-import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
+import ComplianceAdmin from './pages/admin/compliance/ComplianceAdmin';
+import FinanceAdmin from "./pages/admin/finance/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
-import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
+import SportsDataAdmin from './pages/admin/sportsdata/SportsDataAdmin';
 import FantasyAdminPage from './pages/admin/fantasy/FantasyAdminPage';
-import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
+import CustomerSupportAdmin from './pages/admin/support/CustomerSupportAdmin';
 import SearchPage from './pages/search/SearchPage';
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
@@ -198,28 +202,31 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* Shared admin shell — Super Admin + every specialist role */}
-        <Route path="/dashboard/admin" element={<AdminDashboard />} />
-        <Route path="/dashboard/admin/markets" element={<MarketsListPage />} />
-        <Route path="/dashboard/admin/markets/create" element={<CreateMarketWizard />} />
-        <Route path="/dashboard/admin/markets/:marketId" element={<AdminMarketDetailPage />} />
-        <Route path="/dashboard/admin/verification" element={<ResultVerificationPage />} />
-        <Route path="/dashboard/admin/disputes" element={<DisputesPage />} />
-        <Route path="/dashboard/admin/users" element={<AdminUsersPage />} />
-        <Route path="/dashboard/admin/roles-permissions" element={<RolesPermissionsPage />} />
-        <Route path="/dashboard/admin/notifications" element={<NotificationsPage />} />
-        <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
-        <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
-        <Route path="/dashboard/admin/sports-data" element={<SportsDataAdmin />} />
-        <Route path="/dashboard/admin/fantasy" element={<FantasyAdminPage />} />
-        <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
-        <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
-        <Route path="/dashboard/admin/payouts" element={<FinanceAdmin />} />
-        <Route path="/dashboard/admin/support" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/case-queues" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/my-cases" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/escalations" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/sla" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/resolved" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/dashboard/admin/markets" element={<AdminRoute><MarketsListPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/markets/create" element={<AdminRoute><CreateMarketWizard /></AdminRoute>} />
+        <Route path="/dashboard/admin/markets/:marketId" element={<AdminRoute><AdminMarketDetailPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/verification" element={<AdminRoute><ResultVerificationPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/disputes" element={<AdminRoute><DisputesPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/fans" element={<AdminRoute><FansPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/membership" element={<AdminRoute><PlatformMembershipPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/roles-permissions" element={<AdminRoute><RolesPermissionsPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/audit" element={<AdminRoute><AuditLogPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/reports" element={<AdminRoute><ReportsPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/settings" element={<AdminRoute><SystemSettingsPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/sports-data" element={<AdminRoute><SportsDataAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/fantasy" element={<AdminRoute><FantasyAdminPage /></AdminRoute>} />
+        <Route path="/dashboard/admin/compliance" element={<AdminRoute><ComplianceAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/payments" element={<AdminRoute><FinanceAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/payouts" element={<AdminRoute><FinanceAdmin initialQueue="withdrawals" /></AdminRoute>} />
+        <Route path="/dashboard/admin/support" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/support/case-queues" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/support/my-cases" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/support/escalations" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/support/sla" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
+        <Route path="/dashboard/admin/support/resolved" element={<AdminRoute><CustomerSupportAdmin /></AdminRoute>} />
 
         {/* Support pages */}
         <Route path="/help" element={<HelpCenter />} />

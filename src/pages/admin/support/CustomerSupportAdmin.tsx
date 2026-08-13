@@ -892,7 +892,7 @@ export default function CustomerSupportAdmin() {
             {/* Header */}
             <div className="cs-header">
               <div>
-                <div className="cs-header__eyebrow">General Admin · Support</div>
+                <div className="cs-header__eyebrow">Support</div>
                 <h1>Customer Support</h1>
                 <p className="cs-header__sub">
                   Support has read-only access to minimum necessary context. Cannot approve KYC, modify balances, or decide market results.
