@@ -108,6 +108,11 @@
   border-radius: 8px;
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.fp-stat-card > div {
+  min-width: 0;
 }
 
 .fp-stat-icon {
@@ -150,13 +155,6 @@
   margin: 0 0 4px;
   font-size: 0.72rem;
   color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-@media (max-width: 760px) {
-  .fp-stat-label {
-    white-space: normal;
-  }
 }
 
 .fp-stat-value {
