@@ -1,0 +1,128 @@
+.fan-notifications-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.notif-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.notif-history-filter {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notif-history-filter.is-active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.notif-history-filter-count {
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 1px 7px;
+  font-size: 0.78rem;
+}
+
+.fan-notifications-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fan-notification-item {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.fan-notification-item--unread {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #f8fbff;
+}
+
+.fan-notification-item-btn {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 10px;
+  width: 100%;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fan-notification-item-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.fan-notification-item-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fan-notification-item-title {
+  color: #111827;
+  font-weight: 800;
+}
+
+.fan-notification-item-message,
+.fan-notification-item-time {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.fan-notification-item-dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.notif-history-view-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .fan-notifications-header {
+    flex-direction: column;
+  }
+
+  .fan-notification-item-btn {
+    grid-template-columns: 32px minmax(0, 1fr) 8px;
+    padding: 12px;
+  }
+}

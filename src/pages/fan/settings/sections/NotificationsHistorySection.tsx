@@ -5,6 +5,7 @@ import DashboardSkeleton from '../../../../components/fan/dashboard/DashboardSke
 import DashboardNotice from '../../../../components/fan/dashboard/DashboardNotice';
 import { useNotificationsStore } from '../../../../store/fanNotificationsStore';
 import type { NotificationItem } from '../../../../services/fanNotificationsServices';
+import './NotificationsHistorySection.css';
 import '../../notifications/FanNotificationsPage.css';
 
 const PREVIEW_COUNT = 4;

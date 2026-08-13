@@ -26,14 +26,32 @@ export interface AdminRole {
   permissions: string[];
 }
 
+// Matches User.AccountStatus on the backend (accounts/models.py) — only
+// these three values are real. There is no "pending invitation" account
+// status; invitation lifecycle lives on AdminInvitation.status instead.
+export type AdminAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+
 export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
+  phone: string | null;
   roles: string[];
   isActive: boolean;
   isVerified: boolean;
   isSuperuser: boolean;
+  accountStatus: AdminAccountStatus;
+  failedLoginAttempts: number;
+  avatarUrl: string | null;
+  lastActiveAt: string | null;
+  // NOTE: the exact set of non-"CLEAR" values for marketRestrictionStatus
+  // isn't enumerated in AdminUserListSerializer (get_market_restriction_status
+  // just proxies compliance.restriction_status). Confirm the real choices
+  // against the compliance model before branching UI on specific strings
+  // other than 'CLEAR'.
+  marketKycStatus: string;
+  marketRestrictionStatus: string;
+  isMarketVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,10 +93,18 @@ function adaptUser(raw: Record<string, unknown>): AdminUser {
     id: String(raw.id),
     fullName: [firstName, lastName].filter(Boolean).join(' ') || email,
     email,
+    phone: raw.phone_number ? String(raw.phone_number) : null,
     roles: Array.isArray(raw.roles) ? raw.roles.map(String) : [],
     isActive: Boolean(raw.is_active),
     isVerified: Boolean(raw.is_verified),
     isSuperuser: Boolean(raw.is_superuser),
+    accountStatus: (String(raw.account_status ?? 'ACTIVE') as AdminAccountStatus),
+    failedLoginAttempts: Number(raw.failed_attempts ?? 0),
+    avatarUrl: raw.avatar_url ? String(raw.avatar_url) : null,
+    lastActiveAt: raw.last_active_at ? String(raw.last_active_at) : null,
+    marketKycStatus: String(raw.market_kyc_status ?? 'NOT_STARTED'),
+    marketRestrictionStatus: String(raw.market_restriction_status ?? 'CLEAR'),
+    isMarketVerified: Boolean(raw.is_market_verified),
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
   };
@@ -180,6 +206,16 @@ export async function revokeAdminInvitation(id: string): Promise<AdminInvitation
 
 export async function setAdminUserActive(userId: string, isActive: boolean): Promise<AdminUser> {
   const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, { is_active: isActive });
+  return adaptUser(response.data);
+}
+
+// Soft-deactivate — there is no hard-delete endpoint for admin/fan
+// accounts. Uses the same PATCH surface as setAdminUserActive, driven by
+// AdminUserRoleUpdateSerializer's account_status field.
+export async function deactivateAdminUser(userId: string): Promise<AdminUser> {
+  const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, {
+    account_status: 'DEACTIVATED',
+  });
   return adaptUser(response.data);
 }
 
