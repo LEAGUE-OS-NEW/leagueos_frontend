@@ -59,19 +59,19 @@ export default function PlayerDrawer({
       <div className="player-drawer-stats">
         <div>
           <span>Season points</span>
-          <strong>{player.totalPoints}</strong>
+          <strong>{player.totalPoints ?? 'Awaiting statistics'}</strong>
         </div>
         <div>
           <span>Last gameweek</span>
-          <strong>{player.gwPoints}</strong>
+          <strong>{player.gwPoints ?? 'Awaiting statistics'}</strong>
         </div>
         <div>
           <span>Form (5 GW avg)</span>
-          <strong>{player.form.toFixed(1)}</strong>
+          <strong>{player.form === null ? 'Unavailable' : player.form.toFixed(1)}</strong>
         </div>
         <div>
           <span>Selected by</span>
-          <strong>{player.ownership.toFixed(1)}%</strong>
+          <strong>{player.ownership === null ? 'No ownership data' : `${player.ownership.toFixed(1)}%`}</strong>
         </div>
       </div>
 

@@ -188,6 +188,93 @@
   color: var(--color-text-secondary);
 }
 
+/* ---------- Role chips ---------- */
+
+.au-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+}
+
+.au-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.au-role-chip button {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.au-role-chip--ghost {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-style: dashed;
+}
+
+.au-role-chip--add {
+  gap: 8px;
+  background: transparent;
+  border-style: dashed;
+}
+
+.au-role-chip--add select {
+  font-family: inherit;
+  font-size: 0.76rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+/* ---------- Toggle row (Invite modal's club/competition steps) ---------- */
+
+.au-toggle-row {
+  display: flex;
+  gap: 8px;
+}
+
+.au-toggle {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.au-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.au-toggle.is-active {
+  background: var(--gradient-primary);
+  color: #ffffff;
+  border-color: transparent;
+}
+
 /* ---------- Modal ---------- */
 
 .au-modal-overlay {
@@ -229,6 +316,13 @@
   font-weight: 700;
   font-size: 0.74rem;
   text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.au-field__note {
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
 }
 

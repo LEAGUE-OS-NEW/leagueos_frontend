@@ -2,13 +2,31 @@ import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../../components/admin/AdminLayout";
 import { extractApiError } from "../../../services/apiUtils.ts";
 import {
+  decideComplianceProposal,
   fetchAdminUserSummary,
   fetchComplianceDecisions,
   fetchKYCSessions,
   fetchRiskAssessments,
   fetchRiskProfiles,
+  proposeComplianceDecision,
+  reassessRisk,
+  updateParticipantKycStatus,
 } from "../../../services/markets/complianceAdminService.ts";
+import type { ComplianceDecision } from "../../../types/api.ts";
 import "./ComplianceAdmin.css";
+
+// The backend's ComplianceDecisionProposal only models five specific
+// clear/override actions — that system doesn't touch KYC status at all.
+// Approve/Reject Verification are real (PATCH .../compliance/, see
+// updateParticipantKycStatus). Applying a new restriction, suspension,
+// and escalation from this panel don't have a real endpoint yet.
+const DECISION_TYPE_LABELS: Record<string, string> = {
+  CLEAR_CRITICAL_RISK_BLOCK: "Clear critical risk block",
+  REMOVE_SUSPENDED_RESTRICTION: "Remove suspension",
+  JURISDICTION_BLOCK_TO_ALLOW: "Allow jurisdiction",
+  APPLY_RISK_OVERRIDE: "Apply risk override",
+  CLEAR_RISK_OVERRIDE: "Clear risk override",
+};
 
 /* ============================================================
    TYPES
@@ -98,6 +116,7 @@ export interface UserProfile {
 
 export interface ComplianceCase {
   id: string;
+  participantId: string;
   queueType: QueueType;
   user: UserProfile;
   riskLevel: RiskLevel;
@@ -121,6 +140,7 @@ export interface ComplianceCase {
 const currentUserPermissions: CompliancePermission[] = [
   "REQUEST_INFO",
   "APPROVE_KYC",
+  "REJECT_KYC",
   "ESCALATE_CASE",
 ];
 
@@ -189,8 +209,9 @@ const PermButton: React.FC<{
   permission: CompliancePermission;
   permissions: CompliancePermission[];
   variant?: "ghost" | "gradient" | "danger";
+  disabled?: boolean;
   onClick: () => void;
-}> = ({ label, permission, permissions, variant = "ghost", onClick }) => {
+}> = ({ label, permission, permissions, variant = "ghost", disabled, onClick }) => {
   const allowed = hasPermission(permissions, permission);
 
   const cls =
@@ -204,7 +225,7 @@ const PermButton: React.FC<{
     <div className="perm-btn-wrap">
       <button
         className={cls}
-        disabled={!allowed}
+        disabled={!allowed || disabled}
         aria-describedby={!allowed ? `${permission}-tooltip` : undefined}
         onClick={onClick}
       >
@@ -639,12 +660,16 @@ const ComplianceDecisionPanel: React.FC<{
   permissions: CompliancePermission[];
   onLowImpact: (action: string, detail: string) => void;
   onMediumImpact: (action: string) => void;
+  onKycDecision: (approve: boolean) => void;
+  isDecidingKyc: boolean;
   onRequestHighImpact: (action: PendingAction) => void;
   onAssignInvestigator: () => void;
 }> = ({
   permissions,
   onLowImpact,
   onMediumImpact,
+  onKycDecision,
+  isDecidingKyc,
   onRequestHighImpact,
   onAssignInvestigator,
 }) => {
@@ -663,9 +688,11 @@ const ComplianceDecisionPanel: React.FC<{
       </div>
 
       <div className="decision-panel__notice">
-        These actions log an internal note on this case only — they don't yet
-        change the fan's real KYC status or unlock trading. That requires
-        backend support that doesn't exist yet.
+        Approve/Reject Verification update the fan's real KYC status and
+        market eligibility. Every other action here (notes, participation
+        limits, restrictions, suspension, escalation) logs an internal note
+        on this case only — that requires backend support that doesn't
+        exist yet.
       </div>
 
       <div className="decision-groups">
@@ -724,18 +751,20 @@ const ComplianceDecisionPanel: React.FC<{
           <p className="decision-group__label">Medium impact</p>
           <div className="decision-group__buttons">
             <PermButton
-              label="Approve Verification"
+              label={isDecidingKyc ? "Approving…" : "Approve Verification"}
               permission="APPROVE_KYC"
               permissions={permissions}
               variant="gradient"
-              onClick={() => onMediumImpact("Approve Verification")}
+              disabled={isDecidingKyc}
+              onClick={() => onKycDecision(true)}
             />
 
             <PermButton
-              label="Reject Verification"
+              label={isDecidingKyc ? "Rejecting…" : "Reject Verification"}
               permission="REJECT_KYC"
               permissions={permissions}
-              onClick={() => onMediumImpact("Reject Verification")}
+              disabled={isDecidingKyc}
+              onClick={() => onKycDecision(false)}
             />
 
             <PermButton
@@ -846,6 +875,171 @@ const ComplianceCaseDetail: React.FC<{
   const [assigning, setAssigning] = useState(false);
   const [assigneeName, setAssigneeName] = useState("");
 
+  // Real backend calls — everything else in this drawer (appendAudit,
+  // applyRestriction, resolveCase, confirmAssignment below) is local-only,
+  // per the notice in ComplianceDecisionPanel.
+  const [isReassessing, setIsReassessing] = useState(false);
+  const [reassessError, setReassessError] = useState("");
+  const [isDecidingKyc, setIsDecidingKyc] = useState(false);
+  const [kycDecisionError, setKycDecisionError] = useState("");
+  const [liftReasonFor, setLiftReasonFor] = useState<string | null>(null);
+  const [liftReasonText, setLiftReasonText] = useState("");
+  const [liftingId, setLiftingId] = useState<string | null>(null);
+  const [liftProposedIds, setLiftProposedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [pendingDecisions, setPendingDecisions] = useState<
+    ComplianceDecision[]
+  >([]);
+  const [loadingDecisions, setLoadingDecisions] = useState(true);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    // caseData.participantId is stable for the lifetime of this component —
+    // ComplianceCaseDetail is remounted (via a key on caseData.id in the
+    // parent) whenever a different case is selected, so loadingDecisions'
+    // useState(true) default covers the reset without an extra setState here.
+    fetchComplianceDecisions({ participant_id: caseData.participantId })
+      .then((page) => {
+        if (active) {
+          setPendingDecisions(
+            page.results.filter((d) => d.status === "PENDING"),
+          );
+        }
+      })
+      .catch(() => {
+        /* Non-fatal — pending-decisions section just stays empty. */
+      })
+      .finally(() => {
+        if (active) setLoadingDecisions(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [caseData.participantId]);
+
+  const handleReassessRisk = async () => {
+    setIsReassessing(true);
+    setReassessError("");
+    try {
+      const assessment = await reassessRisk(caseData.participantId);
+      const event: AuditEvent = {
+        id: nextAuditId(),
+        timestamp: new Date().toISOString(),
+        adminUser: "You",
+        action: "Risk reassessment requested",
+        note: assessment.band
+          ? `New band: ${assessment.band}${assessment.score !== undefined ? ` (${assessment.score}/100)` : ""}`
+          : undefined,
+      };
+      onMutate({
+        ...caseData,
+        riskScore: assessment.score ?? caseData.riskScore,
+        auditHistory: [...caseData.auditHistory, event],
+      });
+    } catch (error) {
+      setReassessError(extractApiError(error).message);
+    } finally {
+      setIsReassessing(false);
+    }
+  };
+
+  // Actually flips MarketParticipantCompliance.kyc_status on the backend —
+  // this is what /markets/kyc/summary/ reads to decide fan eligibility, so
+  // this is the real approve/reject action, not just a case-log entry.
+  const handleKycDecision = async (approve: boolean) => {
+    setIsDecidingKyc(true);
+    setKycDecisionError("");
+    try {
+      await updateParticipantKycStatus(
+        caseData.participantId,
+        approve ? "VERIFIED" : "REJECTED",
+      );
+      const event: AuditEvent = {
+        id: nextAuditId(),
+        timestamp: new Date().toISOString(),
+        adminUser: "You",
+        action: approve
+          ? "KYC Verification Approved"
+          : "KYC Verification Rejected",
+      };
+      onMutate({
+        ...caseData,
+        status: "Resolved",
+        auditHistory: [...caseData.auditHistory, event],
+      });
+    } catch (error) {
+      setKycDecisionError(extractApiError(error).message);
+    } finally {
+      setIsDecidingKyc(false);
+    }
+  };
+
+  const handleProposeLift = async (restrictionId: string) => {
+    if (!liftReasonText.trim()) return;
+    setLiftingId(restrictionId);
+    try {
+      const proposal = await proposeComplianceDecision({
+        participant_id: caseData.participantId,
+        decision_type: "REMOVE_SUSPENDED_RESTRICTION",
+        requested_change: { restriction_id: restrictionId },
+        reason: liftReasonText.trim(),
+      });
+      setLiftProposedIds((prev) => new Set(prev).add(restrictionId));
+      setLiftReasonFor(null);
+      setLiftReasonText("");
+      setPendingDecisions((prev) => [proposal, ...prev]);
+      const event: AuditEvent = {
+        id: nextAuditId(),
+        timestamp: new Date().toISOString(),
+        adminUser: "You",
+        action: "Restriction lift proposed",
+        note: `Awaiting a second reviewer's decision — ${liftReasonText.trim()}`,
+      };
+      onMutate({ ...caseData, auditHistory: [...caseData.auditHistory, event] });
+    } catch (error) {
+      setReassessError(extractApiError(error).message);
+    } finally {
+      setLiftingId(null);
+    }
+  };
+
+  const handleDecide = async (decision: ComplianceDecision, approve: boolean) => {
+    setDecidingId(decision.id);
+    try {
+      const decided = await decideComplianceProposal(
+        decision.id,
+        approve,
+        approve ? "Approved via compliance queue" : "Rejected via compliance queue",
+      );
+      setPendingDecisions((prev) => prev.filter((d) => d.id !== decision.id));
+      const restrictionId = decision.requested_change?.restriction_id;
+      const nextRestrictions =
+        approve && typeof restrictionId === "string"
+          ? caseData.restrictions.map((r) =>
+              r.id === restrictionId ? { ...r, active: false } : r,
+            )
+          : caseData.restrictions;
+      const event: AuditEvent = {
+        id: nextAuditId(),
+        timestamp: new Date().toISOString(),
+        adminUser: "You",
+        action: approve ? "Decision approved" : "Decision rejected",
+        note: `${DECISION_TYPE_LABELS[decision.decision_type] ?? decision.decision_type} (${decided.id})`,
+      };
+      onMutate({
+        ...caseData,
+        restrictions: nextRestrictions,
+        auditHistory: [...caseData.auditHistory, event],
+      });
+    } catch (error) {
+      setReassessError(extractApiError(error).message);
+    } finally {
+      setDecidingId(null);
+    }
+  };
+
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !pendingAction) onClose();
@@ -899,25 +1093,6 @@ const ComplianceCaseDetail: React.FC<{
       ...caseData,
       restrictions: nextRestrictions,
       status: nextStatus,
-      auditHistory: [...caseData.auditHistory, event],
-    });
-  };
-
-  const liftRestriction = (restrictionId: string) => {
-    const target = caseData.restrictions.find((r) => r.id === restrictionId);
-    const nextRestrictions = caseData.restrictions.map((r) =>
-      r.id === restrictionId ? { ...r, active: false } : r,
-    );
-    const event: AuditEvent = {
-      id: nextAuditId(),
-      timestamp: new Date().toISOString(),
-      adminUser: "You",
-      action: "Restriction lifted",
-      note: target ? `${target.type} lifted` : undefined,
-    };
-    onMutate({
-      ...caseData,
-      restrictions: nextRestrictions,
       auditHistory: [...caseData.auditHistory, event],
     });
   };
@@ -998,7 +1173,16 @@ const ComplianceCaseDetail: React.FC<{
               </div>
               <div className="kv-item">
                 <span className="k">Risk Score</span>
-                <span className="v">{caseData.riskScore}/100</span>
+                <span className="v">
+                  {caseData.riskScore}/100{" "}
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={isReassessing}
+                    onClick={handleReassessRisk}
+                  >
+                    {isReassessing ? "Reassessing…" : "Reassess Risk"}
+                  </button>
+                </span>
               </div>
               <div className="kv-item">
                 <span className="k">Assigned Investigator</span>
@@ -1037,6 +1221,11 @@ const ComplianceCaseDetail: React.FC<{
                 <span className="v">{formatDateTime(caseData.createdAt)}</span>
               </div>
             </div>
+            {reassessError && (
+              <p className="empty-note" style={{ color: "var(--red-primary)" }}>
+                {reassessError}
+              </p>
+            )}
             <p
               style={{
                 color: "var(--text-secondary)",
@@ -1118,25 +1307,64 @@ const ComplianceCaseDetail: React.FC<{
                   No restrictions have been applied to this case.
                 </p>
               )}
-            {activeRestrictions.map((r) => (
-              <div key={r.id} className="related-item">
-                <div>
-                  <div className="related-item__value">{r.type}</div>
-                  <div className="related-item__label">
-                    Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}
+            {activeRestrictions.map((r) => {
+              const proposed = liftProposedIds.has(r.id);
+              return (
+                <div key={r.id} className="related-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div className="related-item__value">{r.type}</div>
+                      <div className="related-item__label">
+                        Applied by {r.appliedBy} · {formatDateTime(r.appliedAt)}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="badge badge-high">Active</span>
+                      {proposed ? (
+                        <span className="badge badge-medium">
+                          Lift proposed — pending review
+                        </span>
+                      ) : (
+                        <PermButton
+                          label="Lift"
+                          permission="RESTRICT_ACCOUNT"
+                          permissions={permissions}
+                          onClick={() =>
+                            setLiftReasonFor(liftReasonFor === r.id ? null : r.id)
+                          }
+                        />
+                      )}
+                    </div>
                   </div>
+                  {liftReasonFor === r.id && (
+                    <div className="low-impact-field" style={{ marginTop: 8, marginBottom: 0 }}>
+                      <input
+                        type="text"
+                        placeholder="Why should this restriction be lifted?"
+                        value={liftReasonText}
+                        onChange={(e) => setLiftReasonText(e.target.value)}
+                      />
+                      <button
+                        className="btn btn-gradient btn-sm"
+                        disabled={!liftReasonText.trim() || liftingId === r.id}
+                        onClick={() => handleProposeLift(r.id)}
+                      >
+                        {liftingId === r.id ? "Proposing…" : "Propose Lift"}
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setLiftReasonFor(null);
+                          setLiftReasonText("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="badge badge-high">Active</span>
-                  <PermButton
-                    label="Lift"
-                    permission="RESTRICT_ACCOUNT"
-                    permissions={permissions}
-                    onClick={() => liftRestriction(r.id)}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {inactiveRestrictions.map((r) => (
               <div key={r.id} className="related-item" style={{ opacity: 0.6 }}>
                 <div>
@@ -1244,6 +1472,50 @@ const ComplianceCaseDetail: React.FC<{
             </div>
           )}
 
+          {/* Pending Decisions — real dual-control proposals awaiting a
+              second reviewer, from /admin/compliance/decisions/. */}
+          <div className="drawer-section">
+            <h3>Pending Decisions</h3>
+            {loadingDecisions ? (
+              <p className="empty-note">Loading…</p>
+            ) : pendingDecisions.length === 0 ? (
+              <p className="empty-note">
+                No decisions awaiting review for this participant.
+              </p>
+            ) : (
+              pendingDecisions.map((decision) => (
+                <div key={decision.id} className="related-item">
+                  <div>
+                    <div className="related-item__value">
+                      {DECISION_TYPE_LABELS[decision.decision_type] ??
+                        decision.decision_type}
+                    </div>
+                    <div className="related-item__label">
+                      {decision.reason} · Proposed{" "}
+                      {formatDateTime(decision.proposed_at)}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn btn-gradient btn-sm"
+                      disabled={decidingId === decision.id}
+                      onClick={() => handleDecide(decision, true)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      disabled={decidingId === decision.id}
+                      onClick={() => handleDecide(decision, false)}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
           {/* Audit History */}
           <div className="drawer-section">
             <h3>Audit History</h3>
@@ -1270,12 +1542,19 @@ const ComplianceCaseDetail: React.FC<{
           </div>
 
           {/* Decision Panel */}
+          {kycDecisionError && (
+            <p className="empty-note" style={{ color: "var(--red-primary)" }}>
+              {kycDecisionError}
+            </p>
+          )}
           <ComplianceDecisionPanel
             permissions={permissions}
             onLowImpact={(action, detail) => appendAudit(action, detail)}
             onMediumImpact={(action) =>
               appendAudit(action, "Logged via medium-impact action")
             }
+            onKycDecision={handleKycDecision}
+            isDecidingKyc={isDecidingKyc}
             onAssignInvestigator={() => {
               setAssigneeName(
                 caseData.assignedTo === "Unassigned" ? "" : caseData.assignedTo,
@@ -1395,6 +1674,7 @@ const ComplianceAdmin: React.FC = () => {
                 : "Pending";
         const kycCases: ComplianceCase[] = kycPage.results.map((item) => ({
           id: item.id,
+          participantId: item.participant_id,
           queueType: "KYC",
           user: {
             fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
@@ -1458,6 +1738,7 @@ const ComplianceAdmin: React.FC = () => {
           );
           return {
             id: item.id,
+            participantId: item.participant_id,
             queueType: item.restriction_recommendation
               ? "Restriction"
               : "Fraud",
@@ -1692,6 +1973,7 @@ const ComplianceAdmin: React.FC = () => {
 
       {selectedCase && (
         <ComplianceCaseDetail
+          key={selectedCase.id}
           caseData={selectedCase}
           permissions={currentUserPermissions}
           onClose={() => setSelectedCase(null)}

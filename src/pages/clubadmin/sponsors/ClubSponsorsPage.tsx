@@ -156,8 +156,11 @@ export default function ClubSponsorsPage() {
           <div className="ca-panel">
             <div className="ca-panel-header">
               <h2 className="ca-panel-title">Benefit Delivery Checklist</h2>
-              <span className="ca-panel-count">{doneCount} / {benefits.length} delivered</span>
+              {benefits.length > 0 && <span className="ca-panel-count">{doneCount} / {benefits.length} delivered</span>}
             </div>
+            {benefits.length === 0 && (
+              <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No benefit obligations yet.</p>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {benefits.map((b, i) => (
                 <button

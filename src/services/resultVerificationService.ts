@@ -218,13 +218,18 @@ export async function finalizeResult(marketId: string): Promise<ResultVerificati
    DISPUTES
    ============================================================ */
 
+// A market's result decision (Confirm/Correct/Void/Extend Review) covers
+// every open dispute on that market at once — there is no per-dispute
+// decision endpoint. So fetchDisputes() derives each dispute's status from
+// whether its market already has a final decision, via the public
+// per-market decision list (no admin permission required to read).
 export async function fetchDisputes(): Promise<Dispute[]> {
   const [response, markets] = await Promise.all([
     apiClient.get('/market-admin/result-disputes/'),
     fetchMarkets(),
   ]);
   const labels = new Map(markets.map((market) => [market.id, market.eventLabel]));
-  return normalizeApiList<Record<string, unknown>>(response.data).map((value) => ({
+  const disputes: Dispute[] = normalizeApiList<Record<string, unknown>>(response.data).map((value) => ({
     id: String(value.id),
     marketId: String(value.market_id),
     eventLabel: labels.get(String(value.market_id)) ?? 'Market details unavailable',
@@ -234,16 +239,79 @@ export async function fetchDisputes(): Promise<Dispute[]> {
     createdAt: String(value.submitted_at ?? ''),
     auditHistory: [],
   }));
+
+  const uniqueMarketIds = [...new Set(disputes.map((dispute) => dispute.marketId))];
+  const decisionEntries = await Promise.allSettled(
+    uniqueMarketIds.map((marketId) =>
+      apiClient
+        .get(`/markets/${encodeURIComponent(marketId)}/result-dispute-decisions/`)
+        .then((res) => [marketId, normalizeApiList<Record<string, unknown>>(res.data)] as const),
+    ),
+  );
+  const decisionsByMarket = new Map(
+    decisionEntries
+      .filter(
+        (entry): entry is PromiseFulfilledResult<readonly [string, Record<string, unknown>[]]> =>
+          entry.status === 'fulfilled',
+      )
+      .map((entry) => entry.value),
+  );
+
+  return disputes.map((dispute) => {
+    const decisions = decisionsByMarket.get(dispute.marketId);
+    if (!decisions) return dispute; // lookup failed — leave status 'Unavailable'
+    const finalDecision = decisions.find((decision) => decision.is_final === true);
+    if (finalDecision) {
+      return { ...dispute, status: 'Resolved', resolutionNote: String(finalDecision.notes ?? '') };
+    }
+    return { ...dispute, status: 'Open' };
+  });
 }
 
-export async function escalateDispute(id: string, note: string): Promise<Dispute> {
-  void id;
-  if (!note.trim()) fail('Explain why this dispute is being escalated.');
-  throw new Error('Escalation requires a backend result-dispute decision and is not supported by this screen yet.');
+export type DisputeDecisionType = 'CONFIRM' | 'CORRECT' | 'VOID' | 'EXTEND_REVIEW';
+
+export interface DisputeMarketOutcome {
+  id: OutcomeId;
+  label: string;
 }
 
-export async function resolveDispute(id: string, resolutionNote: string): Promise<Dispute> {
-  void id;
-  if (!resolutionNote.trim()) fail('A resolution note is required.');
-  throw new Error('Resolution requires a backend result-dispute decision with evidence and is not supported by this screen yet.');
+export async function fetchDisputeMarketOutcomes(marketId: string): Promise<DisputeMarketOutcome[]> {
+  const market = await fetchMarket(marketId);
+  return market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label }));
+}
+
+// Decides the market's provisional result — this is the only real action
+// the backend exposes for a dispute (there's no "escalate" or per-dispute
+// "resolve" endpoint). Confirm/Correct require the winning outcome; Extend
+// Review requires an extension window; Void needs neither. One decision
+// resolves every open dispute on this market, so callers should refetch
+// fetchDisputes() afterward rather than mutate a single row.
+export async function decideResultDispute(
+  marketId: string,
+  input: {
+    decisionType: DisputeDecisionType;
+    winningOutcomeId?: OutcomeId;
+    reviewExtensionHours?: number;
+    notes: string;
+    evidence: string;
+  },
+): Promise<void> {
+  if (!input.notes.trim()) fail('Explain the reasoning behind this decision.');
+  if (!input.evidence.trim()) fail('Cite the evidence used for this decision.');
+
+  let winningOutcomeBackendId: string | undefined;
+  if (input.winningOutcomeId) {
+    const market = await fetchMarket(marketId);
+    const outcome = market.outcomes.find((candidate) => candidate.id === input.winningOutcomeId);
+    if (!outcome?.backendOutcomeId) fail('Winning outcome not found.');
+    winningOutcomeBackendId = outcome.backendOutcomeId;
+  }
+
+  await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/result-dispute-decisions/`, {
+    decision_type: input.decisionType,
+    winning_outcome_id: winningOutcomeBackendId,
+    review_extension_hours: input.reviewExtensionHours,
+    notes: input.notes.trim(),
+    evidence: input.evidence.trim(),
+  });
 }

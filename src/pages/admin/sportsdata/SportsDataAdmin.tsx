@@ -8,6 +8,7 @@ import {
   FiDownload,
   FiEdit3,
   FiLink,
+  FiPlus,
   FiSettings,
   FiUpload,
   FiX,
@@ -15,6 +16,7 @@ import {
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   approveIssue,
+  createCompetition,
   fetchCompetitions,
   fetchProviderHealth,
   fetchSportsDataIssues,
@@ -27,6 +29,7 @@ import {
   type ProviderHealth,
   type QueueType,
   type Severity,
+  type Sport,
   type SportsDataIssue,
 } from '../../../services/sportsDataService';
 import './SportsDataAdmin.css';
@@ -398,12 +401,16 @@ function IssueQueueTable({
    COMPETITIONS PANEL
    ============================================================ */
 
+const SPORTS: Sport[] = ['Football', 'Rugby', 'Basketball'];
+
 function CompetitionsPanel({
   competitions,
   onConfigure,
+  onCreateClick,
 }: {
   competitions: Competition[];
   onConfigure: (competition: Competition) => void;
+  onCreateClick: () => void;
 }) {
   return (
     <div className="sda-panel" id="sda-competitions">
@@ -412,6 +419,9 @@ function CompetitionsPanel({
           <h2>Competitions</h2>
           <p>Configure which provider feeds each competition and whether it's live</p>
         </div>
+        <button type="button" className="sda-btn sda-btn--gradient" onClick={onCreateClick}>
+          <FiPlus aria-hidden="true" /> Add Competition
+        </button>
       </div>
 
       <div className="sda-table-scroll">
@@ -457,6 +467,95 @@ function CompetitionsPanel({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function CreateCompetitionModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (input: { name: string; sport: Sport; country: string }) => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [sport, setSport] = useState<Sport>('Football');
+  const [country, setCountry] = useState('UG');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onCreate({ name, sport, country });
+      onClose();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Could not create this competition.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="sda-modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="sda-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="sda-modal__header">
+          <span className="sda-modal__icon sda-modal__icon--neutral">
+            <FiPlus aria-hidden="true" />
+          </span>
+          <h3>Add Competition</h3>
+        </div>
+
+        {error && (
+          <div className="sda-error-banner">
+            <FiAlertTriangle aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <label className="sda-field-label" htmlFor="sda-new-competition-name">
+          Competition name
+        </label>
+        <input
+          id="sda-new-competition-name"
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Uganda Premier League"
+        />
+
+        <label className="sda-field-label" htmlFor="sda-new-competition-sport">
+          Sport
+        </label>
+        <select id="sda-new-competition-sport" value={sport} onChange={(event) => setSport(event.target.value as Sport)}>
+          {SPORTS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
+        <label className="sda-field-label" htmlFor="sda-new-competition-country">
+          Country code
+        </label>
+        <input
+          id="sda-new-competition-country"
+          type="text"
+          value={country}
+          onChange={(event) => setCountry(event.target.value.toUpperCase())}
+          maxLength={2}
+        />
+
+        <div className="sda-modal__footer">
+          <button type="button" className="sda-btn sda-btn--ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="sda-btn sda-btn--gradient" disabled={isSaving || !name.trim()} onClick={handleSubmit}>
+            {isSaving ? 'Adding…' : 'Add Competition'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -766,6 +865,7 @@ function SportsDataAdmin() {
   const [queueFilter, setQueueFilter] = useState<QueueType | 'All'>('All');
   const [selectedIssue, setSelectedIssue] = useState<SportsDataIssue | null>(null);
   const [configuringCompetition, setConfiguringCompetition] = useState<Competition | null>(null);
+  const [showCreateCompetition, setShowCreateCompetition] = useState(false);
 
   // Pure fetch — no setState inside, so it's safe to call from an effect.
   // Callers apply setState in their own .then()/.catch() callbacks, which is
@@ -850,6 +950,11 @@ function SportsDataAdmin() {
     setCompetitions((current) => current.map((competition) => (competition.id === updated.id ? updated : competition)));
   };
 
+  const handleCreateCompetition = async (input: { name: string; sport: Sport; country: string }) => {
+    const created = await createCompetition(input);
+    setCompetitions((current) => [created, ...current]);
+  };
+
   return (
     <>
       <AdminLayout>
@@ -914,7 +1019,11 @@ function SportsDataAdmin() {
                   onSelect={setSelectedIssue}
                 />
 
-                <CompetitionsPanel competitions={competitions} onConfigure={setConfiguringCompetition} />
+                <CompetitionsPanel
+                  competitions={competitions}
+                  onConfigure={setConfiguringCompetition}
+                  onCreateClick={() => setShowCreateCompetition(true)}
+                />
               </>
             )}
         </div>
@@ -936,6 +1045,10 @@ function SportsDataAdmin() {
           onClose={() => setConfiguringCompetition(null)}
           onSave={(patch) => handleConfigureCompetition(configuringCompetition.id, patch)}
         />
+      )}
+
+      {showCreateCompetition && (
+        <CreateCompetitionModal onClose={() => setShowCreateCompetition(false)} onCreate={handleCreateCompetition} />
       )}
     </>
   );

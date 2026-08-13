@@ -1,6 +1,6 @@
 
 import type { Competition } from '../types';
-import { SPORT_RULES } from '../data';
+import { rulesFor } from '../data';
 import {  Badge } from './shared';
 import { SPORT_META } from '../SportMeta';
 
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function CompetitionDetail({ competition, hasTeam, onBack, onCreateTeam, onManageTeam }: Props) {
-  const rules = SPORT_RULES[competition.sport];
+  const rules = rulesFor(competition);
 
   return (
     <div className="comp-detail">
@@ -76,11 +76,11 @@ export default function CompetitionDetail({ competition, hasTeam, onBack, onCrea
           <ul className="rules-list">
             <li>
               <span>Free transfers</span>
-              <strong>1 per gameweek</strong>
+              <strong>{competition.api.free_transfers_per_gameweek} per gameweek</strong>
             </li>
             <li>
               <span>Extra transfer cost</span>
-              <strong>-4 points each</strong>
+              <strong>-{competition.api.transfer_penalty} points each</strong>
             </li>
             <li>
               <span>Next deadline</span>
@@ -88,7 +88,7 @@ export default function CompetitionDetail({ competition, hasTeam, onBack, onCrea
             </li>
             <li>
               <span>{rules.multiplierLabel}</span>
-              <strong>Points doubled each gameweek</strong>
+              <strong>Points ×{competition.api.captain_multiplier} each gameweek</strong>
             </li>
           </ul>
         </div>

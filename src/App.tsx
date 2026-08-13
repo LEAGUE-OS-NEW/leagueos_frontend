@@ -55,6 +55,8 @@ import Store from "./pages/landing/store/Store";
 import Fantasy from "./pages/landing/fantasy/Fantasy";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
+// TEMP: unused while the AdminRoute guard is stripped below for local dev viewing — restore at push time
+// import AdminRoute from './components/admin/AdminRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import MarketsListPage from './pages/admin/markets/MarketsListPage';
 import CreateMarketWizard from './pages/admin/markets/CreateMarketWizard';
@@ -62,17 +64,20 @@ import AdminMarketDetailPage from './pages/admin/markets/MarketDetailPage';
 import ResultVerificationPage from './pages/admin/verification/ResultVerificationPage';
 import DisputesPage from './pages/admin/disputes/DisputesPage';
 import AdminUsersPage from './pages/admin/users/AdminUsersPage';
+import FansPage from './pages/admin/fans/FansPage';
+import PlatformMembershipPage from './pages/admin/membership/PlatformMembershipPage';
 import RolesPermissionsPage from './pages/admin/roles/RolesPermissionsPage';
+import AuditLogPage from './pages/admin/audit/AuditLogPage';
 import NotificationsPage from './pages/admin/notifications/NotificationsPage';
 import ReportsPage from './pages/admin/reports/ReportsPage';
 import SystemSettingsPage from './pages/admin/settings/SystemSettingsPage';
-import ComplianceAdmin from './pages/generaladmin/compliance/ComplianceAdmin';
-import FinanceAdmin from "./pages/generaladmin/financeadmin/FinanceAdmin";
+import ComplianceAdmin from './pages/admin/compliance/ComplianceAdmin';
+import FinanceAdmin from "./pages/admin/finance/FinanceAdmin";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
-import SportsDataAdmin from './pages/generaladmin/sportsdata/SportsDataAdmin';
+import SportsDataAdmin from './pages/admin/sportsdata/SportsDataAdmin';
 import FantasyAdminPage from './pages/admin/fantasy/FantasyAdminPage';
-import CustomerSupportAdmin from './pages/generaladmin/support/CustomerSupportAdmin';
+import CustomerSupportAdmin from './pages/admin/support/CustomerSupportAdmin';
 import SearchPage from './pages/search/SearchPage';
 import HelpCenter from './pages/support/HelpCenter';
 import HowItWorks from './pages/support/HowItWorks';
@@ -89,12 +94,12 @@ import ClubProfilePage from './pages/clubadmin/profile/ClubProfilePage';
 import ClubFixturesPage from './pages/clubadmin/fixtures/ClubFixturesPage';
 import ClubSquadPage from './pages/clubadmin/squad/ClubSquadPage';
 import ClubNewsPage from './pages/clubadmin/news/ClubNewsPage';
-import ClubMembershipsPage from './pages/clubadmin/memberships/ClubMembershipsPage';
 import ClubTicketsAdminPage from './pages/clubadmin/tickets/ClubTicketsAdminPage';
 import ClubStorePage from './pages/clubadmin/store/ClubStorePage';
 import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
 import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
+import ClubCompliancePage from './pages/clubadmin/compliance/ClubCompliancePage';
 import ClubAdminRoute from './components/clubadmin/ClubAdminRoute';
 import Unauthorized from './pages/auth/unauthorized/Unauthorized';
 
@@ -120,6 +125,7 @@ function App() {
         <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
         <Route path="/fantasy" element={<Fantasy />} />
+        <Route path="/fantasy/:competitionId" element={<Fantasy />} />
         <Route path="/fixtures" element={<FixturesPage />} />
         <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
@@ -178,12 +184,12 @@ function App() {
         <Route path="/club-admin/fixtures" element={<ClubAdminRoute><ClubFixturesPage /></ClubAdminRoute>} />
         <Route path="/club-admin/squad" element={<ClubAdminRoute><ClubSquadPage /></ClubAdminRoute>} />
         <Route path="/club-admin/news" element={<ClubAdminRoute><ClubNewsPage /></ClubAdminRoute>} />
-        <Route path="/club-admin/memberships" element={<ClubAdminRoute><ClubMembershipsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/tickets" element={<ClubAdminRoute><ClubTicketsAdminPage /></ClubAdminRoute>} />
         <Route path="/club-admin/store" element={<ClubAdminRoute><ClubStorePage /></ClubAdminRoute>} />
         <Route path="/club-admin/orders" element={<ClubAdminRoute><ClubOrdersPage /></ClubAdminRoute>} />
         <Route path="/club-admin/analytics" element={<ClubAdminRoute><ClubAnalyticsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/staff" element={<ClubAdminRoute><ClubStaffPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/compliance" element={<ClubAdminRoute><ClubCompliancePage /></ClubAdminRoute>} />
 
         {/* Access denied */}
         <Route path="/unauthorized" element={<Unauthorized />} />
@@ -205,7 +211,10 @@ function App() {
         <Route path="/dashboard/admin/verification" element={<ResultVerificationPage />} />
         <Route path="/dashboard/admin/disputes" element={<DisputesPage />} />
         <Route path="/dashboard/admin/users" element={<AdminUsersPage />} />
+        <Route path="/dashboard/admin/fans" element={<FansPage />} />
+        <Route path="/dashboard/admin/membership" element={<PlatformMembershipPage />} />
         <Route path="/dashboard/admin/roles-permissions" element={<RolesPermissionsPage />} />
+        <Route path="/dashboard/admin/audit" element={<AuditLogPage />} />
         <Route path="/dashboard/admin/notifications" element={<NotificationsPage />} />
         <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
         <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
@@ -213,7 +222,7 @@ function App() {
         <Route path="/dashboard/admin/fantasy" element={<FantasyAdminPage />} />
         <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
         <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
-        <Route path="/dashboard/admin/payouts" element={<FinanceAdmin />} />
+        <Route path="/dashboard/admin/payouts" element={<FinanceAdmin initialQueue="withdrawals" />} />
         <Route path="/dashboard/admin/support" element={<CustomerSupportAdmin />} />
         <Route path="/dashboard/admin/support/case-queues" element={<CustomerSupportAdmin />} />
         <Route path="/dashboard/admin/support/my-cases" element={<CustomerSupportAdmin />} />

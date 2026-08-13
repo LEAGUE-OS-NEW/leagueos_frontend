@@ -1,0 +1,97 @@
+.ca-doc-upload-area {
+  border: 2px dashed var(--color-border);
+  border-radius: 10px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+.ca-doc-upload-area:hover {
+  border-color: var(--color-primary-light);
+  background: rgba(99, 102, 241, 0.04);
+}
+.ca-doc-upload-icon {
+  font-size: 2rem;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.ca-doc-upload-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 4px;
+}
+.ca-doc-upload-hint {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+.ca-doc-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(99,102,241,0.13);
+  color: var(--color-primary-light);
+}
+.ca-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  width: 100%;
+  text-align: left;
+}
+.ca-checklist-item:last-child { border-bottom: none; }
+.ca-checklist-box {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ca-checklist-box.done {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+.ca-checklist-label { font-size: 0.82rem; font-weight: 600; color: var(--color-text-primary); line-height: 1.3; }
+.ca-checklist-sub { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; }
+.ca-checklist-label.done-text { text-decoration: line-through; color: var(--color-text-muted); }
+.ca-comms-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--color-surface-raised, rgba(255,255,255,0.03));
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 16px;
+}
+.ca-comms-log-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.ca-comms-log-item:last-child { border-bottom: none; }
+.ca-comms-log-title { font-size: 0.82rem; font-weight: 700; color: var(--color-text-primary); }
+.ca-comms-log-meta { font-size: 0.7rem; color: var(--color-text-muted); }
+.ca-comms-log-body { font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px; line-height: 1.5; }
