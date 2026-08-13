@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { FiShoppingCart, FiPackage } from 'react-icons/fi';
+import { FiShoppingCart, FiPackage, FiCheck } from 'react-icons/fi';
 import { GiTShirt, GiClothes } from 'react-icons/gi';
 import { FaHatCowboy } from 'react-icons/fa';
 import type { ClubProduct, ProductCategory } from '../../../services/storeService';
+import { useCartStore, parseUGX } from '../../../store/cartStore';
 import './FanProductCard.css';
 
 function productIcon(category: ProductCategory) {
@@ -16,7 +17,25 @@ function productIcon(category: ProductCategory) {
 }
 
 export function FanProductCard({ product }: { product: ClubProduct }) {
-  const [inCart, setInCart] = useState(false);
+  const addItem = useCartStore((s) => s.addItem);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(
+    product.sizes?.[0],
+  );
+  const [added, setAdded] = useState(false);
+
+  const handleAdd = () => {
+    addItem({
+      productId: product.id,
+      clubSlug: product.clubSlug,
+      name: product.name,
+      price: product.price,
+      priceValue: parseUGX(product.price),
+      size: selectedSize,
+      color: product.accentColor,
+    });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
 
   return (
     <article className="fan-product-card">
@@ -43,19 +62,28 @@ export function FanProductCard({ product }: { product: ClubProduct }) {
         {product.sizes && (
           <div className="fan-product-card-sizes">
             {product.sizes.map((s) => (
-              <span className="fan-product-size" key={s}>{s}</span>
+              <span
+                key={s}
+                className={`fan-product-size${selectedSize === s ? ' selected' : ''}`}
+                onClick={() => setSelectedSize(s)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedSize(s)}
+              >
+                {s}
+              </span>
             ))}
           </div>
         )}
 
         <button
           type="button"
-          className={`fan-product-cart-btn${inCart ? ' in-cart' : ''}`}
-          onClick={() => setInCart(true)}
+          className={`fan-product-cart-btn${added ? ' in-cart' : ''}`}
+          onClick={handleAdd}
           aria-label={`Add ${product.name} to cart`}
         >
-          <FiShoppingCart />
-          {inCart ? 'Added' : 'Add to Cart'}
+          {added ? <FiCheck /> : <FiShoppingCart />}
+          {added ? 'Added!' : 'Add to Cart'}
         </button>
       </div>
     </article>

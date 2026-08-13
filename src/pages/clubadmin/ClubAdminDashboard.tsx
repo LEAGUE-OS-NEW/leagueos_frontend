@@ -13,10 +13,10 @@ const QUICK_LINKS = [
   { label: 'Fixtures & Match Ops',     route: '/club-admin/fixtures',     permission: 'club.matches.manage' },
   { label: 'Squad & Team Management',  route: '/club-admin/squad',        permission: 'club.squad.manage' },
   { label: 'News & Communications',    route: '/club-admin/news',         permission: 'club.communications.manage' },
-  { label: 'Memberships & Renewals',   route: '/club-admin/memberships',  permission: 'club.members.manage' },
   { label: 'Ticketing & Match Events', route: '/club-admin/tickets',      permission: 'club.ticketing.manage' },
   { label: 'Store & Orders',           route: '/club-admin/store',        permission: null },
   { label: 'Analytics & Finance',      route: '/club-admin/analytics',    permission: 'club.reports.view' },
+  { label: 'Compliance & Documents',   route: '/club-admin/compliance',   permission: 'club.communications.manage' },
   { label: 'Staff & Permissions',      route: '/club-admin/staff',        permission: 'club.admin.manage' },
 ];
 
