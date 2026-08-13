@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { FiActivity, FiAlertTriangle, FiArrowLeft, FiClock } from 'react-icons/fi';
 import Navbar from '../../../components/landing/Navbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchStoryById, type Story } from '../../../services/newsService';
+import { fetchFullStory, type FullStory, type Story } from '../../../services/newsService';
 import './ArticleDetail.css';
 
 function badgeClass(category: Story['category']): string {
@@ -23,12 +23,14 @@ function ArticleDetail() {
   const { storyId = '' } = useParams();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [story, setStory] = useState<Story | null>(null);
+  const [story, setStory] = useState<FullStory | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setIsLoading(true);
+    setLoadError(null);
 
-    fetchStoryById(storyId)
+    fetchFullStory(storyId)
       .then((found) => {
         if (cancelled) return;
         setStory(found);
@@ -71,18 +73,48 @@ function ArticleDetail() {
           ) : (
             story && (
               <article className="article-body">
-                <span className={badgeClass(story.category)}>{story.category.toUpperCase()}</span>
+                <span className={badgeClass(story.category)}>
+                  {story.category.toUpperCase()}
+                </span>
+
                 <h1>{story.title}</h1>
+
                 <div className="article-byline">
-                  <img src={story.avatar} alt={story.author} className="article-byline__avatar" />
+                  <img
+                    src={story.avatar}
+                    alt={story.author}
+                    className="article-byline__avatar"
+                  />
                   <span>By {story.author}</span>
                   <span className="article-byline__dot">•</span>
                   <span className="article-byline__time">
-                    <FiClock aria-hidden="true" /> {story.time}
+                    <FiClock aria-hidden="true" /> {story.publishedAt}
                   </span>
                 </div>
-                <img src={story.image} alt={story.title} className="article-hero-image" />
+
+                {story.image && (
+                  <img
+                    src={story.image}
+                    alt={story.title}
+                    className="article-hero-image"
+                  />
+                )}
+
+                {/* summary / lead paragraph */}
                 <p className="article-description">{story.description}</p>
+
+                {/* full article body */}
+                {story.body && (
+                  <div className="article-content">
+                    {story.body.split('\n').map((paragraph, i) =>
+                      paragraph.trim() ? (
+                        <p key={i}>{paragraph.trim()}</p>
+                      ) : (
+                        <br key={i} />
+                      ),
+                    )}
+                  </div>
+                )}
               </article>
             )
           )}

@@ -71,7 +71,7 @@ button {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 32px;
-  align-items: start;
+  align-items: stretch;
 }
 
 /* ---------------- Hero ---------------- */
@@ -386,6 +386,14 @@ button {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  position: sticky;
+  top: 24px;
+  /* push sidebar down so the first panel aligns with the hero image card,
+     clearing the hero title + subtitle block (~160px) */
+  margin-top: 160px;
+  /* fill remaining vertical space so panels sit flush above the footer */
+  align-self: stretch;
+  justify-content: space-between;
 }
 
 .panel {
@@ -677,6 +685,14 @@ button {
 @media (max-width: 1180px) {
   .news-layout {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .news-sidebar {
+    position: static;
+    margin-top: 0;
+    align-self: auto;
+    justify-content: flex-start;
   }
 
   .story-grid {
@@ -752,4 +768,19 @@ button {
   .footer-map {
     grid-column: span 1;
   }
+}
+
+/* Trending story link wrapper */
+.trending-item-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.trending-item-link:hover .trending-item__title {
+  color: var(--color-primary-light, #a855f7);
+}
+.trending-item-link:hover {
+  background: rgba(108, 92, 231, 0.08);
 }
