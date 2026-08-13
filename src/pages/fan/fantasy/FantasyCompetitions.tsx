@@ -178,7 +178,23 @@ export default function App() {
         )}
 
         {screen === 'team' && activeCompetition && activeTeam && (
-          <MyTeam competition={activeCompetition} team={activeTeam} onGoTransfers={() => setScreen('transfers')} />
+          <MyTeam
+            competition={activeCompetition}
+            team={activeTeam}
+            onGoTransfers={() => setScreen('transfers')}
+            onSwapLineup={(starterId, benchId) => {
+              setTeams((prev) => {
+                const t = prev[activeCompetition.id];
+                if (!t) return prev;
+                const squad = t.squad.map((s) => {
+                  if (s.playerId === starterId) return { ...s, isStarter: false };
+                  if (s.playerId === benchId)   return { ...s, isStarter: true };
+                  return s;
+                });
+                return { ...prev, [activeCompetition.id]: { ...t, squad } };
+              });
+            }}
+          />
         )}
 
         {screen === 'transfers' && activeCompetition && activeTeam && (
@@ -218,7 +234,7 @@ export default function App() {
         <span>Football · Basketball · Rugby 15s</span>
       </footer>
 
-      <Footer />
+     
     </div>
     </div>
   );

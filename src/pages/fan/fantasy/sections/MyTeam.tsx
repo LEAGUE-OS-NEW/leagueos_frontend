@@ -10,9 +10,10 @@ interface Props {
   competition: Competition;
   team: FantasyTeam;
   onGoTransfers: () => void;
+  onSwapLineup: (starterId: string, benchId: string) => void;
 }
 
-export default function MyTeam({ competition, team, onGoTransfers }: Props) {
+export default function MyTeam({ competition, team, onGoTransfers, onSwapLineup }: Props) {
   const rules = SPORT_RULES[competition.sport];
   const byId = useMemo(() => new Map(PLAYERS.map((p) => [p.id, p])), []);
   const [viewPlayer, setViewPlayer] = useState<Player | null>(null);
@@ -36,13 +37,6 @@ export default function MyTeam({ competition, team, onGoTransfers }: Props) {
         <StatCard label="Free transfers" value={team.freeTransfers} sub="Resets next gameweek" accent="#22c55e" />
         <StatCard label="Budget in bank" value={`${team.budgetRemaining.toFixed(1)}M`} accent="#38bdf8" />
       </div>
-
-      {doubtfulStarters.length > 0 && (
-        <div className="alert-banner">
-          <strong>Availability alert.</strong> {doubtfulStarters.length} starting player
-          {doubtfulStarters.length > 1 ? 's are' : ' is'} not fully fit — check before the deadline.
-        </div>
-      )}
 
       <div className="my-team-layout">
         <div>
@@ -130,11 +124,89 @@ export default function MyTeam({ competition, team, onGoTransfers }: Props) {
           inSquad
           canAdd={false}
           onRemove={() => setViewPlayer(null)}
+          benchOptions={
+            starters.some((s) => s.id === viewPlayer.id)
+              ? bench.filter((b) => b.position === viewPlayer.position)
+              : []
+          }
+          onSwap={
+            starters.some((s) => s.id === viewPlayer.id)
+              ? (benchId) => {
+                  onSwapLineup(viewPlayer.id, benchId);
+                  setViewPlayer(null);
+                }
+              : undefined
+          }
         />
       )}
 
       {showPointsFor && (
         <Drawer title="Gameweek Points Breakdown" subtitle={`Gameweek ${competition.currentGameweek}`} onClose={() => setShowPointsFor(null)}>
+
+          {/* ── Summary grid ── */}
+          <div className="breakdown-summary">
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Gameweek points</span>
+              <span className="breakdown-stat-value">{gwPoints}</span>
+              <span className="breakdown-stat-sub">Your team's GW score</span>
+            </div>
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Total points</span>
+              <span className="breakdown-stat-value">{team.totalPoints}</span>
+              <span className="breakdown-stat-sub">Season cumulative</span>
+            </div>
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Captain points</span>
+              <span className="breakdown-stat-value breakdown-stat-orange">
+                {team.captainId
+                  ? (() => { const c = byId.get(team.captainId); return c ? `${c.gwPoints * 2}` : '—'; })()
+                  : '—'}
+              </span>
+              <span className="breakdown-stat-sub">
+                {team.captainId
+                  ? (() => { const c = byId.get(team.captainId); return c ? `${c.name.split(' ').slice(-1)[0]} ×2` : ''; })()
+                  : 'No captain set'}
+              </span>
+            </div>
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Best player</span>
+              <span className="breakdown-stat-value breakdown-stat-green">
+                {starters.length > 0
+                  ? Math.max(...starters.map((p) => p.gwPoints * (p.id === team.captainId ? 2 : 1)))
+                  : '—'}
+              </span>
+              <span className="breakdown-stat-sub">
+                {starters.length > 0
+                  ? (() => {
+                      const top = starters.reduce((best, p) => {
+                        const pts = p.gwPoints * (p.id === team.captainId ? 2 : 1);
+                        const bestPts = best.gwPoints * (best.id === team.captainId ? 2 : 1);
+                        return pts > bestPts ? p : best;
+                      });
+                      return `${top.name.split(' ').slice(-1)[0]} pts`;
+                    })()
+                  : ''}
+              </span>
+            </div>
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Bench points</span>
+              <span className="breakdown-stat-value breakdown-stat-dim">
+                {bench.reduce((sum, p) => sum + p.gwPoints, 0)}
+              </span>
+              <span className="breakdown-stat-sub">Not counted in GW total</span>
+            </div>
+            <div className="breakdown-stat">
+              <span className="breakdown-stat-label">Overall rank</span>
+              <span className="breakdown-stat-value">
+                {team.overallRank ? `#${team.overallRank.toLocaleString()}` : '—'}
+              </span>
+              <span className="breakdown-stat-sub">{competition.shortName}</span>
+            </div>
+          </div>
+
+          <div className="breakdown-divider" />
+
+          {/* ── Per-player list ── */}
           <div className="points-breakdown-list">
             {starters.map((p) => (
               <div className="points-breakdown-row" key={p.id}>
@@ -149,6 +221,24 @@ export default function MyTeam({ competition, team, onGoTransfers }: Props) {
               </div>
             ))}
           </div>
+
+          {bench.length > 0 && (
+            <>
+              <p className="breakdown-bench-label">Bench (not counted)</p>
+              <div className="points-breakdown-list">
+                {bench.map((p) => (
+                  <div className="points-breakdown-row breakdown-row-bench" key={p.id}>
+                    <PlayerAvatar player={p} size={32} />
+                    <div className="points-breakdown-name">
+                      <strong>{p.name}</strong>
+                      <span>{p.club}</span>
+                    </div>
+                    <div className="points-breakdown-value breakdown-stat-dim">{p.gwPoints} pts</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Drawer>
       )}
     </div>

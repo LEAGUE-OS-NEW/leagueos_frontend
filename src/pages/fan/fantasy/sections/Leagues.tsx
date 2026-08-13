@@ -41,21 +41,12 @@ export default function Leagues({ competition, team }: Props) {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinedCode, setJoinedCode] = useState('');
   const [joinError, setJoinError] = useState<string | null>(null);
-  const [leagues, setLeagues] = useState<MiniLeague[]>(() => [
-    {
-      id: 'old-budonians',
-      name: 'Old Budonians Fantasy League',
-      type: 'private',
-      sport: competition.sport,
-      memberCount: 18,
-      code: 'BUDO-2026',
-      yourRank: 2,
-      standings: seededStandings(7, { teamName: team.teamName, totalPoints: team.totalPoints }),
-    },
-  ]);
+  const [leagues, setLeagues] = useState<MiniLeague[]>([]);
   const [openLeague, setOpenLeague] = useState<MiniLeague | null>(null);
   const [newLeagueName, setNewLeagueName] = useState('');
   const [createdLeague, setCreatedLeague] = useState<MiniLeague | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const overall = useMemo(
     () => seededStandings(41, { teamName: team.teamName, totalPoints: team.totalPoints }, 12),
@@ -85,11 +76,29 @@ export default function Leagues({ competition, team }: Props) {
       setJoinError('Enter an invite code to continue.');
       return;
     }
-    if (joinedCode.trim().toUpperCase() === 'BUDO-2026') {
+    const match = leagues.find((l) => l.code === joinedCode.trim().toUpperCase());
+    if (match) {
       setJoinError('You are already a member of this league.');
       return;
     }
     setJoinError('Invite code not recognised. Double-check with your league owner.');
+  }
+
+  function shareCode(code: string) {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2500);
+    }).catch(() => {
+      // Fallback: show code in a prompt so user can copy manually
+      window.prompt('Copy your invite code:', code);
+    });
+  }
+
+  function leaveLeague() {
+    if (!openLeague) return;
+    setLeagues((l) => l.filter((x) => x.id !== openLeague.id));
+    setLeaveConfirmOpen(false);
+    setOpenLeague(null);
   }
 
   return (
@@ -123,7 +132,7 @@ export default function Leagues({ competition, team }: Props) {
                 <div>
                   <strong>{l.name}</strong>
                   <span>
-                    {l.type === 'private' ? 'Private league' : 'Public league'} · {l.memberCount} members
+                    {l.type === 'private' ? 'Private league' : 'Public league'} · {l.memberCount} member{l.memberCount !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <Badge tone="purple">Your rank #{l.yourRank}</Badge>
@@ -167,8 +176,13 @@ export default function Leagues({ competition, team }: Props) {
         </div>
       )}
 
+      {/* League detail drawer */}
       {openLeague && (
-        <Drawer title={openLeague.name} subtitle={`${openLeague.memberCount} members · code ${openLeague.code}`} onClose={() => setOpenLeague(null)}>
+        <Drawer
+          title={openLeague.name}
+          subtitle={`${openLeague.type === 'private' ? 'Private league' : 'Public league'} · ${openLeague.memberCount} member${openLeague.memberCount !== 1 ? 's' : ''}${openLeague.code ? ` · code ${openLeague.code}` : ''}`}
+          onClose={() => setOpenLeague(null)}
+        >
           <table className="standings-table">
             <thead>
               <tr>
@@ -191,51 +205,89 @@ export default function Leagues({ competition, team }: Props) {
               ))}
             </tbody>
           </table>
-          <div className="sb-actions">
-            <button className="btn btn-ghost">Share invite code</button>
-            <button className="btn btn-danger-ghost">Leave league</button>
+
+          {openLeague.code && (
+            <div className="league-invite-block">
+              <p className="league-invite-label">Invite code</p>
+              <div className="invite-code">{openLeague.code}</div>
+            </div>
+          )}
+
+          <div className="drawer-actions">
+            {openLeague.code && (
+              <button
+                className={`btn btn-ghost ${copiedCode === openLeague.code ? 'btn-copied' : ''}`}
+                onClick={() => shareCode(openLeague.code!)}
+              >
+                {copiedCode === openLeague.code ? '✓ Copied!' : 'Share invite code'}
+              </button>
+            )}
+            <button className="btn btn-danger-ghost" onClick={() => setLeaveConfirmOpen(true)}>
+              Leave league
+            </button>
           </div>
         </Drawer>
       )}
 
+      {/* Leave league confirmation */}
+      {leaveConfirmOpen && openLeague && (
+        <Modal
+          title="Leave league?"
+          tone="danger"
+          onClose={() => setLeaveConfirmOpen(false)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setLeaveConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger-ghost" onClick={leaveLeague}>
+                Yes, leave
+              </button>
+            </>
+          }
+        >
+          <p>You will be removed from <strong>{openLeague.name}</strong>. You can rejoin later with the invite code.</p>
+        </Modal>
+      )}
+
+      {/* Create league modal */}
       {createOpen && (
         <Modal
           title="Create a private league"
-          onClose={() => setCreateOpen(false)}
+          onClose={() => { setCreateOpen(false); setNewLeagueName(''); }}
           footer={
             <>
-              <button className="btn btn-ghost" onClick={() => setCreateOpen(false)}>
+              <button className="btn btn-ghost" onClick={() => { setCreateOpen(false); setNewLeagueName(''); }}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={createLeague}>
+              <button className="btn btn-primary" disabled={!newLeagueName.trim()} onClick={createLeague}>
                 Create league
               </button>
             </>
           }
         >
           <label className="field-label">League name</label>
-          <input className="input" value={newLeagueName} onChange={(e) => setNewLeagueName(e.target.value)} placeholder="e.g. Kampala Office League" maxLength={40} />
+          <input
+            className="input"
+            value={newLeagueName}
+            onChange={(e) => setNewLeagueName(e.target.value)}
+            placeholder="e.g. Kampala Office League"
+            maxLength={40}
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && createLeague()}
+          />
           <p className="rules-note">Starts from Gameweek {competition.currentGameweek} in {competition.shortName}. Invite friends with a code once created.</p>
         </Modal>
       )}
 
+      {/* Join league modal */}
       {joinOpen && (
         <Modal
           title="Join a private league"
-          onClose={() => {
-            setJoinOpen(false);
-            setJoinError(null);
-            setJoinedCode('');
-          }}
+          onClose={() => { setJoinOpen(false); setJoinError(null); setJoinedCode(''); }}
           footer={
             <>
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setJoinOpen(false);
-                  setJoinError(null);
-                }}
-              >
+              <button className="btn btn-ghost" onClick={() => { setJoinOpen(false); setJoinError(null); }}>
                 Cancel
               </button>
               <button className="btn btn-primary" onClick={joinLeague}>
@@ -245,14 +297,22 @@ export default function Leagues({ competition, team }: Props) {
           }
         >
           <label className="field-label">Invite code</label>
-          <input className="input" value={joinedCode} onChange={(e) => setJoinedCode(e.target.value)} placeholder="e.g. BUDO-2026" />
+          <input
+            className="input"
+            value={joinedCode}
+            onChange={(e) => { setJoinedCode(e.target.value); setJoinError(null); }}
+            placeholder="e.g. KAMP-4821"
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && joinLeague()}
+          />
           {joinError && <p className="transfer-cost-warning">{joinError}</p>}
         </Modal>
       )}
 
+      {/* League created confirmation */}
       {createdLeague && (
         <Modal
-          title="League created 🎉"
+          title="League created"
           onClose={() => setCreatedLeague(null)}
           footer={
             <button className="btn btn-primary" onClick={() => setCreatedLeague(null)}>
@@ -260,10 +320,16 @@ export default function Leagues({ competition, team }: Props) {
             </button>
           }
         >
-          <p>
-            <strong>{createdLeague.name}</strong> is ready. Share this code with friends so they can join:
-          </p>
-          <div className="invite-code">{createdLeague.code}</div>
+          <div className="league-created-body">
+            <p><strong>{createdLeague.name}</strong> is ready. Share this code with friends so they can join:</p>
+            <div className="invite-code">{createdLeague.code}</div>
+            <button
+              className={`btn btn-secondary league-copy-btn ${copiedCode === createdLeague.code ? 'btn-copied' : ''}`}
+              onClick={() => shareCode(createdLeague.code!)}
+            >
+              {copiedCode === createdLeague.code ? '✓ Copied to clipboard!' : 'Copy invite code'}
+            </button>
+          </div>
         </Modal>
       )}
     </div>

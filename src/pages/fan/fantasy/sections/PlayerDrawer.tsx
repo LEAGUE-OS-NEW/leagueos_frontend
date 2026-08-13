@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import type { Player } from '../types';
 import { Drawer } from './Modal';
 import PlayerAvatar from './PlayerAvatar';
@@ -13,10 +14,27 @@ interface Props {
   onRemove?: () => void;
   onCaptain?: () => void;
   isCaptain?: boolean;
+  /** Bench players of the same position that can replace this starter */
+  benchOptions?: Player[];
+  /** Called with the bench player chosen to swap in */
+  onSwap?: (benchPlayerId: string) => void;
 }
 
-export default function PlayerDrawer({ player, onClose, inSquad, canAdd, onAdd, onRemove, onCaptain, isCaptain }: Props) {
+export default function PlayerDrawer({
+  player,
+  onClose,
+  inSquad,
+  canAdd,
+  onAdd,
+  onRemove,
+  onCaptain,
+  isCaptain,
+  benchOptions = [],
+  onSwap,
+}: Props) {
   const statusTone = player.status === 'ready' ? 'green' : player.status === 'doubtful' ? 'orange' : 'red';
+  const [swapOpen, setSwapOpen] = useState(false);
+  const isStarter = inSquad && benchOptions.length >= 0 && onSwap !== undefined;
 
   return (
     <Drawer title={player.name} subtitle={`${player.club} · ${player.positionLabel}`} onClose={onClose}>
@@ -25,7 +43,13 @@ export default function PlayerDrawer({ player, onClose, inSquad, canAdd, onAdd, 
         <div>
           <div className="player-drawer-price">UGX {player.price.toFixed(1)}M</div>
           <Badge tone={statusTone}>
-            {player.status === 'ready' ? 'Available' : player.status === 'doubtful' ? 'Doubtful' : player.status === 'injured' ? 'Injured' : 'Suspended'}
+            {player.status === 'ready'
+              ? 'Available'
+              : player.status === 'doubtful'
+              ? 'Doubtful'
+              : player.status === 'injured'
+              ? 'Injured'
+              : 'Suspended'}
           </Badge>
         </div>
       </div>
@@ -57,11 +81,54 @@ export default function PlayerDrawer({ player, onClose, inSquad, canAdd, onAdd, 
             {canAdd ? 'Add to squad' : 'Squad full or budget too low'}
           </button>
         )}
+
         {inSquad && (
           <>
+            {/* Bench swap — only shown when there are eligible bench players */}
+            {isStarter && benchOptions.length > 0 && (
+              <div className="swap-section">
+                <button
+                  className="btn btn-secondary swap-toggle"
+                  onClick={() => setSwapOpen((o) => !o)}
+                >
+                  {swapOpen ? 'Cancel swap' : 'Move to bench ⇄'}
+                </button>
+
+                {swapOpen && (
+                  <div className="swap-options">
+                    <p className="swap-label">
+                      Select a bench {player.positionLabel.toLowerCase()} to bring on:
+                    </p>
+                    {benchOptions.map((b) => (
+                      <button
+                        key={b.id}
+                        className="swap-option-row"
+                        onClick={() => {
+                          onSwap!(b.id);
+                          onClose();
+                        }}
+                      >
+                        <PlayerAvatar player={b} size={36} />
+                        <div className="swap-option-info">
+                          <strong>{b.name}</strong>
+                          <span>{b.club} · {b.gwPoints} pts this GW</span>
+                        </div>
+                        <span className="swap-option-pts">{b.totalPoints} pts</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isStarter && benchOptions.length === 0 && (
+              <p className="swap-none">No bench {player.positionLabel.toLowerCase()}s available for this position.</p>
+            )}
+
             <button className="btn btn-ghost" onClick={onRemove}>
               Remove from squad
             </button>
+
             {onCaptain && (
               <button className="btn btn-secondary" onClick={onCaptain}>
                 {isCaptain ? 'Captain ✓' : 'Make captain'}
