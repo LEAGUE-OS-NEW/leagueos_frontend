@@ -10,15 +10,16 @@ import {
   fetchRiskProfiles,
   proposeComplianceDecision,
   reassessRisk,
+  updateParticipantKycStatus,
 } from "../../../services/markets/complianceAdminService.ts";
 import type { ComplianceDecision } from "../../../types/api.ts";
 import "./ComplianceAdmin.css";
 
 // The backend's ComplianceDecisionProposal only models five specific
-// clear/override actions — nothing else in this page's Decision Controls
-// panel (KYC approve/reject, applying a new restriction, suspension,
-// escalation) has a real endpoint yet. See markets/models.py's
-// ComplianceDecisionProposal.DecisionType on the backend.
+// clear/override actions — that system doesn't touch KYC status at all.
+// Approve/Reject Verification are real (PATCH .../compliance/, see
+// updateParticipantKycStatus). Applying a new restriction, suspension,
+// and escalation from this panel don't have a real endpoint yet.
 const DECISION_TYPE_LABELS: Record<string, string> = {
   CLEAR_CRITICAL_RISK_BLOCK: "Clear critical risk block",
   REMOVE_SUSPENDED_RESTRICTION: "Remove suspension",
@@ -139,6 +140,7 @@ export interface ComplianceCase {
 const currentUserPermissions: CompliancePermission[] = [
   "REQUEST_INFO",
   "APPROVE_KYC",
+  "REJECT_KYC",
   "ESCALATE_CASE",
 ];
 
@@ -207,8 +209,9 @@ const PermButton: React.FC<{
   permission: CompliancePermission;
   permissions: CompliancePermission[];
   variant?: "ghost" | "gradient" | "danger";
+  disabled?: boolean;
   onClick: () => void;
-}> = ({ label, permission, permissions, variant = "ghost", onClick }) => {
+}> = ({ label, permission, permissions, variant = "ghost", disabled, onClick }) => {
   const allowed = hasPermission(permissions, permission);
 
   const cls =
@@ -222,7 +225,7 @@ const PermButton: React.FC<{
     <div className="perm-btn-wrap">
       <button
         className={cls}
-        disabled={!allowed}
+        disabled={!allowed || disabled}
         aria-describedby={!allowed ? `${permission}-tooltip` : undefined}
         onClick={onClick}
       >
@@ -657,12 +660,16 @@ const ComplianceDecisionPanel: React.FC<{
   permissions: CompliancePermission[];
   onLowImpact: (action: string, detail: string) => void;
   onMediumImpact: (action: string) => void;
+  onKycDecision: (approve: boolean) => void;
+  isDecidingKyc: boolean;
   onRequestHighImpact: (action: PendingAction) => void;
   onAssignInvestigator: () => void;
 }> = ({
   permissions,
   onLowImpact,
   onMediumImpact,
+  onKycDecision,
+  isDecidingKyc,
   onRequestHighImpact,
   onAssignInvestigator,
 }) => {
@@ -681,9 +688,11 @@ const ComplianceDecisionPanel: React.FC<{
       </div>
 
       <div className="decision-panel__notice">
-        These actions log an internal note on this case only — they don't yet
-        change the fan's real KYC status or unlock trading. That requires
-        backend support that doesn't exist yet.
+        Approve/Reject Verification update the fan's real KYC status and
+        market eligibility. Every other action here (notes, participation
+        limits, restrictions, suspension, escalation) logs an internal note
+        on this case only — that requires backend support that doesn't
+        exist yet.
       </div>
 
       <div className="decision-groups">
@@ -742,18 +751,20 @@ const ComplianceDecisionPanel: React.FC<{
           <p className="decision-group__label">Medium impact</p>
           <div className="decision-group__buttons">
             <PermButton
-              label="Approve Verification"
+              label={isDecidingKyc ? "Approving…" : "Approve Verification"}
               permission="APPROVE_KYC"
               permissions={permissions}
               variant="gradient"
-              onClick={() => onMediumImpact("Approve Verification")}
+              disabled={isDecidingKyc}
+              onClick={() => onKycDecision(true)}
             />
 
             <PermButton
-              label="Reject Verification"
+              label={isDecidingKyc ? "Rejecting…" : "Reject Verification"}
               permission="REJECT_KYC"
               permissions={permissions}
-              onClick={() => onMediumImpact("Reject Verification")}
+              disabled={isDecidingKyc}
+              onClick={() => onKycDecision(false)}
             />
 
             <PermButton
@@ -869,6 +880,8 @@ const ComplianceCaseDetail: React.FC<{
   // per the notice in ComplianceDecisionPanel.
   const [isReassessing, setIsReassessing] = useState(false);
   const [reassessError, setReassessError] = useState("");
+  const [isDecidingKyc, setIsDecidingKyc] = useState(false);
+  const [kycDecisionError, setKycDecisionError] = useState("");
   const [liftReasonFor, setLiftReasonFor] = useState<string | null>(null);
   const [liftReasonText, setLiftReasonText] = useState("");
   const [liftingId, setLiftingId] = useState<string | null>(null);
@@ -929,6 +942,37 @@ const ComplianceCaseDetail: React.FC<{
       setReassessError(extractApiError(error).message);
     } finally {
       setIsReassessing(false);
+    }
+  };
+
+  // Actually flips MarketParticipantCompliance.kyc_status on the backend —
+  // this is what /markets/kyc/summary/ reads to decide fan eligibility, so
+  // this is the real approve/reject action, not just a case-log entry.
+  const handleKycDecision = async (approve: boolean) => {
+    setIsDecidingKyc(true);
+    setKycDecisionError("");
+    try {
+      await updateParticipantKycStatus(
+        caseData.participantId,
+        approve ? "VERIFIED" : "REJECTED",
+      );
+      const event: AuditEvent = {
+        id: nextAuditId(),
+        timestamp: new Date().toISOString(),
+        adminUser: "You",
+        action: approve
+          ? "KYC Verification Approved"
+          : "KYC Verification Rejected",
+      };
+      onMutate({
+        ...caseData,
+        status: "Resolved",
+        auditHistory: [...caseData.auditHistory, event],
+      });
+    } catch (error) {
+      setKycDecisionError(extractApiError(error).message);
+    } finally {
+      setIsDecidingKyc(false);
     }
   };
 
@@ -1498,12 +1542,19 @@ const ComplianceCaseDetail: React.FC<{
           </div>
 
           {/* Decision Panel */}
+          {kycDecisionError && (
+            <p className="empty-note" style={{ color: "var(--red-primary)" }}>
+              {kycDecisionError}
+            </p>
+          )}
           <ComplianceDecisionPanel
             permissions={permissions}
             onLowImpact={(action, detail) => appendAudit(action, detail)}
             onMediumImpact={(action) =>
               appendAudit(action, "Logged via medium-impact action")
             }
+            onKycDecision={handleKycDecision}
+            isDecidingKyc={isDecidingKyc}
             onAssignInvestigator={() => {
               setAssigneeName(
                 caseData.assignedTo === "Unassigned" ? "" : caseData.assignedTo,

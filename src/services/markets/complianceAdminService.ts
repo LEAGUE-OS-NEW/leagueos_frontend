@@ -94,3 +94,19 @@ export const decideComplianceProposal = async (
       })
     ).data,
   );
+// Directly updates a participant's KYC status, which is what
+// /markets/kyc/summary/ reads to compute market eligibility — this is
+// the real effect behind "Approve/Reject Verification" in the compliance
+// queue UI.
+export const updateParticipantKycStatus = async (
+  participantId: string,
+  kycStatus: "VERIFIED" | "REJECTED",
+) =>
+  unwrapApiData<Record<string, unknown>>(
+    (
+      await apiClient.patch(
+        `/market-admin/participants/${participantId}/compliance/`,
+        { kyc_status: kycStatus },
+      )
+    ).data,
+  );
