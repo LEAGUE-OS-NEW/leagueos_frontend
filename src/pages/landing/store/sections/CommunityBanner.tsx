@@ -1,21 +1,6 @@
 import type { ReactNode } from 'react';
 import { FiLock, FiPercent, FiGift } from 'react-icons/fi';
-import { FaFacebook, FaInstagram } from 'react-icons/fa';
-import { FaTiktok, FaXTwitter } from 'react-icons/fa6';
 import './CommunityBanner.css';
-
-type SocialLink = {
-  label: string;
-  href: string;
-  icon: ReactNode;
-};
-
-const SOCIAL_LINKS: SocialLink[] = [
-  { label: 'Instagram', href: 'https://instagram.com', icon: <FaInstagram /> },
-  { label: 'Facebook', href: 'https://facebook.com', icon: <FaFacebook /> },
-  { label: 'TikTok', href: 'https://tiktok.com', icon: <FaTiktok /> },
-  { label: 'X', href: 'https://x.com', icon: <FaXTwitter /> },
-];
 
 type Perk = {
   label: string;
@@ -35,21 +20,6 @@ function CommunityBanner() {
       <div className="community-banner-copy">
         <p className="community-banner-title">Wear It. Live It. Share It.</p>
         <p className="community-banner-subtext">Tag @LeagueOS_UG and use #LeagueOS to get featured.</p>
-
-        <div className="community-banner-social">
-          {SOCIAL_LINKS.map((social) => (
-            <a
-              key={social.label}
-              href={social.href}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="community-banner-social-link"
-              aria-label={social.label}
-            >
-              {social.icon}
-            </a>
-          ))}
-        </div>
       </div>
 
       <div className="community-banner-perks">

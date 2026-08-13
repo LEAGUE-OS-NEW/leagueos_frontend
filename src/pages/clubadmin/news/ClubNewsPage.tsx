@@ -8,7 +8,7 @@ const TABS = ['All', 'Published', 'Drafts', 'Scheduled', 'Archived', 'Media'];
 const TYPES = ['Match Report', 'Preview', 'Announcement', 'Club News', 'Transfer'];
 
 type Status = 'published' | 'scheduled' | 'draft' | 'archived';
-type Article = { title: string; type: string; date: string; author: string; reads: string; status: Status; body: string };
+type Article = { title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string };
 
 type MediaItem = { name: string; type: 'image' | 'video' | 'doc'; size: string; date: string; used: boolean };
 
@@ -17,7 +17,7 @@ const STATUS_CLASS: Record<string, string> = {
   published: 'ca-pill-green', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
 };
 
-const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '' };
+const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '', coverImage: '' };
 
 type ModalKind = null | 'create' | 'edit' | 'schedule' | 'preview';
 
@@ -89,6 +89,18 @@ export default function ClubNewsPage() {
   const set = (k: keyof Article) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const handleCoverImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Please select an image file'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(f => ({ ...f, coverImage: ev.target?.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const removeCoverImage = () => setForm(f => ({ ...f, coverImage: '' }));
+
   const MEDIA_ICON: Record<string, string> = { image: '🖼', video: '🎬', doc: '📄' };
 
   return (
@@ -138,6 +150,34 @@ export default function ClubNewsPage() {
                   <input className="ca-input" type="date" value={form.date} onChange={set('date')} />
                 </div>
                 <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Cover Image</label>
+                  {form.coverImage ? (
+                    <div className="ca-cover-preview">
+                      <img src={form.coverImage} alt="Cover preview" className="ca-cover-preview-img" />
+                      <button
+                        type="button"
+                        className="ca-cover-remove"
+                        onClick={removeCoverImage}
+                        aria-label="Remove cover image"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="ca-cover-upload">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        style={{ display: 'none' }}
+                        onChange={handleCoverImage}
+                      />
+                      <FiImage className="ca-cover-upload-icon" />
+                      <span className="ca-cover-upload-text">Click to upload cover image</span>
+                      <span className="ca-cover-upload-hint">JPG, PNG, WebP — max 10 MB · Recommended 16:9</span>
+                    </label>
+                  )}
+                </div>
+                <div className="ca-field ca-form-grid-full">
                   <label className="ca-label">Article Body</label>
                   <textarea
                     className="ca-textarea"
@@ -174,7 +214,11 @@ export default function ClubNewsPage() {
               <button type="button" className="ca-modal-close" onClick={() => setModal(null)}><FiX /></button>
             </div>
             <div className="ca-modal-body">
-              <div className="ca-preview-hero" />
+              {previewArticle.coverImage ? (
+                <img src={previewArticle.coverImage} alt="Cover" className="ca-preview-hero-img" />
+              ) : (
+                <div className="ca-preview-hero" />
+              )}
               <div className="ca-preview-meta">
                 <span className="ca-pill ca-pill-muted" style={{ fontSize: '0.62rem' }}>{previewArticle.type}</span>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>{previewArticle.date || 'Date TBC'}</span>
