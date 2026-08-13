@@ -154,6 +154,7 @@ function buildPlayers(sport: Sport): Player[] {
       const count = sport === 'football' ? (pg.group === 'GK' ? 1 : 2) : sport === 'basketball' ? 2 : 1;
       for (let i = 0; i < count; i++) {
         idx += 1;
+        const photoIndex = ((idx - 1) % 70) + 1;
         const basePrice =
           sport === 'football'
             ? range(4.0, 12.5)
@@ -167,6 +168,7 @@ function buildPlayers(sport: Sport): Player[] {
           club: club.name,
           clubShort: club.short,
           clubColor: club.color,
+          photo: `https://i.pravatar.cc/128?img=${photoIndex}`,
           sport,
           position: pg.group,
           positionLabel: positionLabel(sport, pg.group),

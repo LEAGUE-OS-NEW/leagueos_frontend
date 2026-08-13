@@ -20,6 +20,7 @@ export interface Player {
   club: string;
   clubShort: string;
   clubColor: string; // hex, used for avatar + jersey chip
+  photo?: string;    // optional URL — rendered in the circle when present
   sport: Sport;
   position: PositionGroup;
   positionLabel: string;

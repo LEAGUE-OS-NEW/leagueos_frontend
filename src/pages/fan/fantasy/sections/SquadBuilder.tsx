@@ -89,7 +89,7 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
       setStarterIds((s) => s.filter((x) => x !== id));
     } else {
       if (starterIds.length >= rules.startersCount) {
-        setShowInvalid(`You can only start ${rules.startersCount} players.`);
+        setShowInvalid(`You can only start with ${rules.startersCount} players.`);
         return;
       }
       if (startersInGroup >= group.starterMax) {
@@ -273,7 +273,7 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
         <div className="sb-lineup">
           <div className="sb-summary-bar">
             <div>
-              Set your starting {rules.startersCount} and bench the rest ({squadIds.length - rules.startersCount} players).
+              Set your starting {rules.startersCount} by clicking on the player and bench the rest ({squadIds.length - rules.startersCount} players).
             </div>
             <Badge tone={lineupValid ? 'green' : 'purple'}>
               {starterIds.length} / {rules.startersCount} starting
@@ -332,7 +332,7 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
           <div className="sb-review-grid">
             <div>
               <h4>Team name</h4>
-              <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={30} />
+              <input className="input" value={teamName} onChange={(e) => setTeamName(e.target.value)} maxLength={30} placeholder="Enter your Team name" />
 
               <h4>{rules.multiplierLabel}</h4>
               <p className="sb-hint">Points are doubled for your {rules.multiplierLabel.toLowerCase()} this gameweek.</p>
@@ -426,7 +426,7 @@ export default function SquadBuilder({ competition, teamName: initialTeamName, o
       )}
 
       {showInvalid && (
-        <Modal title="Invalid squad move" onClose={() => setShowInvalid(null)} footer={<button className="btn btn-primary" onClick={() => setShowInvalid(null)}>Got it</button>}>
+        <Modal title="Invalid squad move" tone="danger" onClose={() => setShowInvalid(null)} footer={<button className="btn btn-primary" onClick={() => setShowInvalid(null)}>Got it</button>}>
           <p>{showInvalid}</p>
         </Modal>
       )}
