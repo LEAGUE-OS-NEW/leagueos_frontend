@@ -26,11 +26,9 @@ function ArticleDetail() {
   const [story, setStory] = useState<FullStory | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setLoadError(null);
+  let cancelled = false;
 
-    fetchFullStory(storyId)
+  fetchFullStory(storyId)
       .then((found) => {
         if (cancelled) return;
         setStory(found);
