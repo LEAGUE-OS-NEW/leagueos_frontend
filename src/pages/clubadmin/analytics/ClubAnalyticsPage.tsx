@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { FiDownload, FiCheck, FiTrendingUp, FiUsers, FiCalendar, FiShoppingBag } from 'react-icons/fi';
+import { FiDownload, FiCheck, FiTrendingUp, FiUsers, FiCalendar, FiShoppingBag, FiFileText, FiPlus, FiX } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubAnalyticsPage.css';
 
 const SEASONS = ['2025/26', '2024/25', '2023/24'];
 const QUARTERS = ['Full Season', 'Q1', 'Q2', 'Q3', 'Q4'];
-const TABS = ['Revenue', 'Members', 'Attendance', 'Store'];
+const TABS = ['Revenue', 'Members', 'Attendance', 'Store', 'Invoices', 'Audit Log'];
 
 type KpiItem        = { label: string; value: string; delta: string; up: boolean | null };
 type FinancialRow   = { category: string; q1: string; q2: string; q3: string; q4: string };
@@ -18,6 +18,8 @@ type PlanBreakdown  = { name: string; count: number; pct: number; color: string 
 type RenewalRate    = { period: string; rate: number };
 type MatchAttendance = { match: string; date: string; attendance: number; cap: number };
 type ActivityItem   = { text: string; time: string };
+type Invoice        = { id: string; ref: string; desc: string; amount: string; date: string; status: 'paid' | 'pending' | 'overdue' };
+type AuditEntry     = { id: string; action: string; actor: string; target: string; timestamp: string };
 
 // All data starts empty — will be populated from API
 const KPI: KpiItem[] = [];
@@ -30,6 +32,10 @@ const PLAN_BREAKDOWN: PlanBreakdown[] = [];
 const RENEWAL_RATE: RenewalRate[] = [];
 const MATCH_ATTENDANCE: MatchAttendance[] = [];
 const ACTIVITY: ActivityItem[] = [];
+
+const INV_STATUS_CLASS: Record<string, string> = {
+  paid: 'ca-pill-green', pending: 'ca-pill-orange', overdue: 'ca-pill-red',
+};
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
   if (!rows.length) return;
@@ -54,9 +60,31 @@ export default function ClubAnalyticsPage() {
   const [season, setSeason]   = useState('2025/26');
   const [quarter, setQuarter] = useState('Full Season');
   const [txnFilter, setTxnFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [showInvModal, setShowInvModal] = useState(false);
+  const [invForm, setInvForm] = useState({ ref: '', desc: '', amount: '', date: '', status: 'pending' as Invoice['status'] });
   const [toast, setToast] = useState('');
+  let invSeq = 300;
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  const saveInvoice = () => {
+    if (!invForm.ref.trim() || !invForm.desc.trim()) return;
+    const id = `inv-${invSeq++}`;
+    setInvoices(prev => [...prev, { id, ...invForm }]);
+    const entry: AuditEntry = {
+      id: `aud-${invSeq++}`,
+      action: 'Invoice Created',
+      actor: 'Club Admin',
+      target: invForm.ref,
+      timestamp: new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    };
+    setAuditLog(prev => [entry, ...prev]);
+    setInvForm({ ref: '', desc: '', amount: '', date: '', status: 'pending' });
+    setShowInvModal(false);
+    showToast('Invoice added');
+  };
 
   const financials = FINANCIALS[quarter] ?? [];
   const filteredTxns = txnFilter === 'all' ? TRANSACTIONS : TRANSACTIONS.filter(t => t.type === txnFilter);
@@ -77,6 +105,49 @@ export default function ClubAnalyticsPage() {
   return (
     <ClubAdminLayout>
       {toast && <div className="ca-toast"><FiCheck /> {toast}</div>}
+
+      {showInvModal && (
+        <div className="ca-modal-overlay" onClick={() => setShowInvModal(false)}>
+          <div className="ca-modal" onClick={e => e.stopPropagation()}>
+            <div className="ca-modal-header">
+              <h2 className="ca-modal-title">Add Invoice / Receipt</h2>
+              <button type="button" className="ca-modal-close" onClick={() => setShowInvModal(false)}><FiX /></button>
+            </div>
+            <div className="ca-modal-body">
+              <div className="ca-form-grid">
+                <div className="ca-field">
+                  <label className="ca-label">Invoice Ref *</label>
+                  <input className="ca-input" value={invForm.ref} onChange={e => setInvForm(f => ({ ...f, ref: e.target.value }))} placeholder="e.g. INV-2026-001" />
+                </div>
+                <div className="ca-field">
+                  <label className="ca-label">Date</label>
+                  <input className="ca-input" value={invForm.date} onChange={e => setInvForm(f => ({ ...f, date: e.target.value }))} placeholder="e.g. 15 Jan 2026" />
+                </div>
+                <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Description *</label>
+                  <input className="ca-input" value={invForm.desc} onChange={e => setInvForm(f => ({ ...f, desc: e.target.value }))} placeholder="Invoice description" />
+                </div>
+                <div className="ca-field">
+                  <label className="ca-label">Amount</label>
+                  <input className="ca-input" value={invForm.amount} onChange={e => setInvForm(f => ({ ...f, amount: e.target.value }))} placeholder="e.g. UGX 500,000" />
+                </div>
+                <div className="ca-field">
+                  <label className="ca-label">Status</label>
+                  <select className="ca-select" value={invForm.status} onChange={e => setInvForm(f => ({ ...f, status: e.target.value as Invoice['status'] }))}>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="ca-modal-footer">
+              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setShowInvModal(false)}>Cancel</button>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={saveInvoice}><FiPlus /> Add Invoice</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="ca-page-header">
         <div>
@@ -383,6 +454,112 @@ export default function ClubAnalyticsPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── INVOICES TAB ── */}
+      {activeTab === 'Invoices' && (
+        <div className="ca-content-grid">
+          <div className="ca-content-main">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={() => setShowInvModal(true)}><FiPlus /> Add Invoice</button>
+            </div>
+            <div className="ca-panel">
+              <div className="ca-panel-header">
+                <h2 className="ca-panel-title">Invoices &amp; Receipts</h2>
+                <span className="ca-panel-count">{invoices.length} records</span>
+              </div>
+              <div className="ca-table-wrap">
+                <table className="ca-table">
+                  <thead><tr><th>Ref</th><th>Description</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {invoices.length === 0 && (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No invoices yet. Add an invoice to start tracking.</td></tr>
+                    )}
+                    {invoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-primary-light)', fontFamily: 'monospace', fontSize: '0.78rem' }}>{inv.ref}</td>
+                        <td style={{ color: 'var(--color-text-primary)' }}>{inv.desc}</td>
+                        <td style={{ fontWeight: 700 }}>{inv.amount || '—'}</td>
+                        <td>{inv.date || '—'}</td>
+                        <td><span className={`ca-pill ${INV_STATUS_CLASS[inv.status]}`}>{inv.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div className="ca-content-aside">
+            <div className="ca-panel">
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Summary</h2></div>
+              {(['paid', 'pending', 'overdue'] as Invoice['status'][]).map(status => {
+                const count = invoices.filter(i => i.status === status).length;
+                return (
+                  <div key={status} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border)', fontSize: '0.8rem' }}>
+                    <span style={{ textTransform: 'capitalize', color: 'var(--color-text-secondary)' }}>{status}</span>
+                    <span className={`ca-pill ${INV_STATUS_CLASS[status]}`} style={{ fontSize: '0.65rem' }}>{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="ca-panel">
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Ticketing Payments</h2></div>
+              <EmptyState icon={<FiFileText />} title="No ticketing payments" sub="Ticket sale payments will appear here once events are published." />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── AUDIT LOG TAB ── */}
+      {activeTab === 'Audit Log' && (
+        <div className="ca-content-grid">
+          <div className="ca-content-main">
+            <div className="ca-panel">
+              <div className="ca-panel-header">
+                <h2 className="ca-panel-title">Audit Trail &amp; Logs</h2>
+                <span className="ca-panel-count">{auditLog.length} entries</span>
+              </div>
+              <div className="ca-table-wrap">
+                <table className="ca-table">
+                  <thead><tr><th>Action</th><th>Actor</th><th>Target</th><th>Timestamp</th></tr></thead>
+                  <tbody>
+                    {auditLog.length === 0 && (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No audit entries yet. Actions taken in this dashboard are logged here.</td></tr>
+                    )}
+                    {auditLog.map(entry => (
+                      <tr key={entry.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{entry.action}</td>
+                        <td style={{ color: 'var(--color-text-secondary)' }}>{entry.actor}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--color-primary-light)' }}>{entry.target}</td>
+                        <td style={{ color: 'var(--color-text-muted)', fontSize: '0.78rem' }}>{entry.timestamp}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div className="ca-content-aside">
+            <div className="ca-panel">
+              <div className="ca-panel-header"><h2 className="ca-panel-title">About Audit Logs</h2></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  'Actions you take in this dashboard generate audit entries',
+                  'Logs include invoices, staff changes, and squad submissions',
+                  'Entries are timestamped with actor and target',
+                ].map((note, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.78rem', color: 'var(--color-text-muted)', alignItems: 'flex-start' }}>
+                    <FiFileText style={{ color: 'var(--color-primary-light)', flexShrink: 0, marginTop: 2 }} />{note}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="ca-panel">
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Income &amp; Expense Summary</h2></div>
+              <EmptyState icon={<FiTrendingUp />} title="No financial summary" sub="Income and expense totals will appear here once transactions are recorded." />
             </div>
           </div>
         </div>

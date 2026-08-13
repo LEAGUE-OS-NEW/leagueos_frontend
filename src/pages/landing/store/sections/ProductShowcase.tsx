@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { IconType } from 'react-icons';
-import { FiArrowRight, FiStar, FiShoppingCart } from 'react-icons/fi';
+import { FiArrowRight, FiStar, FiShoppingCart, FiCheck } from 'react-icons/fi';
 import { GiTShirt, GiClothes } from 'react-icons/gi';
 import { FaHatCowboy } from 'react-icons/fa';
 import type { CategorySlug } from './shopCategories';
+import { useCartStore, parseUGX } from '../../../../store/cartStore';
 import './ProductShowcase.css';
 
 type Product = {
@@ -138,6 +140,26 @@ const COLUMNS: ProductColumn[] = [
 ];
 
 function ProductCard({ product }: { product: Product }) {
+  const addItem = useCartStore((s) => s.addItem);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(
+    product.sizes?.[0],
+  );
+  const [added, setAdded] = useState(false);
+
+  const handleAdd = () => {
+    addItem({
+      productId: product.id,
+      clubSlug: product.id.split('-')[0], // derive club from product id prefix
+      name: product.name,
+      price: product.price,
+      priceValue: parseUGX(product.price),
+      size: selectedSize,
+      color: product.color,
+    });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
   return (
     <article className="product-card">
       <div className="product-card-image" style={{ backgroundColor: product.color }}>
@@ -161,14 +183,26 @@ function ProductCard({ product }: { product: Product }) {
         {product.sizes && (
           <div className="product-card-sizes">
             {product.sizes.map((size) => (
-              <span className="product-card-size" key={size}>
+              <span
+                key={size}
+                className={`product-card-size${selectedSize === size ? ' selected' : ''}`}
+                onClick={() => setSelectedSize(size)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedSize(size)}
+              >
                 {size}
               </span>
             ))}
           </div>
         )}
-        <button type="button" className="product-card-cart-btn" aria-label={`Add ${product.name} to cart`}>
-          <FiShoppingCart />
+        <button
+          type="button"
+          className={`product-card-cart-btn${added ? ' added' : ''}`}
+          aria-label={`Add ${product.name} to cart`}
+          onClick={handleAdd}
+        >
+          {added ? <FiCheck /> : <FiShoppingCart />}
         </button>
       </div>
     </article>

@@ -9,8 +9,8 @@ import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubStaffPage.css';
 
 const TABS = ['Staff', 'Permissions', 'Audit'];
-const ROLES = ['Club Admin', 'Communications', 'Finance Officer', 'Ticketing Manager', 'Store Manager', 'Team Manager', 'Club Doctor', 'Content Creator', 'Membership Officer'];
-const DEPARTMENTS = ['Management', 'Media', 'Finance', 'Technical', 'Medical', 'Memberships', 'Operations'];
+const ROLES = ['Club Admin', 'Communications', 'Finance Officer', 'Ticketing Manager', 'Store Manager', 'Team Manager', 'Club Doctor', 'Content Creator'];
+const DEPARTMENTS = ['Management', 'Media', 'Finance', 'Technical', 'Medical', 'Operations'];
 
 type Risk = 'normal' | 'high' | 'critical';
 type Permission = { key: string; label: string; description: string; group: string; risk: Risk; riskNote?: string };
@@ -25,7 +25,6 @@ const ALL_PERMISSIONS: Permission[] = [
   { key: 'club.squad.manage',    label: 'Manage Squad',             description: 'Add/edit players and submit squad corrections to League OS.',               group: 'Operations',   risk: 'normal' },
   { key: 'club.matches.manage',  label: 'Manage Fixtures',          description: 'Submit fixture information and corrections to League OS.',                  group: 'Operations',   risk: 'normal' },
   // Members & Ticketing
-  { key: 'club.members.manage',  label: 'Manage Memberships',       description: 'Enrol members, create/edit plans and send renewal reminders.',              group: 'Revenue',      risk: 'normal' },
   { key: 'club.ticketing.manage',label: 'Manage Ticketing',         description: 'Create match events, configure ticket types and operate match-day scanner.', group: 'Revenue',      risk: 'normal' },
   // Reports
   { key: 'club.reports.view',    label: 'View Analytics & Reports', description: 'Access club revenue, attendance and financial summary reports.',             group: 'Finance',      risk: 'normal' },
@@ -42,11 +41,10 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
   'Communications':     ['club.profile.view', 'club.communications.manage'],
   'Finance Officer':    ['club.profile.view', 'club.reports.view', 'club.finance.manage'],
   'Ticketing Manager':  ['club.profile.view', 'club.ticketing.manage', 'club.reports.view'],
-  'Store Manager':      ['club.profile.view', 'club.members.manage'],
+  'Store Manager':      ['club.profile.view'],
   'Team Manager':       ['club.profile.view', 'club.squad.manage', 'club.matches.manage'],
   'Club Doctor':        ['club.profile.view', 'club.squad.manage'],
   'Content Creator':    ['club.profile.view', 'club.communications.manage'],
-  'Membership Officer': ['club.profile.view', 'club.members.manage'],
 };
 
 type StaffStatus = 'active' | 'inactive';
