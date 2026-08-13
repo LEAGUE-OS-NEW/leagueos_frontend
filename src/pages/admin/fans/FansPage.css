@@ -1,4 +1,8 @@
 .fp-root {
+  
+  --fp-accent: #7c5cff;
+  --fp-accent-strong: #6d28d9;
+
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -13,7 +17,7 @@
 
 .fp-eyebrow {
   margin: 0 0 6px;
-  color: var(--color-accent, #7c5cff);
+  color: var(--fp-accent);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -70,7 +74,7 @@
 }
 
 .fp-btn--primary {
-  background-color: var(--color-accent, #7c5cff);
+  background-color: var(--fp-accent);
   border-color: transparent;
   color: #fff;
 }
@@ -198,7 +202,7 @@
 }
 
 .fp-tab--active {
-  background-color: var(--color-accent, #7c5cff);
+  background-color: var(--fp-accent);
   color: #fff;
 }
 
@@ -472,7 +476,7 @@
 }
 
 .fp-switch--on {
-  background: var(--color-accent, #7c5cff);
+  background: var(--fp-accent);
   border-color: transparent;
 }
 
@@ -565,7 +569,7 @@
 }
 
 .fp-page-btn--active {
-  background-color: var(--color-accent, #7c5cff);
+  background-color: var(--fp-accent);
   border-color: transparent;
   color: #fff;
 }
