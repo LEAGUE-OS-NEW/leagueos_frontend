@@ -4,6 +4,7 @@ import { FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 import ClubAdminSidebar from './ClubAdminSidebar';
 import { DEMO_ENTITLEMENTS } from './clubAdminData';
 import ClubAdminTopbar from './ClubAdminTopbar';
+import Footer from '../landing/Footer';
 import { useAuthStore } from '../../store/authStore';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
 import './ClubAdminLayout.css';
@@ -77,12 +78,15 @@ export default function ClubAdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="ca-layout">
-      <ClubAdminSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="ca-layout-main">
-        <ClubAdminTopbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="ca-layout-content">{children}</main>
+    <div className="ca-shell">
+      <div className="ca-layout">
+        <ClubAdminSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="ca-layout-main">
+          <ClubAdminTopbar onMenuClick={() => setIsSidebarOpen(true)} />
+          <main className="ca-layout-content">{children}</main>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }

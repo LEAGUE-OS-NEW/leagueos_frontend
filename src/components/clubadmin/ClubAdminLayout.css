@@ -1,6 +1,7 @@
-.ca-layout {
+.ca-shell {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   background-image:
@@ -10,6 +11,13 @@
   background-position: center top;
   background-repeat: no-repeat;
   background-attachment: fixed;
+}
+
+.ca-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
 }
 
 .ca-layout-main {

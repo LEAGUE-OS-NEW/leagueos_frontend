@@ -18,23 +18,25 @@ function FanProfile() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="fan-profile">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="fan-profile-main">
-        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <div className="fan-profile-content">
-          <div className="fan-profile-inner">
-            <div className="fan-profile-header">
-              <p className="fan-profile-eyebrow">Account</p>
-              <h1>My Profile</h1>
-              <p>Update your details, photo, and how other fans see you as {currentUser.name}.</p>
-            </div>
+    <div className="fan-profile-shell">
+      <div className="fan-profile">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="fan-profile-main">
+          <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
+          <div className="fan-profile-content">
+            <div className="fan-profile-inner">
+              <div className="fan-profile-header">
+                <p className="fan-profile-eyebrow">Account</p>
+                <h1>My Profile</h1>
+                <p>Update your details, photo, and how other fans see you as {currentUser.name}.</p>
+              </div>
 
-            <ProfileForm profile={profile} isLoading={isLoading} />
+              <ProfileForm profile={profile} isLoading={isLoading} />
+            </div>
           </div>
         </div>
-        <Footer />
       </div>
+      <Footer />
     </div>
   );
 }
