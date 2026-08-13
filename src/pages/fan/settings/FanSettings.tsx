@@ -47,9 +47,10 @@ function FanSettings() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="fan-settings">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="fan-settings-main">
+    <div className="fan-settings-shell">
+      <div className="fan-settings">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="fan-settings-main">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-settings-content">
           <div className="fan-settings-inner">
@@ -85,8 +86,9 @@ function FanSettings() {
             {activeTab === 'account' && <AccountTab />}
           </div>
         </div>
-        <Footer />
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,7 +1,15 @@
+.fan-wallet-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
 .fan-wallet {
   display: flex;
-  min-height: 100vh;
-  background-color: var(--color-bg);
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
 }
 
 .fan-wallet-main {
@@ -281,11 +289,3 @@
 }
 
 /* .fan-sidebar is position: fixed at all breakpoints (see Sidebar.css),
-   so it's out of document flow and never actually pushes sibling content
-   over. Reserve its desktop width here so page content clears it instead
-   of rendering underneath. */
-@media (min-width: 960px) {
-  .fan-wallet-main {
-    margin-left: 260px;
-  }
-}

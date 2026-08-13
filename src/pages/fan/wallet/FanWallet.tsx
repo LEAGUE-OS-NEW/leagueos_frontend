@@ -101,9 +101,10 @@ function FanWallet() {
   };
 
   return (
-    <div className="fan-wallet">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="fan-wallet-main">
+    <div className="fan-wallet-shell">
+      <div className="fan-wallet">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="fan-wallet-main">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-wallet-content">
           <div className="fan-wallet-inner">
@@ -210,8 +211,9 @@ function FanWallet() {
             ) : null}
           </div>
         </div>
-        <Footer />
+        </div>
       </div>
+      <Footer />
 
       {isDepositOpen && <DepositModal onClose={() => setIsDepositOpen(false)} onSuccess={handleDepositSuccess} />}
     </div>

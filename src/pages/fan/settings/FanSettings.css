@@ -1,7 +1,15 @@
+.fan-settings-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
 .fan-settings {
   display: flex;
-  min-height: 100vh;
-  background-color: var(--color-bg);
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
 }
 
 .fan-settings-main {
@@ -310,8 +318,3 @@
   min-width: 0;
 }
 
-@media (min-width: 960px) {
-  .fan-settings-main {
-    margin-left: 260px;
-  }
-}
