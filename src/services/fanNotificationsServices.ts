@@ -13,6 +13,7 @@ export interface NotificationItem {
   isRead: boolean;
   createdAt: string;
   link?: string;
+  eventType?: string;
 }
 
 export interface NotificationSummary {
@@ -28,6 +29,7 @@ interface NotificationApi {
   is_read: boolean;
   created_at: string;
   link?: string | null;
+  event_type?: string;
 }
 
 interface NotificationSummaryApi {
@@ -48,6 +50,7 @@ function adaptNotification(notification: NotificationApi): NotificationItem {
     isRead: notification.is_read,
     createdAt: notification.created_at,
     link: notification.link ?? undefined,
+    eventType: notification.event_type,
   };
 }
 

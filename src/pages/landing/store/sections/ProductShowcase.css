@@ -135,6 +135,14 @@
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.product-card-size.selected {
+  border-color: var(--color-primary-light);
+  background: rgba(168, 85, 247, 0.18);
+  color: var(--color-primary-light);
 }
 
 .product-card-cart-btn {
@@ -151,6 +159,10 @@
   cursor: pointer;
   margin-left: auto;
   transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.product-card-cart-btn.added {
+  background: #22c55e;
 }
 
 .product-card-cart-btn:hover {

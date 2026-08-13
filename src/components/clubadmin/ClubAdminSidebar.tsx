@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   FiGrid, FiShield, FiFileText, FiUsers, FiCalendar,
-  FiAward, FiTag, FiShoppingCart, FiPackage, FiTrendingUp,
+  FiTag, FiShoppingCart, FiPackage, FiTrendingUp,
   FiLock, FiChevronLeft, FiChevronRight, FiX, FiLogOut,
-  FiChevronDown, FiCheck,
+  FiChevronDown, FiCheck, FiClipboard,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
@@ -22,11 +22,11 @@ const NAV_ITEMS = [
   { label: 'News',            route: '/club-admin/news',        icon: FiFileText,     permission: 'club.communications.manage' },
   { label: 'Squad',           route: '/club-admin/squad',       icon: FiUsers,        permission: 'club.squad.manage' },
   { label: 'Fixtures',        route: '/club-admin/fixtures',    icon: FiCalendar,     permission: 'club.matches.manage' },
-  { label: 'Memberships',     route: '/club-admin/memberships', icon: FiAward,        permission: 'club.members.manage' },
   { label: 'Tickets',         route: '/club-admin/tickets',     icon: FiTag,          permission: 'club.ticketing.manage' },
   { label: 'Store',           route: '/club-admin/store',       icon: FiShoppingCart, permission: null },
   { label: 'Orders',          route: '/club-admin/orders',      icon: FiPackage,      permission: null },
   { label: 'Analytics',       route: '/club-admin/analytics',   icon: FiTrendingUp,   permission: 'club.reports.view' },
+  { label: 'Compliance',      route: '/club-admin/compliance',  icon: FiClipboard,    permission: 'club.communications.manage' },
   { label: 'Staff & Perms',   route: '/club-admin/staff',       icon: FiLock,         permission: 'club.admin.manage' },
 ];
 

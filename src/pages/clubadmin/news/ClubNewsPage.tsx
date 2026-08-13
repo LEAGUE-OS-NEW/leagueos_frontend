@@ -387,14 +387,14 @@ export default function ClubNewsPage() {
             <div className="ca-panel">
               <div className="ca-panel-header"><h2 className="ca-panel-title">Storage</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[{ label: 'Images', used: 68 }, { label: 'Videos', used: 85 }, { label: 'Documents', used: 12 }].map(s => (
+                {[{ label: 'Images', used: 0 }, { label: 'Videos', used: 0 }, { label: 'Documents', used: 0 }].map(s => (
                   <div key={s.label} className="ca-channel-row">
                     <span className="ca-channel-label"><FiImage style={{ marginRight: 4 }} />{s.label}</span>
                     <div className="ca-channel-bar-wrap"><div className="ca-channel-bar" style={{ width: `${s.used}%` }} /></div>
                     <span className="ca-channel-pct">{s.used}%</span>
                   </div>
                 ))}
-                <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', margin: '4px 0 0' }}>4.2 GB of 10 GB used</p>
+                <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', margin: '4px 0 0' }}>0 GB of 10 GB used</p>
               </div>
             </div>
             <div className="ca-panel">

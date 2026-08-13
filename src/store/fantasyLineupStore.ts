@@ -23,46 +23,18 @@ interface FantasyLineupStore {
   resetLineup: () => void;
 }
 
-const STORAGE_KEY = 'fantasy_lineup_v1';
-
-function loadFromStorage(): FantasyLineup | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as FantasyLineup;
-  } catch {
-    return null;
-  }
-}
-
-function saveToStorage(lineup: FantasyLineup | null) {
-  try {
-    if (lineup) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(lineup));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // storage full or unavailable
-  }
-}
-
-const initialLineup = loadFromStorage();
-
 export const useFantasyLineupStore = create<FantasyLineupStore>()((set) => ({
-  lineup: initialLineup,
+  // Draft-only UI state. The backend team/lineup endpoints are authoritative.
+  lineup: null,
   setLineup: (lineup) => {
-    saveToStorage(lineup);
     set({ lineup });
   },
   updateLineup: (partial) =>
     set((state) => {
       const next = state.lineup ? { ...state.lineup, ...partial } : null;
-      saveToStorage(next);
       return { lineup: next };
     }),
   resetLineup: () => {
-    saveToStorage(null);
     set({ lineup: null });
   },
 }));

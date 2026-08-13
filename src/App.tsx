@@ -94,12 +94,12 @@ import ClubProfilePage from './pages/clubadmin/profile/ClubProfilePage';
 import ClubFixturesPage from './pages/clubadmin/fixtures/ClubFixturesPage';
 import ClubSquadPage from './pages/clubadmin/squad/ClubSquadPage';
 import ClubNewsPage from './pages/clubadmin/news/ClubNewsPage';
-import ClubMembershipsPage from './pages/clubadmin/memberships/ClubMembershipsPage';
 import ClubTicketsAdminPage from './pages/clubadmin/tickets/ClubTicketsAdminPage';
 import ClubStorePage from './pages/clubadmin/store/ClubStorePage';
 import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
 import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
+import ClubCompliancePage from './pages/clubadmin/compliance/ClubCompliancePage';
 import ClubAdminRoute from './components/clubadmin/ClubAdminRoute';
 import Unauthorized from './pages/auth/unauthorized/Unauthorized';
 
@@ -125,6 +125,7 @@ function App() {
         <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
         <Route path="/fantasy" element={<Fantasy />} />
+        <Route path="/fantasy/:competitionId" element={<Fantasy />} />
         <Route path="/fixtures" element={<FixturesPage />} />
         <Route path="/matches/:fixtureId" element={<MatchCentre />} />
 
@@ -183,12 +184,12 @@ function App() {
         <Route path="/club-admin/fixtures" element={<ClubAdminRoute><ClubFixturesPage /></ClubAdminRoute>} />
         <Route path="/club-admin/squad" element={<ClubAdminRoute><ClubSquadPage /></ClubAdminRoute>} />
         <Route path="/club-admin/news" element={<ClubAdminRoute><ClubNewsPage /></ClubAdminRoute>} />
-        <Route path="/club-admin/memberships" element={<ClubAdminRoute><ClubMembershipsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/tickets" element={<ClubAdminRoute><ClubTicketsAdminPage /></ClubAdminRoute>} />
         <Route path="/club-admin/store" element={<ClubAdminRoute><ClubStorePage /></ClubAdminRoute>} />
         <Route path="/club-admin/orders" element={<ClubAdminRoute><ClubOrdersPage /></ClubAdminRoute>} />
         <Route path="/club-admin/analytics" element={<ClubAdminRoute><ClubAnalyticsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/staff" element={<ClubAdminRoute><ClubStaffPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/compliance" element={<ClubAdminRoute><ClubCompliancePage /></ClubAdminRoute>} />
 
         {/* Access denied */}
         <Route path="/unauthorized" element={<Unauthorized />} />

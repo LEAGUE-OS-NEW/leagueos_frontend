@@ -20,8 +20,8 @@ import type { Story } from './newsService';
 import { fetchClubs, fetchSquad } from './clubsService';
 import type { ClubSummary, Player } from './clubsService';
 import { getMatchTicketTypes } from './ticketCheckoutService';
-import { fetchFantasyLeagues } from './fantasyAdminService';
-import type { Competition as FantasyLeague } from './fantasyAdminService';
+import { fetchFantasyCompetitions } from './fantasyService';
+import type { FantasyCompetition } from './fantasyService';
 import { deriveSport, type Sport } from '../utils/sport';
 
 export type { Sport };
@@ -203,13 +203,13 @@ function mapMarket(market: PublicMarketCard): MarketResult {
   };
 }
 
-function mapFantasyLeague(league: FantasyLeague): FantasyLeagueResult {
+function mapFantasyLeague(league: FantasyCompetition): FantasyLeagueResult {
   return {
     id: `fantasy-${league.id}`,
     kind: 'fantasyLeague',
     leagueId: league.id,
     name: league.name,
-    entryType: league.entryType,
+    entryType: league.visibility.toLowerCase() as 'public' | 'private',
     sport: deriveSport(league.sport),
   };
 }
@@ -262,7 +262,7 @@ export async function fetchSearchResults(): Promise<{ results: SearchResult[]; f
     fetchNews(),
     fetchAllPlayerResults(),
     fetchTicketResults(),
-    fetchFantasyLeagues(),
+    fetchFantasyCompetitions(),
   ]);
 
   const results: SearchResult[] = [];
