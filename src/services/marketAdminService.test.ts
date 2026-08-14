@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from './apiClient.ts';
-import { createMarketDraft, fetchMarkets, marketScopePayload, type MarketDetailsInput } from './marketAdminService.ts';
+import {
+  createMarketDraft,
+  fetchCanonicalSportingEvents,
+  fetchMarkets,
+  marketScopePayload,
+  setParameters,
+  type MarketDetailsInput,
+  type MarketParameters,
+} from './marketAdminService.ts';
 
-vi.mock('./apiClient.ts', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+vi.mock('./apiClient.ts', () => ({ default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() } }));
 
 const details = (overrides: Partial<MarketDetailsInput>): MarketDetailsInput => ({
   scopeType: 'CUSTOM', sportId: '00000000-0000-4000-8000-000000000001',
@@ -68,5 +76,42 @@ describe('market scope payload contract', () => {
       isAxiosError: true, response: { status: 400, data: { competition_id: ['Selected competition does not match the fixture.'], stack: ['secret'] } },
     });
     await expect(createMarketDraft(details({}))).rejects.toThrow('Selected competition does not match the fixture.');
+  });
+});
+
+describe('create market timing contracts', () => {
+  const parameters: MarketParameters = {
+    opensAt: '2099-01-01T00:00:00Z', closesAt: '2099-01-02T00:00:00Z', settlesBy: '2099-01-04T00:00:00Z',
+    initialLiquidityUgx: 0, minTradeUgx: 1_000, maxTradeUgx: 500_000, feePct: 2,
+    featured: false, trending: false, recommended: false, inPlayTrading: false,
+  };
+
+  it('requests and returns only scheduled future fixtures in kickoff order', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [
+      { id: 'later', status: 'SCHEDULED', starts_at: '2099-01-03T00:00:00Z' },
+      { id: 'past', status: 'SCHEDULED', starts_at: '2020-01-01T00:00:00Z' },
+      { id: 'live', status: 'LIVE', starts_at: '2099-01-01T00:00:00Z' },
+      { id: 'first', status: 'SCHEDULED', starts_at: '2099-01-02T00:00:00Z' },
+    ] });
+
+    expect((await fetchCanonicalSportingEvents({ sportId: 'sport-1', competitionId: 'competition-1' })).map((event) => event.id))
+      .toEqual(['first', 'later']);
+    expect(apiClient.get).toHaveBeenCalledWith('/sporting-events/', { params: expect.objectContaining({
+      sport: 'sport-1', competition: 'competition-1', status: 'SCHEDULED', starts_after: expect.any(String),
+    }) });
+  });
+
+  it('rejects settlement before close without sending a request', async () => {
+    await expect(setParameters('market-1', { ...parameters, settlesBy: '2099-01-01T23:59:00Z' }))
+      .rejects.toThrow('Settlement time must be at or after the trading close time.');
+    expect(apiClient.patch).not.toHaveBeenCalled();
+  });
+
+  it('sends an editable valid settlement target as settles_by', async () => {
+    vi.mocked(apiClient.patch).mockResolvedValue({ data: base });
+    await setParameters('market-1', parameters);
+    expect(apiClient.patch).toHaveBeenCalledWith('/market-admin/markets/market-1/', expect.objectContaining({
+      closes_at: parameters.closesAt, settles_by: parameters.settlesBy,
+    }));
   });
 });

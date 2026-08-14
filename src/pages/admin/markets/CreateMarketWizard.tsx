@@ -43,6 +43,13 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function fixtureTimingDefaults(fixture: SportingEvent, opensAt = new Date().toISOString()) {
+  const settlementBase = fixture.ends_at
+    ? new Date(fixture.ends_at).getTime() + 48 * 60 * 60_000
+    : new Date(fixture.starts_at).getTime() + 52 * 60 * 60_000;
+  return { opensAt, closesAt: fixture.starts_at, settlesBy: new Date(settlementBase).toISOString() };
+}
+
 interface DetailsForm {
   scopeType: 'EVENT' | 'COMPETITION' | 'CUSTOM';
   sportId: string;
@@ -89,11 +96,21 @@ function CreateMarketWizard() {
   const [categories, setCategories] = useState<ApiMarketCategory[]>([]);
   const [competitions, setCompetitions] = useState<Array<NamedResource & { sport: SportResource }>>([]);
   const [fixtures, setFixtures] = useState<SportingEvent[]>([]);
+  const [fixtureSportFilter, setFixtureSportFilter] = useState('');
+  const [fixtureCompetitionFilter, setFixtureCompetitionFilter] = useState('');
   useEffect(() => {
     let cancelled = false;
     Promise.all([fetchMarketCatalogueOptions(), fetchCanonicalCompetitions(), fetchCanonicalSportingEvents()])
       .then(([catalogue, competitionRows, eventRows]) => {
-        if (!cancelled) { setSports(catalogue.sports); setCategories(catalogue.categories); setCompetitions(competitionRows); setFixtures(eventRows); }
+        if (!cancelled) {
+          const now = Date.now();
+          setSports(catalogue.sports);
+          setCategories(catalogue.categories);
+          setCompetitions(competitionRows);
+          setFixtures(eventRows
+            .filter((fixture) => fixture.status === 'SCHEDULED' && new Date(fixture.starts_at).getTime() > now)
+            .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime()));
+        }
       })
       .catch(() => {
         // Fixtures are a convenience picker only — manual entry still works.
@@ -129,6 +146,17 @@ function CreateMarketWizard() {
   const [faceValueUgx, setFaceValueUgx] = useState(10_000);
 
   const [parameters, setParameters] = useState<MarketParameters | null>(null);
+  const visibleFixtures = fixtures.filter((fixture) =>
+    (!fixtureSportFilter || fixture.sport.id === fixtureSportFilter) &&
+    (!fixtureCompetitionFilter || fixture.competition?.id === fixtureCompetitionFilter));
+  const timingError = parameters && [parameters.opensAt, parameters.closesAt, parameters.settlesBy]
+    .some((value) => !value || !Number.isFinite(new Date(value).getTime()))
+    ? 'Trading opens, trading closes, and settlement target are required.'
+    : parameters && new Date(parameters.closesAt).getTime() <= new Date(parameters.opensAt).getTime()
+      ? 'Trading must close after it opens.'
+      : parameters && new Date(parameters.settlesBy).getTime() < new Date(parameters.closesAt).getTime()
+        ? 'Settlement target must be at or after the trading close time.'
+        : null;
 
   const detailsValid =
     details.sportId.length > 0 &&
@@ -151,6 +179,7 @@ function CreateMarketWizard() {
       venue: fixture.venue ?? '',
       kickoff: fixture.starts_at,
     }));
+    setParameters((current) => current && { ...current, ...fixtureTimingDefaults(fixture, current.opensAt) });
   };
 
   const handleNextFromDetails = async () => {
@@ -175,7 +204,10 @@ function CreateMarketWizard() {
         tags: details.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       });
       setMarket(created);
-      setParameters(created.parameters);
+      const selectedFixture = fixtures.find((fixture) => String(fixture.id) === details.sportingEventId);
+      setParameters(selectedFixture
+        ? { ...created.parameters, ...fixtureTimingDefaults(selectedFixture, created.parameters.opensAt) }
+        : created.parameters);
       if (seed.sourceProposalId) {
         await convertProposalToDraft(seed.sourceProposalId);
       }
@@ -220,6 +252,10 @@ function CreateMarketWizard() {
 
   const handleNextFromParameters = async () => {
     if (!market || !parameters) return;
+    if (timingError) {
+      setSaveError(timingError);
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -332,24 +368,48 @@ function CreateMarketWizard() {
                   ))}
                 </fieldset>
 
-                {details.scopeType === 'EVENT' && !details.sportingEventId && fixtures.length > 0 && (
-                  <div className="wiz-fixture-list">
-                    {fixtures.map((fixture) => (
-                      <button
-                        type="button"
-                        key={fixture.id}
-                        className={`wiz-fixture-card${details.sportingEventId === String(fixture.id) ? ' is-selected' : ''}`}
-                        onClick={() => handleSelectFixture(fixture)}
+                {details.scopeType === 'EVENT' && (
+                  <div className="wiz-field-grid">
+                    <label className="wiz-field">
+                      <span>Sport filter</span>
+                      <select aria-label="Sport filter" value={fixtureSportFilter} onChange={(event) => {
+                        setFixtureSportFilter(event.target.value);
+                        setFixtureCompetitionFilter('');
+                      }}>
+                        <option value="">All sports</option>
+                        {sports.map((sport) => <option key={sport.id} value={sport.id}>{sport.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="wiz-field">
+                      <span>Competition filter</span>
+                      <select aria-label="Competition filter" value={fixtureCompetitionFilter} onChange={(event) => setFixtureCompetitionFilter(event.target.value)}>
+                        <option value="">All competitions</option>
+                        {competitions.filter((item) => !fixtureSportFilter || item.sport.id === fixtureSportFilter).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="wiz-field">
+                      <span>Event / Fixture</span>
+                      <select
+                        aria-label="Event / Fixture"
+                        value={details.sportingEventId ?? ''}
+                        onChange={(event) => {
+                          const fixture = fixtures.find((item) => String(item.id) === event.target.value);
+                          if (fixture) handleSelectFixture(fixture);
+                        }}
                       >
-                        <span className="wiz-fixture-card__teams">
-                          {fixture.name}
-                        </span>
-                        <span className="wiz-fixture-card__meta">
-                          {fixture.competition?.name ?? fixture.sport.name} &middot; {formatDateTime(fixture.starts_at)}
-                        </span>
-                      </button>
-                    ))}
+                        <option value="">Select an upcoming fixture</option>
+                        {visibleFixtures.map((fixture) => (
+                          <option key={fixture.id} value={fixture.id}>
+                            {fixture.name} — {fixture.competition?.name ?? fixture.sport.name} — {formatDateTime(fixture.starts_at)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
+                )}
+
+                {details.scopeType === 'EVENT' && fixtures.length === 0 && (
+                  <p className="wiz-hint">No upcoming verified fixtures are currently available. Add or verify future fixtures in Sports Data before creating an event market.</p>
                 )}
 
                 {details.scopeType === 'EVENT' && details.sportingEventId && (
@@ -509,6 +569,7 @@ function CreateMarketWizard() {
                     <small>When orders can first be placed.</small>
                     <input
                       type="datetime-local"
+                      required
                       value={toLocalInputValue(parameters.opensAt)}
                       onChange={(event) =>
                         setParameters((current) => current && { ...current, opensAt: fromLocalInputValue(event.target.value) })
@@ -520,13 +581,28 @@ function CreateMarketWizard() {
                     <small>When new orders stop being accepted.</small>
                     <input
                       type="datetime-local"
+                      required
                       value={toLocalInputValue(parameters.closesAt)}
                       onChange={(event) =>
                         setParameters((current) => current && { ...current, closesAt: fromLocalInputValue(event.target.value) })
                       }
                     />
                   </label>
+                  <label className="wiz-field">
+                    <span>Settlement Target</span>
+                    <small>Target time for financial settlement after the result and dispute process. Settlement is not automatic.</small>
+                    <input
+                      aria-label="Settlement Target"
+                      type="datetime-local"
+                      required
+                      value={toLocalInputValue(parameters.settlesBy)}
+                      onChange={(event) =>
+                        setParameters((current) => current && { ...current, settlesBy: fromLocalInputValue(event.target.value) })
+                      }
+                    />
+                  </label>
                 </div>
+                {timingError && <p className="wiz-field-error" role="alert">{timingError}</p>}
 
                 <div className="wiz-toggle-row">
                   <label className="wiz-toggle">
@@ -571,8 +647,16 @@ function CreateMarketWizard() {
                     <span className="wiz-kv-item__value">{formatDateTime(parameters.opensAt)}</span>
                   </div>
                   <div className="wiz-kv-item">
-                    <span className="wiz-kv-item__key">Closes</span>
+                    <span className="wiz-kv-item__key">Trading closes</span>
                     <span className="wiz-kv-item__value">{formatDateTime(parameters.closesAt)}</span>
+                  </div>
+                  <div className="wiz-kv-item">
+                    <span className="wiz-kv-item__key">Settlement target</span>
+                    <span className="wiz-kv-item__value">{formatDateTime(parameters.settlesBy)}</span>
+                  </div>
+                  <div className="wiz-kv-item">
+                    <span className="wiz-kv-item__key">Fixture kickoff</span>
+                    <span className="wiz-kv-item__value">{formatDateTime(details.kickoff)}</span>
                   </div>
                   <div className="wiz-kv-item">
                     <span className="wiz-kv-item__key">Resolution</span>
@@ -616,7 +700,7 @@ function CreateMarketWizard() {
               </button>
             )}
             {step === 2 && (
-              <button type="button" className="wiz-btn wiz-btn--gradient" disabled={isSaving} onClick={handleNextFromParameters}>
+              <button type="button" className="wiz-btn wiz-btn--gradient" disabled={isSaving || Boolean(timingError)} onClick={handleNextFromParameters}>
                 {isSaving ? 'Saving…' : 'Next'} <FiChevronRight />
               </button>
             )}

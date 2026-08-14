@@ -305,7 +305,7 @@ function adaptMarket(market: ApiMarket): Market {
     parameters: {
       opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
       closesAt: market.closes_at ?? kickoff,
-      settlesBy: market.closes_at ?? kickoff,
+      settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
       initialLiquidityUgx: 0,
       minTradeUgx: DEFAULT_MIN_TRADE_UGX,
       maxTradeUgx: DEFAULT_MAX_TRADE_UGX,
