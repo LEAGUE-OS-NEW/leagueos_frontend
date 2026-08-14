@@ -18,7 +18,11 @@ import { calculateAge } from '../../../utils/rules.ts';
 import { startMarketKYCSession } from '../../../services/marketEligibilityService.ts';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility.ts';
 import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
-import { marketEligibilityMessage } from '../../../utils/marketEligibilityCopy.ts';
+import {
+  marketEligibilityActions,
+  marketEligibilityMessage,
+  marketEligibilityTitle,
+} from '../../../utils/marketEligibilityCopy.ts';
 import '../sections/FanDashboard.css';
 import './FanVerification.css';
 
@@ -121,6 +125,7 @@ function FanVerification() {
     isRejected,
     needsKyc,
     needsProfile,
+    status: kycStatus,
   } = useMarketEligibility();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -136,6 +141,11 @@ function FanVerification() {
 
   const currentStep = STEPS[stepIndex].key;
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
+  // KYC itself resolved (approved), but eligibility is still false — a
+  // separate blocker (incomplete profile, a restriction, a risk hold) is
+  // holding trading access back. Distinct from isPending, which means KYC
+  // itself hasn't been decided yet.
+  const isBlockedForOtherReason = kycStatus === 'VERIFIED' && !isEligible;
 
   const updateForm = <K extends keyof VerificationForm>(key: K, value: VerificationForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -264,10 +274,10 @@ function FanVerification() {
       setIdentityVerified();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('verified');
-    } else if (isPending) {
+    } else if (isPending || isBlockedForOtherReason) {
       goToStep('pending');
     }
-  }, [goToStep, isEligible, isPending, setIdentityVerified]);
+  }, [goToStep, isEligible, isPending, isBlockedForOtherReason, setIdentityVerified]);
 
   useEffect(() => {
     if (currentStep !== 'pending') return;
@@ -620,20 +630,37 @@ function FanVerification() {
               {currentStep === 'pending' && (
                 <div className="verify-step verify-step--centered">
                   <span className="verify-step-icon verify-step-icon--pending">
-                    <FiClock />
+                    {isBlockedForOtherReason ? <FiAlertTriangle /> : <FiClock />}
                   </span>
-                  <h2>Verification Under Review</h2>
+                  <h2>{isBlockedForOtherReason ? marketEligibilityTitle(eligibility) : 'Verification Under Review'}</h2>
                   <p>
-                    Your verification session is active. We will update this page when your market access changes.
+                    {isBlockedForOtherReason
+                      ? marketEligibilityMessage(eligibility)
+                      : 'Your verification session is active. We will update this page when your market access changes.'}
                   </p>
-                  {kycSessionId && <p className="verify-age-hint">Session ID: {kycSessionId}</p>}
+                  {!isBlockedForOtherReason && kycSessionId && <p className="verify-age-hint">Session ID: {kycSessionId}</p>}
                   <div className="verify-next-box">
-                    <b>What happens next?</b>
-                    <ul>
-                      <li>Your KYC session is reviewed</li>
-                      <li>Compliance updates your market eligibility</li>
-                      <li>Trading unlocks automatically when approved</li>
-                    </ul>
+                    {isBlockedForOtherReason ? (
+                      <>
+                        <b>Your identity is verified. Here&apos;s what&apos;s still blocking trading:</b>
+                        <ul>
+                          {marketEligibilityActions(eligibility).length > 0 ? (
+                            marketEligibilityActions(eligibility).map((action) => <li key={action}>{action}</li>)
+                          ) : (
+                            <li>Contact support to resolve this.</li>
+                          )}
+                        </ul>
+                      </>
+                    ) : (
+                      <>
+                        <b>What happens next?</b>
+                        <ul>
+                          <li>Your KYC session is reviewed</li>
+                          <li>Compliance updates your market eligibility</li>
+                          <li>Trading unlocks automatically when approved</li>
+                        </ul>
+                      </>
+                    )}
                   </div>
                   <div className="verify-step-actions">
                     <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>
