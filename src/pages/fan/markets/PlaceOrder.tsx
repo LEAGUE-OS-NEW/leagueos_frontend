@@ -37,9 +37,9 @@ function PlaceOrder() {
 
   useEffect(() => {
     if (!isEligibilityLoading && !isEligible) {
-      navigate('/fan/verify');
+      navigate(`/fan/verify?returnTo=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
     }
-  }, [isEligibilityLoading, isEligible, navigate]);
+  }, [isEligibilityLoading, isEligible, location.pathname, location.search, navigate]);
 
   const [market, setMarket] = useState<Market | null>(null);
   const [isLoading, setIsLoading] = useState(true);

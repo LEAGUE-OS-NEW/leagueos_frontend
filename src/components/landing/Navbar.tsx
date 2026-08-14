@@ -16,6 +16,7 @@ import { GiTrophyCup, GiTicket } from 'react-icons/gi';
 import HomeLogo from './HomeLogo';
 import { useAuthStore } from '../../store/authStore.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { getDefaultDashboardRoute } from '../../utils/roleRoutes.ts';
 import './Navbar.css';
 
 export type NavbarLink = {
@@ -55,6 +56,8 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isSignedIn = Boolean(useAuthStore((state) => state.accessToken));
+  const user = useAuthStore((state) => state.user);
+  const dashboardRoute = getDefaultDashboardRoute(user);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -130,9 +133,11 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         <div className="navbar-actions">
           {isSignedIn ? (
             <>
-              <Link to="/profile" className="btn-login">
-                My Account
-              </Link>
+              {dashboardRoute ? (
+                <Link to={dashboardRoute} className="btn-login">Dashboard</Link>
+              ) : (
+                <button type="button" className="btn-login" disabled aria-label="Dashboard is loading">Dashboard</button>
+              )}
               <button type="button" className="btn-signup" onClick={logout}>
                 Log Out
               </button>
@@ -234,9 +239,11 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         <div className="navbar-mobile-actions">
           {isSignedIn ? (
             <>
-              <Link to="/profile" className="btn-login-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>
-                My Account
-              </Link>
+              {dashboardRoute ? (
+                <Link to={dashboardRoute} className="btn-login-mobile" onClick={closeMenu} tabIndex={isMenuOpen ? 0 : -1}>Dashboard</Link>
+              ) : (
+                <button type="button" className="btn-login-mobile" disabled aria-label="Dashboard is loading" tabIndex={isMenuOpen ? 0 : -1}>Dashboard</button>
+              )}
               <button
                 type="button"
                 className="btn-signup-mobile"

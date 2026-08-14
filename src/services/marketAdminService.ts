@@ -647,14 +647,14 @@ export async function reopenMarket(id: string): Promise<Market> {
 }
 
 /** Settles a market through the backend's authoritative resolution workflow. */
-export async function resolveMarket(id: string, winningOutcomeId: OutcomeId): Promise<Market> {
+export async function resolveMarket(id: string, winningOutcomeId: OutcomeId, evidence: string): Promise<Market> {
   try {
     const market = await fetchMarket(id);
     const winner = market.outcomes.find((outcome) => outcome.id === winningOutcomeId);
     if (!winner?.backendOutcomeId) fail('Winning outcome not found.');
     const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/resolve/`, {
       winning_outcome_id: winner.backendOutcomeId, notes: `Resolved ${market.question}`,
-      evidence: 'Verified result evidence supplied through the result verification workflow.',
+      evidence: evidence.trim(),
     });
     return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) { throw apiError(error); }
