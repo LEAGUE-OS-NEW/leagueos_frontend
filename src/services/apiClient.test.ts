@@ -109,7 +109,7 @@ describe("API authentication interceptors", () => {
     expect(mocks.mainClient).not.toHaveBeenCalled();
   });
 
-  it.each(["/auth/token/refresh/", "/auth/login/", "/auth/register/"])(
+  it.each(["/auth/token-refresh/", "/auth/login/", "/auth/register/"])(
     "does not refresh public auth request %s",
     async (url) => {
       const config = requestInterceptor()({
@@ -125,11 +125,25 @@ describe("API authentication interceptors", () => {
   );
 
   it("clears stored authentication when refresh fails", async () => {
-    mocks.refreshClient.post.mockRejectedValue(new Error("refresh rejected"));
+    const rejected = Object.assign(new Error("refresh rejected"), { response: { status: 401 } });
+    mocks.refreshClient.post.mockRejectedValue(rejected);
     await expect(
       responseInterceptor()(unauthorized({ url: "/markets/", headers: {} })),
     ).rejects.toThrow("refresh rejected");
     expect(mocks.clearAuth).toHaveBeenCalledOnce();
+  });
+
+  it.each([403, 404, 500])("does not clear auth for an ordinary %s response", async (status) => {
+    const error = { config: { url: "/markets/", headers: {} }, response: { status } };
+    await expect(responseInterceptor()(error)).rejects.toEqual(error);
+    expect(mocks.refreshClient.post).not.toHaveBeenCalled();
+    expect(mocks.clearAuth).not.toHaveBeenCalled();
+  });
+
+  it("preserves auth when refresh fails transiently", async () => {
+    mocks.refreshClient.post.mockRejectedValue(new Error("network down"));
+    await expect(responseInterceptor()(unauthorized({ url: "/markets/", headers: {} }))).rejects.toThrow("network down");
+    expect(mocks.clearAuth).not.toHaveBeenCalled();
   });
 
   it("persists a rotated refresh token with the new access token", async () => {
@@ -143,5 +157,6 @@ describe("API authentication interceptors", () => {
       "access-new",
       "refresh-rotated",
     );
+    expect(mocks.refreshClient.post).toHaveBeenCalledWith("/auth/token-refresh/", { refresh: "refresh-old" });
   });
 });

@@ -55,6 +55,9 @@ export interface MarketOutcome {
   position: number;
   label: string;
   description?: string;
+  opening_price: string | null;
+  opening_probability_pct: number | null;
+  opening_price_ugx: number | null;
 }
 export interface Market {
   id: string;
@@ -63,6 +66,7 @@ export interface Market {
   rules?: string;
   resolution_source?: string;
   resolution_criteria?: string;
+  face_value_ugx: number;
   scope_type: string;
   status: string;
   opens_at: string;
@@ -80,6 +84,17 @@ export interface Market {
   is_watchlisted: boolean;
   created_at?: string;
   updated_at?: string;
+  trading_snapshot?: {
+    outcomes: Record<string, {
+      best_bid: string | null;
+      best_ask: string | null;
+      last_trade: string | null;
+      mark_price: string | null;
+      mark_source: 'LAST_TRADE' | 'MIDPOINT' | 'BEST_QUOTE' | 'OPENING_REFERENCE' | 'NO_LIQUIDITY';
+    }>;
+    volume: string;
+    trader_count: number;
+  };
 }
 export interface AdminMarket extends Market {
   created_by?: { id: string; email?: string; first_name?: string; last_name?: string; full_name?: string } | null;

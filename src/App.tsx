@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import Landing from './pages/landing/Landing';
 
 function NormalizeSlash() {
@@ -55,8 +56,9 @@ import Store from "./pages/landing/store/Store";
 import Fantasy from "./pages/landing/fantasy/Fantasy";
 import FixturesPage from './pages/fixtures/FixturesPage';
 import MatchCentre from './pages/matchcentre/MatchCentre';
-// TEMP: unused while the AdminRoute guard is stripped below for local dev viewing — restore at push time
-// import AdminRoute from './components/admin/AdminRoute';
+import AdminRoute from './components/admin/AdminRoute';
+import AuthSessionBootstrap from './components/auth/AuthSessionBootstrap';
+import AuthenticatedRoute from './components/auth/AuthenticatedRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import MarketsListPage from './pages/admin/markets/MarketsListPage';
 import CreateMarketWizard from './pages/admin/markets/CreateMarketWizard';
@@ -107,8 +109,11 @@ import Unauthorized from './pages/auth/unauthorized/Unauthorized';
 // import Personalize from "./pages/personalize/Personalize";
 
 function App() {
+  const admin = (page: ReactNode) => <AdminRoute>{page}</AdminRoute>;
+  const authenticated = (page: ReactNode) => <AuthenticatedRoute>{page}</AuthenticatedRoute>;
   return (
     <Router>
+      <AuthSessionBootstrap>
       <NormalizeSlash />
       <Routes>
         {/* Landing section */ }
@@ -136,7 +141,7 @@ function App() {
 
           {/* Fan Section*/ }
         <Route path="/fan/onboarding" element={<FanOnboarding />}/>
-        <Route path="/dashboard/fan" element={<FanDashboard />} />
+        <Route path="/dashboard/fan" element={authenticated(<FanDashboard />)} />
         <Route path="/fan" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/profile" element={<FanProfile />} />
@@ -156,7 +161,7 @@ function App() {
         {/* Authenticated fan markets/trading flow */}
 
         <Route path="/fan/markets" element={<FanMarkets />} />
-        <Route path="/fan/markets/:marketId" element={<MarketDetailOverview />} />
+        <Route path="/fan/markets/:marketId" element={authenticated(<MarketDetailOverview />)} />
         <Route path="/fan/markets/:marketId/chart" element={<MarketDetailChart />} />
         <Route path="/fan/markets/:marketId/trade" element={<PlaceOrder />} />
         <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
@@ -205,32 +210,32 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* Shared admin shell — Super Admin + every specialist role */}
-        <Route path="/dashboard/admin" element={<AdminDashboard />} />
-        <Route path="/dashboard/admin/markets" element={<MarketsListPage />} />
-        <Route path="/dashboard/admin/markets/create" element={<CreateMarketWizard />} />
-        <Route path="/dashboard/admin/markets/:marketId" element={<AdminMarketDetailPage />} />
-        <Route path="/dashboard/admin/verification" element={<ResultVerificationPage />} />
-        <Route path="/dashboard/admin/disputes" element={<DisputesPage />} />
-        <Route path="/dashboard/admin/users" element={<AdminUsersPage />} />
-        <Route path="/dashboard/admin/fans" element={<FansPage />} />
-        <Route path="/dashboard/admin/membership" element={<PlatformMembershipPage />} />
-        <Route path="/dashboard/admin/roles-permissions" element={<RolesPermissionsPage />} />
-        <Route path="/dashboard/admin/audit" element={<AuditLogPage />} />
-        <Route path="/dashboard/admin/notifications" element={<NotificationsPage />} />
-        <Route path="/dashboard/admin/reports" element={<ReportsPage />} />
-        <Route path="/dashboard/admin/settings" element={<SystemSettingsPage />} />
-        <Route path="/dashboard/admin/sports-data" element={<SportsDataAdmin />} />
-        <Route path="/dashboard/admin/fantasy" element={<FantasyAdminPage />} />
-        <Route path="/dashboard/admin/news" element={<NewsAdmin />} />
-        <Route path="/dashboard/admin/compliance" element={<ComplianceAdmin />} />
-        <Route path="/dashboard/admin/payments" element={<FinanceAdmin />} />
-        <Route path="/dashboard/admin/payouts" element={<FinanceAdmin initialQueue="withdrawals" />} />
-        <Route path="/dashboard/admin/support" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/case-queues" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/my-cases" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/escalations" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/sla" element={<CustomerSupportAdmin />} />
-        <Route path="/dashboard/admin/support/resolved" element={<CustomerSupportAdmin />} />
+        <Route path="/dashboard/admin" element={admin(<AdminDashboard />)} />
+        <Route path="/dashboard/admin/markets" element={admin(<MarketsListPage />)} />
+        <Route path="/dashboard/admin/markets/create" element={admin(<CreateMarketWizard />)} />
+        <Route path="/dashboard/admin/markets/:marketId" element={admin(<AdminMarketDetailPage />)} />
+        <Route path="/dashboard/admin/verification" element={admin(<ResultVerificationPage />)} />
+        <Route path="/dashboard/admin/disputes" element={admin(<DisputesPage />)} />
+        <Route path="/dashboard/admin/users" element={admin(<AdminUsersPage />)} />
+        <Route path="/dashboard/admin/fans" element={admin(<FansPage />)} />
+        <Route path="/dashboard/admin/membership" element={admin(<PlatformMembershipPage />)} />
+        <Route path="/dashboard/admin/roles-permissions" element={admin(<RolesPermissionsPage />)} />
+        <Route path="/dashboard/admin/audit" element={admin(<AuditLogPage />)} />
+        <Route path="/dashboard/admin/notifications" element={admin(<NotificationsPage />)} />
+        <Route path="/dashboard/admin/reports" element={admin(<ReportsPage />)} />
+        <Route path="/dashboard/admin/settings" element={admin(<SystemSettingsPage />)} />
+        <Route path="/dashboard/admin/sports-data" element={admin(<SportsDataAdmin />)} />
+        <Route path="/dashboard/admin/fantasy" element={admin(<FantasyAdminPage />)} />
+        <Route path="/dashboard/admin/news" element={admin(<NewsAdmin />)} />
+        <Route path="/dashboard/admin/compliance" element={admin(<ComplianceAdmin />)} />
+        <Route path="/dashboard/admin/payments" element={admin(<FinanceAdmin />)} />
+        <Route path="/dashboard/admin/payouts" element={admin(<FinanceAdmin initialQueue="withdrawals" />)} />
+        <Route path="/dashboard/admin/support" element={admin(<CustomerSupportAdmin />)} />
+        <Route path="/dashboard/admin/support/case-queues" element={admin(<CustomerSupportAdmin />)} />
+        <Route path="/dashboard/admin/support/my-cases" element={admin(<CustomerSupportAdmin />)} />
+        <Route path="/dashboard/admin/support/escalations" element={admin(<CustomerSupportAdmin />)} />
+        <Route path="/dashboard/admin/support/sla" element={admin(<CustomerSupportAdmin />)} />
+        <Route path="/dashboard/admin/support/resolved" element={admin(<CustomerSupportAdmin />)} />
 
         {/* Support pages */}
         <Route path="/help" element={<HelpCenter />} />
@@ -239,8 +244,11 @@ function App() {
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/community" element={<Community />} />
 
+        <Route path="*" element={<Navigate to="/" replace />} />
+
         
       </Routes>
+      </AuthSessionBootstrap>
 
       
     </Router>

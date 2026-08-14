@@ -11,7 +11,7 @@ export const publicAuthPaths = [
   "/auth/verify-otp/",
   "/auth/resend-otp/",
   "/auth/login/",
-  "/auth/token/refresh/",
+  "/auth/token-refresh/",
   "/auth/password-reset/request/",
   "/auth/password-reset/verify/",
   "/auth/password-reset/confirm/",
@@ -44,12 +44,12 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-async function refreshAccessToken() {
+export async function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const refresh = getRefreshToken();
       if (!refresh) throw new Error("No refresh token available");
-      const response = await refreshClient.post("/auth/token/refresh/", {
+      const response = await refreshClient.post("/auth/token-refresh/", {
         refresh,
       });
       const tokens = unwrapApiData<{ access: string; refresh?: string }>(
@@ -81,7 +81,14 @@ axiosInstance.interceptors.response.use(
       config.headers.Authorization = `Bearer ${access}`;
       return axiosInstance(config);
     } catch (refreshError) {
-      useAuthStore.getState().clearAuth();
+      // Only an authoritative refresh rejection proves that the stored
+      // session is no longer usable. Network/server failures must preserve it.
+      if (
+        axios.isAxiosError(refreshError) &&
+        (refreshError.response?.status === 400 || refreshError.response?.status === 401)
+      ) {
+        useAuthStore.getState().clearAuth();
+      }
       return Promise.reject(refreshError);
     }
   },

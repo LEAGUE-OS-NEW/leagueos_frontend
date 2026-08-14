@@ -22,6 +22,13 @@ const ROLE_DASHBOARD_ROUTES: Record<DashboardIdentifier, string> = {
 };
 
 const LEGACY_ROLE_ALIASES: Record<string, DashboardIdentifier> = {
+  // Backend display-role names normalize to these values. Keep these aliases
+  // at the frontend boundary so database role labels do not become routing
+  // identifiers.
+  'MARKET_OPERATIONS_&_APPROVAL_ADMIN': 'MARKET_OPERATIONS_ADMIN',
+  MARKET_OPERATIONS_AND_APPROVAL_ADMIN: 'MARKET_OPERATIONS_ADMIN',
+  'SPORTS_DATA_&_STATISTICS_ADMIN': 'SPORTS_DATA_STATISTICS_ADMIN',
+  SPORTS_DATA_AND_STATISTICS_ADMIN: 'SPORTS_DATA_STATISTICS_ADMIN',
   // No successor for the old GENERAL_ADMIN role specifically — a legacy
   // "ADMIN" string now falls back to full Super Admin visibility rather
   // than a dead-end, since General Admin no longer exists as its own tier.
@@ -43,7 +50,7 @@ function normalizeRole(value: unknown) {
     : '';
 }
 
-function getDashboardIdentifierForRole(role: unknown): DashboardIdentifier | null {
+export function getDashboardIdentifierForRole(role: unknown): DashboardIdentifier | null {
   const normalizedRole = normalizeRole(role);
 
   if (!normalizedRole) return null;

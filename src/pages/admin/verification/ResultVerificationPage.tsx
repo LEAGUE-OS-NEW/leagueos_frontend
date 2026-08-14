@@ -3,6 +3,7 @@ import { FiAlertTriangle, FiActivity, FiCheckCircle, FiShield } from 'react-icon
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   fetchAwaitingResult,
+  endDisputeWindowForDevelopment,
   finalizeResult,
   verifyResult,
   type ResultVerification,
@@ -21,9 +22,13 @@ function formatDateTime(iso: string): string {
 
 function stagePillClass(stage: ResultVerification['stage']): string {
   switch (stage) {
-    case 'Verified':
+    case 'Provisional Result':
+    case 'Dispute Window':
+    case 'Ready to Resolve':
+    case 'Ready to Settle':
       return 'rv-stage-pill rv-stage-pill--verified';
-    case 'Finalised':
+    case 'Settled':
+    case 'Voided / Refunded':
       return 'rv-stage-pill rv-stage-pill--finalised';
     default:
       return 'rv-stage-pill rv-stage-pill--awaiting';
@@ -37,6 +42,8 @@ function ResultVerificationPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const devAcceleratorVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_RESULT_ACCELERATOR === 'true';
 
   const [formSyncedId, setFormSyncedId] = useState<string | null>(null);
   const [winningOutcomeId, setWinningOutcomeId] = useState<OutcomeId | null>(null);
@@ -63,7 +70,8 @@ function ResultVerificationPage() {
     };
   }, []);
 
-  const selected = useMemo(() => items.find((item) => item.marketId === selectedId) ?? null, [items, selectedId]);
+  const visibleItems = useMemo(() => items.filter((item) => ['Settled', 'Voided / Refunded'].includes(item.stage) === showCompleted), [items, showCompleted]);
+  const selected = useMemo(() => visibleItems.find((item) => item.marketId === selectedId) ?? null, [visibleItems, selectedId]);
 
   // Reset the form whenever the selected market changes — done during render
   // (React's documented pattern for this) rather than in an effect, so
@@ -113,6 +121,20 @@ function ResultVerificationPage() {
     }
   };
 
+  const handleEndWindow = async () => {
+    if (!selected || !window.confirm('End this synthetic market dispute window now for development testing?')) return;
+    setIsSaving(true);
+    setActionError(null);
+    try {
+      await endDisputeWindowForDevelopment(selected.marketId);
+      setItems(await fetchAll());
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Development accelerator is unavailable.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="rv-root">
@@ -143,8 +165,9 @@ function ResultVerificationPage() {
           <div className="rv-layout">
             <div className="rv-panel rv-queue">
               <div className="rv-panel__header">
-                <h2>Awaiting a Result</h2>
-                <p>Markets whose kickoff has passed, sorted by how long they've waited.</p>
+                <h2>{showCompleted ? 'Completed / History' : 'Active Result Workflow'}</h2>
+                <p>Closed markets and authoritative provisional, dispute, resolution, settlement and refund states.</p>
+                <button type="button" className="rv-btn rv-btn--outline rv-btn--sm" onClick={() => { setShowCompleted((value) => !value); setSelectedId(null); }}>{showCompleted ? 'Show active queue' : 'Show completed history'}</button>
               </div>
               <div className="rv-table-scroll">
                 <table className="rv-table">
@@ -156,7 +179,7 @@ function ResultVerificationPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item) => (
+                    {visibleItems.map((item) => (
                       <tr
                         key={item.marketId}
                         className={item.marketId === selectedId ? 'is-selected' : ''}
@@ -172,7 +195,7 @@ function ResultVerificationPage() {
                         </td>
                       </tr>
                     ))}
-                    {items.length === 0 && (
+                    {visibleItems.length === 0 && (
                       <tr>
                         <td colSpan={3} className="rv-table__empty">
                           Nothing is waiting on a result right now.
@@ -195,6 +218,8 @@ function ResultVerificationPage() {
                   <span className="rv-kv-item__key">Resolution source / rules</span>
                   <span className="rv-kv-item__value">{selected.officialSource}</span>
                 </div>
+                {selected.disputeDeadline && <div className="rv-kv-item"><span className="rv-kv-item__key">Dispute deadline</span><span className="rv-kv-item__value">{formatDateTime(selected.disputeDeadline)}</span></div>}
+                <div className="rv-kv-item"><span className="rv-kv-item__key">Open disputes</span><span className="rv-kv-item__value">{selected.openDisputeCount ?? 0}</span></div>
 
                 <div className="rv-outcome-picker">
                   {selected.outcomes.map((outcome) => (
@@ -202,7 +227,7 @@ function ResultVerificationPage() {
                       type="button"
                       key={outcome.id}
                       className={`rv-outcome-choice${winningOutcomeId === outcome.id ? ' is-selected' : ''}`}
-                      disabled={selected.stage === 'Finalised'}
+                      disabled={selected.stage !== 'Awaiting Result'}
                       onClick={() => setWinningOutcomeId(outcome.id)}
                     >
                       {outcome.id === 'YES' ? <FiCheckCircle aria-hidden="true" /> : <FiShield aria-hidden="true" />}
@@ -216,7 +241,7 @@ function ResultVerificationPage() {
                   <textarea
                     rows={3}
                     value={evidenceNote}
-                    disabled={selected.stage === 'Finalised'}
+                    disabled={selected.stage !== 'Awaiting Result'}
                     onChange={(event) => setEvidenceNote(event.target.value)}
                     placeholder="e.g. Confirmed via FUFA official match report."
                   />
@@ -229,21 +254,26 @@ function ResultVerificationPage() {
                 )}
 
                 <div className="rv-detail__actions">
+                  {devAcceleratorVisible && selected.stage === 'Dispute Window' && (
+                    <button type="button" className="rv-btn rv-btn--outline" disabled={isSaving} onClick={() => void handleEndWindow()}>
+                      End dispute window now (development only)
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rv-btn rv-btn--outline"
                     disabled={!winningOutcomeId || !evidenceNote.trim() || isSaving}
                     onClick={handleVerify}
                   >
-                    {selected.stage === 'Awaiting Result' ? 'Verify Result' : 'Update Verification'}
+                    Publish Provisional Result
                   </button>
                   <button
                     type="button"
                     className="rv-btn rv-btn--gradient"
-                    disabled={selected.stage !== 'Verified' || isSaving}
+                    disabled={!['Ready to Resolve', 'Ready to Settle'].includes(selected.stage) || isSaving}
                     onClick={handleFinalize}
                   >
-                    Finalise &amp; Send Payouts
+                    {selected.stage === 'Ready to Resolve' ? 'Resolve Result' : 'Settle Payouts'}
                   </button>
                 </div>
               </div>

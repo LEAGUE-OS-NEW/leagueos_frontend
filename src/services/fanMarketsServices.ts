@@ -2,7 +2,6 @@ import apiClient from './apiClient.ts';
 import { extractApiError, normalizeApiList } from './apiUtils.ts';
 import type { Market as ApiMarket, MarketCategory as ApiMarketCategory } from '../types/api.ts';
 import {
-  MARKET_FACE_VALUE_UGX,
   backendQuantityToShares,
   normalizedPriceToUgxSharePrice,
   sharesToBackendQuantity,
@@ -10,13 +9,12 @@ import {
 } from '../utils/marketPricing.ts';
 
 export type MarketStatus = 'live' | 'upcoming' | 'trending' | 'closed';
-export type AdminMarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Resolved' | 'Voided' | 'Cancelled';
+export type AdminMarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
 export type OutcomeId = 'YES' | 'NO';
 export type MarketCategoryName = string;
 
 export const MARKET_CATEGORIES = ['Football', 'Rugby', 'Basketball', 'Cricket', 'Athletics', 'Esports', 'Other'] as const;
 
-const PAYOUT_PER_CONTRACT_UGX = MARKET_FACE_VALUE_UGX;
 const DEFAULT_MIN_TRADE_UGX = 1_000;
 const DEFAULT_MAX_TRADE_UGX = 500_000;
 const DEFAULT_FEE_PCT = 2;
@@ -55,6 +53,7 @@ export interface Outcome {
   description: string;
   probabilityPct: number | null;
   price: number | null;
+  markSource?: 'LAST_TRADE' | 'MIDPOINT' | 'BEST_QUOTE' | 'OPENING_REFERENCE' | 'NO_LIQUIDITY';
 }
 
 export interface MarketParameters {
@@ -85,6 +84,7 @@ export interface Market {
   description: string;
   tags: string[];
   outcomes: Outcome[];
+  faceValueUgx: number;
   parameters: MarketParameters;
   status: AdminMarketStatus;
   createdBy: string;
@@ -245,7 +245,8 @@ function statusFromApi(market: ApiMarket): AdminMarketStatus {
   if (market.status === 'DRAFT') return 'Draft';
   if (market.status === 'RESOLVED') return 'Resolved';
   if (market.status === 'VOIDED') return 'Voided';
-  if (market.status === 'CANCELLED' || market.status === 'CLOSED' || market.status === 'SUSPENDED') return 'Cancelled';
+  if (market.status === 'CLOSED') return 'Closed';
+  if (market.status === 'CANCELLED' || market.status === 'SUSPENDED') return 'Cancelled';
   return market.opens_at && new Date(market.opens_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
 }
 
@@ -262,6 +263,11 @@ function adaptMarket(market: ApiMarket): Market {
   const noApi = market.outcomes.find((outcome) => outcome.side === 'NO') ?? market.outcomes[1];
   const status = statusFromApi(market);
   const kickoff = market.sporting_event?.starts_at ?? market.closes_at ?? market.opens_at ?? market.created_at ?? new Date().toISOString();
+  const outcomePrice = (outcomeId?: string) => {
+    if (!outcomeId) return null;
+    const raw = market.trading_snapshot?.outcomes[outcomeId]?.mark_price;
+    return raw == null ? null : normalizedPriceToUgxSharePrice(Number(raw), market.face_value_ugx);
+  };
 
   return {
     id: market.id,
@@ -280,18 +286,21 @@ function adaptMarket(market: ApiMarket): Market {
         backendOutcomeId: yesApi.id,
         label: yesApi.label || 'Yes',
         description: yesApi.description ?? '',
-        probabilityPct: null,
-        price: null,
+        probabilityPct: outcomePrice(yesApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[yesApi.id]?.mark_price) * 100,
+        price: outcomePrice(yesApi.id),
+        markSource: market.trading_snapshot?.outcomes[yesApi.id]?.mark_source,
       },
       noApi && {
         id: 'NO' as const,
         backendOutcomeId: noApi.id,
         label: noApi.label || 'No',
         description: noApi.description ?? '',
-        probabilityPct: null,
-        price: null,
+        probabilityPct: outcomePrice(noApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[noApi.id]?.mark_price) * 100,
+        price: outcomePrice(noApi.id),
+        markSource: market.trading_snapshot?.outcomes[noApi.id]?.mark_source,
       },
     ].filter(Boolean) as Outcome[],
+    faceValueUgx: market.face_value_ugx,
     parameters: {
       opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
       closesAt: market.closes_at ?? kickoff,
@@ -405,10 +414,13 @@ export async function fetchMyPositions(): Promise<UserPosition[]> {
   try {
     const response = await apiClient.get('/markets/portfolio/positions/');
     const positions = normalizeApiList<PortfolioPositionApi>(response.data);
+    const marketsById = await fetchPositionMarkets(positions);
     return positions.map((position) => {
+      const faceValueUgx = marketsById.get(position.market_id)?.faceValueUgx;
+      if (!faceValueUgx) throw new Error(`Market ${position.market_id} has no authoritative face value.`);
       const avgPrice =
         Number(position.average_entry_price) *
-        PAYOUT_PER_CONTRACT_UGX;
+        faceValueUgx;
 
       const backendQuantity =
         Number(
@@ -419,6 +431,7 @@ export async function fetchMyPositions(): Promise<UserPosition[]> {
       const quantity =
         backendQuantityToShares(
           backendQuantity,
+          faceValueUgx,
         );
 
       return {
@@ -462,22 +475,23 @@ export async function fetchFanPositions(): Promise<Position[]> {
 
         const shares =
           backendQuantityToShares(
-            backendQuantity,
+          backendQuantity,
+            market.faceValueUgx,
           );
 
-        const price = normalizedPriceToUgxSharePrice(Number(position.average_entry_price));
+        const price = normalizedPriceToUgxSharePrice(Number(position.average_entry_price), market.faceValueUgx);
         const portfolio: PortfolioPosition = {
           id: position.id, marketId: position.market_id, backendOutcomeId: position.outcome_id,
           outcomeLabel: position.outcome_label, marketStatus: position.market_status,
-          quantity: backendQuantityToShares(Number(position.quantity)), availableQuantity: shares,
-          reservedQuantity: backendQuantityToShares(Number(position.reserved_quantity)), averageEntryPrice: price,
+          quantity: backendQuantityToShares(Number(position.quantity), market.faceValueUgx), availableQuantity: shares,
+          reservedQuantity: backendQuantityToShares(Number(position.reserved_quantity), market.faceValueUgx), averageEntryPrice: price,
           totalCostBasis: Number(position.total_cost_basis), realizedPnl: Number(position.realized_pnl),
-          markPrice: position.mark_price === null ? null : normalizedPriceToUgxSharePrice(Number(position.mark_price)),
+          markPrice: position.mark_price === null ? null : normalizedPriceToUgxSharePrice(Number(position.mark_price), market.faceValueUgx),
           markSource: position.mark_source, marketValue: position.market_value === null ? null : Number(position.market_value),
           unrealizedPnl: position.unrealized_pnl === null ? null : Number(position.unrealized_pnl),
           totalPositionPnl: position.total_position_pnl === null ? null : Number(position.total_position_pnl),
           valuationComplete: position.valuation_complete, openSellOrderCount: position.open_sell_order_count,
-          reservedSellOrderQuantity: backendQuantityToShares(Number(position.reserved_sell_order_quantity)),
+          reservedSellOrderQuantity: backendQuantityToShares(Number(position.reserved_sell_order_quantity), market.faceValueUgx),
         };
 
         return {
@@ -539,7 +553,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
       id: order.id,
       marketId: order.market,
       outcomeId: input.outcomeId,
-      price: Number(order.limit_price) * PAYOUT_PER_CONTRACT_UGX,
+      price: Number(order.limit_price) * market.faceValueUgx,
       quantityUgx: Number(order.quantity) * Number(order.limit_price),
       buyer: 'You',
       seller: 'Market',
@@ -554,9 +568,10 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
 
 export async function sellPosition(input: SellOrderInput): Promise<Contract> {
   if (!(input.limitPrice > 0 && input.limitPrice < 1)) throw new Error('A genuine executable quote is required.');
-  const quantity = sharesToBackendQuantity(input.shares);
-  if (quantity < 0.0001) throw new Error('Enter a valid number of shares.');
   try {
+    const market = await fetchMarket(input.marketId);
+    const quantity = sharesToBackendQuantity(input.shares, market.faceValueUgx);
+    if (quantity < 0.0001) throw new Error('Enter a valid number of shares.');
     const response = await apiClient.post(`/markets/${encodeURIComponent(input.marketId)}/orders/`, {
       outcome_id: input.backendOutcomeId, side: 'SELL', quantity: quantity.toFixed(4),
       limit_price: input.limitPrice.toFixed(5), time_in_force: 'GTC',
@@ -564,7 +579,7 @@ export async function sellPosition(input: SellOrderInput): Promise<Contract> {
     const order = response.data as MarketOrderApi;
     return {
       id: order.id, marketId: order.market, outcomeId: input.outcomeId,
-      price: normalizedPriceToUgxSharePrice(Number(order.limit_price)),
+      price: normalizedPriceToUgxSharePrice(Number(order.limit_price), market.faceValueUgx),
       quantityUgx: Number(order.quantity) * Number(order.limit_price), buyer: 'Market', seller: 'You',
       matchedAt: order.created_at, status: order.status,
     };

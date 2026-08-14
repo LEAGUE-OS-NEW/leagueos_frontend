@@ -3,10 +3,12 @@ import {
   type DashboardAccess,
   type AuthenticatedUser,
   isAuthenticatedUser,
-  isDashboardIdentifier,
 } from '../types/dashboardAccess.js';
 import { validateDashboardAccess } from '../utils/dashboardAccess.ts';
-import { getDefaultDashboardRoute as getRoleDefaultDashboardRoute } from '../utils/roleRoutes.ts';
+import {
+  getDashboardIdentifierForRole,
+  getDefaultDashboardRoute as getRoleDefaultDashboardRoute,
+} from '../utils/roleRoutes.ts';
 import { useClubWorkspaceStore } from './clubWorkspaceStore.ts';
 import {
   clearAuthStorage,
@@ -110,17 +112,6 @@ function toStringArray(value: unknown): string[] {
     : [];
 }
 
-// user.role is often absent on the current backend payload — it sends
-// roles: ["Fan", "CLUB_ADMIN"] instead — so find the most privileged role
-// by deprioritising FAN in favour of any other known dashboard identifier.
-function getUserRoleFallback(user: AuthenticatedUser): string {
-  const roles = Array.isArray(user.roles) ? user.roles : [];
-  const normalized = roles.map(normalizeRole).filter(isDashboardIdentifier);
-  // Prefer any non-FAN dashboard role so club/admin users aren't sent to
-  // the fan dashboard when the backend sends both roles in the array.
-  return normalized.find((r) => r !== 'FAN') ?? normalized[0] ?? '';
-}
-
 // TEMPORARY SHIM: covers any role the backend sends in its legacy shape
 // (single `role`/`roles` array, no proper dashboard_access contract) that
 // isn't a club workspace role — FAN today, but also catches any admin
@@ -129,12 +120,14 @@ function getUserRoleFallback(user: AuthenticatedUser): string {
 // Remove once the backend ships the real dashboard_access contract for
 // every role (see dashboardAccess.test.ts for the target shape).
 function buildGenericLegacyDashboardAccess(user: AuthenticatedUser): DashboardAccess | null {
-  const normalizedRole = normalizeRole(user.role);
-  const role = isDashboardIdentifier(normalizedRole)
-    ? normalizedRole
-    : getUserRoleFallback(user);
+  const role = [
+    user.role,
+    ...(Array.isArray(user.roles) ? user.roles : []),
+  ]
+    .map(getDashboardIdentifierForRole)
+    .find((value) => value !== null);
 
-  if (!role || !isDashboardIdentifier(role)) {
+  if (!role) {
     return null;
   }
 
@@ -248,11 +241,11 @@ const initialRefreshToken = getRefreshToken();
 const initialUser = sanitizeUser(getStoredUser<unknown>());
 
 export const useAuthStore = create<AuthStore>()((set) => ({
-  user: initialAccessToken ? initialUser.user : null,
+  user: (initialAccessToken || initialRefreshToken) ? initialUser.user : null,
   accessToken: initialAccessToken,
   refreshToken: initialRefreshToken,
   requiresEmailVerification: false,
-  accessStatus: !initialAccessToken
+  accessStatus: !initialAccessToken && !initialRefreshToken
     ? 'unauthenticated'
     : initialUser.hasValidAccess
       ? getAccessStatus(true, initialUser.user)
