@@ -10,7 +10,7 @@ import './Landing.css';
 
 function Landing() {
   return (
-    <>
+    <div className="landing-shell">
       <Navbar />
       <main className="landing">
         <Hero />
@@ -23,7 +23,7 @@ function Landing() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }
 
