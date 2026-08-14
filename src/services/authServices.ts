@@ -76,6 +76,16 @@ export const resetPassword = (payload: AuthPayload) =>
 
 export const fetchProfile = () => axiosInstance.get("/profile/");
 
+export interface GenderOption {
+  id: string;
+  name: string;
+  code: string;
+  is_active: boolean;
+}
+
+export const fetchGenders = () =>
+  axiosInstance.get<GenderOption[]>("/lookups/genders/");
+
 export const fetchCurrentUser = async () => {
   const response = await axiosInstance.get<
     AuthenticatedUser | ApiEnvelope<{ user: AuthenticatedUser }>
