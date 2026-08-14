@@ -42,17 +42,17 @@
 }
 
 .market-card.sport-football::before {
-  background-image: linear-gradient(160deg, rgba(22, 101, 52, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/images/fantasy1.png');
+  background-image: linear-gradient(160deg, rgba(22, 101, 52, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/football-promo.png');
   opacity: 1;
 }
 
 .market-card.sport-rugby::before {
-  background-image: linear-gradient(160deg, rgba(127, 29, 29, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/images/nile-rugby.jpg');
+  background-image: linear-gradient(160deg, rgba(127, 29, 29, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/rugby-promo.png');
   opacity: 1;
 }
 
 .market-card.sport-basketball::before {
-  background-image: linear-gradient(160deg, rgba(29, 78, 216, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/images/fantasy2.png');
+  background-image: linear-gradient(160deg, rgba(29, 78, 216, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/basketball-promo.png');
   opacity: 1;
 }
 
