@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import InfoTooltip from '../../../components/InfoTooltip/InfoTooltip';
 import { fetchFeaturedPublishedMarkets } from '../../../services/marketAdminService';
-import type { Market as AdminMarket, MarketCategory } from '../../../services/marketAdminService';
+import type { Market as AdminMarket} from '../../../services/marketAdminService';
 import './FeaturedMarkets.css';
 
 type Sport = 'Football' | 'Rugby' | 'Basketball';
