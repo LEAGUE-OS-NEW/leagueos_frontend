@@ -355,7 +355,7 @@ function FanVerification() {
   };
 
   const handleDevelopmentBypass = async () => {
-    if (!window.confirm('Skip identity verification for this synthetic local account? This is development testing only.')) return;
+    if (!window.confirm('Skip identity verification for this synthetic staging review account? No identity provider checks will be performed.')) return;
     setSubmitError(null);
     setIsRefreshingStatus(true);
     try {
@@ -366,7 +366,7 @@ function FanVerification() {
       goToStep('status');
       if (refreshedEligibility?.eligible) navigate(returnTo, { replace: true });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Development bypass is unavailable.');
+      setSubmitError(error instanceof Error ? error.message : 'Staging review verification bypass is unavailable.');
     } finally {
       setIsRefreshingStatus(false);
     }
@@ -459,20 +459,43 @@ function FanVerification() {
                   </ul>
                   <p className="verify-step-prompt">Do you want to verify now?</p>
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/trade')}>
-                      Skip Verification
-                    </button>
-                    <button type="button" className="verify-btn verify-btn--primary" onClick={goNext}>
+                    {stagingReviewBypassVisible ? (
+                      <button
+                        type="button"
+                        className="verify-btn verify-btn--secondary"
+                        disabled={isRefreshingStatus}
+                        onClick={() => void handleDevelopmentBypass()}
+                      >
+                        {isRefreshingStatus
+                          ? 'Applying staging verification…'
+                          : 'Skip verification for staging review'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="verify-btn verify-btn--secondary"
+                        onClick={() => navigate('/fan/markets')}
+                      >
+                        Not Now
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="verify-btn verify-btn--primary"
+                      onClick={goNext}
+                    >
                       {needsKyc ? 'Yes, Verify Now' : 'Continue'}
                     </button>
                   </div>
+
                   {stagingReviewBypassVisible && (
                     <div className="verify-dev-bypass">
-                      <button type="button" className="verify-btn verify-btn--secondary" disabled={isRefreshingStatus} onClick={() => void handleDevelopmentBypass()}>
-                        Skip verification for staging review
-                      </button>
                       <strong>Synthetic staging review only</strong>
-                      <p>Synthetic review account only. No identity provider checks are performed.</p>
+                      <p>
+                        This verifies only this synthetic review account.
+                        No identity provider checks are performed.
+                      </p>
                     </div>
                   )}
                 </div>
