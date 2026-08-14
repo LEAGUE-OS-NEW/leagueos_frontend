@@ -459,8 +459,8 @@ function FanVerification() {
                   </ul>
                   <p className="verify-step-prompt">Do you want to verify now?</p>
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate(-1)}>
-                      Not Now
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
+                      Skip Verification
                     </button>
                     <button type="button" className="verify-btn verify-btn--primary" onClick={goNext}>
                       {needsKyc ? 'Yes, Verify Now' : 'Continue'}
@@ -773,6 +773,12 @@ function FanVerification() {
                     <button type="button" className="verify-btn verify-btn--primary" disabled={isRefreshingStatus} onClick={() => void refreshCanonicalStatus()}>{isRefreshingStatus ? 'Refreshing…' : 'Refresh Status'}</button>
                     <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
                       Back to Markets
+                    </button>
+                  </div>
+                  <div className="verify-skip-row">
+                    <p className="verify-skip-note">You can browse markets while verification is processing.</p>
+                    <button type="button" className="verify-btn verify-btn--accent" onClick={() => navigate('/fan/markets')}>
+                      Skip to Trade Hub
                     </button>
                   </div>
                 </div>
