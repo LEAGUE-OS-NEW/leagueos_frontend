@@ -14,8 +14,7 @@ import {
   FiCreditCard,
   FiX,
 } from 'react-icons/fi';
-// NOTE: adjust these relative imports if this page doesn't sit at
-// src/pages/fan/markets/ alongside src/pages/fan/sections/
+
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
@@ -166,9 +165,7 @@ function Markets() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['live', 'upcoming']);
 
-  // Lock background scroll whenever the mobile sidebar OR the market detail
-  // modal is open. Merged into one effect so the two don't fight over
-  // document.body.style.overflow.
+ 
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen || isDetailOpen ? 'hidden' : '';
     return () => {
@@ -285,20 +282,19 @@ function Markets() {
             {detailTab === 'details' ? (
               <>
                 <div className="market-details-header">
-                  <span className="market-mini-card-crests">
-                    <CrestOrPlaceholder src={selectedMarket.crestA} name={selectedMarket.teamA} />
-                    <span className="market-mini-vs">vs</span>
-                    <CrestOrPlaceholder src={selectedMarket.crestB} name={selectedMarket.teamB} />
-                  </span>
-                  <div className="market-details-header-copy">
-                    <div className="market-details-title-row">
-                      <h2>
-                        {selectedMarket.teamA} vs {selectedMarket.teamB}
-                      </h2>
-                      <StatusChip market={selectedMarket} />
+                  <div className="market-details-matchup">
+                    <div className="market-details-team">
+                      <CrestOrPlaceholder src={selectedMarket.crestA} name={selectedMarket.teamA} />
+                      <span>{selectedMarket.teamA}</span>
                     </div>
-                    <p>{selectedMarket.league}</p>
+                    <span className="market-mini-vs">vs</span>
+                    <div className="market-details-team">
+                      <CrestOrPlaceholder src={selectedMarket.crestB} name={selectedMarket.teamB} />
+                      <span>{selectedMarket.teamB}</span>
+                    </div>
+                    <StatusChip market={selectedMarket} />
                   </div>
+
                   <div className="market-details-header-actions">
                     <button type="button" aria-label="Watchlist">
                       <FiStar />
@@ -307,6 +303,9 @@ function Markets() {
                       <FiShare2 />
                     </button>
                   </div>
+
+                  <p className="market-details-league">{selectedMarket.league}</p>
+
                   <Link to={`/fan/markets/${selectedMarket.id}`} className="dashboard-card-link market-details-full-link">
                     Full page
                   </Link>
