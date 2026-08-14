@@ -29,6 +29,7 @@ import {
   fetchMyPositions,
   type MarketCategory,
   type MarketListItem,
+  type MarketStatus,
   type UserPosition,
 } from '../../../services/fanMarketsServices';
 import { formatUgx } from '../../../utils/rules.ts';
@@ -164,6 +165,7 @@ function Markets() {
   }, [amount, numericAmount]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['live', 'upcoming']);
+  const [allMarketsStatusFilter, setAllMarketsStatusFilter] = useState<MarketStatus | 'all'>('all');
 
  
   useEffect(() => {
@@ -186,6 +188,16 @@ function Markets() {
       return matchesType && matchesStatus;
     });
   }, [markets, selectedStatuses, selectedTypes, tab]);
+
+  // All Markets table: sort newest-first, then filter by the Ends In status chip
+  const allMarketsDisplay = useMemo(() => {
+    if (!markets) return [];
+    const sorted = [...markets].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    if (allMarketsStatusFilter === 'all') return sorted;
+    return sorted.filter((m) => m.status === allMarketsStatusFilter);
+  }, [markets, allMarketsStatusFilter]);
 
   useEffect(() => {
     if (!marketCategories) return;
@@ -343,9 +355,8 @@ function Markets() {
                       })
                     }
                   >
-                    Yes · {formatMarketSharePrice(
-                      selectedMarket.yesPrice,
-                    )}
+                    <span className="btn-label">Yes</span>
+                    <span className="btn-price">{formatMarketSharePrice(selectedMarket.yesPrice)}</span>
                   </button>
 
                   <button
@@ -358,9 +369,8 @@ function Markets() {
                       })
                     }
                   >
-                    No · {formatMarketSharePrice(
-                      selectedMarket.noPrice,
-                    )}
+                    <span className="btn-label">No</span>
+                    <span className="btn-price">{formatMarketSharePrice(selectedMarket.noPrice)}</span>
                   </button>
                 </div>
 
@@ -741,10 +751,12 @@ function Markets() {
                         <span className="market-mini-question">{market.question}</span>
                         <span className="market-mini-actions">
                           <span className="mini-yesno mini-yesno--yes">
-                            Yes {formatMarketSharePrice(market.yesPrice)}
+                            <span className="btn-label">Yes</span>
+                            <span className="btn-price">{formatMarketSharePrice(market.yesPrice)}</span>
                           </span>
                           <span className="mini-yesno mini-yesno--no">
-                            No {formatMarketSharePrice(market.noPrice)}
+                            <span className="btn-label">No</span>
+                            <span className="btn-price">{formatMarketSharePrice(market.noPrice)}</span>
                           </span>
                         </span>
                         <span className="market-mini-footer">
@@ -759,7 +771,28 @@ function Markets() {
               </section>
 
               <section className="dashboard-card markets-terminal-col all-markets-panel">
-                <h2 className="section-title all-markets-title">All Markets</h2>
+                <div className="all-markets-header">
+                  <h2 className="section-title all-markets-title">All Markets</h2>
+                  <div className="all-markets-status-filters" role="group" aria-label="Filter by status">
+                    {(
+                      [
+                        { key: 'all',      label: 'All' },
+                        { key: 'live',     label: 'Live' },
+                        { key: 'upcoming', label: 'Upcoming' },
+                        { key: 'closed',   label: 'Closed' },
+                      ] as { key: MarketStatus | 'all'; label: string }[]
+                    ).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`all-markets-status-chip${allMarketsStatusFilter === key ? ' active' : ''}`}
+                        onClick={() => setAllMarketsStatusFilter(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="all-markets-simple-table" role="table" aria-label="All markets">
                   <div className="all-markets-simple-row all-markets-simple-labels" role="row">
                     <span>Market</span>
@@ -769,7 +802,9 @@ function Markets() {
                     <span>Price / Share</span>
                     <span aria-hidden="true" />
                   </div>
-                  {markets.map((market) => (
+                  {allMarketsDisplay.length === 0 ? (
+                    <p className="all-markets-empty">No markets match this filter.</p>
+                  ) : allMarketsDisplay.map((market) => (
                     <div className="all-markets-simple-row" role="row" key={market.id}>
                       <span role="cell" className="all-markets-simple-market">
                         <CrestOrPlaceholder src={market.crestA} name={market.teamA} />

@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Circle, Shield, Bookmark, Clock, ArrowDown, Check,
-} from 'lucide-react';
-import { FiSearch } from 'react-icons/fi';
+import { Bookmark, Clock, ArrowDown, ArrowUp } from 'lucide-react';
+import { FiCircle } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
@@ -11,34 +9,94 @@ import { fetchApprovedStories, type AdminStory } from '../../../services/newsAdm
 import '../sections/FanDashboard.css';
 import './FanNewsPage.css';
 
-const FILTERS = ['All', 'Football', 'Rugby', 'Basketball', 'Clubs'] as const;
+/* ---------- constants ---------- */
+
+const FILTERS = ['For You', 'Football', 'Basketball', 'Rugby'] as const;
 type Filter = (typeof FILTERS)[number];
+
+const INITIAL_COUNT = 6; // 2 rows × 3 columns
+
+const TRENDING_COUNT = 6;
+
+/* ---------- helpers ---------- */
+
+/** Maps a story's backend category to one of the four trending labels. */
+function trendingCategory(category: string): string {
+  switch (category) {
+    case 'Football':
+    case 'Rugby':
+    case 'Basketball': return 'Sports News';
+    case 'Fantasy':    return 'Fantasy';
+    case 'Markets':    return 'Market';
+    default:           return 'Club News';
+  }
+}
+
+/** CSS modifier for the trending category badge. */
+function trendingBadgeMod(category: string): string {
+  switch (category) {
+    case 'Football':
+    case 'Rugby':
+    case 'Basketball': return 'sports';
+    case 'Fantasy':    return 'fantasy';
+    case 'Markets':    return 'market';
+    default:           return 'club';
+  }
+}
+
+// Stub: returns all stories until onboarding club preferences are wired in.
+// TODO: filter by user's followed clubs once available from the profile store.
+function forYouStories(stories: AdminStory[]): AdminStory[] {
+  return stories;
+}
+
+/* ---------- component ---------- */
 
 export default function FanNewsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<Filter>('All');
+  const [activeFilter, setActiveFilter] = useState<Filter>('For You');
   const [stories, setStories] = useState<AdminStory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
 
   useEffect(() => {
     let cancelled = false;
     fetchApprovedStories().then((data) => {
-      if (!cancelled) { setStories(data); setLoading(false); }
+      if (!cancelled) {
+        setStories(data);
+        setLoading(false);
+      }
     });
     return () => { cancelled = true; };
   }, []);
 
-  const heroStory = stories.find((s) => s.isFeatured) ?? stories[0];
-  const flaggedTrending = stories.filter((s) => s.isTrending);
-  const trendingStories = (flaggedTrending.length > 0 ? flaggedTrending : stories).slice(0, 5);
+  // Reset pagination when filter changes
+  const handleFilterChange = useCallback((f: Filter) => {
+    setActiveFilter(f);
+    setVisibleCount(INITIAL_COUNT);
+  }, []);
 
-  const q = search.trim().toLowerCase();
-  const visible = stories.filter((s) => {
-    const catOk = activeFilter === 'All' || s.category === activeFilter;
-    const searchOk = !q || s.title.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
-    return catOk && searchOk;
-  });
+  // Apply sport filter to main feed
+  const filtered: AdminStory[] =
+    activeFilter === 'For You'
+      ? forYouStories(stories)
+      : stories.filter((s) => s.category === activeFilter);
+
+  const heroStory: AdminStory | undefined =
+    filtered.find((s) => s.isFeatured) ?? filtered[0];
+
+  // Grid excludes the hero so it doesn't appear twice
+  const gridStories = heroStory
+    ? filtered.filter((s) => s.id !== heroStory.id)
+    : filtered;
+
+  const displayed = gridStories.slice(0, visibleCount);
+  const hasMore = visibleCount < gridStories.length;
+  const hasExpanded = visibleCount > INITIAL_COUNT;
+
+  // Trending — platform-wide (not filtered), prefer flagged isTrending stories
+  const flaggedTrending = stories.filter((s) => s.isTrending);
+  const trendingStories = (flaggedTrending.length > 0 ? flaggedTrending : stories).slice(0, TRENDING_COUNT);
 
   return (
     <div className="fan-dashboard">
@@ -50,64 +108,61 @@ export default function FanNewsPage() {
         <div className="fan-dashboard-content">
           <div className="fn-inner">
 
-            {/* Header */}
+            {/* ── Page heading ── */}
             <div className="fn-header">
-              <div>
-                <p className="fn-title">News &amp; Stories</p>
-                <p className="fn-subtitle">The latest from Ugandan sport — football, rugby and basketball.</p>
-              </div>
-              <label className="fn-search">
-                <FiSearch />
-                <input
-                  type="search"
-                  placeholder="Search stories…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </label>
+              <p className="fn-title">YOUR SPORTS FEED</p>
+              <p className="fn-subtitle">News and updates from clubs you follow.</p>
             </div>
 
-            {/* Hero story */}
-            {heroStory && (
-              <Link to={`/fan/news/${heroStory.id}`} className="fn-hero">
-                <img src={heroStory.image} alt={heroStory.title} className="fn-hero-img" />
-                <div className="fn-hero-overlay" />
-                <div className="fn-hero-content">
-                  <span className="fn-badge fn-badge-top">TOP STORY</span>
-                  <p className="fn-hero-headline">{heroStory.title}</p>
-                  <p className="fn-hero-desc">{heroStory.description}</p>
-                  <div className="fn-hero-meta">
-                    <Clock size={13} /> <span>{heroStory.time}</span> <span className="fn-dot">•</span> <span>{heroStory.category}</span>
-                  </div>
-                </div>
-              </Link>
-            )}
-
-            {/* Filters */}
+            {/* ── Sport filters ── */}
             <div className="fn-filters">
               {FILTERS.map((f) => (
-                <button key={f} type="button"
+                <button
+                  key={f}
+                  type="button"
                   className={`fn-chip${activeFilter === f ? ' active' : ''}`}
-                  onClick={() => setActiveFilter(f)}
+                  onClick={() => handleFilterChange(f)}
                 >
-                  {(f === 'Football' || f === 'Rugby' || f === 'Basketball') && <Circle size={13} />}
-                  {f === 'Clubs' && <Shield size={13} />}
+                  {f !== 'For You' && <FiCircle size={12} />}
                   {f}
                 </button>
               ))}
             </div>
 
+            {/* ── Hero ── */}
+            {!loading && heroStory && (
+              <Link to={`/fan/news/${heroStory.id}`} className="fn-hero">
+                <img src={heroStory.image} alt={heroStory.title} className="fn-hero-img" />
+                <div className="fn-hero-overlay" />
+                <div className="fn-hero-content">
+                  <span className="fn-badge fn-badge-club-label">LATEST FROM YOUR CLUB</span>
+                  <p className="fn-hero-headline">{heroStory.title}</p>
+                  <p className="fn-hero-desc">{heroStory.description}</p>
+                  <div className="fn-hero-meta">
+                    <Clock size={13} />
+                    <span>{heroStory.time}</span>
+                    <span className="fn-dot">•</span>
+                    <span>{heroStory.category}</span>
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {/* ── Main layout: feed + sidebar ── */}
             <div className="fn-layout">
-              {/* Story grid */}
+
+              {/* ── Left: personalised story feed ── */}
               <div className="fn-stories">
+                <h2 className="fn-section-heading">LATEST FROM YOUR CLUB</h2>
+
                 {loading && <p className="fn-loading">Loading stories…</p>}
 
-                {!loading && visible.length === 0 && (
-                  <p className="fn-empty">No stories match your filter.</p>
+                {!loading && gridStories.length === 0 && (
+                  <p className="fn-empty">No stories available right now.</p>
                 )}
 
                 <div className="fn-story-grid">
-                  {visible.map((story) => (
+                  {displayed.map((story) => (
                     <article key={story.id} className="fn-card">
                       <div className="fn-card-img-wrap">
                         <Link to={`/fan/news/${story.id}`}>
@@ -116,11 +171,15 @@ export default function FanNewsPage() {
                         <span className={`fn-badge fn-badge-${story.category.toLowerCase()}`}>
                           {story.category.toUpperCase()}
                         </span>
-                        <span className="fn-card-time"><Clock size={11} /> {story.time}</span>
+                        <span className="fn-card-time">
+                          <Clock size={11} /> {story.time}
+                        </span>
                       </div>
                       <div className="fn-card-body">
                         <p className="fn-card-title">
-                          <Link to={`/fan/news/${story.id}`} className="fn-card-link">{story.title}</Link>
+                          <Link to={`/fan/news/${story.id}`} className="fn-card-link">
+                            {story.title}
+                          </Link>
                         </p>
                         <p className="fn-card-desc">{story.description}</p>
                         <div className="fn-card-footer">
@@ -137,50 +196,67 @@ export default function FanNewsPage() {
                   ))}
                 </div>
 
-                {!loading && visible.length > 0 && (
-                  <button type="button" className="fn-load-more">
-                    Load more stories <ArrowDown size={15} />
-                  </button>
+                {/* Load more / View less */}
+                {!loading && gridStories.length > INITIAL_COUNT && (
+                  <div className="fn-pagination">
+                    {hasMore ? (
+                      <button
+                        type="button"
+                        className="fn-load-more"
+                        onClick={() => setVisibleCount((c) => c + INITIAL_COUNT)}
+                      >
+                        Load more <ArrowDown size={15} />
+                      </button>
+                    ) : hasExpanded ? (
+                      <button
+                        type="button"
+                        className="fn-load-more"
+                        onClick={() => setVisibleCount(INITIAL_COUNT)}
+                      >
+                        View less <ArrowUp size={15} />
+                      </button>
+                    ) : null}
+                  </div>
                 )}
               </div>
 
-              {/* Right sidebar */}
+              {/* ── Right: platform-wide trending ── */}
               <aside className="fn-aside">
-                {/* Trending */}
                 <div className="fn-panel">
                   <div className="fn-panel-header">
                     <h3>TRENDING</h3>
-                    <span className="fn-panel-link">View all</span>
                   </div>
+
+                  {trendingStories.length === 0 && !loading && (
+                    <p className="fn-empty">No trending stories right now.</p>
+                  )}
+
                   <ul className="fn-trending-list">
-                    {trendingStories.map((story, index) => (
-                      <Link to={`/fan/news/${story.id}`} key={story.id} className="fn-trending-item-link">
-                        <li className="fn-trending-item">
-                          <span className="fn-trending-rank">{index + 1}</span>
-                          <img src={story.image} alt={story.title} className="fn-trending-img" />
-                          <div>
+                    {trendingStories.map((story) => (
+                      <li key={story.id} className="fn-trending-item">
+                        <Link to={`/fan/news/${story.id}`} className="fn-trending-link">
+                          <img
+                            src={story.image}
+                            alt={story.title}
+                            className="fn-trending-img"
+                          />
+                          <div className="fn-trending-body">
+                            <span className={`fn-badge fn-badge-trend-${trendingBadgeMod(story.category)}`}>
+                              {trendingCategory(story.category)}
+                            </span>
                             <p className="fn-trending-title">{story.title}</p>
-                            <span className="fn-trending-time">{story.time}</span>
+                            <span className="fn-trending-time">
+                              <Clock size={10} /> {story.time}
+                            </span>
                           </div>
-                        </li>
-                      </Link>
+                        </Link>
+                      </li>
                     ))}
                   </ul>
                 </div>
-
-                {/* Newsletter */}
-                <div className="fn-panel fn-newsletter">
-                  <h3>STAY IN THE GAME</h3>
-                  <p>Get the biggest stories, match previews and updates straight to your inbox.</p>
-                  <input type="email" placeholder="Enter your email" className="fn-email-input" />
-                  <button type="button" className="fn-subscribe-btn">Subscribe now</button>
-                  <div className="fn-newsletter-note">
-                    <Check size={13} /> <span>Join 25,000+ Ugandan fans</span>
-                  </div>
-                </div>
               </aside>
-            </div>
 
+            </div>
           </div>
         </div>
 
