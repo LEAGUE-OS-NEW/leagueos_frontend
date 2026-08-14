@@ -12,7 +12,7 @@ import {
 } from '../../services/marketAdminService';
 import { fetchFanPositions, fetchMarketOrderBook, placeOrder, type Position } from '../../services/fanMarketsServices';
 import { normalizedPriceToUgxSharePrice } from '../../utils/marketPricing.ts';
-import { useIdentityVerificationStore } from '../../store/identityVerificationStore';
+import { useMarketEligibility } from '../../hooks/useMarketEligibility';
 import './MarketDetailPage.css';
 
 function formatDateTime(iso: string): string {
@@ -37,7 +37,7 @@ function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
+  const { isEligible: isIdentityVerified } = useMarketEligibility();
 
   const [market, setMarket] = useState<Market | null>(null);
   const [orderBook, setOrderBook] = useState<OrderBook | null>(null);

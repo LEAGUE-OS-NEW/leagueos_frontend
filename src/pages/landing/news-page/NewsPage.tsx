@@ -10,7 +10,7 @@ import {
 import "./NewsPage.css";
 import Navbar from "../../../components/landing/Navbar";
 import Footer from "../../../components/landing/Footer";
-import { fetchNews, type Story } from "../../../services/newsService";
+import { fetchApprovedStories, type AdminStory } from "../../../services/newsAdminService";
 
 /* ---------- Constants ---------- */
 
@@ -21,12 +21,12 @@ const filters = ["All", "Football", "Rugby", "Basketball"] as const;
 const NewsPage: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
     const [email, setEmail] = useState("");
-    const [stories, setStories] = useState<Story[]>([]);
+    const [stories, setStories] = useState<AdminStory[]>([]);
 
     useEffect(() => {
         let cancelled = false;
 
-        fetchNews().then((result) => {
+        fetchApprovedStories().then((result) => {
             if (!cancelled) setStories(result);
         });
 
@@ -35,10 +35,10 @@ const NewsPage: React.FC = () => {
         };
     }, []);
 
-    const heroStory: Story | undefined =
-        stories.find((s) => (s as Story & { isFeatured?: boolean }).isFeatured) ?? stories[0];
+    const heroStory: AdminStory | undefined = stories.find((s) => s.isFeatured) ?? stories[0];
 
-    const trendingStories = stories.slice(0, 5);
+    const flaggedTrending = stories.filter((s) => s.isTrending);
+    const trendingStories = (flaggedTrending.length > 0 ? flaggedTrending : stories).slice(0, 5);
 
     const INITIAL_COUNT = 6;
     const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);

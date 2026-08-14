@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
-import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { formatUgx } from '../../../utils/rules.ts';
 import {
   MARKET_FACE_VALUE_UGX,
@@ -35,16 +35,15 @@ function PlaceOrder() {
   const { marketId } = useParams<{ marketId: string }>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
-  const { currentUser, isLoading: isUserLoading } = useCurrentUser();
-  const isVerified = Boolean(currentUser.isVerified);
+  const { isEligible, isLoading: isEligibilityLoading } = useMarketEligibility();
 
   const navState = (location.state as TradeNavState | null) ?? {};
 
   useEffect(() => {
-    if (!isUserLoading && !isVerified) {
+    if (!isEligibilityLoading && !isEligible) {
       navigate('/fan/verify');
     }
-  }, [isUserLoading, isVerified, navigate]);
+  }, [isEligibilityLoading, isEligible, navigate]);
 
   const [market, setMarket] = useState<Market | null>(null);
   const [isLoading, setIsLoading] = useState(true);

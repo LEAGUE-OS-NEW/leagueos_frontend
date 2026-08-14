@@ -131,6 +131,12 @@ export interface ComplianceCase {
   auditHistory: AuditEvent[];
   restrictions: Restriction[];
   selfExclusion?: SelfExclusionCase;
+  /** Raw KYCVerificationSession.status, only set for queueType "KYC" —
+   * used to bucket the KYC queue into real Pending/Verified/Rejected
+   * tabs, since the generic 4-value CaseStatus collapses too much for
+   * that (VERIFIED/REJECTED/EXPIRED/CANCELLED/ERROR all map to
+   * "Resolved" there). */
+  kycSessionStatus?: string;
 }
 
 /* ============================================================
@@ -304,6 +310,32 @@ const ComplianceQueueCard: React.FC<{
    ============================================================ */
 
 const PAGE_SIZE = 5;
+
+// Real KYCVerificationSession.status values — "terminal" ones are no
+// longer awaiting a decision. Kept in sync with the status() mapper's
+// handling of the same enum above.
+const KYC_TERMINAL_STATUSES = new Set([
+  "VERIFIED",
+  "REJECTED",
+  "EXPIRED",
+  "CANCELLED",
+  "ERROR",
+]);
+
+type KycTab = "Pending" | "Verified" | "Rejected";
+
+function kycTabForCase(c: ComplianceCase): KycTab {
+  if (c.kycSessionStatus === "VERIFIED") return "Verified";
+  if (
+    c.kycSessionStatus === "REJECTED" ||
+    c.kycSessionStatus === "EXPIRED" ||
+    c.kycSessionStatus === "CANCELLED" ||
+    c.kycSessionStatus === "ERROR"
+  ) {
+    return "Rejected";
+  }
+  return "Pending";
+}
 
 const ComplianceRiskQueue: React.FC<{
   cases: ComplianceCase[];
@@ -534,6 +566,141 @@ const ComplianceRiskQueue: React.FC<{
 };
 
 /* ============================================================
+   KYC QUEUE (dedicated Pending/Verified/Rejected tabs)
+   ============================================================ */
+
+const KYC_TABS: KycTab[] = ["Pending", "Verified", "Rejected"];
+
+const KycQueuePanel: React.FC<{
+  cases: ComplianceCase[];
+  onSelect: (c: ComplianceCase) => void;
+  onClose: () => void;
+}> = ({ cases, onSelect, onClose }) => {
+  const [activeTab, setActiveTab] = useState<KycTab>("Pending");
+
+  const kycCases = useMemo(
+    () => cases.filter((c) => c.queueType === "KYC"),
+    [cases],
+  );
+
+  const byTab = useMemo(() => {
+    const buckets: Record<KycTab, ComplianceCase[]> = {
+      Pending: [],
+      Verified: [],
+      Rejected: [],
+    };
+    for (const c of kycCases) {
+      buckets[kycTabForCase(c)].push(c);
+    }
+    for (const tab of KYC_TABS) {
+      buckets[tab].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+    }
+    return buckets;
+  }, [kycCases]);
+
+  const visible = byTab[activeTab];
+
+  return (
+    <div className="panel">
+      <div className="panel__header">
+        <div>
+          <h2>KYC Verification Queue</h2>
+          <p>Every fan verification request, grouped by real status</p>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={onClose}>
+          Back to all queues
+        </button>
+      </div>
+
+      <div className="filters-row" role="tablist" aria-label="KYC queue status">
+        {KYC_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={`btn btn-sm ${activeTab === tab ? "btn-gradient" : "btn-outline"}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab} ({byTab[tab].length})
+          </button>
+        ))}
+      </div>
+
+      <div className="table-scroll">
+        <table className="risk-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>User</th>
+              <th>Risk</th>
+              <th>Submitted</th>
+              <th>Assigned</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((c) => (
+              <tr
+                key={c.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open case ${c.id} for ${c.user.fullName}`}
+                onClick={() => onSelect(c)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(c);
+                  }
+                }}
+              >
+                <td>{c.id}</td>
+                <td>
+                  <div className="cell-user__name">{c.user.fullName}</div>
+                  <div className="cell-user__email">{c.user.email}</div>
+                </td>
+                <td>
+                  <span className={riskBadgeClass(c.riskLevel)}>{c.riskLevel}</span>
+                </td>
+                <td>{formatDateTime(c.createdAt)}</td>
+                <td>{c.assignedTo}</td>
+                <td>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(c);
+                    }}
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {visible.length === 0 && (
+              <tr>
+                <td
+                  colSpan={6}
+                  style={{
+                    textAlign: "center",
+                    color: "var(--text-secondary)",
+                    padding: "24px 0",
+                  }}
+                >
+                  No {activeTab.toLowerCase()} KYC cases.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
    CONFIRMATION MODAL (two-step high-impact confirmation)
    ============================================================ */
 
@@ -645,6 +812,69 @@ const ComplianceConfirmationModal: React.FC<{
             }}
           >
             {action.label}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ============================================================
+   KYC DECISION CONFIRM (lightweight — medium impact, not the
+   typed-confirm-word flow used for Restrict/Suspend/Freeze)
+   ============================================================ */
+
+const KycDecisionConfirmModal: React.FC<{
+  approve: boolean;
+  caseData: ComplianceCase;
+  onConfirm: () => void;
+  onClose: () => void;
+}> = ({ approve, caseData, onConfirm, onClose }) => {
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal__header">
+          <div className="modal__icon">{approve ? "✓" : "⚠"}</div>
+          <h3>{approve ? "Approve Verification" : "Reject Verification"}</h3>
+        </div>
+
+        <div className="kv-grid" style={{ marginTop: 14, marginBottom: 4 }}>
+          <div className="kv-item">
+            <span className="k">User</span>
+            <span className="v">{caseData.user.fullName}</span>
+          </div>
+          <div className="kv-item">
+            <span className="k">Email</span>
+            <span className="v">{caseData.user.email}</span>
+          </div>
+        </div>
+
+        <p className="modal__impact">
+          {approve
+            ? "This immediately updates the fan's real KYC status and unlocks their market eligibility."
+            : "This immediately updates the fan's real KYC status. They will need to resubmit to be approved."}
+        </p>
+
+        <div className="modal__footer">
+          <button className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className={approve ? "btn btn-gradient" : "btn btn-danger"}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
+            {approve ? "Confirm Approve" : "Confirm Reject"}
           </button>
         </div>
       </div>
@@ -882,6 +1112,7 @@ const ComplianceCaseDetail: React.FC<{
   const [reassessError, setReassessError] = useState("");
   const [isDecidingKyc, setIsDecidingKyc] = useState(false);
   const [kycDecisionError, setKycDecisionError] = useState("");
+  const [pendingKycDecision, setPendingKycDecision] = useState<boolean | null>(null);
   const [liftReasonFor, setLiftReasonFor] = useState<string | null>(null);
   const [liftReasonText, setLiftReasonText] = useState("");
   const [liftingId, setLiftingId] = useState<string | null>(null);
@@ -967,6 +1198,10 @@ const ComplianceCaseDetail: React.FC<{
       onMutate({
         ...caseData,
         status: "Resolved",
+        // The backend now actually transitions the linked KYC session
+        // when this decision lands (see KYCService.admin_decide), so
+        // this reflects real state, not just local UI optimism.
+        kycSessionStatus: approve ? "VERIFIED" : "REJECTED",
         auditHistory: [...caseData.auditHistory, event],
       });
     } catch (error) {
@@ -1142,7 +1377,10 @@ const ComplianceCaseDetail: React.FC<{
       >
         <div className="drawer__header">
           <div>
-            <h2>{caseData.id}</h2>
+            <h2>{caseData.user.fullName}</h2>
+            <p style={{ margin: "2px 0 8px", color: "var(--text-secondary)" }}>
+              {caseData.user.email} · {caseData.id}
+            </p>
             <span
               className={riskBadgeClass(caseData.riskLevel)}
               style={{ marginRight: 8 }}
@@ -1553,7 +1791,7 @@ const ComplianceCaseDetail: React.FC<{
             onMediumImpact={(action) =>
               appendAudit(action, "Logged via medium-impact action")
             }
-            onKycDecision={handleKycDecision}
+            onKycDecision={(approve) => setPendingKycDecision(approve)}
             isDecidingKyc={isDecidingKyc}
             onAssignInvestigator={() => {
               setAssigneeName(
@@ -1632,6 +1870,15 @@ const ComplianceCaseDetail: React.FC<{
           onClose={() => setPendingAction(null)}
         />
       )}
+
+      {pendingKycDecision !== null && (
+        <KycDecisionConfirmModal
+          approve={pendingKycDecision}
+          caseData={caseData}
+          onConfirm={() => handleKycDecision(pendingKycDecision)}
+          onClose={() => setPendingKycDecision(null)}
+        />
+      )}
     </div>
   );
 };
@@ -1645,6 +1892,7 @@ const ComplianceAdmin: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
+  const [showKycQueue, setShowKycQueue] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -1665,7 +1913,13 @@ const ComplianceAdmin: React.FC = () => {
                 ? "Medium"
                 : "Low";
         const status = (value: string): CaseStatus =>
-          value === "COMPLETED" || value === "APPROVED"
+          value === "COMPLETED" ||
+          value === "APPROVED" ||
+          value === "VERIFIED" ||
+          value === "REJECTED" ||
+          value === "EXPIRED" ||
+          value === "CANCELLED" ||
+          value === "ERROR"
             ? "Resolved"
             : value === "IN_REVIEW" || value === "PENDING_REVIEW"
               ? "Under Review"
@@ -1690,6 +1944,7 @@ const ComplianceAdmin: React.FC = () => {
           createdAt: item.initiated_at,
           assignedTo: "Unassigned",
           status: status(item.status),
+          kycSessionStatus: item.status,
           summary:
             item.failure_code || `KYC session via ${item.provider_code}.`,
           relatedAccounts: [],
@@ -1788,6 +2043,9 @@ const ComplianceAdmin: React.FC = () => {
   }, []);
 
   const kycCases = cases.filter((c) => c.queueType === "KYC");
+  const kycPendingCases = kycCases.filter(
+    (c) => !c.kycSessionStatus || !KYC_TERMINAL_STATUSES.has(c.kycSessionStatus),
+  );
   const fraudCases = cases.filter((c) => c.queueType === "Fraud");
   const duplicateCases = cases.filter((c) => c.queueType === "Duplicate");
   const restrictionCases = cases.filter((c) =>
@@ -1807,7 +2065,7 @@ const ComplianceAdmin: React.FC = () => {
         title: "KYC Verification Queue",
         icon: "🪪",
         color: "#a855f7",
-        primaryValue: kycCases.length,
+        primaryValue: kycPendingCases.length,
         primaryLabel: "Pending reviews",
         secondaryValue: kycCases.filter(
           (c) => c.riskLevel === "High" || c.riskLevel === "Critical",
@@ -1901,6 +2159,10 @@ const ComplianceAdmin: React.FC = () => {
   const handleQueueCardAction = (
     targetQueue: QueueType | "restriction" | "escalated",
   ) => {
+    if (targetQueue === "KYC") {
+      setShowKycQueue(true);
+      return;
+    }
     let next: ComplianceCase | undefined;
     if (targetQueue === "restriction") {
       next = restrictionCases[0];
@@ -1957,18 +2219,30 @@ const ComplianceAdmin: React.FC = () => {
                 {loadError}
               </div>
             )}
-            <div className="queue-grid">
-              {queueCardConfigs.map((item) => (
-                <ComplianceQueueCard
-                  key={item.config.title}
-                  config={item.config}
-                  disabled={isQueueEmpty(item.targetQueue)}
-                  onAction={() => handleQueueCardAction(item.targetQueue)}
-                />
-              ))}
-            </div>
+            {!showKycQueue && (
+              <>
+                <div className="queue-grid">
+                  {queueCardConfigs.map((item) => (
+                    <ComplianceQueueCard
+                      key={item.config.title}
+                      config={item.config}
+                      disabled={isQueueEmpty(item.targetQueue)}
+                      onAction={() => handleQueueCardAction(item.targetQueue)}
+                    />
+                  ))}
+                </div>
 
-            <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
+                <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
+              </>
+            )}
+
+            {showKycQueue && (
+              <KycQueuePanel
+                cases={cases}
+                onSelect={setSelectedCase}
+                onClose={() => setShowKycQueue(false)}
+              />
+            )}
         </div>
 
       {selectedCase && (

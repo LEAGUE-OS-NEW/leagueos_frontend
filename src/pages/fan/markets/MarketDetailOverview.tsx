@@ -10,8 +10,7 @@ import {
   FiLock,
   FiX,
 } from 'react-icons/fi';
-import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { isVerificationPending } from '../../../utils/rules.ts';
+import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import {
   formatMarketSharePrice,
 } from '../../../utils/marketPricing.ts';
@@ -47,9 +46,8 @@ function MarketDetailOverview() {
   const { marketId } = useParams<{ marketId: string }>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeSidebar = () => setIsSidebarOpen(false);
-  const { currentUser, profile } = useCurrentUser();
-  const isVerified = Boolean(currentUser.isVerified);
-  const isPending = isVerificationPending(isVerified, profile);
+  const { isEligible, isPending } = useMarketEligibility();
+  const isVerified = isEligible;
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
 
   const [market, setMarket] = useState<Market | null>(null);
