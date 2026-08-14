@@ -1052,3 +1052,120 @@
     padding: 14px 16px;
   }
 }
+
+/* ============================================================
+   Canonical KYC Workspace — case drawer, decision panel, detail grid
+   ============================================================ */
+
+/* Inline case drawer — renders below the list table inside the .panel */
+.case-drawer {
+  margin-top: 24px;
+  border-top: 1px solid var(--border-color-strong);
+  padding-top: 20px;
+  animation: slide-in 0.2s ease-out;
+}
+
+.case-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.case-drawer__header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* KYC detail key-value grid */
+.kyc-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.kyc-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.kyc-detail-field--full {
+  grid-column: 1 / -1;
+}
+
+.kyc-detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.kyc-detail-field span:last-child {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Decision panel */
+.case-decision-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-top: 20px;
+}
+
+.case-notes-textarea {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.12s ease;
+  min-height: 80px;
+}
+
+.case-notes-textarea:focus {
+  border-color: var(--purple-secondary);
+}
+
+.case-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.case-actions .btn {
+  min-width: 120px;
+  justify-content: center;
+}
+
+/* Selected row highlight */
+.risk-table tbody tr.row--selected {
+  background: rgba(124, 58, 237, 0.1);
+  outline: 1px solid var(--purple-secondary);
+  outline-offset: -1px;
+}
+
+@media (max-width: 767px) {
+  .kyc-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
