@@ -164,14 +164,14 @@ function MarketDetailOverview() {
                           <span className="yesno-card-label">{outcome.label}</span>
                           <span className="yesno-card-question">{outcome.description || market.question}</span>
                           <span className="yesno-card-price">
-                            {formatMarketSharePrice(outcome.price)}
+                            {formatMarketSharePrice(outcome.price, outcome.markSource)}
                             {isYes ? <FiTrendingUp className="up" /> : <FiTrendingDown className="down" />}
                           </span>
                           <span className="yesno-card-probability">
                             {outcome.probabilityPct === null ? 'Not traded yet' : `${outcome.probabilityPct}% Probability`}
                           </span>
                           <span className={`yesno-card-cta yesno-card-cta--${isYes ? 'yes' : 'no'}`}>
-                            Buy {outcome.label} · {formatMarketSharePrice(outcome.price)}
+                            Buy {outcome.label} · {formatMarketSharePrice(outcome.price, outcome.markSource)}
                           </span>
                         </button>
                       );

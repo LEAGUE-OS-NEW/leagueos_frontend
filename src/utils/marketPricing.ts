@@ -1,7 +1,6 @@
-export const MARKET_FACE_VALUE_UGX = 1_000;
-
 export function probabilityPctToUgxSharePrice(
   probabilityPct: number,
+  faceValueUgx: number,
 ): number {
   const bounded = Math.max(
     0,
@@ -13,12 +12,13 @@ export function probabilityPctToUgxSharePrice(
 
   return Math.round(
     (bounded / 100) *
-      MARKET_FACE_VALUE_UGX,
+      faceValueUgx,
   );
 }
 
 export function normalizedPriceToUgxSharePrice(
   normalizedPrice: number,
+  faceValueUgx: number,
 ): number {
   const bounded = Math.max(
     0,
@@ -30,26 +30,28 @@ export function normalizedPriceToUgxSharePrice(
 
   return Math.round(
     bounded *
-      MARKET_FACE_VALUE_UGX,
+      faceValueUgx,
   );
 }
 
 export function ugxSharePriceToNormalizedPrice(
   ugxPrice: number,
+  faceValueUgx: number,
 ): number {
   return ugxPrice /
-    MARKET_FACE_VALUE_UGX;
+    faceValueUgx;
 }
 
 export function backendQuantityToShares(
   backendQuantity: number,
+  faceValueUgx: number,
 ): number {
   return backendQuantity /
-    MARKET_FACE_VALUE_UGX;
+    faceValueUgx;
 }
 
-export function sharesToBackendQuantity(shares: number): number {
-  return shares * MARKET_FACE_VALUE_UGX;
+export function sharesToBackendQuantity(shares: number, faceValueUgx: number): number {
+  return shares * faceValueUgx;
 }
 
 export function stakeUgxToBackendQuantity(
@@ -86,8 +88,11 @@ export function formatMarketUgx(
 
 export function formatMarketSharePrice(
   amount: number | null,
+  markSource?: 'LAST_TRADE' | 'MIDPOINT' | 'BEST_QUOTE' | 'OPENING_REFERENCE' | 'NO_LIQUIDITY',
 ): string {
-  if (amount === null) return 'Price unavailable';
+  if (amount === null || markSource === 'NO_LIQUIDITY') return 'Awaiting opening liquidity';
+  if (markSource === 'OPENING_REFERENCE') return `${formatMarketUgx(amount)}/share · Opening price`;
+  if (markSource === 'MIDPOINT' || markSource === 'BEST_QUOTE') return 'Awaiting first trade';
   return `${formatMarketUgx(
     amount,
   )}/share`;

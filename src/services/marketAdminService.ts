@@ -8,6 +8,8 @@ import type {
   Market as ApiMarket,
   MarketCategory as ApiMarketCategory,
   SportResource,
+  SportingEvent,
+  NamedResource,
 } from '../types/api.ts';
 import { backendQuantityToShares, normalizedPriceToUgxSharePrice } from '../utils/marketPricing.ts';
 
@@ -22,7 +24,7 @@ export const MARKET_CATEGORIES = [
 ] as const;
 export type MarketCategory = (typeof MARKET_CATEGORIES)[number];
 
-export type MarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Suspended' | 'Resolved' | 'Voided' | 'Cancelled';
+export type MarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Suspended' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
 export type OutcomeId = 'YES' | 'NO';
 export type ProposalStatus = 'New' | 'Under Review' | 'Converted' | 'Rejected' | 'Duplicate';
 
@@ -42,6 +44,12 @@ export interface Outcome {
   probabilityPct: number | null;
   /** UGX — price = implied probability x UGX 10,000 (see the contract explainer). */
   price: number | null;
+  openingProbabilityPct: number | null;
+  openingPrice: number | null;
+  bestBid: number | null;
+  bestAsk: number | null;
+  lastTrade: number | null;
+  markSource?: 'LAST_TRADE' | 'MIDPOINT' | 'BEST_QUOTE' | 'OPENING_REFERENCE' | 'NO_LIQUIDITY';
 }
 
 export interface MarketParameters {
@@ -72,6 +80,7 @@ export interface Market {
   description: string;
   tags: string[];
   outcomes: Outcome[];
+  faceValueUgx: number;
   parameters: MarketParameters;
   status: MarketStatus;
   createdBy: string;
@@ -120,6 +129,10 @@ export interface OrderBook {
 }
 
 export interface MarketDetailsInput {
+  scopeType: 'EVENT' | 'COMPETITION' | 'CUSTOM';
+  sportId?: string;
+  categoryId?: string;
+  competitionId?: string;
   sportingEventId?: string;
   eventLabel: string;
   competition: string;
@@ -129,6 +142,59 @@ export interface MarketDetailsInput {
   question: string;
   description: string;
   tags: string[];
+}
+
+export function marketScopePayload(input: MarketDetailsInput): Pick<
+  MarketAdminPayload,
+  'scope_type' | 'sporting_event_id' | 'competition_id' | 'participant_id' | 'custom_subject'
+> {
+  if (input.scopeType === 'EVENT') {
+    if (!isUuid(input.sportingEventId)) fail('Select a canonical fixture for this event market.');
+    return {
+      scope_type: 'EVENT',
+      sporting_event_id: input.sportingEventId,
+      custom_subject: '',
+    };
+  }
+  if (input.scopeType === 'COMPETITION') {
+    if (!isUuid(input.competitionId)) fail('Select a competition for this competition market.');
+    return {
+      scope_type: 'COMPETITION',
+      competition_id: input.competitionId,
+      custom_subject: '',
+    };
+  }
+  const customSubject = input.eventLabel.trim();
+  if (!customSubject) fail('Enter a subject for this custom proposition.');
+  return {
+    scope_type: 'CUSTOM',
+    custom_subject: customSubject,
+  };
+}
+
+export interface MarketCatalogueOptions {
+  sports: SportResource[];
+  categories: ApiMarketCategory[];
+}
+
+export async function fetchMarketCatalogueOptions(): Promise<MarketCatalogueOptions> {
+  const [sports, categories] = await Promise.all([
+    fetchSports(),
+    apiClient.get('/markets/categories/').then((response) => normalizeApiList<ApiMarketCategory>(response.data)),
+  ]);
+  return { sports, categories };
+}
+
+export async function fetchCanonicalCompetitions(sportId?: string): Promise<Array<NamedResource & { sport: SportResource }>> {
+  const response = await apiClient.get('/competitions/', { params: sportId ? { sport: sportId } : undefined });
+  return normalizeApiList(response.data);
+}
+
+export async function fetchCanonicalSportingEvents(filters: { sportId?: string; competitionId?: string } = {}): Promise<SportingEvent[]> {
+  const response = await apiClient.get('/sporting-events/', {
+    params: { sport: filters.sportId, competition: filters.competitionId },
+  });
+  return normalizeApiList(response.data);
 }
 
 interface MarketAdminPayload {
@@ -164,8 +230,12 @@ function fail(message: string, status?: number): never {
 }
 
 function apiError(error: unknown): Error {
+  if (error instanceof Error && !('isAxiosError' in error)) return error;
   const details = extractApiError(error);
-  return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
+  const fieldMessage = Object.entries(details.fields).find(
+    ([field, messages]) => !['detail', 'message', 'traceback', 'stack'].includes(field) && messages.length > 0,
+  )?.[1][0];
+  return Object.assign(new Error(fieldMessage ?? details.message), { status: details.status, fields: details.fields });
 }
 
 function isUuid(value?: string): value is string {
@@ -179,8 +249,12 @@ function backendStatusToAdminStatus(market: ApiMarket): MarketStatus {
   if (market.status === 'RESOLVED') return 'Resolved';
   if (market.status === 'VOIDED') return 'Voided';
   if (market.status === 'SUSPENDED') return 'Suspended';
-  if (market.status === 'CANCELLED' || market.status === 'CLOSED') return 'Cancelled';
-  return market.sporting_event?.starts_at && new Date(market.sporting_event.starts_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
+  if (market.status === 'CLOSED') return 'Closed';
+  if (market.status === 'CANCELLED') return 'Cancelled';
+  if (market.status === 'OPEN') return 'Live';
+  return market.opens_at && new Date(market.opens_at).getTime() > Date.now()
+    ? 'Upcoming'
+    : 'Live';
 }
 
 function adminName(user: ApiAdminMarket['created_by']): string {
@@ -198,6 +272,11 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
   const kickoff = market.sporting_event?.starts_at ?? market.closes_at ?? market.opens_at ?? market.created_at ?? new Date().toISOString();
   const createdBy = 'created_by' in market ? adminName(market.created_by) : 'Market Admin';
   const transitions = 'status_transitions' in market ? market.status_transitions ?? [] : [];
+  const outcomePrice = (outcomeId?: string) => {
+    if (!outcomeId) return null;
+    const raw = market.trading_snapshot?.outcomes[outcomeId]?.mark_price;
+    return raw == null ? null : normalizedPriceToUgxSharePrice(Number(raw), market.face_value_ugx);
+  };
 
   return {
     id: market.id,
@@ -206,7 +285,7 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
     competition: market.sporting_event?.competition?.name ?? market.competition?.name ?? market.sport?.name ?? 'League OS',
     venue: market.sporting_event?.venue ?? 'Venue TBA',
     kickoff,
-    category: ((market.sport?.name ?? market.category?.name ?? 'Other') as MarketCategory),
+    category: ((market.category?.name ?? 'Other') as MarketCategory),
     question: market.question,
     description: market.description ?? '',
     tags: [market.category?.slug, market.sport?.code].filter(Boolean) as string[],
@@ -216,18 +295,31 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
         backendOutcomeId: yesApi.id,
         label: yesApi.label || 'Yes',
         description: yesApi.description ?? '',
-        probabilityPct: null,
-        price: null,
+        probabilityPct: outcomePrice(yesApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[yesApi.id]?.mark_price) * 100,
+        price: outcomePrice(yesApi.id),
+        openingProbabilityPct: yesApi.opening_probability_pct,
+        openingPrice: yesApi.opening_price_ugx,
+        bestBid: market.trading_snapshot?.outcomes[yesApi.id]?.best_bid == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].best_bid), market.face_value_ugx),
+        bestAsk: market.trading_snapshot?.outcomes[yesApi.id]?.best_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].best_ask), market.face_value_ugx),
+        lastTrade: market.trading_snapshot?.outcomes[yesApi.id]?.last_trade == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].last_trade), market.face_value_ugx),
+        markSource: market.trading_snapshot?.outcomes[yesApi.id]?.mark_source,
       },
       noApi && {
         id: 'NO' as const,
         backendOutcomeId: noApi.id,
         label: noApi.label || 'No',
         description: noApi.description ?? '',
-        probabilityPct: null,
-        price: null,
+        probabilityPct: outcomePrice(noApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[noApi.id]?.mark_price) * 100,
+        price: outcomePrice(noApi.id),
+        openingProbabilityPct: noApi.opening_probability_pct,
+        openingPrice: noApi.opening_price_ugx,
+        bestBid: market.trading_snapshot?.outcomes[noApi.id]?.best_bid == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].best_bid), market.face_value_ugx),
+        bestAsk: market.trading_snapshot?.outcomes[noApi.id]?.best_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].best_ask), market.face_value_ugx),
+        lastTrade: market.trading_snapshot?.outcomes[noApi.id]?.last_trade == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].last_trade), market.face_value_ugx),
+        markSource: market.trading_snapshot?.outcomes[noApi.id]?.mark_source,
       },
     ].filter(Boolean) as Outcome[],
+    faceValueUgx: market.face_value_ugx,
     parameters: {
       opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
       closesAt: market.closes_at ?? kickoff,
@@ -262,6 +354,7 @@ async function fetchSports(): Promise<SportResource[]> {
 }
 
 async function resolveMarketCatalogue(input: MarketDetailsInput): Promise<Pick<MarketAdminPayload, 'sport_id' | 'category_id'>> {
+  if (input.sportId && input.categoryId) return { sport_id: input.sportId, category_id: input.categoryId };
   const [sports, categories] = await Promise.all([
     fetchSports(),
     apiClient.get('/markets/categories/').then((response) => normalizeApiList<ApiMarketCategory>(response.data)),
@@ -361,14 +454,11 @@ export async function createMarketDraft(input: MarketDetailsInput): Promise<Mark
 
   try {
     const catalogue = await resolveMarketCatalogue(input);
-    const eventId = isUuid(input.sportingEventId) ? input.sportingEventId : undefined;
     const eventLabel = input.eventLabel.trim();
     const description = input.description.trim();
     const payload: MarketAdminPayload = {
       ...catalogue,
-      scope_type: eventId ? 'EVENT' : 'CUSTOM',
-      sporting_event_id: eventId ?? null,
-      custom_subject: eventId ? '' : eventLabel,
+      ...marketScopePayload(input),
       question,
       description,
       rules: description || `Resolve this market from the official result for ${eventLabel}.`,
@@ -387,6 +477,20 @@ export async function createMarketDraft(input: MarketDetailsInput): Promise<Mark
   }
 }
 
+export async function updateMarketResolution(id: string, input: { resolutionSource: string; resolutionCriteria: string; rules: string }): Promise<Market> {
+  if (!input.resolutionSource.trim() || !input.resolutionCriteria.trim() || !input.rules.trim()) {
+    fail('Resolution source, criteria, and rules / void conditions are required.');
+  }
+  try {
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
+      resolution_source: input.resolutionSource.trim(),
+      resolution_criteria: input.resolutionCriteria.trim(),
+      rules: input.rules.trim(),
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) { throw apiError(error); }
+}
+
 export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Promise<Market> {
   const yes = outcomes.find((outcome) => outcome.id === 'YES');
   const no = outcomes.find((outcome) => outcome.id === 'NO');
@@ -400,6 +504,16 @@ export async function updateOutcomes(id: string, outcomes: OutcomeInput[]): Prom
   } catch (error) {
     throw apiError(error);
   }
+}
+
+export async function configureOpeningPricing(id: string, faceValueUgx: number, yesProbability: number): Promise<Market> {
+  try {
+    const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/opening-pricing/`, {
+      face_value_ugx: faceValueUgx,
+      yes_probability: yesProbability,
+    });
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) { throw apiError(error); }
 }
 
 export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
@@ -589,11 +703,11 @@ export async function fetchOrderBook(marketId: string): Promise<OrderBook> {
     const response = await apiClient.get(`/markets/${encodeURIComponent(marketId)}/outcomes/${encodeURIComponent(outcome.backendOutcomeId)}/order-book/`);
     const data = response.data as { bids:Array<{price:string;quantity:string;order_count:number}>; asks:Array<{price:string;quantity:string;order_count:number}>; recent_trades:Array<{id:string;price:string;quantity:string;executed_at:string}>; spread:string|null };
     return { marketId, outcomeId: outcome.id,
-      bids: data.bids.map((level) => ({ price: normalizedPriceToUgxSharePrice(Number(level.price)), quantity: Number(level.quantity), shares: backendQuantityToShares(Number(level.quantity)), orderCount: level.order_count })),
-      asks: data.asks.map((level) => ({ price: normalizedPriceToUgxSharePrice(Number(level.price)), quantity: Number(level.quantity), shares: backendQuantityToShares(Number(level.quantity)), orderCount: level.order_count })),
-      recentTrades: data.recent_trades.map((trade) => ({ id: String(trade.id), price: normalizedPriceToUgxSharePrice(Number(trade.price)), quantity: Number(trade.quantity), shares: backendQuantityToShares(Number(trade.quantity)), executedAt: String(trade.executed_at) })),
-      lastPrice: data.recent_trades[0] ? normalizedPriceToUgxSharePrice(Number(data.recent_trades[0].price)) : null,
-      spread: data.spread === null ? null : normalizedPriceToUgxSharePrice(Number(data.spread)),
+      bids: data.bids.map((level) => ({ price: normalizedPriceToUgxSharePrice(Number(level.price), market.faceValueUgx), quantity: Number(level.quantity), shares: backendQuantityToShares(Number(level.quantity), market.faceValueUgx), orderCount: level.order_count })),
+      asks: data.asks.map((level) => ({ price: normalizedPriceToUgxSharePrice(Number(level.price), market.faceValueUgx), quantity: Number(level.quantity), shares: backendQuantityToShares(Number(level.quantity), market.faceValueUgx), orderCount: level.order_count })),
+      recentTrades: data.recent_trades.map((trade) => ({ id: String(trade.id), price: normalizedPriceToUgxSharePrice(Number(trade.price), market.faceValueUgx), quantity: Number(trade.quantity), shares: backendQuantityToShares(Number(trade.quantity), market.faceValueUgx), executedAt: String(trade.executed_at) })),
+      lastPrice: data.recent_trades[0] ? normalizedPriceToUgxSharePrice(Number(data.recent_trades[0].price), market.faceValueUgx) : null,
+      spread: data.spread === null ? null : normalizedPriceToUgxSharePrice(Number(data.spread), market.faceValueUgx),
     };
   } catch (error) { throw apiError(error); }
 }

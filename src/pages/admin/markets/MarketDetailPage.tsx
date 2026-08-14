@@ -251,7 +251,7 @@ function MarketDetailPage() {
   }
 
   const canPublish = market.status === 'Draft';
-  const canCancel = market.status !== 'Resolved' && market.status !== 'Cancelled' && market.status !== 'Voided';
+  const canCancel = !['Closed', 'Resolved', 'Cancelled', 'Voided'].includes(market.status);
   const canSuspend = market.status === 'Live' || market.status === 'Upcoming';
   const canReopen = market.status === 'Suspended';
   const yesOutcome = market.outcomes.find((outcome) => outcome.id === 'YES')!;
@@ -351,6 +351,10 @@ function MarketDetailPage() {
                 <span className="mdp-kv-item__key">Fee</span>
                 <span className="mdp-kv-item__value">{market.parameters.feePct}%</span>
               </div>
+              <div className="mdp-kv-item">
+                <span className="mdp-kv-item__key">Full winning share value</span>
+                <span className="mdp-kv-item__value">{formatUgx(market.faceValueUgx)}</span>
+              </div>
             </div>
             {market.description && <p className="mdp-description">{market.description}</p>}
             {market.tags.length > 0 && (
@@ -380,7 +384,7 @@ function MarketDetailPage() {
                       <span>Description</span>
                       <textarea rows={2} value={yesDescription} onChange={(event) => setYesDescription(event.target.value)} />
                     </label>
-                    <p>Opening probability is unavailable; prices come from genuine trading.</p>
+                    <p>Opening probability: {yesOutcome.openingProbabilityPct ?? 'Not configured'}%</p>
                   </>
                 ) : (
                   <>
@@ -388,7 +392,9 @@ function MarketDetailPage() {
                     {yesOutcome.description && <p className="mdp-outcome-card__desc">{yesOutcome.description}</p>}
                   </>
                 )}
-                <p className="mdp-outcome-card__price">{yesOutcome.price === null ? 'Price unavailable' : formatUgx(yesOutcome.price)}</p>
+                <p>Opening price: {yesOutcome.openingPrice === null ? 'Not configured' : formatUgx(yesOutcome.openingPrice)}</p>
+                <p className="mdp-outcome-card__price">Current market price: {yesOutcome.price === null ? 'Price unavailable' : formatUgx(yesOutcome.price)}</p>
+                <p>Best bid: {yesOutcome.bestBid === null ? 'None' : formatUgx(yesOutcome.bestBid)} · Best ask: {yesOutcome.bestAsk === null ? 'None' : formatUgx(yesOutcome.bestAsk)} · Last trade: {yesOutcome.lastTrade === null ? 'None' : formatUgx(yesOutcome.lastTrade)}</p>
               </div>
 
               <div className="mdp-outcome-card mdp-outcome-card--no">
@@ -403,7 +409,7 @@ function MarketDetailPage() {
                       <span>Description</span>
                       <textarea rows={2} value={noDescription} onChange={(event) => setNoDescription(event.target.value)} />
                     </label>
-                    <p>Opening probability is unavailable; prices come from genuine trading.</p>
+                    <p>Opening probability: {noOutcome.openingProbabilityPct ?? 'Not configured'}%</p>
                   </>
                 ) : (
                   <>
@@ -411,7 +417,9 @@ function MarketDetailPage() {
                     {noOutcome.description && <p className="mdp-outcome-card__desc">{noOutcome.description}</p>}
                   </>
                 )}
-                <p className="mdp-outcome-card__price">{noOutcome.price === null ? 'Price unavailable' : formatUgx(noOutcome.price)}</p>
+                <p>Opening price: {noOutcome.openingPrice === null ? 'Not configured' : formatUgx(noOutcome.openingPrice)}</p>
+                <p className="mdp-outcome-card__price">Current market price: {noOutcome.price === null ? 'Price unavailable' : formatUgx(noOutcome.price)}</p>
+                <p>Best bid: {noOutcome.bestBid === null ? 'None' : formatUgx(noOutcome.bestBid)} · Best ask: {noOutcome.bestAsk === null ? 'None' : formatUgx(noOutcome.bestAsk)} · Last trade: {noOutcome.lastTrade === null ? 'None' : formatUgx(noOutcome.lastTrade)}</p>
               </div>
             </div>
             {canPublish && (

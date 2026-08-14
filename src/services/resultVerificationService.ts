@@ -16,7 +16,6 @@
 
 import apiClient from './apiClient.ts';
 import { normalizeApiList } from './apiUtils.ts';
-import { useAuthStore } from '../store/authStore.ts';
 import {
   fetchMarket,
   fetchMarkets,
@@ -24,7 +23,7 @@ import {
   type OutcomeId,
 } from './marketAdminService';
 
-export type VerificationStage = 'Awaiting Result' | 'Verified' | 'Finalised';
+export type VerificationStage = 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Ready to Settle' | 'Settled' | 'Voided / Refunded';
 export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved' | 'Unavailable';
 
 export interface AuditEvent {
@@ -48,6 +47,9 @@ export interface ResultVerification {
   evidenceNote?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  disputeDeadline?: string;
+  openDisputeCount?: number;
+  developmentWindowEndedAt?: string;
   finalizedAt?: string;
   auditHistory: AuditEvent[];
 }
@@ -64,55 +66,8 @@ export interface Dispute {
   auditHistory: AuditEvent[];
 }
 
-function delay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
 function fail(message: string): never {
   throw new Error(message);
-}
-
-let idCounter = 0;
-function genId(prefix: string): string {
-  idCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}${idCounter.toString(36)}`;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-function authenticatedAdminIdentity(): string {
-  const user = useAuthStore.getState().user;
-  if (!user) return 'Authenticated administrator';
-  const value = user as Record<string, unknown>;
-  return String(value.full_name || value.name || value.email || value.id || 'Authenticated administrator');
-}
-
-interface VerificationRecord {
-  stage: VerificationStage;
-  proposedWinningOutcomeId?: OutcomeId;
-  evidenceNote?: string;
-  verifiedBy?: string;
-  verifiedAt?: string;
-  finalizedAt?: string;
-  auditHistory: AuditEvent[];
-}
-
-const verificationRecords = new Map<string, VerificationRecord>();
-
-function recordFor(marketId: string): VerificationRecord {
-  if (!verificationRecords.has(marketId)) {
-    verificationRecords.set(marketId, { stage: 'Awaiting Result', auditHistory: [] });
-  }
-  return verificationRecords.get(marketId)!;
-}
-
-function pushRecordAudit(record: VerificationRecord, action: string, note?: string): void {
-  record.auditHistory = [
-    { id: genId('audit'), timestamp: nowIso(), adminUser: authenticatedAdminIdentity(), action, note },
-    ...record.auditHistory,
-  ];
 }
 
 /* ============================================================
@@ -120,36 +75,38 @@ function pushRecordAudit(record: VerificationRecord, action: string, note?: stri
    ============================================================ */
 
 export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
-  const markets = await fetchMarkets();
-  const now = Date.now();
-  return delay(
-    markets
-      .filter(
-        (market) =>
-          (market.status === 'Live' || market.status === 'Upcoming') &&
-          new Date(market.kickoff).getTime() <= now,
-      )
-      .map((market) => {
-        const record = recordFor(market.id);
+  const response = await apiClient.get('/market-admin/result-verification/');
+  const records = normalizeApiList<Record<string, unknown>>(response.data);
+  const stageMap: Record<string, VerificationStage> = {
+    AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
+    DISPUTED: 'Disputed', READY_TO_RESOLVE: 'Ready to Resolve', READY_TO_SETTLE: 'Ready to Settle',
+    SETTLED: 'Settled', VOIDED: 'Voided / Refunded', VOIDED_REFUNDED: 'Voided / Refunded',
+  };
+  return records.map((record) => {
+        const adapted = (record as { id: string }).id;
+        const provisional = record.provisional_result as Record<string, unknown> | null;
+        const outcomes = (record.outcomes as Array<{ id: string; side: OutcomeId; label: string }>) ?? [];
+        const proposedBackendId = provisional?.winning_outcome_id ? String(provisional.winning_outcome_id) : undefined;
+        const proposed = outcomes.find((outcome) => outcome.id === proposedBackendId)?.side;
         return {
-          marketId: market.id,
-          eventLabel: market.eventLabel,
-          question: market.question,
-          competition: market.competition,
-          kickoff: market.kickoff,
-          officialSource: market.description || 'No resolution source recorded on the market.',
-          outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
-          stage: record.stage,
-          proposedWinningOutcomeId: record.proposedWinningOutcomeId,
-          evidenceNote: record.evidenceNote,
-          verifiedBy: record.verifiedBy,
-          verifiedAt: record.verifiedAt,
-          finalizedAt: record.finalizedAt,
-          auditHistory: [...record.auditHistory],
+          marketId: adapted,
+          eventLabel: String((record.sporting_event as { name?: string } | null)?.name ?? record.custom_subject ?? record.question),
+          question: String(record.question),
+          competition: String((record.competition as { name?: string } | null)?.name ?? ''),
+          kickoff: String(record.closes_at ?? record.created_at),
+          officialSource: String(record.resolution_source ?? record.resolution_criteria ?? 'No resolution source recorded on the market.'),
+          outcomes: outcomes.map((outcome) => ({ id: outcome.side, label: outcome.label })),
+          stage: stageMap[String(record.workflow_state)] ?? 'Awaiting Result',
+          proposedWinningOutcomeId: proposed,
+          evidenceNote: provisional?.notes ? String(provisional.notes) : undefined,
+          verifiedAt: provisional?.published_at ? String(provisional.published_at) : undefined,
+          disputeDeadline: provisional?.dispute_deadline ? String(provisional.dispute_deadline) : undefined,
+          developmentWindowEndedAt: provisional?.development_window_ended_at ? String(provisional.development_window_ended_at) : undefined,
+          openDisputeCount: Number(record.open_dispute_count ?? 0),
+          finalizedAt: record.resolved_at ? String(record.resolved_at) : undefined,
+          auditHistory: [],
         };
-      })
-      .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime()),
-  );
+      }).sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
 }
 
 export async function verifyResult(
@@ -157,17 +114,16 @@ export async function verifyResult(
   input: { winningOutcomeId: OutcomeId; evidenceNote: string },
 ): Promise<ResultVerification> {
   if (!input.evidenceNote.trim()) fail('Cite the official source or evidence used to verify this result.');
-  const [market] = await Promise.all([fetchMarket(marketId), fetchAwaitingResult()]);
-
-  const record = recordFor(marketId);
-  record.stage = 'Verified';
-  record.proposedWinningOutcomeId = input.winningOutcomeId;
-  record.evidenceNote = input.evidenceNote.trim();
-  record.verifiedBy = authenticatedAdminIdentity();
-  record.verifiedAt = nowIso();
-  pushRecordAudit(record, 'Result verified', input.evidenceNote.trim());
-
-  return delay({
+  const market = await fetchMarket(marketId);
+  const outcome = market.outcomes.find((item) => item.id === input.winningOutcomeId);
+  if (!outcome?.backendOutcomeId) fail('Winning outcome not found.');
+  await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/provisional-result/`, {
+    winning_outcome_id: outcome.backendOutcomeId,
+    notes: 'Provisional result published for dispute review.',
+    dispute_window_hours: 24,
+    evidence_items: [{ evidence_type: 'OFFICIAL_SOURCE', label: 'Official result source', reference: input.evidenceNote.trim() }],
+  });
+  return {
     marketId: market.id,
     eventLabel: market.eventLabel,
     question: market.question,
@@ -175,28 +131,26 @@ export async function verifyResult(
     kickoff: market.kickoff,
     officialSource: market.description || 'No resolution source recorded on the market.',
     outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
-    stage: record.stage,
-    proposedWinningOutcomeId: record.proposedWinningOutcomeId,
-    evidenceNote: record.evidenceNote,
-    verifiedBy: record.verifiedBy,
-    verifiedAt: record.verifiedAt,
-    finalizedAt: record.finalizedAt,
-    auditHistory: [...record.auditHistory],
-  });
+    stage: 'Dispute Window', proposedWinningOutcomeId: input.winningOutcomeId,
+    evidenceNote: input.evidenceNote.trim(), verifiedAt: new Date().toISOString(),
+    openDisputeCount: 0,
+    auditHistory: market.auditHistory,
+  };
 }
 
 export async function finalizeResult(marketId: string): Promise<ResultVerification> {
-  const record = recordFor(marketId);
-  if (record.stage !== 'Verified' || !record.proposedWinningOutcomeId) {
-    fail('Verify the result with evidence before finalising payouts.');
+  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
+  if (!verification) fail('This market is not in the result workflow queue.');
+  if (verification.stage === 'Ready to Resolve' && verification.proposedWinningOutcomeId) {
+    await resolveMarket(marketId, verification.proposedWinningOutcomeId);
+    return { ...verification, stage: 'Ready to Settle', finalizedAt: new Date().toISOString() };
   }
-
-  const market = await resolveMarket(marketId, record.proposedWinningOutcomeId);
-  record.stage = 'Finalised';
-  record.finalizedAt = nowIso();
-  pushRecordAudit(record, 'Finalised — payouts sent');
-
-  return delay({
+  if (verification.stage !== 'Ready to Settle') {
+    fail('Settlement is blocked until the dispute window closes and every dispute has a final decision.');
+  }
+  const market = await fetchMarket(marketId);
+  await apiClient.post(`/markets/${encodeURIComponent(marketId)}/settle/`);
+  return {
     marketId: market.id,
     eventLabel: market.eventLabel,
     question: market.question,
@@ -204,14 +158,15 @@ export async function finalizeResult(marketId: string): Promise<ResultVerificati
     kickoff: market.kickoff,
     officialSource: market.description || 'No resolution source recorded on the market.',
     outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
-    stage: record.stage,
-    proposedWinningOutcomeId: record.proposedWinningOutcomeId,
-    evidenceNote: record.evidenceNote,
-    verifiedBy: record.verifiedBy,
-    verifiedAt: record.verifiedAt,
-    finalizedAt: record.finalizedAt,
-    auditHistory: [...record.auditHistory],
-  });
+    stage: 'Settled', proposedWinningOutcomeId: verification.proposedWinningOutcomeId,
+    evidenceNote: verification.evidenceNote, verifiedAt: verification.verifiedAt,
+    openDisputeCount: verification.openDisputeCount,
+    finalizedAt: new Date().toISOString(), auditHistory: market.auditHistory,
+  };
+}
+
+export async function endDisputeWindowForDevelopment(marketId: string): Promise<void> {
+  await apiClient.post(`/market-admin/result-verification/${encodeURIComponent(marketId)}/dev-end-dispute-window/`);
 }
 
 /* ============================================================
