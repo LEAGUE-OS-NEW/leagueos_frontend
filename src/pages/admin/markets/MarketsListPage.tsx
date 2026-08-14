@@ -24,11 +24,12 @@ import {
 import { formatUgx } from '../../../utils/rules';
 import './MarketsListPage.css';
 
-type TabKey = 'Live' | 'Upcoming' | 'Draft' | 'Resolved' | 'Cancelled' | 'Proposals';
+type TabKey = 'Live' | 'Upcoming' | 'Draft' | 'Closed' | 'Resolved' | 'Cancelled' | 'Proposals';
 const MARKET_TABS: { key: TabKey; statuses: MarketStatus[] }[] = [
   { key: 'Live', statuses: ['Live'] },
   { key: 'Upcoming', statuses: ['Upcoming'] },
   { key: 'Draft', statuses: ['Draft'] },
+  { key: 'Closed', statuses: ['Closed'] },
   { key: 'Resolved', statuses: ['Resolved'] },
   { key: 'Cancelled', statuses: ['Cancelled', 'Voided', 'Suspended'] },
 ];

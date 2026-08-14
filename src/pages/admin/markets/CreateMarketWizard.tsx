@@ -1,23 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiAlertTriangle, FiCheckCircle, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
-import { getPublicFixtures, type PublicFixtureApi } from '../../../services/publicDashboardService';
 import {
   convertProposalToDraft,
+  configureOpeningPricing,
   createMarketDraft,
-  MARKET_CATEGORIES,
+  fetchCanonicalCompetitions,
+  fetchCanonicalSportingEvents,
+  fetchMarketCatalogueOptions,
 
   publishMarket,
   setParameters as saveParameters,
   updateOutcomes,
+  updateMarketResolution,
   type Market,
   type MarketCategory,
   type MarketParameters,
 } from '../../../services/marketAdminService';
+import type { MarketCategory as ApiMarketCategory, NamedResource, SportResource, SportingEvent } from '../../../types/api';
 import './CreateMarketWizard.css';
+import { formatMarketUgx, probabilityPctToUgxSharePrice } from '../../../utils/marketPricing';
 
-const STEP_LABELS = ['Market Details', 'Outcomes', 'Parameters', 'Review'];
+const STEP_LABELS = ['Event & Market', 'Outcomes & Resolution', 'Trading Setup', 'Review & Publish'];
 
 function toLocalInputValue(iso: string): string {
   const date = new Date(iso);
@@ -39,6 +44,10 @@ function formatDateTime(iso: string): string {
 }
 
 interface DetailsForm {
+  scopeType: 'EVENT' | 'COMPETITION' | 'CUSTOM';
+  sportId: string;
+  categoryId: string;
+  competitionId: string;
   sportingEventId?: string;
   eventLabel: string;
   competition: string;
@@ -74,13 +83,17 @@ function CreateMarketWizard() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [publishOutcome, setPublishOutcome] = useState<'published' | null>(null);
+  const detailsSaveInFlight = useRef(false);
 
-  const [fixtures, setFixtures] = useState<PublicFixtureApi[]>([]);
+  const [sports, setSports] = useState<SportResource[]>([]);
+  const [categories, setCategories] = useState<ApiMarketCategory[]>([]);
+  const [competitions, setCompetitions] = useState<Array<NamedResource & { sport: SportResource }>>([]);
+  const [fixtures, setFixtures] = useState<SportingEvent[]>([]);
   useEffect(() => {
     let cancelled = false;
-    getPublicFixtures()
-      .then((result) => {
-        if (!cancelled) setFixtures(result.slice(0, 12));
+    Promise.all([fetchMarketCatalogueOptions(), fetchCanonicalCompetitions(), fetchCanonicalSportingEvents()])
+      .then(([catalogue, competitionRows, eventRows]) => {
+        if (!cancelled) { setSports(catalogue.sports); setCategories(catalogue.categories); setCompetitions(competitionRows); setFixtures(eventRows); }
       })
       .catch(() => {
         // Fixtures are a convenience picker only — manual entry still works.
@@ -91,6 +104,10 @@ function CreateMarketWizard() {
   }, []);
 
   const [details, setDetails] = useState<DetailsForm>({
+    scopeType: 'EVENT',
+    sportId: '',
+    categoryId: '',
+    competitionId: '',
     eventLabel: seed.seedEventLabel ?? '',
     competition: '',
     venue: '',
@@ -108,30 +125,45 @@ function CreateMarketWizard() {
     noLabel: 'No',
     noDescription: '',
   });
+  const [resolution, setResolution] = useState({ resolutionSource: '', resolutionCriteria: '', rules: '' });
+  const [faceValueUgx, setFaceValueUgx] = useState(10_000);
 
   const [parameters, setParameters] = useState<MarketParameters | null>(null);
 
   const detailsValid =
+    details.sportId.length > 0 &&
+    details.categoryId.length > 0 &&
+    (details.scopeType !== 'EVENT' || Boolean(details.sportingEventId)) &&
+    (details.scopeType !== 'COMPETITION' || Boolean(details.competitionId)) &&
     details.eventLabel.trim().length > 0 &&
     details.question.trim().length > 6 &&
     details.question.trim().endsWith('?');
 
-  const handleSelectFixture = (fixture: PublicFixtureApi) => {
+  const handleSelectFixture = (fixture: SportingEvent) => {
     setDetails((current) => ({
       ...current,
+      scopeType: 'EVENT',
       sportingEventId: String(fixture.id),
-      eventLabel: `${fixture.home_club_name} vs ${fixture.away_club_name}`,
-      competition: fixture.competition_name,
-      venue: fixture.venue,
-      kickoff: fixture.match_date,
+      sportId: fixture.sport.id,
+      competitionId: fixture.competition?.id ?? '',
+      eventLabel: fixture.name,
+      competition: fixture.competition?.name ?? '',
+      venue: fixture.venue ?? '',
+      kickoff: fixture.starts_at,
     }));
   };
 
   const handleNextFromDetails = async () => {
+    if (detailsSaveInFlight.current) return;
+    detailsSaveInFlight.current = true;
     setIsSaving(true);
     setSaveError(null);
     try {
       const created = await createMarketDraft({
+        scopeType: details.scopeType,
+        sportId: details.sportId,
+        categoryId: details.categoryId,
+        competitionId: details.competitionId,
         sportingEventId: details.sportingEventId,
         eventLabel: details.eventLabel,
         competition: details.competition,
@@ -151,6 +183,7 @@ function CreateMarketWizard() {
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save this market.');
     } finally {
+      detailsSaveInFlight.current = false;
       setIsSaving(false);
     }
   };
@@ -174,7 +207,9 @@ function CreateMarketWizard() {
           probabilityPct: 100 - outcomes.yesProbability,
         },
       ]);
-      setMarket(updated);
+      const withResolution = await updateMarketResolution(updated.id, resolution);
+      const withPricing = await configureOpeningPricing(withResolution.id, faceValueUgx, outcomes.yesProbability);
+      setMarket(withPricing);
       setStep(2);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save these outcomes.');
@@ -267,9 +302,37 @@ function CreateMarketWizard() {
             {step === 0 && (
               <div className="wiz-panel">
                 <h3>Market Details</h3>
-                <p className="wiz-hint">Pick a fixture (optional) then define the YES/NO question fans will settle.</p>
+                <p className="wiz-hint">Choose what the proposition is about. Scope is contractual and is not inferred from its wording.</p>
 
-                {fixtures.length > 0 && (
+                <fieldset className="wiz-scope-picker">
+                  <legend>Market scope</legend>
+                  {([
+                    ['EVENT', 'Event', 'Will City Oilers beat Namuwongo Blazers?'],
+                    ['COMPETITION', 'Competition', 'Will City Oilers win the National Basketball League?'],
+                    ['CUSTOM', 'Custom proposition', 'A legitimate standalone YES/NO proposition'],
+                  ] as const).map(([value, label, example]) => (
+                    <label key={value} className={`wiz-scope-option${details.scopeType === value ? ' is-selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="market-scope"
+                        value={value}
+                        checked={details.scopeType === value}
+                        onChange={() => setDetails((current) => ({
+                          ...current,
+                          scopeType: value,
+                          sportingEventId: value === 'EVENT' ? current.sportingEventId : undefined,
+                          eventLabel: value === 'CUSTOM' ? '' : current.eventLabel,
+                          venue: value === 'EVENT' ? current.venue : '',
+                          kickoff: value === 'EVENT' ? current.kickoff : '',
+                        }))}
+                      />
+                      <b>{label}</b>
+                      <small>{example}</small>
+                    </label>
+                  ))}
+                </fieldset>
+
+                {details.scopeType === 'EVENT' && !details.sportingEventId && fixtures.length > 0 && (
                   <div className="wiz-fixture-list">
                     {fixtures.map((fixture) => (
                       <button
@@ -279,70 +342,73 @@ function CreateMarketWizard() {
                         onClick={() => handleSelectFixture(fixture)}
                       >
                         <span className="wiz-fixture-card__teams">
-                          {fixture.home_club_name} vs {fixture.away_club_name}
+                          {fixture.name}
                         </span>
                         <span className="wiz-fixture-card__meta">
-                          {fixture.competition_name} &middot; {formatDateTime(fixture.match_date)}
+                          {fixture.competition?.name ?? fixture.sport.name} &middot; {formatDateTime(fixture.starts_at)}
                         </span>
                       </button>
                     ))}
                   </div>
                 )}
 
+                {details.scopeType === 'EVENT' && details.sportingEventId && (
+                  <section className="wiz-canonical-card" aria-label="Selected fixture details">
+                    <div className="wiz-canonical-card__head">
+                      <div><small>Selected canonical fixture</small><h4>{details.eventLabel}</h4></div>
+                      <button type="button" className="wiz-btn wiz-btn--outline" onClick={() => setDetails((current) => ({
+                        ...current, sportingEventId: undefined, sportId: '', competitionId: '', competition: '',
+                        eventLabel: '', venue: '', kickoff: '',
+                      }))}>Change fixture</button>
+                    </div>
+                    <dl className="wiz-canonical-grid">
+                      <div><dt>Sport</dt><dd>{sports.find((sport) => sport.id === details.sportId)?.name ?? 'From selected fixture'}</dd></div>
+                      <div><dt>Competition</dt><dd>{details.competition || 'No competition recorded'}</dd></div>
+                      <div><dt>Venue</dt><dd>{details.venue || 'No venue recorded'}</dd></div>
+                      <div><dt>Kickoff</dt><dd>{details.kickoff ? formatDateTime(details.kickoff) : 'No kickoff recorded'}</dd></div>
+                    </dl>
+                    <p className="wiz-hint">Sport, competition, venue and kickoff come from Sports Data and cannot be edited here.</p>
+                  </section>
+                )}
+
                 <div className="wiz-field-grid">
-                  <label className="wiz-field">
-                    <span>Event label</span>
-                    <input
-                      type="text"
-                      value={details.eventLabel}
-                      onChange={(event) => setDetails((current) => ({ ...current, eventLabel: event.target.value }))}
-                      placeholder="Home team vs Away team"
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Category</span>
+                  {details.scopeType !== 'EVENT' && <label className="wiz-field">
+                    <span>{details.scopeType === 'CUSTOM' ? 'Custom subject' : 'Competition proposition subject'}</span>
+                    <input value={details.eventLabel} onChange={(event) => setDetails((current) => ({ ...current, eventLabel: event.target.value }))} placeholder={details.scopeType === 'CUSTOM' ? 'Season awards proposition' : 'City Oilers'} />
+                  </label>}
+                  {details.scopeType !== 'EVENT' && <label className="wiz-field">
+                    <span>Sport</span>
+                    <small>The sport this market belongs to.</small>
                     <select
-                      value={details.category}
+                      value={details.sportId}
                       onChange={(event) =>
-                        setDetails((current) => ({ ...current, category: event.target.value as MarketCategory }))
+                        setDetails((current) => ({ ...current, sportId: event.target.value, competitionId: '', competition: '' }))
                       }
                     >
-                      {MARKET_CATEGORIES.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
+                      <option value="">Select sport</option>
+                      {sports.map((sport) => (
+                        <option key={sport.id} value={sport.id}>
+                          {sport.name}
                         </option>
                       ))}
                     </select>
-                  </label>
-                 
+                  </label>}
                   <label className="wiz-field">
+                    <span>Market Type</span>
+                    <small>The proposition category, independent of sport.</small>
+                    <select value={details.categoryId} onChange={(event) => setDetails((current) => ({ ...current, categoryId: event.target.value }))}>
+                      <option value="">Select market type</option>
+                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                  </label>
+                  {details.scopeType === 'COMPETITION' && <label className="wiz-field">
                     <span>Competition</span>
-                    <input
-                      type="text"
-                      value={details.competition}
-                      onChange={(event) => setDetails((current) => ({ ...current, competition: event.target.value }))}
-                      placeholder="Uganda Premier League"
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Venue</span>
-                    <input
-                      type="text"
-                      value={details.venue}
-                      onChange={(event) => setDetails((current) => ({ ...current, venue: event.target.value }))}
-                      placeholder="Mandela National Stadium"
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Kickoff</span>
-                    <input
-                      type="datetime-local"
-                      value={details.kickoff ? toLocalInputValue(details.kickoff) : ''}
-                      onChange={(event) =>
-                        setDetails((current) => ({ ...current, kickoff: fromLocalInputValue(event.target.value) }))
-                      }
-                    />
-                  </label>
+                    <small>Select the canonical competition; this wizard does not edit Sports Data.</small>
+                    <select value={details.competitionId} onChange={(event) => { const selected = competitions.find((item) => item.id === event.target.value); setDetails((current) => ({ ...current, competitionId: event.target.value, competition: selected?.name ?? '' })); }}>
+                      <option value="">Select competition</option>
+                      {competitions.filter((item) => !details.sportId || item.sport.id === details.sportId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  </label>}
                   <label className="wiz-field">
                     <span>Tags (comma separated)</span>
                     <input
@@ -384,9 +450,14 @@ function CreateMarketWizard() {
               <div className="wiz-panel">
                 <h3>Outcomes</h3>
                 <p className="wiz-hint">
-                  Every League OS market resolves to exactly one of two fixed outcomes. Opening probability and
-                  liquidity are not configured here; genuine prices appear only from the trading order book.
+                  Every League OS market resolves to exactly one of two fixed outcomes.
                 </p>
+                <h3>Opening Price</h3>
+                <div className="wiz-field-grid">
+                  <label className="wiz-field"><span>Full winning share value (UGX)</span><input aria-label="Full winning share value (UGX)" type="number" min={1} step={1} value={faceValueUgx} onChange={(event) => setFaceValueUgx(Number(event.target.value))} /></label>
+                  <label className="wiz-field"><span>Opening YES probability (%)</span><input aria-label="Opening YES probability (%)" type="number" min={0.01} max={99.99} step={0.01} value={outcomes.yesProbability} onChange={(event) => setOutcomes((current) => ({ ...current, yesProbability: Number(event.target.value) }))} /><small>NO probability: {100 - outcomes.yesProbability}%</small></label>
+                </div>
+                <p className="wiz-hint">Opening prices are reference prices. Actual executable prices update from the live order book as participants place orders.</p>
                 <div className="wiz-outcomes-grid">
                   <div className="wiz-outcome-card wiz-outcome-card--yes">
                     <span className="wiz-outcome-card__badge">YES</span>
@@ -398,15 +469,10 @@ function CreateMarketWizard() {
                         onChange={(event) => setOutcomes((current) => ({ ...current, yesLabel: event.target.value }))}
                       />
                     </label>
-                    <label className="wiz-field">
-                      <span>Description</span>
-                      <textarea
-                        rows={2}
-                        value={outcomes.yesDescription}
-                        onChange={(event) => setOutcomes((current) => ({ ...current, yesDescription: event.target.value }))}
-                      />
-                    </label>
-                    <p className="wiz-outcome-card__price">Opening price unavailable</p>
+                    <p className="wiz-hint">Short display label for the YES side.</p>
+                    <p>{outcomes.yesProbability}%</p>
+                    <p className="wiz-outcome-card__price">{formatMarketUgx(probabilityPctToUgxSharePrice(outcomes.yesProbability, faceValueUgx))}/share</p>
+                    <p>Pays {formatMarketUgx(faceValueUgx)} if YES wins</p>
                   </div>
 
                   <div className="wiz-outcome-card wiz-outcome-card--no">
@@ -419,27 +485,28 @@ function CreateMarketWizard() {
                         onChange={(event) => setOutcomes((current) => ({ ...current, noLabel: event.target.value }))}
                       />
                     </label>
-                    <label className="wiz-field">
-                      <span>Description</span>
-                      <textarea
-                        rows={2}
-                        value={outcomes.noDescription}
-                        onChange={(event) => setOutcomes((current) => ({ ...current, noDescription: event.target.value }))}
-                      />
-                    </label>
-                    <p className="wiz-outcome-card__price">Opening price unavailable</p>
+                    <p className="wiz-hint">Short display label for the NO side.</p>
+                    <p>{100 - outcomes.yesProbability}%</p>
+                    <p className="wiz-outcome-card__price">{formatMarketUgx(probabilityPctToUgxSharePrice(100 - outcomes.yesProbability, faceValueUgx))}/share</p>
+                    <p>Pays {formatMarketUgx(faceValueUgx)} if NO wins</p>
                   </div>
+                </div>
+                <div className="wiz-field-grid">
+                  <label className="wiz-field"><span>Resolution Source</span><small>The authoritative publication used to decide the result.</small><input value={resolution.resolutionSource} onChange={(event) => setResolution((current) => ({ ...current, resolutionSource: event.target.value }))} /></label>
+                  <label className="wiz-field"><span>Resolution Criteria</span><small>The exact condition that makes YES win.</small><textarea value={resolution.resolutionCriteria} onChange={(event) => setResolution((current) => ({ ...current, resolutionCriteria: event.target.value }))} /></label>
+                  <label className="wiz-field"><span>Rules / Void Conditions</span><small>Timing, postponement, correction, and void handling.</small><textarea value={resolution.rules} onChange={(event) => setResolution((current) => ({ ...current, rules: event.target.value }))} /></label>
                 </div>
               </div>
             )}
 
             {step === 2 && parameters && (
               <div className="wiz-panel">
-                <h3>Parameters</h3>
-                <p className="wiz-hint">Trading windows, liquidity, limits, and how this market is surfaced to fans.</p>
+                <h3>Trading Setup</h3>
+                <p className="wiz-hint">Only settings enforced by the market backend are shown.</p>
                 <div className="wiz-field-grid">
                   <label className="wiz-field">
-                    <span>Opens at</span>
+                    <span>Trading Opens</span>
+                    <small>When orders can first be placed.</small>
                     <input
                       type="datetime-local"
                       value={toLocalInputValue(parameters.opensAt)}
@@ -449,101 +516,13 @@ function CreateMarketWizard() {
                     />
                   </label>
                   <label className="wiz-field">
-                    <span>Closes at</span>
+                    <span>Trading Closes</span>
+                    <small>When new orders stop being accepted.</small>
                     <input
                       type="datetime-local"
                       value={toLocalInputValue(parameters.closesAt)}
                       onChange={(event) =>
                         setParameters((current) => current && { ...current, closesAt: fromLocalInputValue(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Settles by</span>
-                    <input
-                      type="datetime-local"
-                      value={toLocalInputValue(parameters.settlesBy)}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, settlesBy: fromLocalInputValue(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Initial liquidity (UGX)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={parameters.initialLiquidityUgx}
-                      disabled
-                    />
-                    <small>Opening liquidity is not supported by the backend workflow.</small>
-                  </label>
-                  <label className="wiz-field">
-                    <span>Min trade (UGX)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={parameters.minTradeUgx}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, minTradeUgx: Number(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Max trade (UGX)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={parameters.maxTradeUgx}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, maxTradeUgx: Number(event.target.value) })
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Position limit (UGX, optional)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={parameters.positionLimitUgx ?? ''}
-                      onChange={(event) =>
-                        setParameters(
-                          (current) =>
-                            current && {
-                              ...current,
-                              positionLimitUgx: event.target.value ? Number(event.target.value) : undefined,
-                            },
-                        )
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Daily limit (UGX, optional)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={parameters.dailyLimitUgx ?? ''}
-                      onChange={(event) =>
-                        setParameters(
-                          (current) =>
-                            current && {
-                              ...current,
-                              dailyLimitUgx: event.target.value ? Number(event.target.value) : undefined,
-                            },
-                        )
-                      }
-                    />
-                  </label>
-                  <label className="wiz-field">
-                    <span>Fee (%)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      value={parameters.feePct}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, feePct: Number(event.target.value) })
                       }
                     />
                   </label>
@@ -559,36 +538,7 @@ function CreateMarketWizard() {
                       }
                     />
                     Featured on landing page
-                  </label>
-                  <label className="wiz-toggle">
-                    <input
-                      type="checkbox"
-                      checked={parameters.trending}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, trending: event.target.checked })
-                      }
-                    />
-                    Trending
-                  </label>
-                  <label className="wiz-toggle">
-                    <input
-                      type="checkbox"
-                      checked={parameters.recommended}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, recommended: event.target.checked })
-                      }
-                    />
-                    Recommended
-                  </label>
-                  <label className="wiz-toggle">
-                    <input
-                      type="checkbox"
-                      checked={parameters.inPlayTrading}
-                      onChange={(event) =>
-                        setParameters((current) => current && { ...current, inPlayTrading: event.target.checked })
-                      }
-                    />
-                    Allow in-play trading
+                    <small>Promotes the market in public discovery.</small>
                   </label>
                 </div>
               </div>
@@ -607,13 +557,13 @@ function CreateMarketWizard() {
                     <span className="wiz-kv-item__value">{details.question}</span>
                   </div>
                   <div className="wiz-kv-item">
-                    <span className="wiz-kv-item__key">Category</span>
-                    <span className="wiz-kv-item__value">{details.category}</span>
+                    <span className="wiz-kv-item__key">Sport / Market Type</span>
+                    <span className="wiz-kv-item__value">{sports.find((item) => item.id === details.sportId)?.name} / {categories.find((item) => item.id === details.categoryId)?.name}</span>
                   </div>
                   <div className="wiz-kv-item">
                     <span className="wiz-kv-item__key">Outcomes</span>
                     <span className="wiz-kv-item__value">
-                      {outcomes.yesLabel} {outcomes.yesProbability}% / {outcomes.noLabel} {100 - outcomes.yesProbability}%
+                      YES — {outcomes.yesLabel} / NO — {outcomes.noLabel}
                     </span>
                   </div>
                   <div className="wiz-kv-item">
@@ -625,13 +575,20 @@ function CreateMarketWizard() {
                     <span className="wiz-kv-item__value">{formatDateTime(parameters.closesAt)}</span>
                   </div>
                   <div className="wiz-kv-item">
-                    <span className="wiz-kv-item__key">Fee</span>
-                    <span className="wiz-kv-item__value">{parameters.feePct}%</span>
+                    <span className="wiz-kv-item__key">Resolution</span>
+                    <span className="wiz-kv-item__value">{resolution.resolutionSource}: {resolution.resolutionCriteria}</span>
                   </div>
                   <div className="wiz-kv-item">
                     <span className="wiz-kv-item__key">Created by</span>
                     <span className="wiz-kv-item__value">{market.createdBy}</span>
                   </div>
+                </div>
+                <div className="wiz-outcome-card">
+                  <span className="wiz-kv-item__key">Fan-facing preview</span>
+                  <h3>{details.question}</h3>
+                  <p>{details.description}</p>
+                  <p><b>YES</b> {outcomes.yesLabel} &nbsp; <b>NO</b> {outcomes.noLabel}</p>
+                  <small>{resolution.rules}</small>
                 </div>
               </div>
             )}
@@ -654,7 +611,7 @@ function CreateMarketWizard() {
               </button>
             )}
             {step === 1 && (
-              <button type="button" className="wiz-btn wiz-btn--gradient" disabled={isSaving} onClick={handleNextFromOutcomes}>
+              <button type="button" className="wiz-btn wiz-btn--gradient" disabled={isSaving || faceValueUgx <= 0 || outcomes.yesProbability <= 0 || outcomes.yesProbability >= 100 || !outcomes.yesLabel.trim() || !outcomes.noLabel.trim() || !resolution.resolutionSource.trim() || !resolution.resolutionCriteria.trim() || !resolution.rules.trim()} onClick={handleNextFromOutcomes}>
                 {isSaving ? 'Saving…' : 'Next'} <FiChevronRight />
               </button>
             )}

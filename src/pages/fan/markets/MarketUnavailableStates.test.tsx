@@ -20,7 +20,7 @@ function renderAt(path: string, routePath: string, element: ReactNode) {
 describe('market trading unavailable states', () => {
   beforeEach(() => {
     vi.mocked(fetchFanPositions).mockResolvedValue([]);
-    vi.mocked(fetchMarket).mockResolvedValue({ id: 'market-1', question: 'Backend market question', outcomes: [{ id: 'YES', backendOutcomeId: 'outcome-1', label: 'Yes' }] } as never);
+    vi.mocked(fetchMarket).mockResolvedValue({ id: 'market-1', question: 'Backend market question', faceValueUgx: 1000, outcomes: [{ id: 'YES', backendOutcomeId: 'outcome-1', label: 'Yes' }] } as never);
     vi.mocked(fetchMarketPriceHistory).mockResolvedValue({ market_id: 'market-1', outcome_id: 'outcome-1', interval: 'RAW', points: [] });
     vi.mocked(fetchMarketOrderBook).mockResolvedValue({ market_id: 'market-1', outcome: { id: 'outcome-1', side: 'YES', label: 'Yes' }, best_bid: null, best_ask: null, spread: null, total_bid_quantity: '0', total_ask_quantity: '0', bids: [], asks: [], recent_trades: [] });
   });

@@ -4,7 +4,6 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { formatUgx } from '../../../utils/rules.ts';
 import {
-  MARKET_FACE_VALUE_UGX,
   formatMarketSharePrice,
   normalizedPriceToUgxSharePrice,
 } from '../../../utils/marketPricing.ts';
@@ -21,9 +20,6 @@ import Footer from '../../../components/landing/Footer';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanMarketDetail.css';
-
-const PLATFORM_PAYOUT_PER_CONTRACT =
-  MARKET_FACE_VALUE_UGX;
 
 interface TradeNavState {
   outcomeId?: OutcomeId;
@@ -93,7 +89,7 @@ function PlaceOrder() {
       .finally(() => { if (!cancelled) setQuoteLoading(false); });
     return () => { cancelled = true; };
   }, [market, outcome]);
-  const price = bestAsk === null ? 0 : normalizedPriceToUgxSharePrice(bestAsk);
+  const price = bestAsk === null || !market ? 0 : normalizedPriceToUgxSharePrice(bestAsk, market.faceValueUgx);
   const numericAmount = Number(amount);
 
   const amountValidationMessage = useMemo(() => {
@@ -111,7 +107,7 @@ function PlaceOrder() {
   }, [amount, numericAmount, market]);
 
   const contracts = useMemo(() => (numericAmount > 0 && price > 0 ? numericAmount / price : 0), [numericAmount, price]);
-  const potentialReturn = useMemo(() => contracts * PLATFORM_PAYOUT_PER_CONTRACT, [contracts]);
+  const potentialReturn = useMemo(() => contracts * (market?.faceValueUgx ?? 0), [contracts, market]);
 
   const canReview = Boolean(market) && bestAsk !== null && numericAmount > 0 && !amountValidationMessage;
   const presetAmounts = market

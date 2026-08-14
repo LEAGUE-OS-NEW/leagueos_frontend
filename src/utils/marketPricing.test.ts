@@ -5,7 +5,6 @@ import {
 } from "vitest";
 
 import {
-  MARKET_FACE_VALUE_UGX,
   backendQuantityToShares,
   normalizedPriceToUgxSharePrice,
   probabilityPctToUgxSharePrice,
@@ -16,28 +15,21 @@ describe(
   "market UGX share pricing",
   () => {
     it(
-      "uses UGX 1,000 as the face value",
-      () => {
-        expect(
-          MARKET_FACE_VALUE_UGX,
-        ).toBe(1_000);
-      },
-    );
-
-    it(
       "converts probability to UGX per share",
       () => {
         expect(
           probabilityPctToUgxSharePrice(
             50,
+            10_000,
           ),
-        ).toBe(500);
+        ).toBe(5_000);
 
         expect(
           probabilityPctToUgxSharePrice(
             62,
+            10_000,
           ),
-        ).toBe(620);
+        ).toBe(6_200);
       },
     );
 
@@ -47,8 +39,9 @@ describe(
         expect(
           normalizedPriceToUgxSharePrice(
             0.5,
+            10_000,
           ),
-        ).toBe(500);
+        ).toBe(5_000);
       },
     );
 
@@ -58,8 +51,9 @@ describe(
         expect(
           backendQuantityToShares(
             20_000,
+            10_000,
           ),
-        ).toBe(20);
+        ).toBe(2);
       },
     );
 

@@ -40,6 +40,7 @@ const emptyResponse = {
 };
 
 const openMarket: Market = {
+  faceValueUgx: 10000,
   id: "market-1",
   eventLabel: "KCCA FC vs SC Villa",
   competition: "Uganda Premier League",
@@ -50,8 +51,8 @@ const openMarket: Market = {
   description: "",
   tags: [],
   outcomes: [
-    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 550 },
-    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 450 },
+    { id: "YES", label: "Yes", description: "", probabilityPct: 55, price: 550, openingProbabilityPct: 55, openingPrice: 550, bestBid: null, bestAsk: null, lastTrade: null },
+    { id: "NO", label: "No", description: "", probabilityPct: 45, price: 450, openingProbabilityPct: 45, openingPrice: 450, bestBid: null, bestAsk: null, lastTrade: null },
   ],
   parameters: {
     opensAt: "2026-08-01T00:00:00Z",

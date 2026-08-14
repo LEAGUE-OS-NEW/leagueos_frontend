@@ -16,9 +16,14 @@ import Footer from '../../../components/landing/Footer';
 
 import { calculateAge } from '../../../utils/rules.ts';
 import { updateProfile } from '../../../services/authServices.ts';
-import { startMarketKYCSession } from '../../../services/marketEligibilityService.ts';
+import {
+  fetchCanonicalKycStatus,
+  bypassCanonicalKycForDevelopment,
+  requestCanonicalKycRetry,
+  submitCanonicalKyc,
+  type CanonicalKycState,
+} from '../../../services/fanIdentityVerificationService.ts';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility.ts';
-import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
 import {
   marketEligibilityActions,
   marketEligibilityMessage,
@@ -31,22 +36,22 @@ type StepKey =
   | 'intro'
   | 'personal'
   | 'identity'
+  | 'selfie'
   | 'review'
-  | 'pending'
-  | 'verified';
+  | 'status';
 
 // Reduced from 8 steps to 6: "Personal Details" and "Additional Information"
 // have been combined into a single "Personal Details" step.
 const STEPS: { key: StepKey; label: string; description: string }[] = [
   { key: 'intro', label: 'Get Started', description: 'Why we verify' },
   { key: 'personal', label: 'Personal Details', description: 'About you' },
-  { key: 'identity', label: 'Verify Identity', description: 'ID document' },
+  { key: 'identity', label: 'Identity Document', description: 'ID document' },
+  { key: 'selfie', label: 'Live Selfie', description: 'Face check' },
   { key: 'review', label: 'Review & Submit', description: 'Confirm everything' },
-  { key: 'pending', label: 'Verification Pending', description: 'Under review' },
-  { key: 'verified', label: "You're Verified", description: 'All set' },
+  { key: 'status', label: 'Status', description: 'Verification result' },
 ];
 
-const ID_TYPE_OPTIONS = ["National ID", 'Passport', "Driver's License", "Voter's Card"];
+const ID_TYPE_OPTIONS = ["National ID", 'Passport', "Driver's License"];
 const NATIONALITY_OPTIONS = ['Ugandan', 'Kenyan', 'Tanzanian', 'Rwandan', 'Other'];
 const OCCUPATION_OPTIONS = ['Student', 'Employed', 'Self-Employed', 'Unemployed', 'Other'];
 const PROFILE_UPDATED_EVENT = 'leagueos:profile-updated';
@@ -55,6 +60,7 @@ interface VerificationForm {
   idType: string;
   idFront: File | null;
   idBack: File | null;
+  selfie: File | null;
   fullLegalName: string;
   dob: string;
   nationality: string;
@@ -72,6 +78,7 @@ const INITIAL_FORM: VerificationForm = {
   idType: ID_TYPE_OPTIONS[0],
   idFront: null,
   idBack: null,
+  selfie: null,
   fullLegalName: '',
   dob: '',
   nationality: NATIONALITY_OPTIONS[0],
@@ -81,29 +88,25 @@ const INITIAL_FORM: VerificationForm = {
   confirmedAccurate: false,
 };
 
-function createKycIdempotencyKey() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `kyc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function UploadDropzone({
   label,
   hint,
   file,
   onChange,
+  capture = 'environment',
 }: {
   label: string;
   hint: string;
   file: File | null;
   onChange: (file: File | null) => void;
+  capture?: 'user' | 'environment';
 }) {
   return (
     <label className="verify-upload-zone">
       <input
         type="file"
-        accept="image/*,application/pdf"
+        accept="image/*"
+        capture={capture}
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
       />
       <span className="verify-upload-icon">
@@ -137,8 +140,9 @@ function FanVerification() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof VerificationForm, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isVerifyingDocument, setIsVerifyingDocument] = useState(false);
-  const [kycSessionId, setKycSessionId] = useState<string | null>(null);
-  const setIdentityVerified = useIdentityVerificationStore((state) => state.setVerified);
+  const [canonicalKyc, setCanonicalKyc] = useState<CanonicalKycState | null>(null);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+  const devBypassVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_KYC_BYPASS === 'true';
 
   const currentStep = STEPS[stepIndex].key;
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
@@ -147,6 +151,24 @@ function FanVerification() {
   // holding trading access back. Distinct from isPending, which means KYC
   // itself hasn't been decided yet.
   const isBlockedForOtherReason = kycStatus === 'VERIFIED' && !isEligible;
+  const attemptsRemaining = canonicalKyc
+    ? Math.max(0, canonicalKyc.max_attempts - canonicalKyc.attempts_count)
+    : null;
+
+  const refreshCanonicalStatus = useCallback(async () => {
+    setIsRefreshingStatus(true);
+    try {
+      const next = await fetchCanonicalKycStatus();
+      setCanonicalKyc(next);
+      if (next.status === 'VERIFIED') await refreshEligibility();
+      return next;
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Could not refresh identity verification status.');
+      return null;
+    } finally {
+      setIsRefreshingStatus(false);
+    }
+  }, [refreshEligibility]);
 
   const updateForm = <K extends keyof VerificationForm>(key: K, value: VerificationForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -192,6 +214,12 @@ function FanVerification() {
         } else if (!form.nin.trim()) {
           errors.nin = 'Enter your National Identification Number.';
           error = 'NIN is required.';
+        }
+        break;
+      case 'selfie':
+        if (!form.selfie) {
+          errors.selfie = 'Take or upload a live selfie to continue.';
+          error = 'A live selfie is required.';
         }
         break;
       case 'review':
@@ -254,10 +282,19 @@ function FanVerification() {
       // session still leaves the fan blocked with no visible cause.
       await updateProfile({ date_of_birth: form.dob });
       dispatchProfileUpdated();
-      const session = await startMarketKYCSession(createKycIdempotencyKey());
-      setKycSessionId(session.id);
-      const latest = await refreshEligibility();
-      goToStep(latest?.eligible ? 'verified' : 'pending');
+      if (!form.selfie) throw new Error('Take or upload a live selfie to continue.');
+      const documentType = form.idType === 'Passport'
+        ? 'PASSPORT'
+        : form.idType === "Driver's License" ? 'DRIVING_LICENCE' : 'NATIONAL_ID';
+      await submitCanonicalKyc({
+        documentType,
+        documentCountry: 'UGA',
+        documentImage: form.idFront,
+        selfieImage: form.selfie,
+      });
+      await refreshCanonicalStatus();
+      await refreshEligibility();
+      goToStep('status');
     } catch (submitException) {
       setSubmitError(
         submitException instanceof Error
@@ -278,35 +315,67 @@ function FanVerification() {
     // (polled elsewhere) — there's no render-time value to derive this from
     // directly since eligibility arrives asynchronously after mount.
     if (isEligible) {
-      setIdentityVerified();
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      goToStep('verified');
+      goToStep('status');
     } else if (isPending || isBlockedForOtherReason) {
-      goToStep('pending');
+      goToStep('status');
     }
-  }, [goToStep, isEligible, isPending, isBlockedForOtherReason, setIdentityVerified]);
+  }, [goToStep, isEligible, isPending, isBlockedForOtherReason]);
 
   useEffect(() => {
-    if (currentStep !== 'pending') return;
+    if (currentStep !== 'status') return;
+    // The canonical service is external state; entering Status synchronizes its latest value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshCanonicalStatus();
+  }, [currentStep, refreshCanonicalStatus]);
+
+  useEffect(() => {
+    if (currentStep !== 'status' || !['PENDING', 'PROCESSING'].includes(canonicalKyc?.status ?? '')) return;
     const interval = window.setInterval(() => {
-      void refreshEligibility();
+      void refreshCanonicalStatus();
     }, 5000);
     return () => window.clearInterval(interval);
-  }, [currentStep, refreshEligibility]);
+  }, [canonicalKyc?.status, currentStep, refreshCanonicalStatus]);
+
+  const handleCanonicalRetry = async () => {
+    setSubmitError(null);
+    try {
+      await requestCanonicalKycRetry();
+      await refreshCanonicalStatus();
+      goToStep('identity');
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Could not start another verification attempt.');
+    }
+  };
+
+  const handleDevelopmentBypass = async () => {
+    if (!window.confirm('Skip identity verification for this synthetic local account? This is development testing only.')) return;
+    setSubmitError(null);
+    setIsRefreshingStatus(true);
+    try {
+      const next = await bypassCanonicalKycForDevelopment();
+      setCanonicalKyc(next);
+      await refreshEligibility();
+      goToStep('status');
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Development bypass is unavailable.');
+    } finally {
+      setIsRefreshingStatus(false);
+    }
+  };
 
   useEffect(() => {
-    if (currentStep !== 'pending' || !isRejected) return;
+    if (currentStep !== 'status' || !isRejected) return;
     // Same as above: reacting to a rejection that arrives asynchronously
     // from polled eligibility data, not derivable at render time.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubmitError(marketEligibilityMessage(eligibility));
-    goToStep('review');
   }, [currentStep, eligibility, goToStep, isRejected]);
 
   useEffect(() => {
-    if (currentStep !== 'verified') return;
+    if (currentStep !== 'status' || !isEligible) return;
     dispatchProfileUpdated();
-  }, [currentStep]);
+  }, [currentStep, isEligible]);
 
   return (
     <div className="fan-dashboard">
@@ -436,7 +505,7 @@ function FanVerification() {
                   />
 
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('intro')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('personal')}>
                       Back
                     </button>
                     <button
@@ -445,7 +514,7 @@ function FanVerification() {
                       onClick={goNext}
                       disabled={!form.idFront}
                     >
-                      Continue
+                      Continue to Selfie
                     </button>
                   </div>
                 </div>
@@ -551,7 +620,7 @@ function FanVerification() {
 
                   {stepError && <p className="verify-field-error" role="alert">{stepError}</p>}
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('identity')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('intro')}>
                       Back
                     </button>
                     <button
@@ -563,6 +632,35 @@ function FanVerification() {
                       Continue
                     </button>
                   </div>
+                </div>
+              )}
+
+              {currentStep === 'selfie' && (
+                <div className="verify-step">
+                  <span className="verify-step-icon verify-step-icon--lock"><FiShield /></span>
+                  <h2>Live Selfie</h2>
+                  <p>Use good lighting, keep your full face visible, and remove sunglasses.</p>
+                  <UploadDropzone
+                    label="Take or upload a selfie"
+                    hint="Use a recent, clear image of only you"
+                    file={form.selfie}
+                    onChange={(file) => updateForm('selfie', file)}
+                    capture="user"
+                  />
+                  {fieldErrors.selfie && <p className="verify-field-error" role="alert">{fieldErrors.selfie}</p>}
+                  <div className="verify-step-actions verify-step-actions--split">
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('identity')}>Back</button>
+                    <button type="button" className="verify-btn verify-btn--primary" onClick={goNext} disabled={!form.selfie}>Continue</button>
+                  </div>
+                  {devBypassVisible && (
+                    <div className="verify-dev-bypass">
+                      <button type="button" className="verify-btn verify-btn--secondary" disabled={isRefreshingStatus} onClick={() => void handleDevelopmentBypass()}>
+                        Skip verification
+                      </button>
+                      <strong>Development testing only</strong>
+                      <p>This bypass is available only in the local development environment. Production users must complete identity verification.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -619,7 +717,7 @@ function FanVerification() {
                   )}
 
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('personal')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('selfie')}>
                       Back
                     </button>
                     <button
@@ -634,51 +732,28 @@ function FanVerification() {
                 </div>
               )}
 
-              {currentStep === 'pending' && (
+              {currentStep === 'status' && canonicalKyc?.status !== 'VERIFIED' && (
                 <div className="verify-step verify-step--centered">
                   <span className="verify-step-icon verify-step-icon--pending">
                     {isBlockedForOtherReason ? <FiAlertTriangle /> : <FiClock />}
                   </span>
-                  <h2>{isBlockedForOtherReason ? marketEligibilityTitle(eligibility) : 'Verification Under Review'}</h2>
+                  <h2>{canonicalKyc?.status === 'REVIEW' ? 'Compliance Review Required' : canonicalKyc?.status === 'RETRY_REQUIRED' ? 'Another Attempt Is Required' : canonicalKyc?.status === 'REJECTED' ? 'Identity Verification Rejected' : canonicalKyc?.status === 'EXPIRED' ? 'Identity Verification Expired' : 'Verification In Progress'}</h2>
                   <p>
-                    {isBlockedForOtherReason
-                      ? marketEligibilityMessage(eligibility)
-                      : 'Your verification session is active. We will update this page when your market access changes.'}
+                    {canonicalKyc?.status === 'REVIEW' ? 'Compliance will review your submission. No action is needed from you.' : canonicalKyc?.retry_reason || canonicalKyc?.rejection_reason || 'Your identity verification status comes directly from the verification service.'}
                   </p>
-                  {!isBlockedForOtherReason && kycSessionId && <p className="verify-age-hint">Session ID: {kycSessionId}</p>}
                   <div className="verify-next-box">
-                    {isBlockedForOtherReason ? (
-                      <>
-                        <b>Your identity is verified. Here&apos;s what&apos;s still blocking trading:</b>
-                        <ul>
-                          {marketEligibilityActions(eligibility).length > 0 ? (
-                            marketEligibilityActions(eligibility).map((action) => <li key={action}>{action}</li>)
-                          ) : (
-                            <li>Contact support to resolve this.</li>
-                          )}
-                        </ul>
-                      </>
-                    ) : (
-                      <>
-                        <b>What happens next?</b>
-                        <ul>
-                          <li>Your KYC session is reviewed</li>
-                          <li>Compliance updates your market eligibility</li>
-                          <li>Trading unlocks automatically when approved</li>
-                        </ul>
-                      </>
-                    )}
+                    <b>Identity verification details</b>
+                    <ul>
+                      <li>Status: {canonicalKyc?.status ?? 'Loading'}</li>
+                      <li>Attempts: {canonicalKyc?.attempts_count ?? '—'} / {canonicalKyc?.max_attempts ?? '—'} ({attemptsRemaining ?? '—'} remaining)</li>
+                      <li>Submitted: {canonicalKyc?.submitted_at ? new Date(canonicalKyc.submitted_at).toLocaleString() : '—'}</li>
+                      <li>Completed: {canonicalKyc?.completed_at ? new Date(canonicalKyc.completed_at).toLocaleString() : '—'}</li>
+                      <li>Verified: {canonicalKyc?.verified_at ? new Date(canonicalKyc.verified_at).toLocaleString() : '—'}</li>
+                    </ul>
                   </div>
                   <div className="verify-step-actions">
-                    {isBlockedForOtherReason && needsProfile ? (
-                      <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/profile')}>
-                        Complete Profile
-                      </button>
-                    ) : (
-                      <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>
-                        Refresh Status
-                      </button>
-                    )}
+                    {canonicalKyc?.status === 'RETRY_REQUIRED' && canonicalKyc.can_retry && <button type="button" className="verify-btn verify-btn--primary" onClick={() => void handleCanonicalRetry()}>Retry Verification</button>}
+                    <button type="button" className="verify-btn verify-btn--primary" disabled={isRefreshingStatus} onClick={() => void refreshCanonicalStatus()}>{isRefreshingStatus ? 'Refreshing…' : 'Refresh Status'}</button>
                     <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
                       Back to Markets
                     </button>
@@ -686,28 +761,21 @@ function FanVerification() {
                 </div>
               )}
 
-              {currentStep === 'verified' && (
+              {currentStep === 'status' && canonicalKyc?.status === 'VERIFIED' && (
                 <div className="verify-step verify-step--centered">
                   <span className="verify-step-icon verify-step-icon--verified">
                     <FiCheckCircle />
                   </span>
-                  <h2>You&apos;re Verified!</h2>
-                  <p>You can now trade, deposit funds and withdraw your winnings.</p>
+                  <h2>{canonicalKyc.verification_source === 'DEVELOPMENT_BYPASS' ? 'Verified for local development testing' : isEligible ? 'Identity Verified' : marketEligibilityTitle(eligibility)}</h2>
+                  <p>{canonicalKyc.verification_source === 'DEVELOPMENT_BYPASS' ? 'No provider, document, OCR, face-match, or liveness checks were claimed for this development bypass.' : isEligible ? 'You can now trade on League OS Markets.' : marketEligibilityMessage(eligibility)}</p>
                   <ul className="verify-checklist">
                     <li>
                       <FiCheckCircle /> Identity Verified
                     </li>
-                    <li>
-                      <FiCheckCircle /> Higher Limits Unlocked
-                    </li>
-                    <li>
-                      <FiCheckCircle /> Withdraw Earnings
-                    </li>
+                    {!isEligible && marketEligibilityActions(eligibility).map((action) => <li key={action}><FiAlertTriangle /> {action}</li>)}
                   </ul>
                   <div className="verify-step-actions">
-                    <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/fan/trade')}>
-                      Go to Markets
-                    </button>
+                    {isEligible ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/fan/trade')}>Explore Markets</button> : needsProfile ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/profile')}>Complete Profile</button> : <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>Refresh Market Eligibility</button>}
                   </div>
                 </div>
               )}
