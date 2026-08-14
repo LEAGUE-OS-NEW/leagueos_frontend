@@ -456,6 +456,11 @@ export async function createMarketDraft(input: MarketDetailsInput): Promise<Mark
     const catalogue = await resolveMarketCatalogue(input);
     const eventLabel = input.eventLabel.trim();
     const description = input.description.trim();
+    const opensAtMs = Date.now() - 60_000;
+    // If kickoff is in the past (or missing), default closes_at to 1 hour from
+    // opens_at so the backend never receives closes_at <= opens_at.
+    const kickoffMs = input.kickoff ? new Date(input.kickoff).getTime() : 0;
+    const closesAtMs = kickoffMs > opensAtMs ? kickoffMs : opensAtMs + 60 * 60_000;
     const payload: MarketAdminPayload = {
       ...catalogue,
       ...marketScopePayload(input),
@@ -464,8 +469,8 @@ export async function createMarketDraft(input: MarketDetailsInput): Promise<Mark
       rules: description || `Resolve this market from the official result for ${eventLabel}.`,
       resolution_source: input.competition.trim() || 'Official competition result',
       resolution_criteria: description || `Use the verified final result for ${eventLabel} to resolve YES or NO.`,
-      opens_at: new Date(Date.now() - 60_000).toISOString(),
-      closes_at: input.kickoff || new Date(Date.now() + 60 * 60_000).toISOString(),
+      opens_at: new Date(opensAtMs).toISOString(),
+      closes_at: new Date(closesAtMs).toISOString(),
       is_featured: input.tags.some((tag) => tag.toLowerCase() === 'featured'),
       yes_label: 'Yes',
       no_label: 'No',
@@ -517,10 +522,16 @@ export async function configureOpeningPricing(id: string, faceValueUgx: number, 
 }
 
 export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
-  if (new Date(parameters.closesAt).getTime() <= new Date(parameters.opensAt).getTime()) {
+  // Compute the exact opens_at that will be sent — do NOT silently clamp it
+  // after validation, which previously caused opens_at > closes_at for past fixtures.
+  const opensAtMs  = new Date(parameters.opensAt).getTime();
+  const closesAtMs = new Date(parameters.closesAt).getTime();
+  const settlesMs  = new Date(parameters.settlesBy).getTime();
+
+  if (closesAtMs <= opensAtMs) {
     fail('Trading must close after it opens.');
   }
-  if (new Date(parameters.settlesBy).getTime() < new Date(parameters.closesAt).getTime()) {
+  if (settlesMs < closesAtMs) {
     fail('Settlement time must be at or after the trading close time.');
   }
   if (parameters.minTradeUgx <= 0 || parameters.maxTradeUgx < parameters.minTradeUgx) {
@@ -529,7 +540,7 @@ export async function setParameters(id: string, parameters: MarketParameters): P
 
   try {
     const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
-      opens_at: new Date(Math.min(new Date(parameters.opensAt).getTime(), Date.now() - 60_000)).toISOString(),
+      opens_at: parameters.opensAt,
       closes_at: parameters.closesAt,
       is_featured: parameters.featured,
     });
