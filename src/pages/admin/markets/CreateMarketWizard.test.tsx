@@ -31,6 +31,24 @@ const createdMarket = {
   status: 'Draft' as const, createdBy: 'Admin', createdAt: '2099-08-14T10:00:00Z', auditHistory: [],
 };
 
+async function selectUpcomingFixture() {
+  const selector = screen.getByRole('combobox', { name: 'Event / Fixture' });
+
+  // The selector renders before the async sporting-event request resolves.
+  // Wait for the canonical fixture option before trying to select it.
+  await screen.findByRole('option', {
+    name: new RegExp(fixture.name),
+  });
+
+  fireEvent.change(selector, {
+    target: { value: fixture.id },
+  });
+
+  await waitFor(() => {
+    expect(selector).toHaveValue(fixture.id);
+  });
+}
+
 describe('CreateMarketWizard fixture binding', () => {
   beforeEach(() => {
     vi.mocked(marketService.fetchMarketCatalogueOptions).mockResolvedValue({ sports: [sport], categories: [{ id: 'cat-1', name: 'Match Result' }] });
@@ -46,7 +64,7 @@ describe('CreateMarketWizard fixture binding', () => {
 
   it('populates canonical sport, competition, venue and kickoff from the selected fixture', async () => {
     render(<MemoryRouter><CreateMarketWizard /></MemoryRouter>);
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Event / Fixture' }), { target: { value: fixture.id } });
+    await selectUpcomingFixture();
 
     const canonical = screen.getByRole('region', { name: 'Selected fixture details' });
     expect(canonical).toHaveTextContent('Basketball');
@@ -60,7 +78,12 @@ describe('CreateMarketWizard fixture binding', () => {
   it('uses a dropdown and excludes a past fixture accidentally returned by the API', async () => {
     vi.mocked(marketService.fetchCanonicalSportingEvents).mockResolvedValue([pastFixture, fixture]);
     render(<MemoryRouter><CreateMarketWizard /></MemoryRouter>);
-    const selector = await screen.findByRole('combobox', { name: 'Event / Fixture' });
+    const selector = screen.getByRole('combobox', { name: 'Event / Fixture' });
+
+    await screen.findByRole('option', {
+      name: new RegExp(fixture.name),
+    });
+
     expect(selector).toHaveTextContent(fixture.name);
     expect(selector).not.toHaveTextContent(pastFixture.name);
     expect(screen.queryByRole('button', { name: new RegExp(fixture.name) })).not.toBeInTheDocument();
@@ -76,7 +99,7 @@ describe('CreateMarketWizard fixture binding', () => {
     let resolveDraft!: (value: never) => void;
     vi.mocked(marketService.createMarketDraft).mockImplementation(() => new Promise((resolve) => { resolveDraft = resolve; }));
     render(<MemoryRouter><CreateMarketWizard /></MemoryRouter>);
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Event / Fixture' }), { target: { value: fixture.id } });
+    await selectUpcomingFixture();
     fireEvent.change(screen.getByRole('combobox', { name: /Market Type/ }), { target: { value: 'cat-1' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Question' }), { target: { value: 'Will City Oilers beat Namuwongo Blazers?' } });
     const next = screen.getByRole('button', { name: /Next/ });
@@ -89,7 +112,7 @@ describe('CreateMarketWizard fixture binding', () => {
 
   it('renders settlement timing, rejects an early target, sends a valid target, and reviews it separately', async () => {
     render(<MemoryRouter><CreateMarketWizard /></MemoryRouter>);
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Event / Fixture' }), { target: { value: fixture.id } });
+    await selectUpcomingFixture();
     fireEvent.change(screen.getByRole('combobox', { name: /Market Type/ }), { target: { value: 'cat-1' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Question' }), { target: { value: 'Will City Oilers beat Namuwongo Blazers?' } });
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
