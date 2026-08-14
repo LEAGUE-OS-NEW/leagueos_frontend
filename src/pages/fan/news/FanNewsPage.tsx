@@ -7,35 +7,31 @@ import { FiSearch } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchNews, type Story } from '../../../services/newsService';
+import { fetchApprovedStories, type AdminStory } from '../../../services/newsAdminService';
 import '../sections/FanDashboard.css';
 import './FanNewsPage.css';
 
 const FILTERS = ['All', 'Football', 'Rugby', 'Basketball', 'Clubs'] as const;
 type Filter = (typeof FILTERS)[number];
 
-const TRENDING = [
-  { rank: 1, image: '/images/vipersvs.jfif',                                                                          title: 'Vipers edge KCCA in title race clash',               time: '2h ago' },
-  { rank: 2, image: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=200&auto=format&fit=crop',      title: 'City Oilers strengthen roster ahead of NBL round 2', time: '4h ago' },
-  { rank: 3, image: 'https://images.unsplash.com/photo-1518063319789-7217e6706b04?q=80&w=200&auto=format&fit=crop',   title: 'SC Villa prepare for crucial UPL clash',              time: '5h ago' },
-  { rank: 4, image: '/images/fantasy.jfif',                                                                            title: 'Fantasy tips for Gameweek 28',                       time: '6h ago' },
-  { rank: 5, image: '/images/express-fc.jfif',                                                                         title: 'Express FC unveil new home jersey',                  time: '8h ago' },
-];
-
 export default function FanNewsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
-  const [stories, setStories] = useState<Story[]>([]);
+  const [stories, setStories] = useState<AdminStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    fetchNews().then((data) => {
+    fetchApprovedStories().then((data) => {
       if (!cancelled) { setStories(data); setLoading(false); }
     });
     return () => { cancelled = true; };
   }, []);
+
+  const heroStory = stories.find((s) => s.isFeatured) ?? stories[0];
+  const flaggedTrending = stories.filter((s) => s.isTrending);
+  const trendingStories = (flaggedTrending.length > 0 ? flaggedTrending : stories).slice(0, 5);
 
   const q = search.trim().toLowerCase();
   const visible = stories.filter((s) => {
@@ -72,18 +68,20 @@ export default function FanNewsPage() {
             </div>
 
             {/* Hero story */}
-            <div className="fn-hero">
-              <img src="/images/vipersvs.jfif" alt="Top story" className="fn-hero-img" />
-              <div className="fn-hero-overlay" />
-              <div className="fn-hero-content">
-                <span className="fn-badge fn-badge-top">TOP STORY</span>
-                <p className="fn-hero-headline">Vipers edge KCCA in title race clash</p>
-                <p className="fn-hero-desc">A late strike from Allan Okello sealed all three points for Vipers SC in a tense encounter at St. Mary's Stadium.</p>
-                <div className="fn-hero-meta">
-                  <Clock size={13} /> <span>2h ago</span> <span className="fn-dot">•</span> <span>Football</span>
+            {heroStory && (
+              <Link to={`/fan/news/${heroStory.id}`} className="fn-hero">
+                <img src={heroStory.image} alt={heroStory.title} className="fn-hero-img" />
+                <div className="fn-hero-overlay" />
+                <div className="fn-hero-content">
+                  <span className="fn-badge fn-badge-top">TOP STORY</span>
+                  <p className="fn-hero-headline">{heroStory.title}</p>
+                  <p className="fn-hero-desc">{heroStory.description}</p>
+                  <div className="fn-hero-meta">
+                    <Clock size={13} /> <span>{heroStory.time}</span> <span className="fn-dot">•</span> <span>{heroStory.category}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </Link>
+            )}
 
             {/* Filters */}
             <div className="fn-filters">
@@ -155,15 +153,17 @@ export default function FanNewsPage() {
                     <span className="fn-panel-link">View all</span>
                   </div>
                   <ul className="fn-trending-list">
-                    {TRENDING.map((t) => (
-                      <li key={t.rank} className="fn-trending-item">
-                        <span className="fn-trending-rank">{t.rank}</span>
-                        <img src={t.image} alt={t.title} className="fn-trending-img" />
-                        <div>
-                          <p className="fn-trending-title">{t.title}</p>
-                          <span className="fn-trending-time">{t.time}</span>
-                        </div>
-                      </li>
+                    {trendingStories.map((story, index) => (
+                      <Link to={`/fan/news/${story.id}`} key={story.id} className="fn-trending-item-link">
+                        <li className="fn-trending-item">
+                          <span className="fn-trending-rank">{index + 1}</span>
+                          <img src={story.image} alt={story.title} className="fn-trending-img" />
+                          <div>
+                            <p className="fn-trending-title">{story.title}</p>
+                            <span className="fn-trending-time">{story.time}</span>
+                          </div>
+                        </li>
+                      </Link>
                     ))}
                   </ul>
                 </div>

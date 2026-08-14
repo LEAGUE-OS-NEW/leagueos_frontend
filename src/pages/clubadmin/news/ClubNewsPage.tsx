@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSend, FiX, FiEye, FiImage, FiDownload, FiArchive, FiBell } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
+import { useAuthStore } from '../../../store/authStore';
+import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
+import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
+import { submitClubStory } from '../../../services/newsAdminService';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubNewsPage.css';
 
 const TABS = ['All', 'Published', 'Drafts', 'Scheduled', 'Archived', 'Media'];
 const TYPES = ['Match Report', 'Preview', 'Announcement', 'Club News', 'Transfer'];
 
-type Status = 'published' | 'scheduled' | 'draft' | 'archived';
+type Status = 'published' | 'pending' | 'scheduled' | 'draft' | 'archived';
 type Article = { title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string };
 
 type MediaItem = { name: string; type: 'image' | 'video' | 'doc'; size: string; date: string; used: boolean };
 
 
 const STATUS_CLASS: Record<string, string> = {
-  published: 'ca-pill-green', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
+  published: 'ca-pill-green', pending: 'ca-pill-orange', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
 };
 
 const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '', coverImage: '' };
@@ -24,6 +28,14 @@ type ModalKind = null | 'create' | 'edit' | 'schedule' | 'preview';
 const STAFF_ROLES = ['Club Admin', 'Communications', 'Content Creator'];
 
 export default function ClubNewsPage() {
+  const user = useAuthStore(s => s.user);
+  const { selectedEntitlementId } = useClubWorkspaceStore();
+  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
+  const currentEntitlement = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
+  const scopeId = currentEntitlement?.scope_id ?? 1;
+  const clubName = (CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}` }).name;
+
   const [activeTab, setActiveTab] = useState('All');
   const [articles, setArticles] = useState<Article[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
@@ -75,8 +87,20 @@ export default function ClubNewsPage() {
   };
 
   const publishNow = (idx: number) => {
-    setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'published' } : a));
-    showToast('Article published');
+    const article = articles[idx];
+    if (!article) return;
+
+    submitClubStory(clubName, {
+      title: article.title,
+      description: article.body.slice(0, 200),
+      body: article.body,
+      image: article.coverImage,
+      category: 'Clubs',
+    }).then(() => {
+      showToast('Submitted for review by League OS staff');
+    });
+
+    setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'pending' } : a));
   };
 
   const schedulePost = (e: React.FormEvent<HTMLFormElement>) => {

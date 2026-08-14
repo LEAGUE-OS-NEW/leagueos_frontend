@@ -55,10 +55,14 @@
 
 /* Hero */
 .fn-hero {
+  display: block;
   position: relative;
   border-radius: 18px;
   overflow: hidden;
   height: 280px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .fn-hero-img {
@@ -309,6 +313,7 @@
 /* Trending */
 .fn-trending-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 
+.fn-trending-item-link { display: block; text-decoration: none; color: inherit; cursor: pointer; }
 .fn-trending-item { display: flex; align-items: center; gap: 10px; }
 
 .fn-trending-rank { font-size: 0.8rem; font-weight: 800; color: var(--color-primary-light); width: 16px; flex-shrink: 0; }

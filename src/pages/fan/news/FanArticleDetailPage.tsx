@@ -4,7 +4,8 @@ import { FiArrowLeft, FiClock, FiAlertTriangle, FiActivity, FiBookmark, FiShare2
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchStoryById, fetchNews, type Story } from '../../../services/newsService';
+import { fetchApprovedStories, type AdminStory } from '../../../services/newsAdminService';
+import type { Story } from '../../../services/newsService';
 import '../sections/FanDashboard.css';
 import './FanArticleDetailPage.css';
 
@@ -15,17 +16,18 @@ function categoryClass(cat: Story['category']): string {
 export default function FanArticleDetailPage() {
   const { storyId = '' } = useParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [story, setStory] = useState<Story | null>(null);
-  const [related, setRelated] = useState<Story[]>([]);
+  const [story, setStory] = useState<AdminStory | null>(null);
+  const [related, setRelated] = useState<AdminStory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([fetchStoryById(storyId), fetchNews()])
-      .then(([found, all]) => {
+    fetchApprovedStories()
+      .then((all) => {
         if (cancelled) return;
+        const found = all.find((s) => s.id === storyId) ?? null;
         setStory(found);
         if (!found) setLoadError('This story could not be found.');
         setRelated(all.filter((s) => s.id !== storyId).slice(0, 4));
