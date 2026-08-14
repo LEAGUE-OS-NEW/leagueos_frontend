@@ -736,7 +736,7 @@ function Markets() {
                       <button
                         key={market.id}
                         type="button"
-                        className={`market-mini-card${selectedMarket?.id === market.id ? ' active' : ''}`}
+                        className={`market-mini-card sport-${market.marketType.toLowerCase()}${selectedMarket?.id === market.id ? ' active' : ''}`}
                         onClick={() => openMarketDetail(market.id)}
                       >
                         <StatusChip market={market} />
@@ -773,31 +773,25 @@ function Markets() {
               <section className="dashboard-card markets-terminal-col all-markets-panel">
                 <div className="all-markets-header">
                   <h2 className="section-title all-markets-title">All Markets</h2>
-                  <div className="all-markets-status-filters" role="group" aria-label="Filter by status">
-                    {(
-                      [
-                        { key: 'all',      label: 'All' },
-                        { key: 'live',     label: 'Live' },
-                        { key: 'upcoming', label: 'Upcoming' },
-                        { key: 'closed',   label: 'Closed' },
-                      ] as { key: MarketStatus | 'all'; label: string }[]
-                    ).map(({ key, label }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`all-markets-status-chip${allMarketsStatusFilter === key ? ' active' : ''}`}
-                        onClick={() => setAllMarketsStatusFilter(key)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <div className="all-markets-simple-table" role="table" aria-label="All markets">
                   <div className="all-markets-simple-row all-markets-simple-labels" role="row">
                     <span>Market</span>
                     <span>Type</span>
-                    <span>Ends In</span>
+                    <span className="all-markets-ends-header">
+                      Ends In
+                      <select
+                        className="all-markets-ends-select"
+                        value={allMarketsStatusFilter}
+                        onChange={(e) => setAllMarketsStatusFilter(e.target.value as MarketStatus | 'all')}
+                        aria-label="Filter by status"
+                      >
+                        <option value="all">All</option>
+                        <option value="live">Live</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </span>
                     <span>Volume (UGX)</span>
                     <span>Price / Share</span>
                     <span aria-hidden="true" />
