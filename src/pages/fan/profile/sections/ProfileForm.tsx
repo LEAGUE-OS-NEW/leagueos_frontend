@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { FiAlertCircle, FiCamera, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 import { fetchGenders, removeAvatar, updateProfile, uploadAvatar } from '../../../../services/authServices';
 import type { GenderOption } from '../../../../services/authServices';
+import { extractApiError } from '../../../../services/apiUtils.ts';
 import type { BackendProfile } from '../../../../data/currentUser';
 import AvatarCropModal from './AvatarCropModal';
 import './ProfileForm.css';
@@ -141,7 +142,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
     setBanner(null);
 
     try {
-      await updateProfile({
+      const response = await updateProfile({
         first_name: values.firstName.trim(),
         last_name: values.lastName.trim(),
         // phone_number and favourite_sport aren't accepted by PATCH
@@ -159,11 +160,17 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
         gender: values.gender || null,
         date_of_birth: values.dateOfBirth || null,
       });
-      setSavedValues(values);
+      // Re-sync from what the backend actually persisted (the PATCH
+      // response), not from what was typed — a 200 that silently drops a
+      // field should show up immediately here instead of only surfacing on
+      // a later refresh.
+      const persistedValues = toFormValues(response.data as BackendProfile);
+      setValues(persistedValues);
+      setSavedValues(persistedValues);
       setBanner({ tone: 'success', message: 'Your profile has been updated.' });
       dispatchProfileUpdated();
-    } catch {
-      setBanner({ tone: 'error', message: 'Could not save your profile. Please try again.' });
+    } catch (error) {
+      setBanner({ tone: 'error', message: extractApiError(error).message });
     } finally {
       setIsSaving(false);
     }
