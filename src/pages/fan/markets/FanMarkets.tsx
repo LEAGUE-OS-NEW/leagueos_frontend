@@ -29,7 +29,6 @@ import {
   fetchMyPositions,
   type MarketCategory,
   type MarketListItem,
-  type MarketStatus,
   type UserPosition,
 } from '../../../services/fanMarketsServices';
 import { formatUgx } from '../../../utils/rules.ts';
@@ -165,7 +164,6 @@ function Markets() {
   }, [amount, numericAmount]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['live', 'upcoming']);
-  const [allMarketsStatusFilter, setAllMarketsStatusFilter] = useState<MarketStatus | 'all'>('all');
 
  
   useEffect(() => {
@@ -189,15 +187,13 @@ function Markets() {
     });
   }, [markets, selectedStatuses, selectedTypes, tab]);
 
-  // All Markets table: sort newest-first, then filter by the Ends In status chip
+  // All Markets table: sort newest-first
   const allMarketsDisplay = useMemo(() => {
     if (!markets) return [];
-    const sorted = [...markets].sort(
+    return [...markets].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-    if (allMarketsStatusFilter === 'all') return sorted;
-    return sorted.filter((m) => m.status === allMarketsStatusFilter);
-  }, [markets, allMarketsStatusFilter]);
+  }, [markets]);
 
   useEffect(() => {
     if (!marketCategories) return;
@@ -778,20 +774,7 @@ function Markets() {
                   <div className="all-markets-simple-row all-markets-simple-labels" role="row">
                     <span>Market</span>
                     <span>Type</span>
-                    <span className="all-markets-ends-header">
-                      Ends In
-                      <select
-                        className="all-markets-ends-select"
-                        value={allMarketsStatusFilter}
-                        onChange={(e) => setAllMarketsStatusFilter(e.target.value as MarketStatus | 'all')}
-                        aria-label="Filter by status"
-                      >
-                        <option value="all">All</option>
-                        <option value="live">Live</option>
-                        <option value="upcoming">Upcoming</option>
-                        <option value="closed">Closed</option>
-                      </select>
-                    </span>
+                    <span>Ends In</span>
                     <span>Volume (UGX)</span>
                     <span>Price / Share</span>
                     <span aria-hidden="true" />
