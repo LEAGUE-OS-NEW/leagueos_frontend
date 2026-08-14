@@ -148,7 +148,7 @@ function FeaturedMarkets() {
 
         <div className="market-grid">
           {markets.map((market) => (
-            <div className="market-card" key={market.id}>
+            <div className={`market-card ${SPORT_CLASS[market.sport]}`} key={market.id}>
               <Link
                 to={`/markets/${market.id}`}
                 className="market-card-link"
@@ -192,10 +192,10 @@ function FeaturedMarkets() {
               </div>
 
               <div className="market-actions">
-                <Link to={`/markets/${market.id}?outcome=YES`} className="market-btn market-btn-yes">
+                <Link to="/login" className="market-btn market-btn-yes">
                   YES <span>{market.yesPrice}</span>
                 </Link>
-                <Link to={`/markets/${market.id}?outcome=NO`} className="market-btn market-btn-no">
+                <Link to="/login" className="market-btn market-btn-no">
                   NO <span>{market.noPrice}</span>
                 </Link>
               </div>
