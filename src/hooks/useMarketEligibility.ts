@@ -55,7 +55,7 @@ export function useMarketEligibility() {
       reasonCodes,
       nextActions,
       isEligible: Boolean(state.eligibility?.eligible),
-      isPending: status === 'PENDING' || nextActions.includes('WAIT_FOR_KYC_REVIEW'),
+      isPending: status === 'PENDING' || status === 'PROCESSING' || status === 'REVIEW' || nextActions.includes('WAIT_FOR_KYC_REVIEW'),
       isRejected: status === 'REJECTED',
       needsProfile: nextActions.includes('COMPLETE_PROFILE'),
       needsKyc: nextActions.includes('COMPLETE_KYC') || status === 'NOT_STARTED',

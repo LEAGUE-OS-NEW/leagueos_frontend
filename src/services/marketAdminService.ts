@@ -322,8 +322,22 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
     faceValueUgx: market.face_value_ugx,
     parameters: {
       opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
-      closesAt: market.closes_at ?? kickoff,
-      settlesBy: market.closes_at ?? kickoff,
+      closesAt: (() => {
+        // Use the stored close time if one exists. Otherwise fall back to
+        // kickoff — but if kickoff is already in the past (common for seeded
+        // or test fixtures), default to 1 hour from now so the admin always
+        // receives a valid, future close time on the Trading Setup step.
+        const candidate = market.closes_at ?? kickoff;
+        return new Date(candidate).getTime() > Date.now()
+          ? candidate
+          : new Date(Date.now() + 60 * 60_000).toISOString();
+      })(),
+      settlesBy: (() => {
+        const candidate = market.closes_at ?? kickoff;
+        return new Date(candidate).getTime() > Date.now()
+          ? candidate
+          : new Date(Date.now() + 60 * 60_000).toISOString();
+      })(),
       initialLiquidityUgx: 0,
       minTradeUgx: 1_000,
       maxTradeUgx: 500_000,

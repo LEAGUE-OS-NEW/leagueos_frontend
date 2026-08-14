@@ -1,5 +1,5 @@
 import apiClient from './apiClient.ts';
-import { extractApiError } from './apiUtils.ts';
+import { extractApiError, unwrapApiData } from './apiUtils.ts';
 
 export interface MarketEligibilityRequirements {
   minimum_age: number;
@@ -46,7 +46,7 @@ function apiError(error: unknown): Error {
 export async function fetchMarketEligibility(): Promise<MarketEligibility> {
   try {
     const response = await apiClient.get('/markets/kyc/summary/');
-    return response.data as MarketEligibility;
+    return unwrapApiData<MarketEligibility>(response.data);
   } catch (error) {
     throw apiError(error);
   }
