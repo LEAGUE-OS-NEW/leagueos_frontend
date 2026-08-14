@@ -15,6 +15,7 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 
 import { calculateAge } from '../../../utils/rules.ts';
+import { updateProfile } from '../../../services/authServices.ts';
 import { startMarketKYCSession } from '../../../services/marketEligibilityService.ts';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility.ts';
 import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
@@ -247,6 +248,12 @@ function FanVerification() {
     setSubmitError(null);
     setIsVerifyingDocument(true);
     try {
+      // Eligibility (markets/services/eligibility_service.py) reads
+      // date_of_birth off the profile, not off the KYC session — this step
+      // collects it, so it must actually be saved here, or an approved KYC
+      // session still leaves the fan blocked with no visible cause.
+      await updateProfile({ date_of_birth: form.dob });
+      dispatchProfileUpdated();
       const session = await startMarketKYCSession(createKycIdempotencyKey());
       setKycSessionId(session.id);
       const latest = await refreshEligibility();
@@ -663,9 +670,15 @@ function FanVerification() {
                     )}
                   </div>
                   <div className="verify-step-actions">
-                    <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>
-                      Refresh Status
-                    </button>
+                    {isBlockedForOtherReason && needsProfile ? (
+                      <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/profile')}>
+                        Complete Profile
+                      </button>
+                    ) : (
+                      <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>
+                        Refresh Status
+                      </button>
+                    )}
                     <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
                       Back to Markets
                     </button>
