@@ -35,7 +35,13 @@ const strings = (value: unknown): string[] =>
     ? value.flatMap(strings)
     : typeof value === "string"
       ? [value]
-      : [];
+      : value && typeof value === "object"
+        // Some views (e.g. ProfileView) wrap field errors one level deep as
+        // {success, message, errors: {field: [...]}} rather than the flat
+        // {field: [...]} DRF default — recurse so those field-level
+        // messages aren't silently dropped.
+        ? Object.values(value).flatMap(strings)
+        : [];
 
 export function extractApiError(error: unknown): ApiErrorDetails {
   const status = axios.isAxiosError(error) ? error.response?.status : undefined;
@@ -52,6 +58,7 @@ export function extractApiError(error: unknown): ApiErrorDetails {
   const message =
     fields.non_field_errors?.[0] ||
     fields.detail?.[0] ||
+    fields.errors?.[0] ||
     fields.message?.[0] ||
     (status === 403
       ? "You do not have permission to perform this action."
