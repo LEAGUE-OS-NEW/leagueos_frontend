@@ -459,7 +459,7 @@ function FanVerification() {
                   </ul>
                   <p className="verify-step-prompt">Do you want to verify now?</p>
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/trade')}>
                       Skip Verification
                     </button>
                     <button type="button" className="verify-btn verify-btn--primary" onClick={goNext}>
@@ -771,13 +771,13 @@ function FanVerification() {
                   <div className="verify-step-actions">
                     {canonicalKyc?.status === 'RETRY_REQUIRED' && canonicalKyc.can_retry && <button type="button" className="verify-btn verify-btn--primary" onClick={() => void handleCanonicalRetry()}>Retry Verification</button>}
                     <button type="button" className="verify-btn verify-btn--primary" disabled={isRefreshingStatus} onClick={() => void refreshCanonicalStatus()}>{isRefreshingStatus ? 'Refreshing…' : 'Refresh Status'}</button>
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/trade')}>
                       Back to Markets
                     </button>
                   </div>
                   <div className="verify-skip-row">
                     <p className="verify-skip-note">You can browse markets while verification is processing.</p>
-                    <button type="button" className="verify-btn verify-btn--accent" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--accent" onClick={() => navigate('/fan/trade')}>
                       Skip to Trade Hub
                     </button>
                   </div>
