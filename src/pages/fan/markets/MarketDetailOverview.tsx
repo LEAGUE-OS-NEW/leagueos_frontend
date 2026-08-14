@@ -266,7 +266,7 @@ function MarketDetailOverview() {
               <button type="button" className="verify-action-modal-button verify-action-modal-button--secondary" onClick={() => setIsVerifyModalOpen(false)}>
                 Close
               </button>
-              <Link to="/fan/verify" className="verify-action-modal-button verify-action-modal-button--primary" onClick={() => setIsVerifyModalOpen(false)}>
+              <Link to={`/fan/verify?returnTo=${encodeURIComponent(`/fan/markets/${marketId ?? ''}`)}`} className="verify-action-modal-button verify-action-modal-button--primary" onClick={() => setIsVerifyModalOpen(false)}>
                 {isPending ? 'View verification status' : 'Verify now'}
               </Link>
             </div>

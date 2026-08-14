@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FiLock,
   FiShield,
@@ -24,6 +24,8 @@ import {
   type CanonicalKycState,
 } from '../../../services/fanIdentityVerificationService.ts';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility.ts';
+import { useAuthStore } from '../../../store/authStore.ts';
+import { canUseReviewWorkflowTools, safeAuthenticatedReturnTo } from '../../../utils/reviewWorkflowTools.ts';
 import {
   marketEligibilityActions,
   marketEligibilityMessage,
@@ -120,6 +122,9 @@ function UploadDropzone({
 
 function FanVerification() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const returnTo = safeAuthenticatedReturnTo(new URLSearchParams(location.search).get('returnTo'), '/fan/markets');
   const {
     eligibility,
     refresh: refreshEligibility,
@@ -142,7 +147,8 @@ function FanVerification() {
   const [isVerifyingDocument, setIsVerifyingDocument] = useState(false);
   const [canonicalKyc, setCanonicalKyc] = useState<CanonicalKycState | null>(null);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
-  const devBypassVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_KYC_BYPASS === 'true';
+  const localDevBypassVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_KYC_BYPASS === 'true';
+  const stagingReviewBypassVisible = canUseReviewWorkflowTools(user);
 
   const currentStep = STEPS[stepIndex].key;
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
@@ -348,16 +354,18 @@ function FanVerification() {
   };
 
   const handleDevelopmentBypass = async () => {
-    if (!window.confirm('Skip identity verification for this synthetic local account? This is development testing only.')) return;
+    if (!window.confirm('Skip identity verification for this synthetic staging review account? No identity provider checks will be performed.')) return;
     setSubmitError(null);
     setIsRefreshingStatus(true);
     try {
-      const next = await bypassCanonicalKycForDevelopment();
+      await bypassCanonicalKycForDevelopment();
+      const next = await fetchCanonicalKycStatus();
       setCanonicalKyc(next);
-      await refreshEligibility();
+      const refreshedEligibility = await refreshEligibility();
       goToStep('status');
+      if (refreshedEligibility?.eligible) navigate(returnTo, { replace: true });
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : 'Development bypass is unavailable.');
+      setSubmitError(error instanceof Error ? error.message : 'Staging review verification bypass is unavailable.');
     } finally {
       setIsRefreshingStatus(false);
     }
@@ -450,13 +458,45 @@ function FanVerification() {
                   </ul>
                   <p className="verify-step-prompt">Do you want to verify now?</p>
                   <div className="verify-step-actions verify-step-actions--split">
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate(-1)}>
-                      Not Now
-                    </button>
-                    <button type="button" className="verify-btn verify-btn--primary" onClick={goNext}>
+                    {stagingReviewBypassVisible ? (
+                      <button
+                        type="button"
+                        className="verify-btn verify-btn--secondary"
+                        disabled={isRefreshingStatus}
+                        onClick={() => void handleDevelopmentBypass()}
+                      >
+                        {isRefreshingStatus
+                          ? 'Applying staging verification…'
+                          : 'Skip verification for staging review'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="verify-btn verify-btn--secondary"
+                        onClick={() => navigate('/fan/markets')}
+                      >
+                        Not Now
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="verify-btn verify-btn--primary"
+                      onClick={goNext}
+                    >
                       {needsKyc ? 'Yes, Verify Now' : 'Continue'}
                     </button>
                   </div>
+
+                  {stagingReviewBypassVisible && (
+                    <div className="verify-dev-bypass">
+                      <strong>Synthetic staging review only</strong>
+                      <p>
+                        This verifies only this synthetic review account.
+                        No identity provider checks are performed.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -651,7 +691,7 @@ function FanVerification() {
                     <button type="button" className="verify-btn verify-btn--secondary" onClick={() => goToStep('identity')}>Back</button>
                     <button type="button" className="verify-btn verify-btn--primary" onClick={goNext} disabled={!form.selfie}>Continue</button>
                   </div>
-                  {devBypassVisible && (
+                  {localDevBypassVisible && !stagingReviewBypassVisible && (
                     <div className="verify-dev-bypass">
                       <button type="button" className="verify-btn verify-btn--secondary" disabled={isRefreshingStatus} onClick={() => void handleDevelopmentBypass()}>
                         Skip verification
@@ -753,8 +793,14 @@ function FanVerification() {
                   <div className="verify-step-actions">
                     {canonicalKyc?.status === 'RETRY_REQUIRED' && canonicalKyc.can_retry && <button type="button" className="verify-btn verify-btn--primary" onClick={() => void handleCanonicalRetry()}>Retry Verification</button>}
                     <button type="button" className="verify-btn verify-btn--primary" disabled={isRefreshingStatus} onClick={() => void refreshCanonicalStatus()}>{isRefreshingStatus ? 'Refreshing…' : 'Refresh Status'}</button>
-                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/markets')}>
+                    <button type="button" className="verify-btn verify-btn--secondary" onClick={() => navigate('/fan/trade')}>
                       Back to Markets
+                    </button>
+                  </div>
+                  <div className="verify-skip-row">
+                    <p className="verify-skip-note">You can browse markets while verification is processing.</p>
+                    <button type="button" className="verify-btn verify-btn--accent" onClick={() => navigate('/fan/trade')}>
+                      Skip to Trade Hub
                     </button>
                   </div>
                 </div>
@@ -774,7 +820,7 @@ function FanVerification() {
                     {!isEligible && marketEligibilityActions(eligibility).map((action) => <li key={action}><FiAlertTriangle /> {action}</li>)}
                   </ul>
                   <div className="verify-step-actions">
-                    {isEligible ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/fan/trade')}>Explore Markets</button> : needsProfile ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/profile')}>Complete Profile</button> : <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>Refresh Market Eligibility</button>}
+                    {isEligible ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate(returnTo, { replace: true })}>Continue to Market</button> : needsProfile ? <button type="button" className="verify-btn verify-btn--primary" onClick={() => navigate('/profile')}>Complete Profile</button> : <button type="button" className="verify-btn verify-btn--primary" onClick={() => void refreshEligibility()}>Refresh Market Eligibility</button>}
                   </div>
                 </div>
               )}

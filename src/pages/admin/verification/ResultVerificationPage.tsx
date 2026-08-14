@@ -4,11 +4,14 @@ import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   fetchAwaitingResult,
   endDisputeWindowForDevelopment,
-  finalizeResult,
+  resolveResult,
+  settleResult,
   verifyResult,
   type ResultVerification,
 } from '../../../services/resultVerificationService';
 import type { OutcomeId } from '../../../services/marketAdminService';
+import { useAuthStore } from '../../../store/authStore.ts';
+import { canUseReviewWorkflowTools } from '../../../utils/reviewWorkflowTools.ts';
 import './ResultVerificationPage.css';
 
 function formatDateTime(iso: string): string {
@@ -41,9 +44,12 @@ function ResultVerificationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
-  const devAcceleratorVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_RESULT_ACCELERATOR === 'true';
+  const user = useAuthStore((state) => state.user);
+  const localAcceleratorVisible = import.meta.env.DEV && import.meta.env.VITE_DEV_RESULT_ACCELERATOR === 'true';
+  const reviewAcceleratorVisible = canUseReviewWorkflowTools(user);
 
   const [formSyncedId, setFormSyncedId] = useState<string | null>(null);
   const [winningOutcomeId, setWinningOutcomeId] = useState<OutcomeId | null>(null);
@@ -105,15 +111,20 @@ function ResultVerificationPage() {
     }
   };
 
-  const handleFinalize = async () => {
+  const refreshQueue = async () => {
+    const remaining = await fetchAll();
+    setItems(remaining);
+    setSelectedId((current) => remaining.some((item) => item.marketId === current) ? current : remaining[0]?.marketId ?? null);
+  };
+
+  const handleResolve = async () => {
     if (!selected) return;
     setIsSaving(true);
     setActionError(null);
     try {
-      await finalizeResult(selected.marketId);
-      const remaining = await fetchAll();
-      setItems(remaining);
-      setSelectedId(remaining[0]?.marketId ?? null);
+      await resolveResult(selected.marketId);
+      await refreshQueue();
+      setActionSuccess('Result resolved. No payouts were settled by this action.');
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not finalise this market.');
     } finally {
@@ -121,8 +132,28 @@ function ResultVerificationPage() {
     }
   };
 
+  const handleSettle = async () => {
+    if (!selected) return;
+    const impact = selected.settlement?.totalPositionCount === undefined
+      ? 'This will settle all eligible positions and apply the resulting payouts.'
+      : `This will settle ${selected.settlement.totalPositionCount} positions and apply the resulting payouts.`;
+    if (!window.confirm(`${impact} Continue?`)) return;
+    setIsSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const settlement = await settleResult(selected.marketId);
+      await refreshQueue();
+      setActionSuccess(`Settlement ${settlement.status.toLowerCase()}${settlement.reference ? ` — reference ${settlement.reference}` : ''}${settlement.totalPositionCount === undefined ? '' : ` — ${settlement.totalPositionCount} positions`}.`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not settle this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleEndWindow = async () => {
-    if (!selected || !window.confirm('End this synthetic market dispute window now for development testing?')) return;
+    if (!selected || !window.confirm('End this synthetic staging review dispute window? This does not resolve the result or settle funds.')) return;
     setIsSaving(true);
     setActionError(null);
     try {
@@ -155,6 +186,7 @@ function ResultVerificationPage() {
             )}
           </div>
         )}
+        {actionSuccess && <div className="rv-error-banner" role="status"><FiCheckCircle aria-hidden="true" /><span>{actionSuccess}</span></div>}
 
         {isLoading ? (
           <div className="rv-loading">
@@ -215,10 +247,17 @@ function ResultVerificationPage() {
                 </div>
 
                 <div className="rv-kv-item">
+                  <span className="rv-kv-item__key">Kickoff</span>
+                  <span className="rv-kv-item__value">{formatDateTime(selected.kickoff)}</span>
+                </div>
+                {selected.tradingClose && <div className="rv-kv-item"><span className="rv-kv-item__key">Trading Close</span><span className="rv-kv-item__value">{formatDateTime(selected.tradingClose)}</span></div>}
+                {selected.settlementTarget && <div className="rv-kv-item"><span className="rv-kv-item__key">Settlement Target</span><span className="rv-kv-item__value">{formatDateTime(selected.settlementTarget)}</span></div>}
+                <div className="rv-kv-item">
                   <span className="rv-kv-item__key">Resolution source / rules</span>
                   <span className="rv-kv-item__value">{selected.officialSource}</span>
                 </div>
-                {selected.disputeDeadline && <div className="rv-kv-item"><span className="rv-kv-item__key">Dispute deadline</span><span className="rv-kv-item__value">{formatDateTime(selected.disputeDeadline)}</span></div>}
+                {selected.disputeDeadline && <div className="rv-kv-item"><span className="rv-kv-item__key">Dispute Deadline</span><span className="rv-kv-item__value">{formatDateTime(selected.disputeDeadline)}</span></div>}
+                <div className="rv-kv-item"><span className="rv-kv-item__key">Dispute window</span><span className="rv-kv-item__value">{selected.disputeWindowHours === undefined ? 'Backend-configured default' : `${selected.disputeWindowHours} hours`}</span></div>
                 <div className="rv-kv-item"><span className="rv-kv-item__key">Open disputes</span><span className="rv-kv-item__value">{selected.openDisputeCount ?? 0}</span></div>
 
                 <div className="rv-outcome-picker">
@@ -254,15 +293,16 @@ function ResultVerificationPage() {
                 )}
 
                 <div className="rv-detail__actions">
-                  {devAcceleratorVisible && selected.stage === 'Dispute Window' && (
+                  {(reviewAcceleratorVisible || localAcceleratorVisible) && selected.stage === 'Dispute Window' && (
                     <button type="button" className="rv-btn rv-btn--outline" disabled={isSaving} onClick={() => void handleEndWindow()}>
-                      End dispute window now (development only)
+                      {reviewAcceleratorVisible ? 'End dispute window for staging review' : 'End dispute window now (development only)'}
                     </button>
                   )}
+                  {reviewAcceleratorVisible && selected.stage === 'Dispute Window' && <p>Synthetic staging review only. This does not resolve the result and does not settle funds.</p>}
                   <button
                     type="button"
                     className="rv-btn rv-btn--outline"
-                    disabled={!winningOutcomeId || !evidenceNote.trim() || isSaving}
+                    disabled={!selected.canPublishProvisional || !winningOutcomeId || !evidenceNote.trim() || isSaving}
                     onClick={handleVerify}
                   >
                     Publish Provisional Result
@@ -270,10 +310,18 @@ function ResultVerificationPage() {
                   <button
                     type="button"
                     className="rv-btn rv-btn--gradient"
-                    disabled={!['Ready to Resolve', 'Ready to Settle'].includes(selected.stage) || isSaving}
-                    onClick={handleFinalize}
+                    disabled={!selected.canResolve || isSaving}
+                    onClick={handleResolve}
                   >
-                    {selected.stage === 'Ready to Resolve' ? 'Resolve Result' : 'Settle Payouts'}
+                    Resolve Result
+                  </button>
+                  <button
+                    type="button"
+                    className="rv-btn rv-btn--gradient"
+                    disabled={!selected.canSettle || isSaving}
+                    onClick={handleSettle}
+                  >
+                    Settle Payouts
                   </button>
                 </div>
               </div>

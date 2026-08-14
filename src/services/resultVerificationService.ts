@@ -40,17 +40,24 @@ export interface ResultVerification {
   question: string;
   competition: string;
   kickoff: string;
+  tradingClose?: string;
+  settlementTarget?: string;
   officialSource: string;
   outcomes: { id: OutcomeId; label: string }[];
   stage: VerificationStage;
   proposedWinningOutcomeId?: OutcomeId;
   evidenceNote?: string;
+  canPublishProvisional: boolean;
+  canResolve: boolean;
+  canSettle: boolean;
+  disputeWindowHours?: number;
   verifiedBy?: string;
   verifiedAt?: string;
   disputeDeadline?: string;
   openDisputeCount?: number;
   developmentWindowEndedAt?: string;
   finalizedAt?: string;
+  settlement?: { reference: string; status: string; executedAt?: string; totalPositionCount?: number; totalPayoutAmount?: string };
   auditHistory: AuditEvent[];
 }
 
@@ -80,7 +87,7 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
   const stageMap: Record<string, VerificationStage> = {
     AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
     DISPUTED: 'Disputed', READY_TO_RESOLVE: 'Ready to Resolve', READY_TO_SETTLE: 'Ready to Settle',
-    SETTLED: 'Settled', VOIDED: 'Voided / Refunded', VOIDED_REFUNDED: 'Voided / Refunded',
+    SETTLED: 'Settled', VOIDED: 'Voided / Refunded', REFUNDED: 'Voided / Refunded', VOIDED_REFUNDED: 'Voided / Refunded',
   };
   return records.map((record) => {
         const adapted = (record as { id: string }).id;
@@ -93,17 +100,32 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
           eventLabel: String((record.sporting_event as { name?: string } | null)?.name ?? record.custom_subject ?? record.question),
           question: String(record.question),
           competition: String((record.competition as { name?: string } | null)?.name ?? ''),
-          kickoff: String(record.closes_at ?? record.created_at),
+          kickoff: String((record.sporting_event as { starts_at?: string } | null)?.starts_at ?? record.created_at),
+          tradingClose: record.closes_at ? String(record.closes_at) : undefined,
+          settlementTarget: record.settles_by ? String(record.settles_by) : undefined,
           officialSource: String(record.resolution_source ?? record.resolution_criteria ?? 'No resolution source recorded on the market.'),
           outcomes: outcomes.map((outcome) => ({ id: outcome.side, label: outcome.label })),
           stage: stageMap[String(record.workflow_state)] ?? 'Awaiting Result',
           proposedWinningOutcomeId: proposed,
-          evidenceNote: provisional?.notes ? String(provisional.notes) : undefined,
+          evidenceNote: Array.isArray(provisional?.evidence_items)
+            ? String((provisional.evidence_items as Array<{ reference?: string }>)[0]?.reference ?? '') || undefined
+            : undefined,
+          canPublishProvisional: record.can_publish_provisional === true,
+          canResolve: record.can_resolve === true,
+          canSettle: record.can_settle === true,
+          disputeWindowHours: provisional?.published_at && provisional?.dispute_deadline
+            ? Math.round((new Date(String(provisional.dispute_deadline)).getTime() - new Date(String(provisional.published_at)).getTime()) / 3_600_000)
+            : undefined,
           verifiedAt: provisional?.published_at ? String(provisional.published_at) : undefined,
           disputeDeadline: provisional?.dispute_deadline ? String(provisional.dispute_deadline) : undefined,
           developmentWindowEndedAt: provisional?.development_window_ended_at ? String(provisional.development_window_ended_at) : undefined,
           openDisputeCount: Number(record.open_dispute_count ?? 0),
           finalizedAt: record.resolved_at ? String(record.resolved_at) : undefined,
+          settlement: record.settlement && typeof record.settlement === 'object' ? {
+            reference: String((record.settlement as Record<string, unknown>).reference ?? ''),
+            status: String((record.settlement as Record<string, unknown>).status ?? ''),
+            executedAt: (record.settlement as Record<string, unknown>).executed_at ? String((record.settlement as Record<string, unknown>).executed_at) : undefined,
+          } : undefined,
           auditHistory: [],
         };
       }).sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
@@ -119,8 +141,7 @@ export async function verifyResult(
   if (!outcome?.backendOutcomeId) fail('Winning outcome not found.');
   await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/provisional-result/`, {
     winning_outcome_id: outcome.backendOutcomeId,
-    notes: 'Provisional result published for dispute review.',
-    dispute_window_hours: 24,
+    notes: input.evidenceNote.trim(),
     evidence_items: [{ evidence_type: 'OFFICIAL_SOURCE', label: 'Official result source', reference: input.evidenceNote.trim() }],
   });
   return {
@@ -133,35 +154,30 @@ export async function verifyResult(
     outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
     stage: 'Dispute Window', proposedWinningOutcomeId: input.winningOutcomeId,
     evidenceNote: input.evidenceNote.trim(), verifiedAt: new Date().toISOString(),
+    canPublishProvisional: false, canResolve: false, canSettle: false,
     openDisputeCount: 0,
     auditHistory: market.auditHistory,
   };
 }
 
-export async function finalizeResult(marketId: string): Promise<ResultVerification> {
+export async function resolveResult(marketId: string): Promise<void> {
   const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
   if (!verification) fail('This market is not in the result workflow queue.');
-  if (verification.stage === 'Ready to Resolve' && verification.proposedWinningOutcomeId) {
-    await resolveMarket(marketId, verification.proposedWinningOutcomeId);
-    return { ...verification, stage: 'Ready to Settle', finalizedAt: new Date().toISOString() };
-  }
-  if (verification.stage !== 'Ready to Settle') {
-    fail('Settlement is blocked until the dispute window closes and every dispute has a final decision.');
-  }
-  const market = await fetchMarket(marketId);
-  await apiClient.post(`/markets/${encodeURIComponent(marketId)}/settle/`);
+  if (!verification.canResolve || !verification.proposedWinningOutcomeId) fail('The backend has not made this result available to resolve.');
+  if (!verification.evidenceNote?.trim()) fail('The provisional result evidence is required to resolve this market.');
+  await resolveMarket(marketId, verification.proposedWinningOutcomeId, verification.evidenceNote);
+}
+
+export async function settleResult(marketId: string): Promise<{ reference: string; status: string; totalPositionCount?: number; totalPayoutAmount?: string }> {
+  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
+  if (!verification?.canSettle) fail('The backend has not made this market available to settle.');
+  const response = await apiClient.post(`/markets/${encodeURIComponent(marketId)}/settle/`);
+  const data = response.data as Record<string, unknown>;
   return {
-    marketId: market.id,
-    eventLabel: market.eventLabel,
-    question: market.question,
-    competition: market.competition,
-    kickoff: market.kickoff,
-    officialSource: market.description || 'No resolution source recorded on the market.',
-    outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
-    stage: 'Settled', proposedWinningOutcomeId: verification.proposedWinningOutcomeId,
-    evidenceNote: verification.evidenceNote, verifiedAt: verification.verifiedAt,
-    openDisputeCount: verification.openDisputeCount,
-    finalizedAt: new Date().toISOString(), auditHistory: market.auditHistory,
+    reference: String(data.id ?? data.reference ?? ''),
+    status: 'SETTLED',
+    totalPositionCount: data.total_position_count === undefined ? undefined : Number(data.total_position_count),
+    totalPayoutAmount: data.total_payout_amount === undefined ? undefined : String(data.total_payout_amount),
   };
 }
 

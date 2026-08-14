@@ -191,10 +191,18 @@ export async function fetchCanonicalCompetitions(sportId?: string): Promise<Arra
 }
 
 export async function fetchCanonicalSportingEvents(filters: { sportId?: string; competitionId?: string } = {}): Promise<SportingEvent[]> {
+  const now = Date.now();
   const response = await apiClient.get('/sporting-events/', {
-    params: { sport: filters.sportId, competition: filters.competitionId },
+    params: {
+      sport: filters.sportId,
+      competition: filters.competitionId,
+      status: 'SCHEDULED',
+      starts_after: new Date(now).toISOString(),
+    },
   });
-  return normalizeApiList(response.data);
+  return normalizeApiList<SportingEvent>(response.data)
+    .filter((event) => event.status === 'SCHEDULED' && new Date(event.starts_at).getTime() > now)
+    .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime());
 }
 
 interface MarketAdminPayload {
@@ -213,6 +221,7 @@ interface MarketAdminPayload {
   resolution_criteria?: string;
   opens_at?: string | null;
   closes_at?: string | null;
+  settles_by?: string | null;
   is_featured?: boolean;
   yes_label?: string;
   no_label?: string;
@@ -338,6 +347,8 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
           ? candidate
           : new Date(Date.now() + 60 * 60_000).toISOString();
       })(),
+      closesAt: market.closes_at ?? kickoff,
+      settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
       initialLiquidityUgx: 0,
       minTradeUgx: 1_000,
       maxTradeUgx: 500_000,
@@ -536,11 +547,15 @@ export async function configureOpeningPricing(id: string, faceValueUgx: number, 
 }
 
 export async function setParameters(id: string, parameters: MarketParameters): Promise<Market> {
-  // Compute the exact opens_at that will be sent — do NOT silently clamp it
-  // after validation, which previously caused opens_at > closes_at for past fixtures.
-  const opensAtMs  = new Date(parameters.opensAt).getTime();
+  // Validate the exact timestamps that will be sent to the backend.
+  // Do not silently clamp opens_at after validation.
+  const opensAtMs = new Date(parameters.opensAt).getTime();
   const closesAtMs = new Date(parameters.closesAt).getTime();
-  const settlesMs  = new Date(parameters.settlesBy).getTime();
+  const settlesMs = new Date(parameters.settlesBy).getTime();
+
+  if ([opensAtMs, closesAtMs, settlesMs].some((value) => !Number.isFinite(value))) {
+    fail('Trading opens, trading closes, and settlement target are required.');
+  }
 
   if (closesAtMs <= opensAtMs) {
     fail('Trading must close after it opens.');
@@ -556,6 +571,7 @@ export async function setParameters(id: string, parameters: MarketParameters): P
     const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
       opens_at: parameters.opensAt,
       closes_at: parameters.closesAt,
+      settles_by: parameters.settlesBy,
       is_featured: parameters.featured,
     });
     return adaptApiMarket(response.data as ApiAdminMarket);
@@ -647,14 +663,14 @@ export async function reopenMarket(id: string): Promise<Market> {
 }
 
 /** Settles a market through the backend's authoritative resolution workflow. */
-export async function resolveMarket(id: string, winningOutcomeId: OutcomeId): Promise<Market> {
+export async function resolveMarket(id: string, winningOutcomeId: OutcomeId, evidence: string): Promise<Market> {
   try {
     const market = await fetchMarket(id);
     const winner = market.outcomes.find((outcome) => outcome.id === winningOutcomeId);
     if (!winner?.backendOutcomeId) fail('Winning outcome not found.');
     const response = await apiClient.post(`/market-admin/markets/${encodeURIComponent(id)}/resolve/`, {
       winning_outcome_id: winner.backendOutcomeId, notes: `Resolved ${market.question}`,
-      evidence: 'Verified result evidence supplied through the result verification workflow.',
+      evidence: evidence.trim(),
     });
     return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) { throw apiError(error); }

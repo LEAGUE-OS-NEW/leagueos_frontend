@@ -71,6 +71,7 @@ export interface Market {
   status: string;
   opens_at: string;
   closes_at: string;
+  settles_by?: string | null;
   is_featured: boolean;
   sport: SportResource;
   category: MarketCategory;
