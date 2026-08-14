@@ -902,8 +902,11 @@
 
 .market-mini-footer {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   width: 100%;
   padding-top: 12px;
   margin-top: 2px;
@@ -1013,29 +1016,38 @@
   border-bottom-color: var(--color-primary-light);
 }
 
+/* Header now pairs each crest directly with its own team name instead of
+   showing both crests together on the left with the combined title off to
+   the side. Layout: [matchup row incl. status chip] [watch/share actions]
+   on line one, league name on its own line, "Full page" link below that. */
 .market-details-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   margin-bottom: 18px;
 }
 
-.market-details-header-copy h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.market-details-matchup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.market-details-title-row {
+.market-details-team {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--color-text-primary);
 }
 
-.market-details-header-copy p {
-  margin: 2px 0 0;
+.market-details-league {
+  grid-column: 1 / -1;
+  margin: 0;
   font-size: 0.8rem;
   color: var(--color-text-secondary, #8a94a6);
 }
