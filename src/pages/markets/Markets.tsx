@@ -293,7 +293,7 @@ function Markets() {
 
         const openStatus = visible.filter((market) => market.status === "Live" || market.status === "Upcoming");
         const closedStatus = visible.filter(
-          (market) => market.status === "Resolved" || market.status === "Cancelled" || market.status === "Voided",
+          (market) => market.status === "Closed" || market.status === "Resolved" || market.status === "Cancelled" || market.status === "Voided",
         );
 
         setFeaturedMarkets(

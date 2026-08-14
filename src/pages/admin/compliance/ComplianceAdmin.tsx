@@ -14,6 +14,8 @@ import {
 } from "../../../services/markets/complianceAdminService.ts";
 import type { ComplianceDecision } from "../../../types/api.ts";
 import "./ComplianceAdmin.css";
+import CanonicalKycWorkspace from './CanonicalKycWorkspace';
+import { fetchMyAdminAccess } from '../../../services/adminUsersService';
 
 // The backend's ComplianceDecisionProposal only models five specific
 // clear/override actions — that system doesn't touch KYC status at all.
@@ -143,12 +145,6 @@ export interface ComplianceCase {
    MOCK DATA
    ============================================================ */
 
-const currentUserPermissions: CompliancePermission[] = [
-  "REQUEST_INFO",
-  "APPROVE_KYC",
-  "REJECT_KYC",
-  "ESCALATE_CASE",
-];
 
 /* ============================================================
    HELPERS
@@ -699,6 +695,7 @@ const KycQueuePanel: React.FC<{
     </div>
   );
 };
+void KycQueuePanel;
 
 /* ============================================================
    CONFIRMATION MODAL (two-step high-impact confirmation)
@@ -1888,6 +1885,7 @@ const ComplianceCaseDetail: React.FC<{
    ============================================================ */
 
 const ComplianceAdmin: React.FC = () => {
+  const [currentUserPermissions, setCurrentUserPermissions] = useState<CompliancePermission[]>([]);
   const [cases, setCases] = useState<ComplianceCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -1895,6 +1893,11 @@ const ComplianceAdmin: React.FC = () => {
   const [showKycQueue, setShowKycQueue] = useState(false);
 
   useEffect(() => {
+    void fetchMyAdminAccess().then((access) => {
+      if (access.permissions.includes('manage_compliance')) {
+        setCurrentUserPermissions(['REQUEST_INFO', 'APPROVE_KYC', 'REJECT_KYC', 'RESTRICT_ACCOUNT', 'SUSPEND_ACCOUNT', 'ESCALATE_CASE']);
+      }
+    });
     let active = true;
     Promise.all([
       fetchKYCSessions(),
@@ -2237,11 +2240,7 @@ const ComplianceAdmin: React.FC = () => {
             )}
 
             {showKycQueue && (
-              <KycQueuePanel
-                cases={cases}
-                onSelect={setSelectedCase}
-                onClose={() => setShowKycQueue(false)}
-              />
+              <CanonicalKycWorkspace onClose={() => setShowKycQueue(false)} />
             )}
         </div>
 

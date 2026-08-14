@@ -27,7 +27,7 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-const CLOSED_STATUSES: Market['status'][] = ['Resolved', 'Voided', 'Cancelled'];
+const CLOSED_STATUSES: Market['status'][] = ['Closed', 'Resolved', 'Voided', 'Cancelled'];
 
 function MarketCard({ market, onNavigate }: { market: Market; onNavigate: NavigateFunction }) {
   const yes = market.outcomes.find((outcome) => outcome.id === 'YES');
@@ -72,16 +72,17 @@ function MarketCard({ market, onNavigate }: { market: Market; onNavigate: Naviga
         <div className="trade-hub-market-actions">
           {yes && (
             <button type="button" className="trade-hub-yes-btn" onClick={() => onNavigate(`/fan/markets/${market.id}/trade`, { state: { outcomeId: 'YES' } })}>
-              Yes {formatMarketSharePrice(yes.price)}
+              Yes {formatMarketSharePrice(yes.price, yes.markSource)}
             </button>
           )}
           {no && (
             <button type="button" className="trade-hub-no-btn" onClick={() => onNavigate(`/fan/markets/${market.id}/trade`, { state: { outcomeId: 'NO' } })}>
-              No {formatMarketSharePrice(no.price)}
+              No {formatMarketSharePrice(no.price, no.markSource)}
             </button>
           )}
         </div>
       )}
+      {!isClosed && (yes?.markSource === 'OPENING_REFERENCE' || no?.markSource === 'OPENING_REFERENCE') && <p>Awaiting opening liquidity</p>}
     </article>
   );
 }
@@ -224,7 +225,7 @@ function FanTradeHub() {
                     All
                   </button>
                   {MARKET_CATEGORIES.map((category) => (
-                    <button
+            <button
                       key={category}
                       type="button"
                       role="tab"
@@ -233,7 +234,7 @@ function FanTradeHub() {
                       onClick={() => setActiveCategory(category)}
                     >
                       {category}
-                    </button>
+            </button>
                   ))}
                 </div>
 

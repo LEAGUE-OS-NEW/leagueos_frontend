@@ -1,34 +1,83 @@
-export interface DocumentVerificationResult {
-  nameMatches: boolean;
-  idNumberMatches: boolean;
+import apiClient from './apiClient.ts';
+import { extractApiError } from './apiUtils.ts';
+
+export type CanonicalKycStatus =
+  | 'NOT_STARTED'
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'REVIEW'
+  | 'RETRY_REQUIRED'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'EXPIRED';
+
+export interface CanonicalKycState {
+  id: string;
+  status: CanonicalKycStatus;
+  verification_source: 'PROVIDER' | 'MANUAL' | 'DEVELOPMENT_BYPASS';
+  document_type: string;
+  document_country: string;
+  can_retry: boolean;
+  attempts_count: number;
+  max_attempts: number;
+  rejection_reason: string;
+  retry_reason: string;
+  submitted_at: string;
+  completed_at: string | null;
+  verified_at: string | null;
 }
 
-interface VerifyDocumentParams {
-  idFront: File;
-  idBack: File | null;
-  expectedFullName: string;
-  expectedIdNumber: string;
+function unwrap<T>(payload: T | { data: T }): T {
+  return typeof payload === 'object' && payload !== null && 'data' in payload
+    ? (payload as { data: T }).data
+    : (payload as T);
 }
 
-// TODO: replace this stub with a real call to a KYC/OCR provider (e.g. Smile
-// Identity, Onfido, Veriff) that extracts the name and ID number printed on
-// idFront/idBack and compares them to expectedFullName/expectedIdNumber.
-// There is no client-side way to read text off an ID photo — this has to
-// run on a backend that can OCR the uploaded file. Until that's wired up,
-// this always reports a match so the rest of the flow is testable.
-//
-// The params are intentionally unused right now — they'll be read once this
-// function actually calls out to a provider. TypeScript's noUnusedParameters
-// automatically ignores leading-underscore identifiers, hence `_params`
-// below; this project's ESLint config does not have the equivalent
-// argsIgnorePattern configured, so the rule is disabled explicitly too.
-export async function verifyIdentityDocument(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _params: VerifyDocumentParams,
-): Promise<DocumentVerificationResult> {
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  return {
-    nameMatches: true,
-    idNumberMatches: true,
-  };
+function apiError(error: unknown): Error {
+  const details = extractApiError(error);
+  return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
+}
+
+export async function submitCanonicalKyc(input: {
+  documentType: 'PASSPORT' | 'NATIONAL_ID' | 'DRIVING_LICENCE';
+  documentCountry: string;
+  documentImage: File;
+  selfieImage: File;
+}): Promise<void> {
+  const body = new FormData();
+  body.append('document_type', input.documentType);
+  body.append('document_country', input.documentCountry);
+  body.append('document_image', input.documentImage);
+  body.append('selfie_image', input.selfieImage);
+  try {
+    await apiClient.post('/fans/kyc/', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function fetchCanonicalKycStatus(): Promise<CanonicalKycState> {
+  try {
+    const response = await apiClient.get('/fans/kyc/status/');
+    return unwrap(response.data);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function requestCanonicalKycRetry(): Promise<void> {
+  try {
+    await apiClient.post('/fans/kyc/retry/');
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function bypassCanonicalKycForDevelopment(): Promise<CanonicalKycState> {
+  try {
+    const response = await apiClient.post('/fans/kyc/dev-bypass/');
+    return unwrap(response.data);
+  } catch (error) {
+    throw apiError(error);
+  }
 }

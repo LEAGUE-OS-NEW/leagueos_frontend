@@ -145,7 +145,7 @@ function MarketDetailPage() {
   const isTradingOpen = market.status === 'Live';
   const isResolved = market.status === 'Resolved';
   const isCancelled = market.status === 'Cancelled' || market.status === 'Voided';
-  const selectedPrice = bestAsk === null ? null : normalizedPriceToUgxSharePrice(bestAsk);
+  const selectedPrice = bestAsk === null ? null : normalizedPriceToUgxSharePrice(bestAsk, market.faceValueUgx);
   const estimatedShares = selectedPrice && Number(amount) > 0 ? Number(amount) / selectedPrice : 0;
 
   return (

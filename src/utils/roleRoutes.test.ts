@@ -16,6 +16,10 @@ const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
 };
 
 const LEGACY_ROLE_ALIASES: Record<string, string> = {
+  'MARKET_OPERATIONS_&_APPROVAL_ADMIN': 'MARKET_OPERATIONS_ADMIN',
+  MARKET_OPERATIONS_AND_APPROVAL_ADMIN: 'MARKET_OPERATIONS_ADMIN',
+  'SPORTS_DATA_&_STATISTICS_ADMIN': 'SPORTS_DATA_STATISTICS_ADMIN',
+  SPORTS_DATA_AND_STATISTICS_ADMIN: 'SPORTS_DATA_STATISTICS_ADMIN',
   ADMIN: 'SUPER_ADMIN',
   CLUB_OWNER: 'CLUB_ADMIN',
   CLUB_SPECIALIST_STAFF: 'CLUB_ADMIN',
@@ -57,6 +61,16 @@ describe('getDefaultDashboardRoute', () => {
       expect(getDefaultDashboardRoute(user({ role: alias }))).toBe(
         ROLE_DASHBOARD_ROUTES[canonicalRole],
       );
+    },
+  );
+
+  it.each([
+    ['Market Operations & Approval Admin', '/dashboard/admin'],
+    ['Sports Data & Statistics Admin', '/dashboard/admin'],
+  ])(
+    'maps backend display role %s to the correct dashboard',
+    (role, expectedRoute) => {
+      expect(getDefaultDashboardRoute(user({ role }))).toBe(expectedRoute);
     },
   );
 
