@@ -96,11 +96,19 @@ function FieldIcon({ children }: { children: ReactNode }) {
 // the same line as a single flex item, even inside a column-direction
 // flex label (otherwise the asterisk becomes its own flex item and
 // drops to a new line below the label text).
-function FieldLabel({ children, required = true }: { children: ReactNode; required?: boolean }) {
+function FieldLabel({
+  children,
+  required = true,
+  missing = false,
+}: {
+  children: ReactNode;
+  required?: boolean;
+  missing?: boolean;
+}) {
   return (
     <span className="field-label-text">
       {children}
-      {required ? (
+      {required && missing ? (
         <span className="field-required-mark" aria-hidden="true"> *</span>
       ) : null}
     </span>
@@ -157,6 +165,7 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const { validation, validatePassword } = usePasswordValidation();
   const canSubmit = !isSubmitting && !validation.disabled;
 
@@ -218,6 +227,7 @@ export default function Register() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setHasSubmitted(true);
 
     const nextErrors = validateRegisterForm(formValues);
     setFieldErrors(nextErrors);
@@ -346,7 +356,7 @@ export default function Register() {
                   className={fieldErrors.firstName ? 'has-error' : undefined}
                   htmlFor="register-first-name"
                 >
-                  <FieldLabel>First name</FieldLabel>
+                  <FieldLabel missing={hasSubmitted && !formValues.firstName.trim()}>First name</FieldLabel>
                   <div className="field-shell">
                     <FieldIcon><PersonOutlinedIcon /></FieldIcon>
                     <input
@@ -411,7 +421,7 @@ export default function Register() {
                 className={fieldErrors.username ? 'has-error' : undefined}
                 htmlFor="register-username"
               >
-                <FieldLabel>Username</FieldLabel>
+                <FieldLabel required={false}>Username</FieldLabel>
                 <div className="field-shell">
                   <FieldIcon><PersonOutlinedIcon /></FieldIcon>
                   <input
@@ -444,7 +454,7 @@ export default function Register() {
                 className={fieldErrors.phoneNumber ? 'has-error' : undefined}
                 htmlFor="register-phone-number"
               >
-                <FieldLabel>Phone number</FieldLabel>
+                <FieldLabel required={false}>Phone number</FieldLabel>
                 <div className="phone-input-group">
                   <div className="phone-country-select">
                     <span
@@ -502,7 +512,7 @@ export default function Register() {
                 className={fieldErrors.email ? 'has-error' : undefined}
                 htmlFor="register-email"
               >
-                <FieldLabel>Email address</FieldLabel>
+                <FieldLabel missing={hasSubmitted && !formValues.email.trim()}>Email address</FieldLabel>
                 <div className="field-shell">
                   <FieldIcon><MailOutlinedIcon /></FieldIcon>
                   <input
@@ -528,7 +538,7 @@ export default function Register() {
                 className={fieldErrors.password ? 'has-error' : undefined}
                 htmlFor="register-password"
               >
-                <FieldLabel>Password</FieldLabel>
+                <FieldLabel missing={hasSubmitted && !formValues.password}>Password</FieldLabel>
                 <div className="password-field">
                   <FieldIcon><LockOutlinedIcon /></FieldIcon>
                   <input
@@ -584,7 +594,7 @@ export default function Register() {
                 className={fieldErrors.confirmPassword ? 'has-error' : undefined}
                 htmlFor="register-confirm-password"
               >
-                <FieldLabel>Confirm password</FieldLabel>
+                <FieldLabel missing={hasSubmitted && !formValues.confirmPassword}>Confirm password</FieldLabel>
                 <div className="password-field">
                   <FieldIcon><LockOutlinedIcon /></FieldIcon>
                   <input

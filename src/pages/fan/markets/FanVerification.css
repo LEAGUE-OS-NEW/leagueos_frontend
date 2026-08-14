@@ -191,16 +191,6 @@
   margin-top: 0;
 }
 
-.required-star {
-  color: var(--color-danger, #ef4444);
-}
-
-.verify-required-note {
-  margin: 8px 0 0;
-  font-size: 0.8rem;
-  color: var(--color-text-muted, #6b7280);
-}
-
 .verify-field-error {
   margin: 10px 0 0;
   color: var(--color-danger, #ef4444);

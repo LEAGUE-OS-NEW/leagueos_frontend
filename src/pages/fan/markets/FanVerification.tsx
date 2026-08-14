@@ -382,10 +382,9 @@ function FanVerification() {
                   </span>
                   <h2>Verify your identity</h2>
                   <p>Upload a valid government-issued document so we can confirm your identity.</p>
-                  <p className="verify-required-note">Fields marked with <span className="required-star">*</span> are required.</p>
 
                   <label className="verify-field-label" htmlFor="verify-id-type">
-                    Select ID type <span className="required-star">*</span>
+                    Select ID type
                   </label>
                   <select
                     id="verify-id-type"
@@ -401,10 +400,10 @@ function FanVerification() {
                   </select>
 
                   <span className="verify-field-label">
-                    Upload your ID document <span className="required-star">*</span>
+                    Upload your ID document
                   </span>
                   <UploadDropzone
-                    label="Upload Front Side *"
+                    label="Upload Front Side"
                     hint="JPG, PNG or PDF"
                     file={form.idFront}
                     onChange={(file) => updateForm('idFront', file)}
@@ -453,7 +452,7 @@ function FanVerification() {
                   />
 
                   <label className="verify-field-label" htmlFor="verify-dob">
-                    Date of Birth <span className="required-star">*</span>
+                    Date of Birth
                   </label>
                   <div className={`verify-input-with-icon${fieldErrors.dob ? ' has-error' : ''}`}>
                     <FiCalendar />
@@ -470,7 +469,7 @@ function FanVerification() {
                   {age !== null && <small className="verify-age-hint">Age: {age}</small>}
 
                   <label className="verify-field-label" htmlFor="verify-nationality">
-                    Nationality <span className="required-star">*</span>
+                    Nationality
                   </label>
                   <select
                     id="verify-nationality"
@@ -486,7 +485,7 @@ function FanVerification() {
                   </select>
 
                   <label className="verify-field-label" htmlFor="verify-nin">
-                    NIN (National Identification Number) <span className="required-star">*</span>
+                    NIN (National Identification Number)
                   </label>
                   <input
                     id="verify-nin"
@@ -500,7 +499,7 @@ function FanVerification() {
                   {fieldErrors.nin && <p className="verify-field-error" role="alert">{fieldErrors.nin}</p>}
 
                   <span className="verify-field-label">
-                    Gender <span className="required-star">*</span>
+                    Gender
                   </span>
                   <div className="verify-pill-group" role="radiogroup" aria-label="Gender">
                     {(['Male', 'Female', 'Other'] as const).map((option) => (
@@ -514,11 +513,11 @@ function FanVerification() {
                       >
                         {option}
                       </button>
-                    ))} <span className="required-star">*</span>
+                    ))}
                   </div>
 
                   <label className="verify-field-label" htmlFor="verify-occupation">
-                    Occupation <span className="required-star">*</span>
+                    Occupation
                   </label>
                   <select
                     id="verify-occupation"
@@ -590,7 +589,7 @@ function FanVerification() {
                       onChange={(event) => updateForm('confirmedAccurate', event.target.checked)}
                       aria-invalid={Boolean(fieldErrors.confirmedAccurate)}
                     />
-                    I confirm that the information provided is accurate. <span className="required-star">*</span>
+                    I confirm that the information provided is accurate.
                   </label>
                   {fieldErrors.confirmedAccurate && <p className="verify-field-error" role="alert">{fieldErrors.confirmedAccurate}</p>}
                   {stepError && <p className="verify-field-error" role="alert">{stepError}</p>}
