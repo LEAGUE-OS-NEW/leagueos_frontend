@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { FiAlertCircle, FiCamera, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
-import { removeAvatar, updateProfile, uploadAvatar } from '../../../../services/authServices';
+import { fetchGenders, removeAvatar, updateProfile, uploadAvatar } from '../../../../services/authServices';
+import type { GenderOption } from '../../../../services/authServices';
 import type { BackendProfile } from '../../../../data/currentUser';
 import AvatarCropModal from './AvatarCropModal';
 import './ProfileForm.css';
@@ -31,10 +32,15 @@ function toFormValues(profile?: BackendProfile | null): FormValues {
     lastName: profile?.last_name ?? '',
     email: profile?.email ?? '',
     phoneNumber: profile?.phone_number ?? '',
-    location: profile?.location ?? '',
+    // Profile model field is `city`, not `location` — `location` never
+    // existed on the API response, so reading it here always came back
+    // empty regardless of what was saved.
+    location: profile?.city ?? '',
     favoriteSport: profile?.favourite_sport ?? profile?.favorite_sport ?? '',
-    bio: profile?.bio ?? '',
-    gender: profile?.gender ?? '',
+    // Profile model field is `biography`, not `bio` — same mismatch as city/location.
+    bio: profile?.biography ?? '',
+    // GET /profile/ nests gender as {id, name, code, is_active}, not a raw string.
+    gender: profile?.gender?.id ?? '',
     dateOfBirth: profile?.date_of_birth ?? '',
   };
 }
@@ -85,6 +91,24 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
   const [isAvatarBusy, setIsAvatarBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasSyncedRealProfile = useRef(false);
+  const [genders, setGenders] = useState<GenderOption[]>([]);
+
+  // Fetch-on-mount for the Gender dropdown's real options — mirrors the
+  // fetch-in-effect shape used elsewhere (e.g. useMarketEligibility).
+  useEffect(() => {
+    let cancelled = false;
+    fetchGenders()
+      .then((response) => {
+        if (!cancelled) setGenders(response.data);
+      })
+      .catch(() => {
+        // Non-fatal: the dropdown just falls back to only the current
+        // value (if any) plus "Prefer not to say" until this succeeds.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // The profile arrives asynchronously (useCurrentUser starts with `null`),
   // so re-sync the form once real data lands — but only that first time, so
@@ -120,12 +144,20 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
       await updateProfile({
         first_name: values.firstName.trim(),
         last_name: values.lastName.trim(),
+        // phone_number and favourite_sport aren't accepted by PATCH
+        // /profile/ (phone lives on a separate verification flow;
+        // favourite sport belongs to the onboarding app's own endpoint) —
+        // sent as before so behavior there is unchanged, but they're
+        // silently ignored by the backend either way.
         phone_number: values.phoneNumber.trim(),
-        location: values.location.trim(),
         favourite_sport: values.favoriteSport.trim(),
-        bio: values.bio.trim(),
-        gender: values.gender,
-        date_of_birth: values.dateOfBirth,
+        // Profile model fields are `city`/`biography`, not `location`/`bio`.
+        city: values.location.trim(),
+        biography: values.bio.trim(),
+        // gender/date_of_birth are PrimaryKeyRelatedField/DateField with
+        // allow_null=True — they accept explicit null, not ''.
+        gender: values.gender || null,
+        date_of_birth: values.dateOfBirth || null,
       });
       setSavedValues(values);
       setBanner({ tone: 'success', message: 'Your profile has been updated.' });
@@ -309,9 +341,11 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
             Gender
             <select value={values.gender} onChange={(event) => updateField('gender', event.target.value)} disabled={isLoading}>
               <option value="">Prefer not to say</option>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
+              {genders.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
             </select>
           </label>
 

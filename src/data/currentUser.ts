@@ -24,10 +24,12 @@ export type BackendProfile = {
   is_phone_verified?: boolean;
   date_joined?: string;
   location?: string;
+  city?: string;
   favourite_sport?: string;
   favorite_sport?: string;
   bio?: string;
-  gender?: string;
+  biography?: string;
+  gender?: { id: string; name: string; code: string; is_active: boolean } | null;
   date_of_birth?: string;
   is_verified?: boolean;
 };
