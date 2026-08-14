@@ -312,10 +312,9 @@ function FanVerification() {
     }
   };
 
-  // Simulated review: once submitted we land on "pending", then auto-advance
-  // to "verified" after a short delay. There's no backend wired up yet, so
-  // this stands in for the real async verification check — the actual
-  // pass/fail decision already happened in handleSubmitForVerification.
+  // Auto-redirect to the status step when eligibility state arrives
+  // asynchronously (e.g. after an admin approves a REVIEW-status record).
+  // isPending covers PENDING / PROCESSING / REVIEW via the hook.
   useEffect(() => {
     // Syncing the local wizard step to server-driven eligibility state
     // (polled elsewhere) — there's no render-time value to derive this from
@@ -336,7 +335,7 @@ function FanVerification() {
   }, [currentStep, refreshCanonicalStatus]);
 
   useEffect(() => {
-    if (currentStep !== 'status' || !['PENDING', 'PROCESSING'].includes(canonicalKyc?.status ?? '')) return;
+    if (currentStep !== 'status' || !['PENDING', 'PROCESSING', 'REVIEW'].includes(canonicalKyc?.status ?? '')) return;
     const interval = window.setInterval(() => {
       void refreshCanonicalStatus();
     }, 5000);

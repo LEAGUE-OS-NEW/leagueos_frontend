@@ -33,8 +33,23 @@ const SPORT_CLASS: Record<Sport, string> = {
   Basketball: 'sport-basketball',
 };
 
-function isSupportedSport(category: MarketCategory): category is Sport {
-  return category === 'Football' || category === 'Rugby' || category === 'Basketball';
+function isSupportedSport(market: AdminMarket): market is AdminMarket & { category: Sport } {
+  const sport = (market.tags[0] ?? market.competition ?? '').toLowerCase();
+  return (
+    market.category === 'Football' ||
+    market.category === 'Rugby' ||
+    market.category === 'Basketball' ||
+    sport.includes('football') ||
+    sport.includes('rugby') ||
+    sport.includes('basketball')
+  );
+}
+
+function marketSport(market: AdminMarket): Sport {
+  if (market.category === 'Football' || (market.tags[0] ?? '').toLowerCase().includes('football')) return 'Football';
+  if (market.category === 'Rugby' || (market.tags[0] ?? '').toLowerCase().includes('rugby')) return 'Rugby';
+  if (market.category === 'Basketball' || (market.tags[0] ?? '').toLowerCase().includes('basketball')) return 'Basketball';
+  return 'Football'; // safe default — only reached when isSupportedSport passes
 }
 
 function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
@@ -53,12 +68,14 @@ function formatClosesIn(iso: string): string {
 
 async function loadFeaturedMarkets(): Promise<Market[]> {
   const published = await fetchFeaturedPublishedMarkets(5);
-  const supported = published.filter((market): market is AdminMarket => isSupportedSport(market.category));
+  // Keep all featured open markets; fall back to 'Football' for any market
+  // whose sport tag doesn't match one of the three supported sport classes.
+  const supported = published.filter(isSupportedSport);
 
   return supported.map((market) => {
     return {
       id: market.id,
-      sport: market.category as Sport,
+      sport: marketSport(market),
       status:
         market.status === 'Live'
           ? { label: 'LIVE', meta: 'In play' }
