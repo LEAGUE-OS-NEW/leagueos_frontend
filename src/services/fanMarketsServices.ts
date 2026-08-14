@@ -40,6 +40,7 @@ export interface MarketListItem {
   changePct: number | null;
   tradersCount: number | null;
   totalContractsLabel: string | null;
+  createdAt: string; // ISO string — used to sort newest-first
 }
 
 export interface MarketCategory {
@@ -334,6 +335,7 @@ function adaptListItem(market: Market): MarketListItem {
     changePct: null,
     tradersCount: null,
     totalContractsLabel: null,
+    createdAt: market.createdAt,
   };
 }
 

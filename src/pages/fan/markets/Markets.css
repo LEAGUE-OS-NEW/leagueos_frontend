@@ -709,9 +709,10 @@
 
 .buy-button {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   border: none;
   border-radius: 8px;
   padding: 10px 6px;
@@ -884,12 +885,30 @@
 
 .mini-yesno {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   text-align: center;
   padding: 10px 8px;
   border-radius: 8px;
   font-size: 0.88rem;
   font-weight: 700;
   color: #ffffff;
+}
+
+.mini-yesno .btn-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mini-yesno .btn-price {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.9;
+  line-height: 1;
 }
 
 .mini-yesno--yes {
@@ -916,6 +935,55 @@
 }
 
 /* ---------------------------- all markets simple table ---------------------------- */
+
+.all-markets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.all-markets-header .all-markets-title {
+  margin: 0;
+}
+
+.all-markets-status-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.all-markets-status-chip {
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.all-markets-status-chip:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
+}
+
+.all-markets-status-chip.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.all-markets-empty {
+  padding: 20px 4px;
+  font-size: 0.84rem;
+  color: var(--color-text-muted, #6b7280);
+  text-align: center;
+}
 
 .all-markets-title {
   margin-top: 4px;
@@ -1117,9 +1185,31 @@
   margin-bottom: 16px;
 }
 
-.yesno-buttons .buy-button {
-  min-height: 44px;
+.buy-button .btn-label {
   font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.buy-button .btn-price {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.9;
+  line-height: 1;
+}
+
+.yesno-buttons .buy-button {
+  min-height: 52px;
+  font-size: 0.9rem;
+}
+
+.yesno-buttons .buy-button .btn-label {
+  font-size: 0.95rem;
+}
+
+.yesno-buttons .buy-button .btn-price {
+  font-size: 0.78rem;
 }
 
 .market-details-verified-row {

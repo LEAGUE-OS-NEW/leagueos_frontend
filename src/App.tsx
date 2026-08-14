@@ -102,6 +102,7 @@ import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
 import ClubCompliancePage from './pages/clubadmin/compliance/ClubCompliancePage';
 import ClubAdminRoute from './components/clubadmin/ClubAdminRoute';
+import FanRoute from './components/fan/FanRoute';
 import Unauthorized from './pages/auth/unauthorized/Unauthorized';
 
 // import Personalize from "./pages/personalize/Personalize";
@@ -135,7 +136,7 @@ function App() {
         <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
 
           {/* Fan Section*/ }
-        <Route path="/fan/onboarding" element={<FanOnboarding />}/>
+        <Route path="/fan/onboarding" element={<FanRoute><FanOnboarding /></FanRoute>}/>
         <Route path="/dashboard/fan" element={<FanDashboard />} />
         <Route path="/fan" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />

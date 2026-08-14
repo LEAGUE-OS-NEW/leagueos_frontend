@@ -34,8 +34,24 @@ interface BackendStory {
   is_featured?: boolean;
 }
 
-// Placeholder assets used for fields the backend does not yet provide.
-const PLACEHOLDER_IMAGE = '/images/stadium-bg.png';
+// ---------------------------------------------------------------------------
+// Sport-specific placeholder images.
+// Used when the backend does not supply an image for a story.
+// Real uploaded images are always displayed as-is.
+// ---------------------------------------------------------------------------
+const NEWS_PLACEHOLDER: Record<Story['category'], string> = {
+  Football:   '/images/news/football-placeholder.jpg',
+  Rugby:      '/images/news/rugby-placeholder.jpg',
+  Basketball: '/images/news/basketball-placeholder.jpg',
+  Clubs:      '/images/news/news-placeholder.jpg',
+  Markets:    '/images/news/news-placeholder.jpg',
+  Fantasy:    '/images/news/news-placeholder.jpg',
+};
+
+/** Returns a sport-appropriate placeholder when a story has no real image. */
+function storyPlaceholder(category: Story['category']): string {
+  return NEWS_PLACEHOLDER[category] ?? '/images/news/news-placeholder.jpg';
+}
 const PLACEHOLDER_AVATAR = '/logos/logo.png';
 const DEFAULT_AUTHOR = 'LeagueOS';
 
@@ -84,13 +100,14 @@ function formatTime(iso: string): string {
 }
 
 function mapStory(raw: BackendStory): Story {
+  const category = toCategory(raw.category);
   return {
     id: String(raw.id),
     title: raw.title,
     description: raw.summary,
-    category: toCategory(raw.category),
+    category,
     time: formatTime(raw.published_at),
-    image: raw.image || PLACEHOLDER_IMAGE,
+    image: raw.image || storyPlaceholder(category),
     author: raw.author || DEFAULT_AUTHOR,
     avatar: raw.avatar || PLACEHOLDER_AVATAR,
     isFeatured: raw.is_featured ?? false,
