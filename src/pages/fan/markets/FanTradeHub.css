@@ -544,8 +544,41 @@
      radius, padding, hover) — this class only adds the flex layout for
      the extra rows (probability bar, stats, divider-less footer) that
      the plain /markets card doesn't need. */
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.trade-hub-market-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.trade-hub-market-card.sport-football::before {
+  background-image: linear-gradient(160deg, rgba(22, 101, 52, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/football-promo.png');
+  opacity: 1;
+}
+
+.trade-hub-market-card.sport-rugby::before {
+  background-image: linear-gradient(160deg, rgba(127, 29, 29, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/rugby-promo.png');
+  opacity: 1;
+}
+
+.trade-hub-market-card.sport-basketball::before {
+  background-image: linear-gradient(160deg, rgba(29, 78, 216, 0.72) 0%, rgba(10, 7, 19, 0.82) 70%), url('/sports/basketball-promo.png');
+  opacity: 1;
+}
+
+.trade-hub-market-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .trade-hub-market-card-main {

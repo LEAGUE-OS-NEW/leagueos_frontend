@@ -516,7 +516,7 @@ function Markets() {
 
             <div className="featured-markets-grid">
               {featuredMarkets.map((market) => (
-                <article className="featured-market-card" key={market.id}>
+                <article className={`featured-market-card sport-${market.sport.toLowerCase()}`} key={market.id}>
                   <div className="featured-market-header">
                     <span
                       className={`sport-tag ${SPORT_META[market.sport].className}`}

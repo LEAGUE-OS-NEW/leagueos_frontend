@@ -35,7 +35,7 @@ function MarketCard({ market, onNavigate }: { market: Market; onNavigate: Naviga
   const isClosed = CLOSED_STATUSES.includes(market.status);
 
   return (
-    <article className="trade-hub-market-card dashboard-card">
+    <article className={`trade-hub-market-card dashboard-card sport-${market.category.toLowerCase()}`}>
       <div className="trade-hub-market-card-head">
         <span className="trade-hub-sport-tag">{market.category}</span>
         <span className={`market-status-badge market-status-badge--${market.status.toLowerCase()}`}>
