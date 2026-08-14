@@ -8,7 +8,7 @@ import Footer from '../../../components/landing/Footer';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
+import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { formatUgx } from '../../../utils/rules.ts';
 import {
   formatMarketSharePrice,
@@ -90,8 +90,8 @@ function FanTradeHub() {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser, isLoading: isUserLoading } = useCurrentUser();
-  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
-  const isVerified = Boolean(!isUserLoading && isIdentityVerified);
+  const { isEligible } = useMarketEligibility();
+  const isVerified = Boolean(!isUserLoading && isEligible);
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);

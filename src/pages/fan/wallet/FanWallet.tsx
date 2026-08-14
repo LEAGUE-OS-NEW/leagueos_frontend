@@ -4,7 +4,7 @@ import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
+import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import { fetchWalletDetails, getWalletAvailableBalanceUgx, recordWithdrawalTransaction } from '../../../services/walletService';
@@ -15,7 +15,7 @@ import './FanWallet.css';
 
 function FanWallet() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
+  const { isEligible: isIdentityVerified } = useMarketEligibility();
   const { currentUser, isLoading: isUserLoading } = useCurrentUser();
   const isVerified = Boolean(!isUserLoading && currentUser.isVerified);
   const [wallet, setWallet] = useState<WalletDetails | null>(null);

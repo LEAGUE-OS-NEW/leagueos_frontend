@@ -6,7 +6,7 @@ import Footer from '../../../components/landing/Footer';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { useIdentityVerificationStore } from '../../../store/identityVerificationStore';
+import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { fetchFanPositions, type Position } from '../../../services/fanMarketsServices';
 import '../sections/FanDashboard.css';
 import './MyPositions.css';
@@ -31,7 +31,7 @@ function isSettled(position: Position): boolean {
 function MyPositions() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { currentUser } = useCurrentUser();
-  const isIdentityVerified = useIdentityVerificationStore((state) => state.isVerified);
+  const { isEligible: isIdentityVerified } = useMarketEligibility();
   const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
