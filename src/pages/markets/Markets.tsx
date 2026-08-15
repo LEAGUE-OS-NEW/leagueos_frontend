@@ -163,6 +163,27 @@ function marketStatusMeta(status: string) {
   return MARKET_STATUS_META[status] ?? { label: status, className: "open" };
 }
 
+function marketOutcomePrice(
+  market: PublishedMarket,
+  side: "YES" | "NO",
+): string {
+  const outcome = market.outcomes.find(
+    (item) => item.id === side,
+  );
+
+  const price =
+    outcome?.bestAsk ??
+    outcome?.price ??
+    outcome?.openingPrice ??
+    null;
+
+  if (price === null) {
+    return "Awaiting opening liquidity";
+  }
+
+  return `UGX ${Math.round(price).toLocaleString("en-US")}/share`;
+}
+
 function marketSport(
   market: PublishedMarket,
 ): Sport | null {
@@ -337,8 +358,8 @@ function Markets() {
               question: market.question,
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
               status: "OPEN",
-              yesPrice: "Price unavailable",
-              noPrice: "Price unavailable",
+              yesPrice: marketOutcomePrice(market, "YES"),
+              noPrice: marketOutcomePrice(market, "NO"),
               volume: "—",
               traders: "—",
             };
@@ -352,8 +373,8 @@ function Markets() {
               sport: marketSport(market) ?? "Football",
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              yesPrice: "—",
-              noPrice: "—",
+              yesPrice: marketOutcomePrice(market, "YES"),
+              noPrice: marketOutcomePrice(market, "NO"),
               volume: "—",
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
             };

@@ -1,5 +1,6 @@
 import axiosInstance from './apiClient';
 import { extractApiError, unwrapApiData } from './apiUtils';
+import { fetchMarkets as fetchFanMarkets } from './fanMarketsServices.ts';
 import type { ApiEnvelope } from '../types/api';
 
 type DashboardModuleStatus = 'success' | 'unavailable';
@@ -18,7 +19,6 @@ interface FanDashboardAggregate {
     notifications?: DashboardModule<NotificationsModuleData>;
     favourites?: DashboardModule<FavouritesModuleData>;
     fixtures?: DashboardModule<FixturesModuleData>;
-    markets?: DashboardModule<MarketsModuleData>;
     wallet?: DashboardModule<WalletModuleData>;
   };
 }
@@ -34,10 +34,6 @@ interface FavouritesModuleData {
 
 interface FixturesModuleData {
   upcoming_fixtures?: BackendFixture[];
-}
-
-interface MarketsModuleData {
-  featured_markets?: BackendMarket[];
 }
 
 interface WalletModuleData {
@@ -95,18 +91,6 @@ interface BackendFixture {
   score_b?: number;
   crest_a?: string;
   crest_b?: string;
-}
-
-interface BackendMarket {
-  id?: string;
-  question?: string;
-  sport?: string;
-  category?: string | null;
-  status?: string;
-  closes_at?: string | null;
-  price?: string | number;
-  volume_24h?: string | number;
-  trades_24h?: string | number;
 }
 
 let dashboardPromise: Promise<FanDashboardAggregate> | null = null;
@@ -197,12 +181,6 @@ function splitFixtureName(name?: string): [string, string] {
   return [teamA || 'Home', teamB || 'Away'];
 }
 
-function splitMarketQuestion(question?: string): [string, string] {
-  const text = String(question || 'Featured market');
-  const [teamA, teamB] = text.split(/\s+(?:vs|v)\.?\s+/i);
-  return [teamA || text, teamB || 'the field'];
-}
-
 export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs' | 'memberships';
 
 export interface QuickStat {
@@ -270,8 +248,10 @@ export async function fetchFixtures(): Promise<Fixture[]> {
 }
 
 export interface MarketUpdateData {
+  marketId: string;
   teamA: string;
   teamB: string;
+  question: string;
   price: string;
   priceChangePct: string;
   volume24h: string;
@@ -280,20 +260,29 @@ export interface MarketUpdateData {
 }
 
 export async function fetchMarketUpdate(): Promise<MarketUpdateData | null> {
-  const dashboard = await fetchDashboardAggregate();
-  const data = moduleData<MarketsModuleData>(dashboard, 'markets');
-  const market = data.featured_markets?.[0];
+  const markets = await fetchFanMarkets();
+  const liveMarkets = markets.filter((market) => market.status === 'live');
+  const market =
+    liveMarkets.find((item) => item.isTrending && item.yesPrice !== null) ??
+    liveMarkets.find((item) => item.yesPrice !== null) ??
+    liveMarkets[0] ??
+    markets.find((item) => item.status === 'upcoming');
+
   if (!market) return null;
 
-  const [teamA, teamB] = splitMarketQuestion(market.question);
   return {
-    teamA,
-    teamB,
-    price: market.price ? formatCurrency(market.price) : 'Market open',
-    priceChangePct: '0.0',
-    volume24h: market.volume_24h ? formatCurrency(market.volume_24h) : 'UGX 0',
-    trades24h: formatNumber(market.trades_24h ?? 0),
-    chartPoints: '0,54 40,52 80,57 120,49 160,51 200,43 240,46 300,40',
+    marketId: market.id,
+    teamA: market.teamA,
+    teamB: market.teamB,
+    question: market.question,
+    price:
+      market.yesPrice === null
+        ? 'Awaiting liquidity'
+        : `UGX ${Math.round(market.yesPrice).toLocaleString('en-US')}/share`,
+    priceChangePct: market.changePct === null ? '—' : market.changePct.toFixed(1),
+    volume24h: market.volumeLabel ?? '—',
+    trades24h: market.totalContractsLabel ?? '—',
+    chartPoints: '',
   };
 }
 
