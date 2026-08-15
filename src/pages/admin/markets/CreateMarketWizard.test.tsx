@@ -27,7 +27,7 @@ const createdMarket = {
   id: 'market-1', sportingEventId: fixture.id, eventLabel: fixture.name, competition: competition.name,
   venue: fixture.venue, kickoff: fixture.starts_at, category: 'Football' as const, question: 'Will City Oilers win?',
   description: '', tags: [], outcomes: [], faceValueUgx: 10_000,
-  parameters: { opensAt: '2099-08-14T10:00:00Z', closesAt: fixture.starts_at, settlesBy: '2099-08-17T14:00:00Z', initialLiquidityUgx: 0, minTradeUgx: 1000, maxTradeUgx: 500000, feePct: 2, featured: false, trending: false, recommended: false, inPlayTrading: false },
+  parameters: { opensAt: '2099-08-14T10:00:00Z', closesAt: fixture.starts_at, settlesBy: '2099-08-17T14:00:00Z', initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY' as const, openingSpreadBps: 100, minTradeUgx: 1000, maxTradeUgx: 500000, feePct: 2, featured: false, trending: false, recommended: false, inPlayTrading: false },
   status: 'Draft' as const, createdBy: 'Admin', createdAt: '2099-08-14T10:00:00Z', auditHistory: [],
 };
 
@@ -131,15 +131,19 @@ describe('CreateMarketWizard fixture binding', () => {
 
     const settlement = await screen.findByLabelText('Settlement Target');
     expect(settlement).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Opening Liquidity' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Initial Liquidity (UGX)'), { target: { value: '500000' } });
+    expect(screen.getByRole('region', { name: 'Opening Liquidity' })).toHaveTextContent('Approx. complete sets: 50');
     fireEvent.change(settlement, { target: { value: '2099-08-15T09:00' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Settlement target must be at or after');
     expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
 
     fireEvent.change(settlement, { target: { value: '2099-08-17T14:00' } });
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    await waitFor(() => expect(marketService.setParameters).toHaveBeenCalledWith('market-1', expect.objectContaining({ settlesBy: new Date('2099-08-17T14:00').toISOString() })));
+    await waitFor(() => expect(marketService.setParameters).toHaveBeenCalledWith('market-1', expect.objectContaining({ settlesBy: new Date('2099-08-17T14:00').toISOString(), initialLiquidityUgx: 500000, liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100 })));
     expect(await screen.findByText('Settlement target')).toBeInTheDocument();
     expect(screen.getByText('Trading closes')).toBeInTheDocument();
     expect(screen.getByText('Fixture kickoff')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Opening Liquidity review' })).toHaveTextContent('Initial collateral: UGX 500,000');
   });
 });

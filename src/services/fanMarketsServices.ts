@@ -54,6 +54,10 @@ export interface Outcome {
   description: string;
   probabilityPct: number | null;
   price: number | null;
+  openingReference: number | null;
+  bestBid: number | null;
+  bestAsk: number | null;
+  lastTrade: number | null;
   markSource?: 'LAST_TRADE' | 'MIDPOINT' | 'BEST_QUOTE' | 'OPENING_REFERENCE' | 'NO_LIQUIDITY';
 }
 
@@ -62,6 +66,8 @@ export interface MarketParameters {
   closesAt: string;
   settlesBy: string;
   initialLiquidityUgx: number;
+  liquiditySource: 'PLATFORM_TREASURY' | 'EXTERNAL_MARKET_MAKER';
+  openingSpreadBps: number;
   minTradeUgx: number;
   maxTradeUgx: number;
   positionLimitUgx?: number;
@@ -116,6 +122,9 @@ export interface Contract {
   seller: string;
   matchedAt: string;
   status: string;
+  filledQuantityUgx: number;
+  remainingQuantityUgx: number;
+  averageFillPrice: number | null;
   payoutUgx?: number;
 }
 
@@ -242,13 +251,66 @@ function formatDurationUntil(iso?: string | null): string {
   return `${mins}m`;
 }
 
-function statusFromApi(market: ApiMarket): AdminMarketStatus {
-  if (market.status === 'DRAFT') return 'Draft';
-  if (market.status === 'RESOLVED') return 'Resolved';
-  if (market.status === 'VOIDED') return 'Voided';
-  if (market.status === 'CLOSED') return 'Closed';
-  if (market.status === 'CANCELLED' || market.status === 'SUSPENDED') return 'Cancelled';
-  return market.opens_at && new Date(market.opens_at).getTime() > Date.now() ? 'Upcoming' : 'Live';
+function statusFromApi(
+  market: ApiMarket,
+): AdminMarketStatus {
+  if (market.status === 'DRAFT') {
+    return 'Draft';
+  }
+
+  if (market.status === 'RESOLVED') {
+    return 'Resolved';
+  }
+
+  if (market.status === 'VOIDED') {
+    return 'Voided';
+  }
+
+  if (market.status === 'CLOSED') {
+    return 'Closed';
+  }
+
+  if (
+    market.status === 'CANCELLED' ||
+    market.status === 'SUSPENDED'
+  ) {
+    return 'Cancelled';
+  }
+
+  const now = Date.now();
+
+  const closesAt = market.closes_at
+    ? new Date(market.closes_at).getTime()
+    : null;
+
+  if (
+    closesAt !== null &&
+    Number.isFinite(closesAt) &&
+    now >= closesAt
+  ) {
+    return 'Closed';
+  }
+
+  const opensAt = market.opens_at
+    ? new Date(market.opens_at).getTime()
+    : null;
+
+  if (
+    opensAt !== null &&
+    Number.isFinite(opensAt) &&
+    now < opensAt
+  ) {
+    return 'Upcoming';
+  }
+
+  if (market.status === 'OPEN') {
+    return 'Live';
+  }
+
+  // Approved/non-terminal markets that have
+  // not explicitly transitioned OPEN should
+  // never be presented as currently tradable.
+  return 'Upcoming';
 }
 
 function listStatusFromMarket(market: Market): MarketStatus {
@@ -289,6 +351,10 @@ function adaptMarket(market: ApiMarket): Market {
         description: yesApi.description ?? '',
         probabilityPct: outcomePrice(yesApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[yesApi.id]?.mark_price) * 100,
         price: outcomePrice(yesApi.id),
+        openingReference: market.opening_reference?.YES == null ? null : normalizedPriceToUgxSharePrice(Number(market.opening_reference.YES), market.face_value_ugx),
+        bestBid: market.trading_snapshot?.outcomes[yesApi.id]?.best_bid == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].best_bid), market.face_value_ugx),
+        bestAsk: market.trading_snapshot?.outcomes[yesApi.id]?.best_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].best_ask), market.face_value_ugx),
+        lastTrade: market.trading_snapshot?.outcomes[yesApi.id]?.last_trade == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[yesApi.id].last_trade), market.face_value_ugx),
         markSource: market.trading_snapshot?.outcomes[yesApi.id]?.mark_source,
       },
       noApi && {
@@ -298,6 +364,10 @@ function adaptMarket(market: ApiMarket): Market {
         description: noApi.description ?? '',
         probabilityPct: outcomePrice(noApi.id) === null ? null : Number(market.trading_snapshot?.outcomes[noApi.id]?.mark_price) * 100,
         price: outcomePrice(noApi.id),
+        openingReference: market.opening_reference?.NO == null ? null : normalizedPriceToUgxSharePrice(Number(market.opening_reference.NO), market.face_value_ugx),
+        bestBid: market.trading_snapshot?.outcomes[noApi.id]?.best_bid == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].best_bid), market.face_value_ugx),
+        bestAsk: market.trading_snapshot?.outcomes[noApi.id]?.best_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].best_ask), market.face_value_ugx),
+        lastTrade: market.trading_snapshot?.outcomes[noApi.id]?.last_trade == null ? null : normalizedPriceToUgxSharePrice(Number(market.trading_snapshot.outcomes[noApi.id].last_trade), market.face_value_ugx),
         markSource: market.trading_snapshot?.outcomes[noApi.id]?.mark_source,
       },
     ].filter(Boolean) as Outcome[],
@@ -307,6 +377,8 @@ function adaptMarket(market: ApiMarket): Market {
       closesAt: market.closes_at ?? kickoff,
       settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
       initialLiquidityUgx: 0,
+      liquiditySource: 'PLATFORM_TREASURY',
+      openingSpreadBps: 0,
       minTradeUgx: DEFAULT_MIN_TRADE_UGX,
       maxTradeUgx: DEFAULT_MAX_TRADE_UGX,
       feePct: DEFAULT_FEE_PCT,
@@ -561,6 +633,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
       seller: 'Market',
       matchedAt: order.created_at,
       status: order.status,
+      filledQuantityUgx: Number(order.filled_quantity) * Number(order.average_fill_price ?? order.limit_price),
+      remainingQuantityUgx: (Number(order.quantity) - Number(order.filled_quantity)) * Number(order.limit_price),
+      averageFillPrice: order.average_fill_price === null ? null : normalizedPriceToUgxSharePrice(Number(order.average_fill_price), market.faceValueUgx),
     };
   } catch (error) {
     if (error instanceof Error && !('response' in error)) throw error;
@@ -584,6 +659,9 @@ export async function sellPosition(input: SellOrderInput): Promise<Contract> {
       price: normalizedPriceToUgxSharePrice(Number(order.limit_price), market.faceValueUgx),
       quantityUgx: Number(order.quantity) * Number(order.limit_price), buyer: 'Market', seller: 'You',
       matchedAt: order.created_at, status: order.status,
+      filledQuantityUgx: Number(order.filled_quantity) * Number(order.average_fill_price ?? order.limit_price),
+      remainingQuantityUgx: (Number(order.quantity) - Number(order.filled_quantity)) * Number(order.limit_price),
+      averageFillPrice: order.average_fill_price === null ? null : normalizedPriceToUgxSharePrice(Number(order.average_fill_price), market.faceValueUgx),
     };
   } catch (error) { throw apiError(error); }
 }

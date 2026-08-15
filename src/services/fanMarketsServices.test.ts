@@ -17,6 +17,20 @@ describe('genuine market order integration', () => {
     await placeOrder({marketId:'market-1',outcomeId:'YES',quantityUgx:10000,limitPrice:0.62});
     expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/', expect.objectContaining({side:'BUY',limit_price:'0.62000'}));
   });
+  it('submits an OPEN GTC limit BUY without requesting an order book', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: market });
+    vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-limit',market:'market-1',outcome:'outcome-1',side:'BUY',quantity:'20000.0000',limit_price:'0.50000',filled_quantity:'0',average_fill_price:null,status:'OPEN',created_at:'2026-01-01T00:00:00Z'} });
+    const result = await placeOrder({marketId:'market-1',outcomeId:'YES',quantityUgx:10000,limitPrice:0.5});
+    expect(result.status).toBe('OPEN');
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+    expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/', expect.objectContaining({ time_in_force:'GTC', limit_price:'0.50000' }));
+  });
+  it('maps actual FILLED average price from the backend', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: market });
+    vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-filled',market:'market-1',outcome:'outcome-1',side:'BUY',quantity:'20000.0000',limit_price:'0.50000',filled_quantity:'20000.0000',average_fill_price:'0.48000',status:'FILLED',created_at:'2026-01-01T00:00:00Z'} });
+    const result = await placeOrder({marketId:'market-1',outcomeId:'YES',quantityUgx:10000,limitPrice:0.5});
+    expect(result).toMatchObject({ status:'FILLED', averageFillPrice:480, remainingQuantityUgx:0 });
+  });
   it('submits SELL with shares converted to backend quantity and best bid', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: market });
     vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-2',market:'market-1',outcome:'outcome-1',side:'SELL',quantity:'2500.0000',limit_price:'0.55000',filled_quantity:'0',average_fill_price:null,status:'OPEN',created_at:'2026-01-01T00:00:00Z'} });

@@ -9,23 +9,12 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import { fetchMarket, fetchMarketOrderBook, placeOrder } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
-import { recordMarketStake } from '../../../services/walletService';
+import {
+  isTradeOrderDraft,
+} from './trading/tradeDraft';
 import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanMarketDetail.css';
-
-// This must match exactly what PlaceOrder.tsx passes via navigate(..., { state })
-// — it sends `outcomeId: 'YES' | 'NO'`, not `outcome: 'Yes' | 'No'`. A field-name
-// mismatch here silently falls back to a default outcome instead of erroring,
-// which is why this is worth keeping in sync deliberately rather than guessing.
-interface TradeReviewState {
-  marketId?: string;
-  outcomeId?: OutcomeId;
-  price?: number;
-  limitPrice?: number;
-  amount?: number;
-  contracts?: number;
-}
 
 function ReviewOrder() {
   const navigate = useNavigate();
@@ -36,13 +25,38 @@ function ReviewOrder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const order = (location.state as TradeReviewState | null) ?? {};
-  const marketId = order.marketId ?? routeMarketId ?? '';
-  const outcomeId: OutcomeId = order.outcomeId ?? 'YES';
-  const price = order.price ?? 0;
-  const limitPrice = order.limitPrice ?? 0;
-  const amount = order.amount ?? 0;
-  const contracts = order.contracts ?? (price > 0 ? amount / price : 0);
+  const order = isTradeOrderDraft(location.state)
+    ? location.state
+    : null;
+
+  const marketId =
+    order?.marketId ??
+    routeMarketId ??
+    '';
+
+  const outcomeId: OutcomeId =
+    order?.outcomeId ??
+    'YES';
+
+  const price =
+    order?.price ??
+    0;
+
+  const mode =
+    order?.mode ??
+    'BUY_NOW';
+
+  const limitPrice =
+    order?.limitPrice ??
+    0;
+
+  const amount =
+    order?.amount ??
+    0;
+
+  const contracts =
+    order?.contracts ??
+    0;
 
   const [market, setMarket] = useState<Market | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -68,7 +82,80 @@ function ReviewOrder() {
     [amount, market],
   );
 
-  const goBack = () => navigate(`/fan/markets/${marketId}/trade`, { state: { outcomeId } });
+  const goBack = () => {
+    if (!marketId) {
+      navigate('/fan/markets');
+      return;
+    }
+
+    navigate(
+      `/fan/markets/${marketId}/trade`,
+      {
+        state: {
+          outcomeId,
+        },
+      },
+    );
+  };
+
+  if (!order) {
+    return (
+      <div className="fan-dashboard">
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={closeSidebar}
+        />
+
+        <div className="fan-dashboard-main">
+          <Topbar
+            onMenuClick={() =>
+              setIsSidebarOpen(true)
+            }
+          />
+
+          <div className="fan-dashboard-content market-detail-page">
+            <div
+              className="market-detail-grid"
+              style={{
+                gridTemplateColumns: '1fr',
+              }}
+            >
+              <main
+                className="market-detail-main"
+                style={{
+                  maxWidth: 920,
+                  width: '100%',
+                  margin: '0 auto',
+                }}
+              >
+                <section className="dashboard-card trade-ticket">
+                  <h2 className="trade-ticket-heading">
+                    Order draft expired
+                  </h2>
+
+                  <p>
+                    Return to the trade screen and
+                    review the latest market price
+                    before placing your order.
+                  </p>
+
+                  <button
+                    type="button"
+                    className="verify-btn verify-btn--primary"
+                    onClick={goBack}
+                  >
+                    Return to trade
+                  </button>
+                </section>
+              </main>
+            </div>
+          </div>
+
+          <Footer />
+        </div>
+      </div>
+    );
+  }
 
   const confirmOrder = async () => {
     if (!marketId || amount <= 0 || !(limitPrice > 0 && limitPrice < 1)) {
@@ -81,16 +168,18 @@ function ReviewOrder() {
     try {
       const selectedOutcome = market?.outcomes.find((item) => item.id === outcomeId);
       if (!selectedOutcome) throw new Error('The selected outcome is unavailable.');
-      const currentBook = await fetchMarketOrderBook(marketId, selectedOutcome.backendOutcomeId);
-      if (currentBook.best_ask === null) throw new Error('No sell liquidity is currently available for this outcome.');
-      const currentLimitPrice = Number(currentBook.best_ask);
+      let currentLimitPrice = limitPrice;
+      if (mode === 'BUY_NOW') {
+        const currentBook = await fetchMarketOrderBook(marketId, selectedOutcome.backendOutcomeId);
+        if (currentBook.best_ask === null) throw new Error('No immediate sell liquidity is currently available for this outcome.');
+        currentLimitPrice = Number(currentBook.best_ask);
+      }
       const contract = await placeOrder({
         marketId,
         outcomeId,
         quantityUgx: amount,
         limitPrice: currentLimitPrice,
       });
-      recordMarketStake(market?.question ?? 'Market order', contract.quantityUgx);
       navigate(`/fan/markets/${marketId}/placed`, {
         state: {
           outcome: outcomeLabel,
@@ -98,6 +187,10 @@ function ReviewOrder() {
           amount: contract.quantityUgx,
           contracts: contract.price > 0 ? contract.quantityUgx / contract.price : 0,
           total: contract.quantityUgx,
+          status: contract.status,
+          filledAmount: contract.filledQuantityUgx,
+          remainingAmount: contract.remainingQuantityUgx,
+          averageFillPrice: contract.averageFillPrice,
         },
       });
     } catch (placeOrderException) {
@@ -135,11 +228,11 @@ function ReviewOrder() {
                     <dd>{outcomeLabel}</dd>
                   </div>
                   <div>
-                    <dt>Price per Contract (UGX)</dt>
+                    <dt>{mode === 'LIMIT_ORDER' ? 'Limit price' : 'Price per Contract (UGX)'}</dt>
                     <dd>{price.toLocaleString()}</dd>
                   </div>
                   <div>
-                    <dt>Amount (UGX)</dt>
+                    <dt>{mode === 'LIMIT_ORDER' ? 'Amount reserved' : 'Amount (UGX)'}</dt>
                     <dd>{amount.toLocaleString()}</dd>
                   </div>
                   <div>
@@ -157,6 +250,7 @@ function ReviewOrder() {
                     <dd>{amount.toLocaleString()}</dd>
                   </div>
                 </dl>
+                {mode === 'LIMIT_ORDER' && <><p>Your order may rest on the order book until matched.</p><p>Status may be OPEN, PARTIALLY_FILLED, or FILLED.</p></>}
 
                 <p className="verify-age-hint">
                   By placing this order, you agree to our{' '}

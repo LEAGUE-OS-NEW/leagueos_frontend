@@ -146,6 +146,12 @@ function CreateMarketWizard() {
   const [faceValueUgx, setFaceValueUgx] = useState(10_000);
 
   const [parameters, setParameters] = useState<MarketParameters | null>(null);
+  const completeSetEstimate = parameters && faceValueUgx > 0 ? Math.floor(parameters.initialLiquidityUgx / faceValueUgx) : 0;
+  const halfSpread = parameters ? parameters.openingSpreadBps / 20_000 : 0;
+  const yesReference = outcomes.yesProbability / 100;
+  const noReference = 1 - yesReference;
+  const estimatedYesAsk = Math.min(0.99999, yesReference + halfSpread) * faceValueUgx;
+  const estimatedNoAsk = Math.min(0.99999, noReference + halfSpread) * faceValueUgx;
   const visibleFixtures = fixtures.filter((fixture) =>
     (!fixtureSportFilter || fixture.sport.id === fixtureSportFilter) &&
     (!fixtureCompetitionFilter || fixture.competition?.id === fixtureCompetitionFilter));
@@ -604,6 +610,21 @@ function CreateMarketWizard() {
                 </div>
                 {timingError && <p className="wiz-field-error" role="alert">{timingError}</p>}
 
+                <section className="wiz-outcome-card" aria-label="Opening Liquidity">
+                  <h3>Opening Liquidity</h3>
+                  <div className="wiz-field-grid">
+                    <label className="wiz-field"><span>Liquidity Source</span><select aria-label="Liquidity Source" value={parameters.liquiditySource} disabled><option value="PLATFORM_TREASURY">Platform Treasury</option></select></label>
+                    <label className="wiz-field"><span>Initial Liquidity (UGX)</span><input aria-label="Initial Liquidity (UGX)" type="number" min="0" step="1" value={parameters.initialLiquidityUgx} onChange={(event) => setParameters((current) => current && ({ ...current, initialLiquidityUgx: Number(event.target.value) }))} /></label>
+                    <label className="wiz-field"><span>Opening Spread</span><input aria-label="Opening Spread" type="number" min="0" max="50" step="0.01" value={parameters.openingSpreadBps / 100} onChange={(event) => setParameters((current) => current && ({ ...current, openingSpreadBps: Number(event.target.value) * 100 }))} /><small>%</small></label>
+                  </div>
+                  <p>Opening liquidity is funded by the platform treasury and creates real, fully collateralized YES/NO inventory when the market opens.</p>
+                  {parameters.initialLiquidityUgx === 0 && <p>Fan limit orders can still bootstrap liquidity through complementary matching.</p>}
+                  <p>Winning share value: {formatMarketUgx(faceValueUgx)}<br />Initial liquidity: {formatMarketUgx(parameters.initialLiquidityUgx)}<br />Approx. complete sets: {completeSetEstimate}<br />Approx. YES shares: {completeSetEstimate}<br />Approx. NO shares: {completeSetEstimate}</p>
+                  <p>Opening reference:<br />YES {outcomes.yesProbability.toFixed(0)}%<br />NO {(100 - outcomes.yesProbability).toFixed(0)}%</p>
+                  <p>Estimated opening asks after spread:<br />YES {formatMarketUgx(estimatedYesAsk)}<br />NO {formatMarketUgx(estimatedNoAsk)}</p>
+                  <small>These are estimates only. Orders exist only after the backend reports liquidity ACTIVE.</small>
+                </section>
+
                 <div className="wiz-toggle-row">
                   <label className="wiz-toggle">
                     <input
@@ -674,6 +695,11 @@ function CreateMarketWizard() {
                   <p><b>YES</b> {outcomes.yesLabel} &nbsp; <b>NO</b> {outcomes.noLabel}</p>
                   <small>{resolution.rules}</small>
                 </div>
+                <section className="wiz-outcome-card" aria-label="Opening Liquidity review">
+                  <h3>Opening Liquidity</h3>
+                  <p>Source: Platform Treasury<br />Initial collateral: {formatMarketUgx(parameters.initialLiquidityUgx)}<br />Complete-set estimate: {completeSetEstimate}<br />Opening spread: {(parameters.openingSpreadBps / 100).toFixed(2)}%<br />YES opening reference: {outcomes.yesProbability.toFixed(0)}%<br />NO opening reference: {(100 - outcomes.yesProbability).toFixed(0)}%<br />Estimated opening asks: YES {formatMarketUgx(estimatedYesAsk)} / NO {formatMarketUgx(estimatedNoAsk)}</p>
+                  <strong>Liquidity activates when the market is opened, not when this draft is saved.</strong>
+                </section>
               </div>
             )}
           </div>

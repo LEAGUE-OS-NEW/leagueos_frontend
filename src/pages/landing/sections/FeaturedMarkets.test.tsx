@@ -16,7 +16,7 @@ const market: Market = {
     { id: 'YES', label: 'Yes', description: '', probabilityPct: 50, price: 500, openingProbabilityPct: 50, openingPrice: 500, bestBid: null, bestAsk: null, lastTrade: null },
     { id: 'NO', label: 'No', description: '', probabilityPct: 50, price: 500, openingProbabilityPct: 50, openingPrice: 500, bestBid: null, bestAsk: null, lastTrade: null },
   ],
-  parameters: { opensAt: '2026-08-01T00:00:00Z', closesAt: '2026-08-20T00:00:00Z', settlesBy: '2026-08-20T00:00:00Z', initialLiquidityUgx: 0, minTradeUgx: 1000, maxTradeUgx: 500000, feePct: 2, featured: true, trending: false, recommended: false, inPlayTrading: true },
+  parameters: { opensAt: '2026-08-01T00:00:00Z', closesAt: '2026-08-20T00:00:00Z', settlesBy: '2026-08-20T00:00:00Z', initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100, minTradeUgx: 1000, maxTradeUgx: 500000, feePct: 2, featured: true, trending: false, recommended: false, inPlayTrading: true },
 };
 
 describe('Featured markets trading data', () => {

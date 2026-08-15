@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FiCheckCircle,
+  FiCreditCard,
   FiFilter,
   FiLock,
   FiShare2,
@@ -11,7 +12,6 @@ import {
   FiStar,
   FiTrendingUp,
   FiUnlock,
-  FiCreditCard,
   FiX,
 } from 'react-icons/fi';
 
@@ -22,6 +22,7 @@ import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkelet
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
 import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
+import { useFanWallet } from '../../../hooks/useFanWallet';
 import { marketEligibilityActions, marketEligibilityMessage, marketEligibilityTitle } from '../../../utils/marketEligibilityCopy.ts';
 import {
   fetchMarkets,
@@ -83,6 +84,14 @@ function StatusChip({ market }: { market: MarketListItem }) {
       </span>
     );
   }
+  if (market.status === 'closed') {
+    return (
+      <span className="market-status-badge market-status-badge--upcoming">
+        CLOSED
+      </span>
+    );
+  }
+
   return (
     <span className="market-status-badge market-status-badge--upcoming">
       {market.scheduleLabel ?? 'UPCOMING'}
@@ -122,6 +131,16 @@ function Markets() {
     isPending: isVerificationPending,
   } = useMarketEligibility();
   const isVerified = isEligible;
+
+  const {
+    wallet: fanWallet,
+    isLoading: isWalletLoading,
+    error: walletError,
+  } = useFanWallet(
+    'UGX',
+    isVerified,
+  );
+
   const verificationTitle = marketEligibilityTitle(eligibility, isEligibilityLoading);
   const verificationMessage = marketEligibilityMessage(eligibility, 'Complete identity verification to start trading.');
   const verificationActions = marketEligibilityActions(eligibility);
@@ -377,13 +396,15 @@ function Markets() {
                       <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
                     </div>
                     <div>
-                      <span>Market Liquidity</span>
-                      <b>High</b>
-                    </div>
-                    <div>
-                      <span>Your Balance</span>
+                      <span>Your Available Balance</span>
                       <b>
-                        <FiCreditCard /> UGX 125,000
+                        {isWalletLoading
+                          ? 'Loading…'
+                          : walletError
+                            ? 'Unavailable'
+                            : formatUgx(
+                                fanWallet?.availableBalance ?? 0,
+                              )}
                       </b>
                     </div>
                   </div>
@@ -497,48 +518,59 @@ function Markets() {
                     <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
                   </div>
 
-                 <div className="trade-actions">
+                  {selectedMarket.status === 'closed' && (
+                    <p className="field-error">
+                      Trading has closed for this market.
+                    </p>
+                  )}
+
+                  <div className="trade-actions">
                     <button
                       type="button"
                       className="buy-button buy-button--yes"
-                      disabled={!amount || Number(amount) <= 0 || selectedMarket.yesPrice === null}
+                      disabled={selectedMarket.status === 'closed'}
                       onClick={() =>
                         requireVerification(() =>
-                          navigate(`/fan/markets/${selectedMarket.id}/review`, {
-                            state: {
-                              outcome: 'Yes',
-                              side: 'buy',
-                              price: selectedMarket.yesPrice,
-                              amount: Number(amount) || 0,
-                              contracts: Number(amount) && selectedMarket.yesPrice !== null ? Number(amount) / selectedMarket.yesPrice : 0,
-                              feeRate: 0.02,
+                          navigate(
+                            `/fan/markets/${selectedMarket.id}/trade`,
+                            {
+                              state: {
+                                outcomeId: 'YES',
+                                amount:
+                                  Number(amount) > 0
+                                    ? Number(amount)
+                                    : undefined,
+                              },
                             },
-                          }),
+                          ),
                         )
                       }
                     >
-                      Buy Yes
+                      Trade Yes
                     </button>
+
                     <button
                       type="button"
                       className="buy-button buy-button--no"
-                      disabled={!amount || Number(amount) <= 0 || selectedMarket.yesPrice === null}
+                      disabled={selectedMarket.status === 'closed'}
                       onClick={() =>
                         requireVerification(() =>
-                          navigate(`/fan/markets/${selectedMarket.id}/review`, {
-                            state: {
-                              outcome: 'Yes',
-                              side: 'sell',
-                              price: selectedMarket.yesPrice,
-                              amount: Number(amount) || 0,
-                              contracts: Number(amount) && selectedMarket.yesPrice !== null ? Number(amount) / selectedMarket.yesPrice : 0,
-                              feeRate: 0.02,
+                          navigate(
+                            `/fan/markets/${selectedMarket.id}/trade`,
+                            {
+                              state: {
+                                outcomeId: 'NO',
+                                amount:
+                                  Number(amount) > 0
+                                    ? Number(amount)
+                                    : undefined,
+                              },
                             },
-                          }),
+                          ),
                         )
                       }
                     >
-                      Sell Yes
+                      Trade No
                     </button>
                   </div>
                   <button type="button" className="hold-position-btn" onClick={closeMarketDetail}>
