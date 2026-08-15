@@ -312,20 +312,36 @@ function FanVerification() {
     }
   };
 
-  // Auto-redirect to the status step when eligibility state arrives
-  // asynchronously (e.g. after an admin approves a REVIEW-status record).
-  // isPending covers PENDING / PROCESSING / REVIEW via the hook.
+  // On mount: fetch KYC status immediately so a returning fan (e.g. coming
+  // back after admin approval) sees the correct state without waiting for
+  // the step-entry effect, which only fires once currentStep === 'status'.
   useEffect(() => {
-    // Syncing the local wizard step to server-driven eligibility state
-    // (polled elsewhere) — there's no render-time value to derive this from
-    // directly since eligibility arrives asynchronously after mount.
-    if (isEligible) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshCanonicalStatus();
+    // run once on mount only — refreshCanonicalStatus is stable (useCallback)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Drive step navigation from canonicalKyc — the canonical identity record
+  // is the sole source of truth for the Identity Verification page.
+  // useMarketEligibility() is NOT used here; it controls trading access only.
+  useEffect(() => {
+    if (canonicalKyc === null) return; // still loading — don't redirect yet
+    const { status } = canonicalKyc;
+    if (
+      status === 'PENDING' ||
+      status === 'PROCESSING' ||
+      status === 'REVIEW' ||
+      status === 'VERIFIED' ||
+      status === 'REJECTED' ||
+      status === 'RETRY_REQUIRED' ||
+      status === 'EXPIRED'
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       goToStep('status');
-    } else if (isPending || isBlockedForOtherReason) {
-      goToStep('status');
     }
-  }, [goToStep, isEligible, isPending, isBlockedForOtherReason]);
+    // NOT_STARTED → stay on intro (step 0), no redirect
+  }, [canonicalKyc, goToStep]);
 
   useEffect(() => {
     if (currentStep !== 'status') return;
