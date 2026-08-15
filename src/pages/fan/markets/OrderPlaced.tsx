@@ -17,6 +17,10 @@ interface OrderPlacedState {
   amount?: number;
   contracts?: number;
   total?: number;
+  status?: 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | string;
+  filledAmount?: number;
+  remainingAmount?: number;
+  averageFillPrice?: number | null;
 }
 
 function OrderPlaced() {
@@ -32,6 +36,7 @@ function OrderPlaced() {
   const amount = order.amount ?? 0;
   const contracts = order.contracts ?? 0;
   const total = order.total ?? amount;
+  const status = order.status ?? 'OPEN';
 
   return (
     <div className="fan-dashboard">
@@ -47,13 +52,16 @@ function OrderPlaced() {
                 </span>
 
                 <h3>Order Placed Successfully</h3>
-                <p>Your order has been recorded and will appear in your positions shortly.</p>
+                <p>{status === 'OPEN' ? 'Your limit order is resting on the order book.' : status === 'PARTIALLY_FILLED' ? 'Your order was partially filled; the remainder is waiting for a match.' : 'Your order was executed.'}</p>
 
                 <dl className="order-placed-summary">
                   <div>
                     <dt>Outcome</dt>
                     <dd>{outcome}</dd>
                   </div>
+                  <div><dt>Status</dt><dd>{status}</dd></div>
+                  {status === 'PARTIALLY_FILLED' && <><div><dt>Filled</dt><dd>{(order.filledAmount ?? 0).toLocaleString()} UGX</dd></div><div><dt>Remaining</dt><dd>{(order.remainingAmount ?? 0).toLocaleString()} UGX</dd></div></>}
+                  {status === 'FILLED' && order.averageFillPrice != null && <div><dt>Actual average fill price</dt><dd>{order.averageFillPrice.toLocaleString()} UGX</dd></div>}
                   <div>
                     <dt>Price per Contract (UGX)</dt>
                     <dd>{price.toLocaleString()}</dd>

@@ -83,6 +83,8 @@ export interface Market {
   outcomes: MarketOutcome[];
   winning_outcome: string | null;
   is_watchlisted: boolean;
+  opening_liquidity_available?: boolean;
+  opening_reference?: Record<string, string | null>;
   created_at?: string;
   updated_at?: string;
   trading_snapshot?: {
@@ -98,6 +100,17 @@ export interface Market {
   };
 }
 export interface AdminMarket extends Market {
+  liquidity?: {
+    liquidity_source: 'PLATFORM_TREASURY' | 'EXTERNAL_MARKET_MAKER' | null;
+    initial_liquidity_ugx: string | number;
+    opening_spread_bps: number;
+    activation_status: string;
+    locked_collateral: string | number;
+    issued_complete_sets: string | number;
+    opening_yes_ask: string | null;
+    opening_no_ask: string | null;
+    provider: string | null;
+  };
   created_by?: { id: string; email?: string; first_name?: string; last_name?: string; full_name?: string } | null;
   approved_by?: { id: string; email?: string; first_name?: string; last_name?: string; full_name?: string } | null;
   submitted_at?: string | null;

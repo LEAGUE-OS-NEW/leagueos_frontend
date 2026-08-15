@@ -357,6 +357,17 @@ function MarketDetailPage() {
               </div>
             </div>
             {market.description && <p className="mdp-description">{market.description}</p>}
+            {market.liquidity && <section className="mdp-outcome-card" aria-label="Liquidity summary">
+              <h3>Opening Liquidity</h3>
+              <p>Liquidity status: {market.liquidity.status}</p>
+              <p>Liquidity source: {market.liquidity.providerDisplayName ?? market.liquidity.source ?? 'Not configured'}</p>
+              <p>Configured opening liquidity: {formatUgx(market.liquidity.configuredOpeningLiquidityUgx)}</p>
+              <p>Locked collateral: {formatUgx(market.liquidity.lockedCollateralUgx)}</p>
+              <p>Issued quantity/share equivalent: {market.liquidity.issuedCompleteSets.toLocaleString()} complete sets</p>
+              <p>Opening spread: {(market.liquidity.openingSpreadBps / 100).toFixed(2)}%</p>
+              <p>Opening YES ask: {market.liquidity.openingYesAsk === null ? 'Not configured' : formatUgx(market.liquidity.openingYesAsk)}</p>
+              <p>Opening NO ask: {market.liquidity.openingNoAsk === null ? 'Not configured' : formatUgx(market.liquidity.openingNoAsk)}</p>
+            </section>}
             {market.tags.length > 0 && (
               <div className="mdp-tag-row">
                 {market.tags.map((tag) => (

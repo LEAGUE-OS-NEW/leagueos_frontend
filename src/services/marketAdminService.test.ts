@@ -82,7 +82,7 @@ describe('market scope payload contract', () => {
 describe('create market timing contracts', () => {
   const parameters: MarketParameters = {
     opensAt: '2099-01-01T00:00:00Z', closesAt: '2099-01-02T00:00:00Z', settlesBy: '2099-01-04T00:00:00Z',
-    initialLiquidityUgx: 0, minTradeUgx: 1_000, maxTradeUgx: 500_000, feePct: 2,
+    initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100, minTradeUgx: 1_000, maxTradeUgx: 500_000, feePct: 2,
     featured: false, trending: false, recommended: false, inPlayTrading: false,
   };
 
@@ -111,7 +111,13 @@ describe('create market timing contracts', () => {
     vi.mocked(apiClient.patch).mockResolvedValue({ data: base });
     await setParameters('market-1', parameters);
     expect(apiClient.patch).toHaveBeenCalledWith('/market-admin/markets/market-1/', expect.objectContaining({
-      closes_at: parameters.closesAt, settles_by: parameters.settlesBy,
+      closes_at: parameters.closesAt, settles_by: parameters.settlesBy, initial_liquidity_ugx: 0,
+      liquidity_source: 'PLATFORM_TREASURY', opening_spread_bps: 100,
     }));
+  });
+
+  it('accepts zero opening liquidity', async () => {
+    vi.mocked(apiClient.patch).mockResolvedValue({ data: base });
+    await expect(setParameters('market-1', { ...parameters, initialLiquidityUgx: 0 })).resolves.toBeDefined();
   });
 });

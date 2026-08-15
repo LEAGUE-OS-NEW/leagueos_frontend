@@ -9,6 +9,10 @@ import {
 } from '../../../utils/marketPricing.ts';
 import { fetchMarket, fetchMarketOrderBook } from '../../../services/fanMarketsServices';
 import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
+import {
+  isTradeEntryState,
+  type TradeOrderDraft,
+} from './trading/tradeDraft';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 // NOTE: adjust these relative imports to match wherever this page actually
@@ -21,10 +25,6 @@ import '../sections/FanDashboard.css';
 import '../markets/Markets.css';
 import './FanMarketDetail.css';
 
-interface TradeNavState {
-  outcomeId?: OutcomeId;
-}
-
 function PlaceOrder() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,7 +33,9 @@ function PlaceOrder() {
   const closeSidebar = () => setIsSidebarOpen(false);
   const { isEligible, isLoading: isEligibilityLoading } = useMarketEligibility();
 
-  const navState = (location.state as TradeNavState | null) ?? {};
+  const navState = isTradeEntryState(location.state)
+    ? location.state
+    : {};
 
   useEffect(() => {
     if (!isEligibilityLoading && !isEligible) {
@@ -72,8 +74,14 @@ function PlaceOrder() {
   }, [marketId]);
 
   const [outcomeId, setOutcomeId] = useState<OutcomeId>(navState.outcomeId ?? 'YES');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(
+    navState.amount
+      ? String(navState.amount)
+      : '',
+  );
   const [amountError, setAmountError] = useState('');
+  const [orderMode, setOrderMode] = useState<'BUY_NOW' | 'LIMIT_ORDER'>('BUY_NOW');
+  const [limitPriceUgx, setLimitPriceUgx] = useState('');
 
   const outcome = market?.outcomes.find((item) => item.id === outcomeId);
   useEffect(() => {
@@ -90,6 +98,9 @@ function PlaceOrder() {
     return () => { cancelled = true; };
   }, [market, outcome]);
   const price = bestAsk === null || !market ? 0 : normalizedPriceToUgxSharePrice(bestAsk, market.faceValueUgx);
+  const numericLimitPriceUgx = Number(limitPriceUgx);
+  const normalizedLimitPrice = market && numericLimitPriceUgx > 0 ? numericLimitPriceUgx / market.faceValueUgx : 0;
+  const effectivePrice = orderMode === 'BUY_NOW' ? price : numericLimitPriceUgx;
   const numericAmount = Number(amount);
 
   const amountValidationMessage = useMemo(() => {
@@ -106,10 +117,19 @@ function PlaceOrder() {
     return '';
   }, [amount, numericAmount, market]);
 
-  const contracts = useMemo(() => (numericAmount > 0 && price > 0 ? numericAmount / price : 0), [numericAmount, price]);
+  const contracts = useMemo(() => (numericAmount > 0 && effectivePrice > 0 ? numericAmount / effectivePrice : 0), [numericAmount, effectivePrice]);
   const potentialReturn = useMemo(() => contracts * (market?.faceValueUgx ?? 0), [contracts, market]);
 
-  const canReview = Boolean(market) && bestAsk !== null && numericAmount > 0 && !amountValidationMessage;
+  const validLimitPrice = normalizedLimitPrice > 0 && normalizedLimitPrice < 1;
+  const canReview =
+    market?.status === 'Live' &&
+    numericAmount > 0 &&
+    !amountValidationMessage &&
+    (
+      orderMode === 'BUY_NOW'
+        ? bestAsk !== null
+        : validLimitPrice
+    );
   const presetAmounts = market
     ? [market.parameters.minTradeUgx, market.parameters.minTradeUgx * 5, market.parameters.minTradeUgx * 20, market.parameters.maxTradeUgx].filter(
         (value, index, all) => all.indexOf(value) === index,
@@ -126,16 +146,25 @@ function PlaceOrder() {
       setAmountError('Enter a valid amount before reviewing your order.');
       return;
     }
-    navigate(`/fan/markets/${market.id}/review`, {
-      state: {
-        marketId: market.id,
-        outcomeId,
-        price,
-        limitPrice: bestAsk,
-        amount: numericAmount,
-        contracts,
+    const draft: TradeOrderDraft = {
+      marketId: market.id,
+      outcomeId,
+      mode: orderMode,
+      price: effectivePrice,
+      limitPrice:
+        orderMode === 'BUY_NOW'
+          ? bestAsk!
+          : normalizedLimitPrice,
+      amount: numericAmount,
+      contracts,
+    };
+
+    navigate(
+      `/fan/markets/${market.id}/review`,
+      {
+        state: draft,
       },
-    });
+    );
   };
 
   if (isLoading) {
@@ -193,6 +222,11 @@ function PlaceOrder() {
 
                 <h2 className="trade-ticket-question">{market.question}</h2>
 
+                <div className="trade-tabs" role="tablist" aria-label="Order type">
+                  <button type="button" role="tab" aria-selected={orderMode === 'BUY_NOW'} className={orderMode === 'BUY_NOW' ? 'active' : ''} onClick={() => setOrderMode('BUY_NOW')}>Buy Now</button>
+                  <button type="button" role="tab" aria-selected={orderMode === 'LIMIT_ORDER'} className={orderMode === 'LIMIT_ORDER' ? 'active' : ''} onClick={() => { setOrderMode('LIMIT_ORDER'); if (!limitPriceUgx && outcome?.openingReference) setLimitPriceUgx(String(outcome.openingReference)); }}>Limit Order</button>
+                </div>
+
                 <div className="trade-tabs" role="tablist" aria-label="Outcome">
                   <button
                     type="button"
@@ -216,9 +250,9 @@ function PlaceOrder() {
 
                 <div className="market-detail-stat-row">
                   <div>
-                    <span>Current {outcome.label} Price</span>
+                    <span>{orderMode === 'BUY_NOW' ? 'Current executable price' : 'Opening reference'}</span>
                     <b>
-                      {quoteLoading ? 'Loading quote…' : bestAsk === null ? 'No sell liquidity' : formatMarketSharePrice(price)}
+                      {orderMode === 'BUY_NOW' ? (quoteLoading ? 'Loading quote…' : bestAsk === null ? 'No sell liquidity' : formatMarketSharePrice(price)) : (outcome.openingReference === null ? 'Not configured' : formatMarketSharePrice(outcome.openingReference))}
                     </b>
                   </div>
                 </div>
@@ -239,7 +273,8 @@ function PlaceOrder() {
                   }}
                 />
                 {amountError && <p className="field-error">{amountError}</p>}
-                {!quoteLoading && bestAsk === null && <p className="field-error">No sell liquidity is currently available for this outcome.</p>}
+                {orderMode === 'BUY_NOW' && !quoteLoading && bestAsk === null && <p className="field-error">No immediate sell liquidity is currently available for this outcome.</p>}
+                {orderMode === 'LIMIT_ORDER' && <><label className="trade-amount-label" htmlFor="limit-price">Desired price per share (UGX)</label><input id="limit-price" aria-label="Desired price per share (UGX)" className="trade-amount-input" type="number" min="1" max={market.faceValueUgx - 1} value={limitPriceUgx} onChange={(event) => setLimitPriceUgx(event.target.value)} />{limitPriceUgx && !validLimitPrice && <p className="field-error">Limit price must be greater than UGX 0 and less than the winning share value.</p>}<p>Your order may rest on the order book until matched.</p><p>A compatible order on the opposite outcome may create a new fully collateralized YES/NO complete set.</p></>}
                 {!amountError && amountValidationMessage && <p className="field-error">{amountValidationMessage}</p>}
 
                 <div className="preset-chips">
@@ -260,6 +295,18 @@ function PlaceOrder() {
                     <b>{formatUgx(potentialReturn)}</b>
                   </div>
                 </div>
+
+                {market.status === 'Closed' && (
+                  <p className="field-error">
+                    Trading has closed for this market.
+                  </p>
+                )}
+
+                {market.status === 'Upcoming' && (
+                  <p>
+                    Trading has not opened for this market yet.
+                  </p>
+                )}
 
                 <button type="button" className="verify-btn verify-btn--primary" disabled={!canReview} onClick={goToReview}>
                   Review Order

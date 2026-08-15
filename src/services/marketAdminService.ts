@@ -57,6 +57,8 @@ export interface MarketParameters {
   closesAt: string;
   settlesBy: string;
   initialLiquidityUgx: number;
+  liquiditySource: 'PLATFORM_TREASURY' | 'EXTERNAL_MARKET_MAKER';
+  openingSpreadBps: number;
   minTradeUgx: number;
   maxTradeUgx: number;
   positionLimitUgx?: number;
@@ -66,6 +68,12 @@ export interface MarketParameters {
   trending: boolean;
   recommended: boolean;
   inPlayTrading: boolean;
+}
+
+export interface MarketLiquidity {
+  status: string; source: string | null; configuredOpeningLiquidityUgx: number;
+  lockedCollateralUgx: number; issuedCompleteSets: number; openingSpreadBps: number;
+  openingYesAsk: number | null; openingNoAsk: number | null; providerDisplayName: string | null;
 }
 
 export interface Market {
@@ -82,6 +90,7 @@ export interface Market {
   outcomes: Outcome[];
   faceValueUgx: number;
   parameters: MarketParameters;
+  liquidity?: MarketLiquidity;
   status: MarketStatus;
   createdBy: string;
   createdAt: string;
@@ -347,9 +356,9 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
           ? candidate
           : new Date(Date.now() + 60 * 60_000).toISOString();
       })(),
-      closesAt: market.closes_at ?? kickoff,
-      settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
-      initialLiquidityUgx: 0,
+      initialLiquidityUgx: 'liquidity' in market && market.liquidity ? Number(market.liquidity.initial_liquidity_ugx) : 0,
+      liquiditySource: ('liquidity' in market && market.liquidity?.liquidity_source) || 'PLATFORM_TREASURY',
+      openingSpreadBps: 'liquidity' in market && market.liquidity ? market.liquidity.opening_spread_bps : 100,
       minTradeUgx: 1_000,
       maxTradeUgx: 500_000,
       feePct: 2,
@@ -358,6 +367,17 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
       recommended: market.is_featured,
       inPlayTrading: status === 'Live',
     },
+    liquidity: 'liquidity' in market && market.liquidity ? {
+      status: market.liquidity.activation_status,
+      source: market.liquidity.liquidity_source,
+      configuredOpeningLiquidityUgx: Number(market.liquidity.initial_liquidity_ugx),
+      lockedCollateralUgx: Number(market.liquidity.locked_collateral),
+      issuedCompleteSets: backendQuantityToShares(Number(market.liquidity.issued_complete_sets), market.face_value_ugx),
+      openingSpreadBps: market.liquidity.opening_spread_bps,
+      openingYesAsk: market.liquidity.opening_yes_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.liquidity.opening_yes_ask), market.face_value_ugx),
+      openingNoAsk: market.liquidity.opening_no_ask == null ? null : normalizedPriceToUgxSharePrice(Number(market.liquidity.opening_no_ask), market.face_value_ugx),
+      providerDisplayName: market.liquidity.provider,
+    } : undefined,
     status,
     createdBy,
     createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
@@ -566,6 +586,9 @@ export async function setParameters(id: string, parameters: MarketParameters): P
   if (parameters.minTradeUgx <= 0 || parameters.maxTradeUgx < parameters.minTradeUgx) {
     fail('Enter a valid minimum and maximum trade amount.');
   }
+  if (parameters.initialLiquidityUgx < 0 || parameters.openingSpreadBps < 0 || parameters.openingSpreadBps > 5000) {
+    fail('Opening liquidity must be zero or more and spread must be between 0% and 50%.');
+  }
 
   try {
     const response = await apiClient.patch(`/market-admin/markets/${encodeURIComponent(id)}/`, {
@@ -573,6 +596,9 @@ export async function setParameters(id: string, parameters: MarketParameters): P
       closes_at: parameters.closesAt,
       settles_by: parameters.settlesBy,
       is_featured: parameters.featured,
+      initial_liquidity_ugx: parameters.initialLiquidityUgx,
+      liquidity_source: parameters.liquiditySource,
+      opening_spread_bps: parameters.openingSpreadBps,
     });
     return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {

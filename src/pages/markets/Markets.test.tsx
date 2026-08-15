@@ -59,6 +59,7 @@ const openMarket: Market = {
     closesAt: "2026-08-06T11:50:00Z",
     settlesBy: "2026-08-06T15:00:00Z",
     initialLiquidityUgx: 500_000,
+    liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100,
     minTradeUgx: 1_000,
     maxTradeUgx: 500_000,
     feePct: 2,
