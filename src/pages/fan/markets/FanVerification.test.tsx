@@ -185,9 +185,14 @@ describe('KYC status → Identity Verification UI', () => {
   // Critical regression: after admin approves, poll returns VERIFIED → UI
   // must transition to verified WITHOUT a page reload.
   it('REVIEW → VERIFIED via poll: UI transitions to verified checklist', async () => {
+    // The VERIFIED response must be a durable fallback, not one-shot — the
+    // 5s poll can legitimately fire more than once during this test (fake
+    // timers run with shouldAdvanceTime: true), and any call beyond this
+    // queue's depth must keep seeing VERIFIED, not fall through to an
+    // undefined resolution the component doesn't guard against.
     vi.mocked(fetchCanonicalKycStatus)
       .mockResolvedValueOnce(kycState('REVIEW'))
-      .mockResolvedValueOnce(kycState('VERIFIED', { verified_at: '2026-08-02T11:00:00Z' }));
+      .mockResolvedValue(kycState('VERIFIED', { verified_at: '2026-08-02T11:00:00Z' }));
     refreshEligibility.mockResolvedValue({ eligible: false });
 
     renderPage();
