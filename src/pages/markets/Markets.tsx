@@ -66,6 +66,7 @@ type OpenMarketRow = {
 };
 
 type StartingSoonItem = {
+  id: string;
   sport: Sport;
   teamA: string;
   teamB: string;
@@ -160,6 +161,27 @@ const MARKET_STATUS_META: Record<string, { label: string; className: string }> =
 
 function marketStatusMeta(status: string) {
   return MARKET_STATUS_META[status] ?? { label: status, className: "open" };
+}
+
+function marketOutcomePrice(
+  market: PublishedMarket,
+  side: "YES" | "NO",
+): string {
+  const outcome = market.outcomes.find(
+    (item) => item.id === side,
+  );
+
+  const price =
+    outcome?.bestAsk ??
+    outcome?.price ??
+    outcome?.openingPrice ??
+    null;
+
+  if (price === null) {
+    return "Awaiting opening liquidity";
+  }
+
+  return `UGX ${Math.round(price).toLocaleString("en-US")}/share`;
 }
 
 function marketSport(
@@ -286,7 +308,7 @@ function Markets() {
   // publicMarketsService.ts that doesn't exist in this codebase. Until a
   // real fixtures/events endpoint is wired in, this stays empty rather than
   // calling a service that doesn't exist. See the empty-state copy below.
-  const [startingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
+  const [startingSoon, setStartingSoon] = useState<StartingSoonItem[]>(STARTING_SOON);
   const [trendingMarkets, setTrendingMarkets] = useState<TrendingMarket[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState("");
@@ -310,9 +332,21 @@ function Markets() {
             marketSport(market) !== null,
         );
 
-        const openStatus = visible.filter((market) => market.status === "Live" || market.status === "Upcoming");
-        const closedStatus = visible.filter(
-          (market) => market.status === "Closed" || market.status === "Resolved" || market.status === "Cancelled" || market.status === "Voided",
+        const openStatus = visible.filter(
+          (market) => market.status === "Live",
+        );
+
+        const upcomingStatus = visible.filter(
+          (market) => market.status === "Upcoming",
+        );
+
+        const historicalStatus = visible.filter(
+          (market) =>
+            market.status === "Closed" ||
+            market.status === "Resolved" ||
+            market.status === "Voided" ||
+            market.status === "Suspended" ||
+            market.status === "Cancelled",
         );
 
         setFeaturedMarkets(
@@ -324,8 +358,8 @@ function Markets() {
               question: market.question,
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
               status: "OPEN",
-              yesPrice: "Price unavailable",
-              noPrice: "Price unavailable",
+              yesPrice: marketOutcomePrice(market, "YES"),
+              noPrice: marketOutcomePrice(market, "NO"),
               volume: "—",
               traders: "—",
             };
@@ -339,21 +373,36 @@ function Markets() {
               sport: marketSport(market) ?? "Football",
               ...teamsFromEventLabel(market.eventLabel),
               question: market.question,
-              yesPrice: "—",
-              noPrice: "—",
+              yesPrice: marketOutcomePrice(market, "YES"),
+              noPrice: marketOutcomePrice(market, "NO"),
               volume: "—",
               closesIn: new Date(market.parameters.closesAt).toLocaleString(),
             };
           }),
         );
 
+        setStartingSoon(
+          upcomingStatus.map((market) => ({
+            id: market.id,
+            sport: marketSport(market) ?? "Football",
+            ...teamsFromEventLabel(market.eventLabel),
+            league: market.competition,
+            startsIn: new Date(
+              market.parameters.opensAt,
+            ).toLocaleString(),
+          })),
+        );
+
         setClosedMarkets(
-          closedStatus.map((market) => ({
+          historicalStatus.map((market) => ({
             id: market.id,
             sport: marketSport(market) ?? "Football",
             ...teamsFromEventLabel(market.eventLabel),
             question: market.question,
-            result: market.winningOutcomeId ?? "VOIDED",
+            result:
+              market.status === "Resolved"
+                ? market.winningOutcomeId ?? "RESOLVED"
+                : market.status.toUpperCase(),
             volume: "—",
             closedAgo: new Date(market.resolvedAt ?? market.parameters.closesAt).toLocaleString(),
           })),
@@ -498,7 +547,7 @@ function Markets() {
                     <b>{sport}</b>
                     <small>{marketCountLabel(marketStats, sport as Sport)}</small>
                     <em>
-                      <i /> Live <strong>{liveMarketCountLabel(marketStats, sport as Sport)}</strong>
+                      <i /> In Play <strong>{liveMarketCountLabel(marketStats, sport as Sport)}</strong>
                     </em>
                   </span>
                   <FiArrowRight className="sport-summary-arrow" />
@@ -716,7 +765,7 @@ function Markets() {
                 aria-labelledby="closed-markets-heading"
               >
                 <div className="market-panel-heading">
-                  <h2 id="closed-markets-heading">Closed Markets</h2>
+                  <h2 id="closed-markets-heading">History &amp; Unavailable Markets</h2>
                   <Link to="/markets" className="market-view-link">
                     View all markets
                   </Link>
@@ -725,7 +774,7 @@ function Markets() {
                 <div
                   className="open-markets-table"
                   role="table"
-                  aria-label="Closed market list"
+                  aria-label="Historical and unavailable market list"
                 >
                   <div
                     className="open-market-row closed-market-labels open-market-labels"
@@ -733,9 +782,9 @@ function Markets() {
                   >
                     <span>Event</span>
                     <span>Market Question</span>
-                    <span>Result</span>
+                    <span>Status / Result</span>
                     <span>Volume</span>
-                    <span>Closed</span>
+                    <span>Date</span>
                   </div>
 
                   {closedMarkets.map((market) => (
@@ -837,7 +886,7 @@ function Markets() {
                   {startingSoon.map((fixture) => {
                     const match = `${fixture.teamA} vs ${fixture.teamB}`;
                     return (
-                      <article className="starting-soon-item" key={match}>
+                      <article className="starting-soon-item" key={fixture.id}>
                         <span
                           className={`starting-soon-icon ${SPORT_META[fixture.sport].className}`}
                         >
@@ -852,7 +901,7 @@ function Markets() {
                         </div>
                         <div className="starting-soon-meta">
                           <span className="starting-soon-time">
-                            Starts in {fixture.startsIn}
+                            Starts {fixture.startsIn}
                           </span>
                           <button
                             type="button"

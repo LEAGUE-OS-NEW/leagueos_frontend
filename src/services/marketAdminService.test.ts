@@ -34,7 +34,16 @@ const base = {
 describe('market admin backend adaptation', () => {
   beforeEach(() => vi.mocked(apiClient.get).mockReset());
 
-  it.each([['OPEN', 'Live'], ['CLOSED', 'Closed'], ['CANCELLED', 'Cancelled']])(
+  it.each([
+    ['OPEN', 'Live'],
+    ['APPROVED', 'Upcoming'],
+    ['PENDING_APPROVAL', 'Pending Approval'],
+    ['SUSPENDED', 'Suspended'],
+    ['CLOSED', 'Closed'],
+    ['RESOLVED', 'Resolved'],
+    ['VOIDED', 'Voided'],
+    ['CANCELLED', 'Cancelled'],
+  ])(
     'maps backend %s to %s', async (status, expected) => {
       vi.mocked(apiClient.get).mockResolvedValue({ data: [{ ...base, status }] });
       expect((await fetchMarkets())[0].status).toBe(expected);

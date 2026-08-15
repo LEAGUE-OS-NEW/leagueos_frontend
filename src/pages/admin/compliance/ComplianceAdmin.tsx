@@ -1174,7 +1174,7 @@ const ComplianceCaseDetail: React.FC<{
   };
 
   // Actually flips MarketParticipantCompliance.kyc_status on the backend —
-  // this is what /markets/kyc/summary/ reads to decide fan eligibility, so
+  // this is what /markets/eligibility/ reads to decide fan eligibility, so
   // this is the real approve/reject action, not just a case-log entry.
   const handleKycDecision = async (approve: boolean) => {
     setIsDecidingKyc(true);
