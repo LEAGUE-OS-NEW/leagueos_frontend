@@ -74,6 +74,25 @@ export const resetPassword = (payload: AuthPayload) =>
     confirm_password: payload.confirm_password ?? payload.password,
   });
 
+export interface AccountSetupPayload {
+  token: string;
+  password: string;
+  confirm_password: string;
+  first_name: string;
+  last_name: string;
+}
+
+// Consumes an AccountSetupToken (the ?token= from an invite email) to set a
+// password and activate the account — same envelope shape as login(), so
+// the response can hydrate the session the same way.
+export const completeAccountSetup = async (payload: AccountSetupPayload) => {
+  const response = await axiosInstance.post<ApiEnvelope<AuthenticationResponse>>(
+    "/auth/account-setup/",
+    payload,
+  );
+  return { ...response, data: unwrapApiData(response.data) };
+};
+
 export const fetchProfile = () => axiosInstance.get("/profile/");
 
 export interface GenderOption {

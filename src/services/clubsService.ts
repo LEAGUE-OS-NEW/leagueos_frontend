@@ -13,10 +13,6 @@ function delay<T>(value: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-function fail(message: string): never {
-  throw new Error(message);
-}
-
 /* ------------------------------------------------------------------ */
 /* Clubs                                                                */
 /* ------------------------------------------------------------------ */
@@ -141,41 +137,9 @@ export async function fetchClubBySlug(slug: string): Promise<ClubSummary | null>
   return delay(CLUBS.find((club) => club.slug === slug) ?? null);
 }
 
-/* ------------------------------------------------------------------ */
-/* Club creation — mock-backed (US-Super-Admin club setup)              */
-/*                                                                       */
-/* No real backend endpoint exists for creating a Club yet — profiles   */
-/* .Club is read-only over REST (Django-admin-only to create). Mirrors  */
-/* the target shape so a real backend swap later only touches this      */
-/* function. Competition creation lives in sportsDataService.ts instead */
-/* — SportsDataAdmin.tsx already owns competitions, so this doesn't     */
-/* keep a second, disconnected competition list.                        */
-/* ------------------------------------------------------------------ */
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-export async function createClub(input: { name: string; sport: Sport; competitionName?: string }): Promise<ClubSummary> {
-  if (!input.name.trim()) fail('Enter a club name.');
-  const club: ClubSummary = {
-    slug: slugify(input.name) || `club-${Date.now().toString(36)}`,
-    name: input.name.trim(),
-    sport: input.sport,
-    league: input.competitionName?.trim() || 'Unaffiliated',
-    founded: String(new Date().getFullYear()),
-    stadium: '',
-    description: '',
-    verificationStatus: 'Pending',
-    honours: [],
-  };
-  CLUBS.unshift(club);
-  return delay(club);
-}
+// Real club creation (Super Admin / admin.clubs.manage) lives in
+// adminUsersService.ts's createRealClub — it needs a real Sport id from
+// the backend, unlike everything else in this file.
 
 /* ------------------------------------------------------------------ */
 /* Squads / players                                                     */
