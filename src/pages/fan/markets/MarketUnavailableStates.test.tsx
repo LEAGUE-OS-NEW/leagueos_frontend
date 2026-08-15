@@ -28,9 +28,11 @@ describe('market trading unavailable states', () => {
   it('shows genuine market identity and no-trades state on the chart screen', async () => {
     renderAt('/fan/markets/market-1/chart', '/fan/markets/:marketId/chart', <MarketDetailChart />);
     expect(await screen.findByText('Backend market question')).toBeInTheDocument();
-    // 'No trades yet' now also appears in the price summary's "Last Trade"
-    // row, so scope to the empty-state notice this test actually checks for.
-    expect(await screen.findByText('No trades yet', { selector: '.dashboard-empty-title' })).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'No executed trades exist for this outcome in the selected range.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('renders genuine price-history points and backend order-book levels', async () => {
