@@ -162,56 +162,6 @@ export async function fetchTickets(): Promise<Ticket[]> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Fantasy team                                                         */
-/* ------------------------------------------------------------------ */
-
-export interface FantasyPlayer {
-  name: string;
-  points: number;
-  jerseyColor: string;
-}
-
-export interface FantasyTeamData {
-  teamName: string;
-  leagueName: string;
-  points: number;
-  rank: string;
-  gameweek: string;
-  formation: FantasyPlayer[][];
-}
-
-const FANTASY_TEAM: FantasyTeamData = {
-  teamName: 'Spartan Squad',
-  leagueName: 'Classic League',
-  points: 1286,
-  rank: 'Top 18%',
-  gameweek: 'Gameweek 12',
-  formation: [
-    [
-      { name: 'A. Diallo', points: 156, jerseyColor: '#7c3aed' },
-      { name: 'K. Mbuku', points: 198, jerseyColor: '#2563eb' },
-      { name: 'S. Okello', points: 142, jerseyColor: '#dc2626' },
-    ],
-    [
-      { name: 'P. Katongo', points: 172, jerseyColor: '#38bdf8' },
-      { name: 'J. Mutyaba', points: 165, jerseyColor: '#1e3a8a' },
-      { name: 'E. Niyonzima', points: 148, jerseyColor: '#e5e7eb' },
-    ],
-    [
-      { name: 'B. Tendo', points: 134, jerseyColor: '#7c3aed' },
-      { name: 'M. Awany', points: 128, jerseyColor: '#1e3a8a' },
-      { name: 'H. Wasswa', points: 119, jerseyColor: '#dc2626' },
-      { name: 'D. Ochieng', points: 124, jerseyColor: '#7f1d1d' },
-    ],
-    [{ name: 'I. Kizito', points: 108, jerseyColor: '#16a34a' }],
-  ],
-};
-
-export async function fetchFantasyTeam(): Promise<FantasyTeamData> {
-  return delay({ ...FANTASY_TEAM, formation: FANTASY_TEAM.formation.map((row) => [...row]) });
-}
-
-/* ------------------------------------------------------------------ */
 /* News                                                                 */
 /* ------------------------------------------------------------------ */
 
