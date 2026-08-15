@@ -27,6 +27,7 @@ export interface MarketListItem {
   crestB?: string;
   league: string;
   status: MarketStatus;
+  isTrending: boolean;
   liveMinute?: string;
   scheduleLabel?: string;
   marketType: string;
@@ -314,7 +315,7 @@ function statusFromApi(
 }
 
 function listStatusFromMarket(market: Market): MarketStatus {
-  if (market.status === 'Live') return market.parameters.trending ? 'trending' : 'live';
+  if (market.status === 'Live') return 'live';
   if (market.status === 'Upcoming') return 'upcoming';
   return 'closed';
 }
@@ -406,6 +407,7 @@ function adaptListItem(market: Market): MarketListItem {
     teamB: teamB || market.category,
     league: market.competition,
     status: listStatusFromMarket(market),
+    isTrending: market.parameters.trending,
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
     marketType: market.category,
     endsInLabel: formatDurationUntil(market.parameters.closesAt),
