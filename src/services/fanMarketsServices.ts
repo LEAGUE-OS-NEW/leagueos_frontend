@@ -1,5 +1,5 @@
 import apiClient from './apiClient.ts';
-import { extractApiError, normalizeApiList } from './apiUtils.ts';
+import { extractApiError, normalizeApiList, unwrapApiData } from './apiUtils.ts';
 import type { Market as ApiMarket, MarketCategory as ApiMarketCategory } from '../types/api.ts';
 import {
   backendQuantityToShares,
@@ -8,8 +8,8 @@ import {
   stakeUgxToBackendQuantity,
 } from '../utils/marketPricing.ts';
 
-export type MarketStatus = 'live' | 'upcoming' | 'trending' | 'closed';
-export type AdminMarketStatus = 'Draft' | 'Upcoming' | 'Live' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
+export type MarketStatus = 'live' | 'upcoming' | 'suspended' | 'closed' | 'resolved' | 'voided';
+export type AdminMarketStatus = 'Draft' | 'Pending Approval' | 'Upcoming' | 'Live' | 'Suspended' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
 export type OutcomeId = 'YES' | 'NO';
 export type MarketCategoryName = string;
 
@@ -224,6 +224,63 @@ function apiError(error: unknown): Error {
   return Object.assign(new Error(details.message), { status: details.status, fields: details.fields });
 }
 
+
+const PUBLIC_CATALOGUE_STATUSES = [
+  'OPEN',
+  'APPROVED',
+  'SUSPENDED',
+  'CLOSED',
+  'RESOLVED',
+  'VOIDED',
+] as const;
+
+async function fetchAllPages<T>(
+  url: string,
+  params: Record<string, string | number | boolean> = {},
+): Promise<T[]> {
+  const items: T[] = [];
+  let page = 1;
+
+  while (true) {
+    const response = await apiClient.get(url, {
+      params: {
+        ...params,
+        page,
+        page_size: 100,
+      },
+    });
+
+    items.push(
+      ...normalizeApiList<T>(response.data),
+    );
+
+    const payload = unwrapApiData(
+      response.data,
+    ) as {
+      next?: string | null;
+    };
+
+    if (!payload?.next) {
+      return items;
+    }
+
+    page += 1;
+  }
+}
+
+async function fetchVisibleMarketApiRecords(): Promise<ApiMarket[]> {
+  const groups = await Promise.all(
+    PUBLIC_CATALOGUE_STATUSES.map((status) =>
+      fetchAllPages<ApiMarket>(
+        '/markets/',
+        { status },
+      ),
+    ),
+  );
+
+  return groups.flat();
+}
+
 function splitSubject(subject: string): [string, string] {
   const separators = [' vs ', ' v ', ' - '];
   for (const separator of separators) {
@@ -255,8 +312,31 @@ function formatDurationUntil(iso?: string | null): string {
 function statusFromApi(
   market: ApiMarket,
 ): AdminMarketStatus {
-  if (market.status === 'DRAFT') {
+  if (
+    market.status === 'DRAFT' ||
+    market.status === 'REJECTED'
+  ) {
     return 'Draft';
+  }
+
+  if (market.status === 'PENDING_APPROVAL') {
+    return 'Pending Approval';
+  }
+
+  if (market.status === 'APPROVED') {
+    return 'Upcoming';
+  }
+
+  if (market.status === 'OPEN') {
+    return 'Live';
+  }
+
+  if (market.status === 'SUSPENDED') {
+    return 'Suspended';
+  }
+
+  if (market.status === 'CLOSED') {
+    return 'Closed';
   }
 
   if (market.status === 'RESOLVED') {
@@ -267,56 +347,22 @@ function statusFromApi(
     return 'Voided';
   }
 
-  if (market.status === 'CLOSED') {
-    return 'Closed';
-  }
-
-  if (
-    market.status === 'CANCELLED' ||
-    market.status === 'SUSPENDED'
-  ) {
+  if (market.status === 'CANCELLED') {
     return 'Cancelled';
   }
 
-  const now = Date.now();
-
-  const closesAt = market.closes_at
-    ? new Date(market.closes_at).getTime()
-    : null;
-
-  if (
-    closesAt !== null &&
-    Number.isFinite(closesAt) &&
-    now >= closesAt
-  ) {
-    return 'Closed';
-  }
-
-  const opensAt = market.opens_at
-    ? new Date(market.opens_at).getTime()
-    : null;
-
-  if (
-    opensAt !== null &&
-    Number.isFinite(opensAt) &&
-    now < opensAt
-  ) {
-    return 'Upcoming';
-  }
-
-  if (market.status === 'OPEN') {
-    return 'Live';
-  }
-
-  // Approved/non-terminal markets that have
-  // not explicitly transitioned OPEN should
-  // never be presented as currently tradable.
-  return 'Upcoming';
+  return 'Draft';
 }
 
-function listStatusFromMarket(market: Market): MarketStatus {
+function listStatusFromMarket(
+  market: Market,
+): MarketStatus {
   if (market.status === 'Live') return 'live';
   if (market.status === 'Upcoming') return 'upcoming';
+  if (market.status === 'Suspended') return 'suspended';
+  if (market.status === 'Resolved') return 'resolved';
+  if (market.status === 'Voided') return 'voided';
+
   return 'closed';
 }
 
@@ -424,8 +470,11 @@ function adaptListItem(market: Market): MarketListItem {
 
 export async function fetchMarkets(): Promise<MarketListItem[]> {
   try {
-    const response = await apiClient.get('/markets/', { params: { status: 'OPEN' } });
-    return normalizeApiList<ApiMarket>(response.data).map(adaptMarket).map(adaptListItem);
+    const records = await fetchVisibleMarketApiRecords();
+
+    return records
+      .map(adaptMarket)
+      .map(adaptListItem);
   } catch (error) {
     throw apiError(error);
   }
@@ -433,8 +482,9 @@ export async function fetchMarkets(): Promise<MarketListItem[]> {
 
 export async function fetchPublishedMarkets(): Promise<Market[]> {
   try {
-    const response = await apiClient.get('/markets/', { params: { status: 'OPEN' } });
-    return normalizeApiList<ApiMarket>(response.data).map(adaptMarket);
+    const records = await fetchVisibleMarketApiRecords();
+
+    return records.map(adaptMarket);
   } catch (error) {
     throw apiError(error);
   }
