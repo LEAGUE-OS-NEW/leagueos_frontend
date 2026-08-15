@@ -299,6 +299,9 @@ export async function fetchTickets(): Promise<Ticket[]> {
   return [];
 }
 
+/* ------------------------------------------------------------------ */
+/* News                                                                 */
+/* ------------------------------------------------------------------ */
 export interface FantasyPlayer {
   name: string;
   points: number;

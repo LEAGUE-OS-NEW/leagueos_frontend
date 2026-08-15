@@ -53,12 +53,28 @@ body {
   margin-left: 250px;
   min-height: 100vh;
   width: calc(100% - 250px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* On desktop the sidebar uses position:sticky from Sidebar.css and takes
+   its own 260px column — remove the left margin so there is no double gap */
+@media (min-width: 960px) {
+  .fantasy-content {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 h1, h2, h3, h4, h5 {  margin: 0 0 4px; letter-spacing: -0.01em; }
 
 /* -------------------------------------------------------------- app shell */
-.app-shell { display: flex; flex-direction: column; min-height: 100%; }
+.app-shell {
+  display: flex;
+  flex-direction: row;   /* sidebar + content side by side */
+  min-height: 100vh;
+  align-items: stretch;
+}
 
 .topbar {
   display: flex; align-items: center; gap: 24px;
