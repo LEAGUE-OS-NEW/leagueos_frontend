@@ -45,7 +45,7 @@ function apiError(error: unknown): Error {
 
 export async function fetchMarketEligibility(): Promise<MarketEligibility> {
   try {
-    const response = await apiClient.get('/markets/kyc/summary/');
+    const response = await apiClient.get('/markets/eligibility/');
     return unwrapApiData<MarketEligibility>(response.data);
   } catch (error) {
     throw apiError(error);
