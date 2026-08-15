@@ -69,6 +69,11 @@ export default function AcceptInvite() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Hard guard, not just the button's disabled prop — a second click or
+    // resubmission before React re-renders must not reach the API a second
+    // time and burn the (single-use) setup token on a request the user
+    // never intended as a retry.
+    if (isSubmitting) return;
     setErrorMessage('');
 
     if (!token) {
