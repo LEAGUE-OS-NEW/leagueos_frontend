@@ -1,0 +1,556 @@
+.fan-dashboard-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.fan-dashboard {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+.fan-dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-dashboard-content {
+  position: relative;
+  padding: clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px);
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.fan-dashboard-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+@media (max-width: 767px) {
+  .fan-dashboard-content {
+    background-attachment: scroll;
+  }
+}
+
+/* ============================================================================
+ * HERO / WELCOME
+ * ========================================================================== */
+
+.dashboard-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.dashboard-hero-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dashboard-hero-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+.dashboard-hero-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary-light);
+}
+
+.dashboard-hero-title {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dashboard-hero-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard-hero-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+  border: 1px solid var(--color-border);
+  min-width: 120px;
+}
+
+.dashboard-hero-chip-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.dashboard-hero-chip-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ============================================================================
+ * CARD HEADER / LINK
+ * ========================================================================== */
+
+.dashboard-card-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-card-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.dashboard-card-link {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-primary-light);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-card-link:hover {
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.dashboard-card-link:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================================================
+ * CARD SHELL
+ * ========================================================================== */
+
+.dashboard-card {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: clamp(14px, 3vw, 20px);
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: scale(1.01);
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+/* ============================================================================
+ * LOADING SKELETON
+ * ========================================================================== */
+
+.dashboard-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-skeleton-row {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--color-card-hover) 25%,
+    var(--color-border) 50%,
+    var(--color-card-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: dashboard-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes dashboard-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================================
+ * EMPTY / FORBIDDEN / ERROR NOTICES
+ * ========================================================================== */
+
+.dashboard-card-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.dashboard-card-notice p {
+  margin: 0;
+}
+
+.dashboard-empty-title {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dashboard-card-notice--empty {
+  background-color: var(--color-card-hover);
+  border: 1px dashed var(--color-border);
+}
+
+.dashboard-card-notice--forbidden {
+  background-color: var(--color-card-hover);
+  border: 1px solid var(--color-border);
+}
+
+.dashboard-card-notice--error {
+  background-color: color-mix(in srgb, var(--color-danger, #d64545) 10%, transparent);
+  border: 1px solid var(--color-danger, #d64545);
+  color: var(--color-text-primary);
+}
+
+.dashboard-retry-btn {
+  align-self: flex-start;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-primary-light);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.dashboard-retry-btn:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-bg);
+}
+
+.dashboard-retry-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+ * LISTS (shared across fixtures, tickets, memberships, news, notifications)
+ * ========================================================================== */
+
+.dashboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-list-row,
+.dashboard-fixture-row,
+.dashboard-market-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--color-card-hover);
+}
+
+.dashboard-fixture-teams {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dashboard-fixture-crest {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 50%;
+  background-color: var(--color-card-bg);
+  flex-shrink: 0;
+}
+
+.dashboard-news-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: var(--color-card-hover);
+}
+
+.dashboard-news-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  background-color: var(--color-card-bg);
+  flex-shrink: 0;
+}
+
+.dashboard-list-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-list-primary {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dashboard-list-meta {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #8a94a6);
+  white-space: nowrap;
+}
+
+.dashboard-notification {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--color-card-hover);
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+}
+
+.dashboard-notification--unread {
+  border-left: 3px solid var(--color-primary-light);
+}
+
+/* ============================================================================
+ * CLUBS
+ * ========================================================================== */
+
+.dashboard-club-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-club-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background-color: var(--color-card-hover);
+}
+
+.dashboard-club-crest {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 50%;
+  background-color: var(--color-card-bg);
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+ * MARKETS
+ * ========================================================================== */
+
+.dashboard-odds-pill {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-bg);
+  background-color: var(--color-primary-light);
+}
+
+/* ============================================================================
+ * FANTASY
+ * ========================================================================== */
+
+.dashboard-fantasy-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 14px;
+}
+
+.dashboard-stat-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dashboard-stat-suffix {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+.dashboard-stat-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #8a94a6);
+}
+
+/* ============================================================================
+ * WALLET
+ * ========================================================================== */
+
+.dashboard-wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ============================================================================
+ * STORE
+ * ========================================================================== */
+
+.dashboard-store-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.dashboard-store-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+}
+
+.dashboard-store-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background-color: var(--color-card-bg);
+}
+
+/* ============================================================================
+ * GRID LAYOUT
+ * ========================================================================== */
+
+.dashboard-columns {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-columns--unverified {
+  grid-template-columns: 1fr;
+}
+
+.dashboard-columns--unverified .dashboard-column {
+  gap: 16px;
+}
+
+
+@media (max-width: 700px) {
+  .dashboard-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-store-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card,
+  .dashboard-card-link,
+  .dashboard-retry-btn {
+    transition: none;
+  }
+
+  .dashboard-skeleton-row {
+    animation: none;
+  }
+}

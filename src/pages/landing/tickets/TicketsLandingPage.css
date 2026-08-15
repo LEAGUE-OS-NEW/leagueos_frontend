@@ -1,0 +1,608 @@
+/* ==========================================================================
+   Tickets Landing Page — aligned with project design system
+   ========================================================================== */
+
+/* ── Page shell ── */
+.tickets-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+}
+
+/* ── Main: stadium background + overlay (same as Store) ── */
+.tickets-main {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  padding-bottom: clamp(40px, 6vw, 64px);
+}
+
+.tickets-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Inner content container ── */
+.tickets-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+
+/* ── Hidden legacy action bar ── */
+.tickets-page-actions {
+  display: none;
+}
+
+/* ── Hero / header ── */
+.tickets-header {
+  padding: clamp(32px, 5vw, 56px) 0 clamp(20px, 3vw, 32px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tickets-hero-panel {
+  /* no extra styles needed — inherits from tickets-header */
+}
+
+.tickets-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.tickets-breadcrumb button {
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  transition: color 0.15s ease;
+}
+
+.tickets-breadcrumb button:hover {
+  color: var(--color-text-primary);
+}
+
+.tickets-header h1 {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.tickets-header-plain {
+  color: var(--color-text-primary);
+}
+
+.tickets-header-accent {
+  color: var(--color-primary-light);
+}
+
+.tickets-header p {
+  max-width: 52rem;
+  margin: 0.85rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* ── Filter + search bar ── */
+.tickets-browse-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 28rem);
+  gap: 1.25rem;
+  align-items: center;
+  padding: clamp(16px, 2.5vw, 24px) 0 0;
+}
+
+.tickets-filters {
+  min-width: 0;
+}
+
+.league-filters {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+}
+
+.league-btn {
+  min-width: 8rem;
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.league-btn:last-child {
+  border-right: none;
+}
+
+.league-btn:hover,
+.league-btn-active {
+  background: var(--gradient-primary);
+  color: #ffffff;
+}
+
+.ticket-search-panel {
+  min-width: 0;
+}
+
+.ticket-search-panel label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-search-panel input {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-family: var(--font-family-base);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ticket-search-panel input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.ticket-search-panel input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
+}
+
+/* ── Results count ── */
+.tickets-results-count {
+  margin: 0;
+  padding: clamp(12px, 2vw, 16px) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+/* ── Match cards grid ── */
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 1rem;
+  padding: clamp(16px, 2vw, 20px) 0 0;
+}
+
+.match-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 20rem;
+  padding: 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card-bg);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.match-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-primary);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+.match-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.match-league,
+.match-date-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.match-date-pill {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  text-transform: none;
+}
+
+.match-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.5rem 0 0.9rem;
+}
+
+.team-badge {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.team-logo,
+.team-logo-placeholder {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.team-logo {
+  object-fit: contain;
+}
+
+.team-logo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.team-name {
+  width: 100%;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.vs-label {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.match-card-details {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  margin: 0.4rem 0 0.85rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ticket-preview-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: auto;
+}
+
+.ticket-preview-item,
+.ticket-preview-empty {
+  display: flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ticket-preview-item strong {
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ticket-preview-empty {
+  justify-content: center;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.match-buy-row {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.match-buy-seats {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.buy-btn {
+  border: none;
+  font-weight: 700;
+  font-family: var(--font-family-base);
+  cursor: pointer;
+  transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+}
+
+.buy-btn-ordinary {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0 1.2rem;
+  border-radius: 8px;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  font-size: 0.95rem;
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25);
+}
+
+.buy-btn-ordinary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.32);
+}
+
+.buy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.buy-btn:disabled:hover {
+  transform: none;
+}
+
+/* ── Empty / loading state ── */
+.tickets-empty-state {
+  margin: 1rem 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+/* ── Login prompt modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.modal-card {
+  position: relative;
+  width: min(100%, 26rem);
+  padding: 2.4rem 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card-bg);
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.modal-close:hover {
+  color: var(--color-text-primary);
+}
+
+.modal-logo {
+  width: 8rem;
+  height: auto;
+  margin-bottom: 1.25rem;
+  object-fit: contain;
+}
+
+.modal-title {
+  margin: 0 0 0.7rem;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.modal-body {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  min-height: 2.6rem;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-family-base);
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--gradient-primary);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-primary-light);
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.modal-footnote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 980px) {
+  .tickets-browse-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .match-grid {
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  }
+
+  .league-filters {
+    width: 100%;
+  }
+
+  .league-btn {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .tickets-main {
+    background-attachment: scroll;
+  }
+}
+
+@media (max-width: 640px) {
+  .match-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .match-card {
+    min-height: auto;
+  }
+
+  .match-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .match-teams {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-label {
+    margin: 0.15rem auto;
+  }
+
+  .league-btn {
+    flex-basis: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .league-btn:last-child {
+    border-bottom: none;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-card,
+  .buy-btn,
+  .btn-primary,
+  .btn-secondary {
+    transition: none;
+  }
+}

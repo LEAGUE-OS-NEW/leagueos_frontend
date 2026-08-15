@@ -1,0 +1,166 @@
+.mem-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mem-card {
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: var(--color-bg-elevated);
+}
+
+.mem-card--gold     { border-color: rgba(245, 158, 11, 0.35); }
+.mem-card--silver   { border-color: rgba(148, 163, 184, 0.35); }
+.mem-card--bronze   { border-color: rgba(180, 83, 9, 0.35); }
+.mem-card--platinum { border-color: rgba(226, 232, 240, 0.25); }
+.mem-card--season   { border-color: rgba(139, 92, 246, 0.35); }
+
+/* Header */
+
+.mem-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mem-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+}
+
+.mem-card-icon--gold     { background: rgba(245, 158, 11, 0.18); color: #f59e0b; }
+.mem-card-icon--silver   { background: rgba(148, 163, 184, 0.18); color: #94a3b8; }
+.mem-card-icon--bronze   { background: rgba(180, 83, 9, 0.18); color: #b45309; }
+.mem-card-icon--platinum { background: rgba(226, 232, 240, 0.12); color: #e2e8f0; }
+.mem-card-icon--season   { background: rgba(139, 92, 246, 0.18); color: #8b5cf6; }
+
+.mem-card-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.mem-card-club {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mem-card-tier {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.mem-card-tier--gold     { color: #f59e0b; }
+.mem-card-tier--silver   { color: #94a3b8; }
+.mem-card-tier--bronze   { color: #b45309; }
+.mem-card-tier--platinum { color: #e2e8f0; }
+.mem-card-tier--season   { color: #8b5cf6; }
+
+/* Status badges */
+
+.mem-badge {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mem-badge--active   { background: rgba(34, 197, 94, 0.16); color: var(--color-open); }
+.mem-badge--expiring { background: rgba(234, 179, 8, 0.16); color: #eab308; }
+.mem-badge--expired  { background: rgba(148, 163, 184, 0.12); color: var(--color-text-muted); }
+
+/* Benefits */
+
+.mem-benefits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mem-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.mem-benefit-icon {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--color-primary-light);
+}
+
+/* Footer */
+
+.mem-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mem-valid {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
+
+.mem-expiry-warning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: #eab308;
+  font-weight: 600;
+}
+
+.mem-expiry-warning--expired {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.mem-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.mem-cta:hover { filter: brightness(1.2); }
+
+.mem-cta--gold     { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.mem-cta--silver   { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+.mem-cta--bronze   { background: rgba(180, 83, 9, 0.2); color: #b45309; }
+.mem-cta--platinum { background: rgba(226, 232, 240, 0.14); color: #e2e8f0; }
+.mem-cta--season   { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }

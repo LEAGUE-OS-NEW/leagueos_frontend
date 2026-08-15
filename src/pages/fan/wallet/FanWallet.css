@@ -1,0 +1,318 @@
+.fan-wallet-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+.fan-wallet {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+.fan-wallet-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fan-wallet-content {
+  flex: 1;
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px);
+}
+
+.fan-wallet-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.fan-wallet-header {
+  margin-bottom: 24px;
+}
+
+.fan-wallet-header h1 {
+  margin: 4px 0;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+}
+
+.fan-wallet-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.fan-wallet-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-primary-light);
+}
+
+.fan-wallet-balance-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+}
+
+.fan-wallet-balance-label {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.fan-wallet-balance-value {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.fan-wallet-pending-note {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.fan-wallet-topup-btn {
+  flex-shrink: 0;
+  padding: 12px 22px;
+  border-radius: 8px;
+  border: none;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.fan-wallet-topup-btn:hover {
+  transform: scale(1.03);
+  filter: brightness(1.1);
+}
+
+.fan-wallet-topup-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fan-wallet-withdraw-btn {
+  flex-shrink: 0;
+  padding: 12px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.fan-wallet-withdraw-btn:hover {
+  transform: scale(1.03);
+  filter: brightness(1.05);
+}
+
+.fan-wallet-withdraw-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.fan-wallet-withdraw-panel {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: var(--color-card-bg);
+}
+
+.fan-wallet-withdraw-panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.fan-wallet-withdraw-panel label {
+  display: grid;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.fan-wallet-withdraw-panel input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.fan-wallet-withdraw-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.fan-wallet-withdraw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fan-wallet-withdraw-actions button {
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fan-wallet-withdraw-actions button:last-child {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.fan-wallet-history {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 22px 24px;
+}
+
+.fan-wallet-history h2 {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+}
+
+.fan-wallet-transaction-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fan-wallet-transaction-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fan-wallet-transaction-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.fan-wallet-transaction-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-wallet-transaction-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.fan-wallet-transaction-icon--credit {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-open);
+}
+
+.fan-wallet-transaction-icon--debit {
+  background: rgba(220, 38, 38, 0.16);
+  color: #f87171;
+}
+
+.fan-wallet-transaction-label {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fan-wallet-transaction-time {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.fan-wallet-transaction-amount {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.fan-wallet-transaction-amount--credit {
+  color: var(--color-open);
+}
+
+.fan-wallet-transaction-amount--debit {
+  color: #f87171;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-wallet-topup-btn {
+    transition: none;
+  }
+}
+
+/* .fan-sidebar is position: fixed at all breakpoints (see Sidebar.css),
+
+
+.fan-wallet-verified-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #4ade80;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fan-wallet-demo-note {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.fan-wallet-demo-note strong {
+  color: var(--color-text-primary);
+}

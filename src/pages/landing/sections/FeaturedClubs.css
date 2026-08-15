@@ -1,0 +1,259 @@
+.featured-clubs {
+  position: relative;
+  z-index: 1;
+  padding: clamp(32px, 5vw, 56px) 0;
+}
+
+.featured-clubs-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+
+.clubs-carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clubs-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 4px 2px 12px;
+  flex: 1;
+  scrollbar-width: none;
+}
+
+.clubs-track::-webkit-scrollbar {
+  display: none;
+}
+
+.club-card {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  width: 168px;
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.club-card:hover {
+  transform: scale(1.03);
+  background-color: var(--color-card-hover);
+  border-color: var(--color-primary);
+}
+
+.club-crest {
+  width: 56px;
+  height: 56px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.club-crest svg {
+  width: 100%;
+  height: 100%;
+}
+
+.club-crest-image {
+  border-radius: 50%;
+  background-color: #ffffff;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.club-crest-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.club-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.club-meta {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.club-follow-btn {
+  width: 100%;
+  border: 1px solid var(--color-primary);
+  background-color: transparent;
+  color: var(--color-primary-light);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.club-follow-btn:hover {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  transform: scale(1.03);
+}
+
+.club-follow-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.clubs-nav {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+  color: var(--color-text-primary);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.clubs-nav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.clubs-nav:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-hover);
+}
+
+.clubs-nav:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .clubs-nav {
+    display: flex;
+  }
+}
+
+.signup-prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(5, 3, 10, 0.7);
+  z-index: 1001;
+}
+
+.signup-prompt {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1002;
+  width: min(90vw, 380px);
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.signup-prompt-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.signup-prompt-close:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-card-bg);
+}
+
+.signup-prompt-close:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.signup-prompt-title {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  color: var(--color-text-primary);
+}
+
+.signup-prompt-text {
+  margin: 0 0 22px;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.signup-prompt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: var(--gradient-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.signup-prompt-btn:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+.signup-prompt-btn:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-card,
+  .club-follow-btn,
+  .signup-prompt-btn,
+  .signup-prompt-close {
+    transition: none;
+  }
+
+  .clubs-track {
+    scroll-behavior: auto;
+  }
+}

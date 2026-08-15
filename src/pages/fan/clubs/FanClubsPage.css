@@ -1,0 +1,411 @@
+.fcp-content {
+  z-index: 1;
+}
+
+/* Page header */
+.fcp-header {
+  position: relative;
+  z-index: 1;
+}
+
+.fcp-title {
+  margin: 0 0 6px;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.fcp-sub {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+}
+
+/* Sections */
+.fcp-section {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fcp-section-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* Sport badge */
+.fcp-sport-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.fcp-sport-badge--football   { background: rgba(124, 58, 237, 0.18); color: var(--color-primary-light); }
+.fcp-sport-badge--rugby      { background: rgba(249, 115, 22, 0.18); color: var(--color-accent-light); }
+.fcp-sport-badge--basketball { background: rgba(14, 165, 233, 0.18); color: var(--color-sport-basketball, #38bdf8); }
+
+/* Verified icon */
+.fcp-verified-icon {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--color-open);
+}
+
+/* Meta icon */
+.fcp-meta-icon {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Crest placeholder */
+.fcp-crest-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(124, 58, 237, 0.1);
+  color: var(--color-primary-light);
+  border-radius: 8px;
+}
+
+/* Shared buttons */
+.fcp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.fcp-btn--outline {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.fcp-btn--outline:hover {
+  background: var(--color-card-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.fcp-btn--follow {
+  background: var(--gradient-primary);
+  color: #fff;
+  border: none;
+}
+.fcp-btn--follow:hover { filter: brightness(1.1); }
+
+.fcp-btn--following {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-open);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.fcp-btn--following:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-live);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.fcp-btn--unfollow {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+  font-size: 0.75rem;
+}
+.fcp-btn--unfollow:hover {
+  color: var(--color-live);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ── My Clubs ── */
+
+.fcp-my-clubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.fcp-my-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fcp-my-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fcp-my-crest {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.fcp-my-card .fcp-crest-placeholder {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.fcp-my-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fcp-my-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fcp-my-card-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fcp-my-fixture {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+}
+
+.fcp-my-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.fcp-my-actions .fcp-btn {
+  flex: 1;
+}
+
+/* ── Discover ── */
+
+.fcp-discover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.fcp-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fcp-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.fcp-search {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.84rem;
+  padding: 8px 12px 8px 34px;
+  width: 220px;
+  outline: none;
+}
+
+.fcp-search:focus {
+  border-color: var(--color-primary);
+}
+
+.fcp-sport-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fcp-filter-btn {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-bg);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.fcp-filter-btn:hover {
+  background: var(--color-card-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
+
+.fcp-filter-btn.active {
+  background: var(--gradient-primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+.fcp-clubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* Club discovery card */
+.fcp-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.fcp-card:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+}
+
+.fcp-card--following {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.fcp-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fcp-card-crest {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.fcp-card .fcp-crest-placeholder {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.fcp-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.fcp-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fcp-card-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fcp-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fcp-card-meta-row {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.fcp-card-honours {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
+.fcp-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.fcp-card-actions .fcp-btn {
+  flex: 1;
+}
+
+/* States */
+.fcp-loading,
+.fcp-empty-text {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.fcp-empty {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 24px;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 640px) {
+  .fcp-discover-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .fcp-search { width: 100%; }
+}

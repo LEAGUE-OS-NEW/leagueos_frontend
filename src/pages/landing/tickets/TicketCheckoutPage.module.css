@@ -1,0 +1,631 @@
+.page,
+.statePage {
+    color: #ffffff;
+}
+
+.breadcrumb {
+    margin-bottom: 18px;
+}
+
+.breadcrumb a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.pageHeader {
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border-radius: 999px;
+    padding: 0 12px;
+    color: #d8b4fe;
+    background: rgba(123, 63, 242, 0.16);
+    border: 1px solid rgba(168, 85, 247, 0.34);
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.pageHeader h1 {
+    max-width: 760px;
+    margin: 12px 0 0;
+    font-family: var(--font-heading);
+    font-size: clamp(36px, 4vw, 58px);
+    font-style: italic;
+    font-weight: 950;
+    line-height: 0.95;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+}
+
+.pageHeader p {
+    max-width: 720px;
+    margin: 12px 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.notice {
+    margin-bottom: 22px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.1);
+    border: 1px solid rgba(250, 204, 21, 0.26);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.layoutGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    align-items: start;
+    gap: 26px;
+}
+
+.mainColumn {
+    display: grid;
+    gap: 24px;
+    min-width: 0;
+}
+
+.matchCard,
+.panel,
+.checkoutPanel,
+.stateCard {
+    border-radius: 16px;
+    padding: 24px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.14), transparent 34%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.76));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.24);
+}
+
+.matchCard > span {
+    display: inline-flex;
+    color: #d8b4fe;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.matchCard h2 {
+    margin: 10px 0 16px;
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 950;
+    letter-spacing: -0.03em;
+}
+
+.matchTeams {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.matchTeams strong {
+    border-radius: 999px;
+    padding: 9px 13px;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.matchTeams b {
+    color: var(--color-vivid-violet, #a855f7);
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.matchMeta {
+    display: grid;
+    gap: 8px;
+}
+
+.matchMeta p {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.panelHeader {
+    margin-bottom: 18px;
+}
+
+.panelHeader h2,
+.sideHeader h2,
+.stateCard h1 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 950;
+}
+
+.panelHeader p,
+.sideHeader p,
+.stateCard p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.loadingBox {
+    min-height: 120px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(2, 6, 23, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.loadingBox svg,
+.stateCard > span:first-child svg {
+    animation: spin 1s linear infinite;
+}
+
+.ticketTypeGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.ticketTypeCard {
+    position: relative;
+    min-height: 188px;
+    border-radius: 14px;
+    padding: 18px;
+    display: grid;
+    gap: 10px;
+    text-align: left;
+    color: #ffffff;
+    background: rgba(2, 6, 23, 0.44);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+}
+
+.ticketTypeCard > span {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: rgba(123, 63, 242, 0.16);
+    border: 1px solid rgba(168, 85, 247, 0.32);
+}
+
+.ticketTypeCard h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.ticketTypeCard p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.ticketTypeCard strong {
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 950;
+}
+
+.ticketTypeCard small {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.ticketTypeCard em {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    min-height: 28px;
+    border-radius: 999px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.selectedTicketType {
+    border-color: rgba(168, 85, 247, 0.7);
+    background:
+        radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.16), transparent 42%),
+        rgba(2, 6, 23, 0.52);
+}
+
+.checkoutPanel {
+    position: sticky;
+    top: 96px;
+}
+
+.sideHeader {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.sideHeader > span {
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: rgba(123, 63, 242, 0.16);
+    border: 1px solid rgba(168, 85, 247, 0.34);
+}
+
+.summaryList {
+    margin: 0;
+    display: grid;
+    gap: 14px;
+}
+
+.summaryList div {
+    display: grid;
+    gap: 6px;
+}
+
+.summaryList dt {
+    color: rgba(255, 255, 255, 0.44);
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.summaryList dd {
+    margin: 0;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.quantityField {
+    margin-top: 18px;
+    display: grid;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.quantityField select {
+    min-height: 44px;
+    border-radius: 10px;
+    padding: 0 12px;
+    color: #ffffff;
+    background: rgba(2, 6, 23, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font: inherit;
+    font-size: 14px;
+    text-transform: none;
+}
+
+.totalRow {
+    margin-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.totalRow span {
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.totalRow strong {
+    color: #ffffff;
+    font-size: 28px;
+    font-weight: 950;
+}
+
+.checkoutButton,
+.stateActions a {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 10px;
+    margin-top: 18px;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--color-vivid-violet, #7b3ff2), #6d28d9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    font-weight: 950;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.checkoutButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+}
+
+.secureNote {
+    margin: 12px 0 0;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.statePage {
+    min-height: calc(100vh - 160px);
+    display: grid;
+    place-items: center;
+}
+
+.stateCard {
+    width: min(100%, 620px);
+    text-align: center;
+}
+
+.stateCard > span:first-child {
+    width: 86px;
+    height: 86px;
+    margin: 0 auto 18px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-vivid-violet, #a855f7);
+    background: rgba(123, 63, 242, 0.14);
+    border: 1px solid rgba(168, 85, 247, 0.34);
+}
+
+.stateCard .successIcon {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.28);
+}
+
+.stateCard .failedIcon {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.1);
+    border-color: rgba(250, 204, 21, 0.26);
+}
+
+.stateCard .successIcon svg,
+.stateCard .failedIcon svg {
+    animation: none;
+}
+
+.stateNote {
+    margin-top: 16px;
+    border-radius: 12px;
+    padding: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.successSummary {
+    margin: 20px auto 0;
+    display: grid;
+    gap: 10px;
+    text-align: left;
+}
+
+.successSummary div {
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.successSummary dt {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.successSummary dd {
+    margin: 0;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.stateActions {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.stateActions a {
+    margin-top: 0;
+}
+
+.stateActions a:nth-child(2) {
+    background: rgba(123, 63, 242, 0.12);
+    border-color: rgba(123, 63, 242, 0.36);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 1120px) {
+    .layoutGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .checkoutPanel {
+        position: static;
+    }
+}
+
+@media (max-width: 760px) {
+    .ticketTypeGrid,
+    .stateActions {
+        grid-template-columns: 1fr;
+    }
+
+    .matchCard,
+    .panel,
+    .checkoutPanel,
+    .stateCard {
+        padding: 18px;
+    }
+}
+
+.matchCardTopline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.matchCardTopline span {
+    color: #f97316;
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.matchCardTopline em {
+    min-height: 28px;
+    border-radius: 999px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.checkoutMatchTeams {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.checkoutMatchTeams > b {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.68);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.checkoutTeam {
+    min-width: 0;
+    border-radius: 16px;
+    padding: 16px;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.checkoutTeamLogo,
+.checkoutTeamFallback {
+    width: 74px;
+    height: 74px;
+    border-radius: 999px;
+    object-fit: contain;
+    background: rgba(123, 63, 242, 0.18);
+    border: 2px solid rgba(168, 85, 247, 0.44);
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.checkoutTeam strong {
+    max-width: 100%;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 950;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .checkoutMatchTeams {
+        grid-template-columns: 1fr;
+    }
+
+    .checkoutMatchTeams > b {
+        margin: 0 auto;
+    }
+}

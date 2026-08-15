@@ -1,0 +1,903 @@
+/* =============================================================================
+   FanOnboarding.css
+   Mobile-first styles for the League OS fan onboarding flow.
+   Sections:
+     1. Design tokens (League OS palette)
+     2. Page shell + ambient glow
+     3. Topbar / brand
+     4. Step transitions
+     5. Buttons
+     6. Personalization dropdowns
+     7. Summary card
+     8. Welcome step
+     9. Responsive breakpoints
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------
+   1. Design tokens — League OS palette
+----------------------------------------------------------------------- */
+:root {
+  /* Dark blue */
+  --navy-900: #071a2f;
+  --navy-800: #0b2447;
+  --navy-700: #102c57;
+  --navy-600: #123a66;
+
+  /* Purple */
+  --purple-900: #4c1d95;
+  --purple-700: #5b21b6;
+  --purple-500: #7c3aed;
+  --purple-300: #a78bfa;
+
+  /* Orange */
+  --orange-600: #ea580c;
+  --orange-500: #f97316;
+  --orange-400: #fb923c;
+
+  /* Text */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* Derived glows / borders */
+  --purple-glow: rgba(124, 58, 237, 0.4);
+  --orange-glow: rgba(249, 115, 22, 0.4);
+  --border-subtle: rgba(248, 250, 252, 0.09);
+  --border-strong: rgba(248, 250, 252, 0.18);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  color-scheme: dark;
+}
+
+/* -----------------------------------------------------------------------
+   2. Page shell — dark blue base with purple ambient glow
+----------------------------------------------------------------------- */
+.onboarding-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 48px;
+
+  background-image:
+    linear-gradient(
+      rgba(6, 6, 12, 0.473),
+      rgba(6, 6, 12, 0.548)
+    ),
+    url("/images/stadium-bg.png");
+
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.onboarding-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.onboarding-glow--purple {
+  width: 460px;
+  height: 460px;
+  top: -140px;
+  left: -120px;
+  background: var(--purple-glow);
+}
+
+.onboarding-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 24px;
+}
+
+/* -----------------------------------------------------------------------
+   3. Topbar
+----------------------------------------------------------------------- */
+.onboarding-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+}
+
+.onboarding-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+}
+
+/* -----------------------------------------------------------------------
+   4. Step transitions
+----------------------------------------------------------------------- */
+.onboarding-stage {
+  position: relative;
+}
+
+.step-transition {
+  animation: stepFadeSlide 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes stepFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.step-header h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.step-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* -----------------------------------------------------------------------
+   5. Buttons — accessible, min 48px tall on touch, press animation
+----------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 120ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--purple-300);
+  outline-offset: 2px;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn--large {
+  min-height: 54px;
+  padding: 0 28px;
+  font-size: 0.98rem;
+}
+
+.btn--primary {
+  background: linear-gradient(120deg, var(--purple-700), var(--purple-500));
+  color: white;
+}
+.btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn--ghost:hover {
+  color: var(--text-primary);
+}
+
+.btn--ghost1 {
+  background: transparent;
+  color: var(--orange-600);
+  font-size: 16px;
+}
+.btn--ghost1:hover {
+  color: var(--purple-300);
+}
+
+.btn--secondary {
+  background: var(--navy-700);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+.btn--secondary:hover {
+  border-color: var(--border-strong);
+  background: var(--navy-600);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:disabled:hover {
+  filter: none;
+}
+.btn:disabled:active {
+  transform: none;
+}
+
+/* -----------------------------------------------------------------------
+   5b. Progress bar — purple gradient fill, smooth transition
+----------------------------------------------------------------------- */
+.progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.progress-track {
+  height: 8px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--navy-700);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--orange-600), var(--orange-400));
+  transition: width 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* -----------------------------------------------------------------------
+   5c. Footer — Back / Continue navigation
+----------------------------------------------------------------------- */
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: rgba(7, 26, 47, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.onboarding-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Room at the bottom of the page so content never sits under the sticky
+   mobile footer. */
+.onboarding-page {
+  padding-bottom: 90px;
+}
+
+/* -----------------------------------------------------------------------
+   5d. Field validation message
+----------------------------------------------------------------------- */
+.field-error {
+  margin: 2px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--orange-400);
+  font-size: 0.82rem;
+  font-weight: 600;
+  animation: fieldErrorIn 200ms ease both;
+}
+
+@keyframes fieldErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -----------------------------------------------------------------------
+   5e. Success screen
+----------------------------------------------------------------------- */
+.success-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--purple-700), var(--purple-500));
+  color: white;
+  box-shadow: 0 0 0 8px rgba(124, 58, 237, 0.15);
+  animation: successPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes successPop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* -----------------------------------------------------------------------
+   6. Personalization dropdowns
+----------------------------------------------------------------------- */
+.personalization-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dropdown-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dropdown-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+/* Searchable combobox — replaces the native <select>. Works for both
+   single-select (Country) and multi-select (Sports/Competitions/Clubs). */
+.combobox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.combobox-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.combobox-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.combobox-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px 0 42px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-family: var(--font-body);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.combobox-input::placeholder {
+  color: var(--text-muted);
+}
+
+.combobox-input:focus {
+  border-color: var(--purple-500);
+  box-shadow: 0 0 0 3px var(--purple-glow);
+}
+
+/* Dropdown panel — floats above surrounding content, scrolls once long. */
+.combobox-panel {
+  position: relative;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--navy-700);
+  box-shadow: 0 16px 40px rgba(2, 6, 16, 0.55);
+}
+
+.combobox-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.combobox-option:hover {
+  background: var(--navy-600);
+}
+
+.combobox-option--selected {
+  background: linear-gradient(135deg, var(--navy-600), var(--purple-900));
+  color: var(--text-primary);
+}
+
+.combobox-option--selected svg {
+  color: var(--orange-400);
+  flex-shrink: 0;
+}
+
+.combobox-empty {
+  margin: 0;
+  padding: 14px 10px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+/* Selected-item chips shown above a multi-select combobox's input. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--orange-600), var(--orange-500));
+  color: var(--navy-900);
+  font-size: 0.82rem;
+  font-weight: 600;
+  animation: chipIn 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes chipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.chip-remove {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(7, 26, 47, 0.25);
+  color: var(--navy-900);
+  cursor: pointer;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.chip-remove:hover {
+  background: rgba(7, 26, 47, 0.45);
+}
+
+.chip-remove:active {
+  transform: scale(0.85);
+}
+
+.personalization-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.personalization-actions .btn--large {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* -----------------------------------------------------------------------
+   7. Summary card
+----------------------------------------------------------------------- */
+.summary-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--navy-800);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-card h3 {
+  margin: 0 0 4px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.summary-card p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.summary-card p strong {
+  color: var(--orange-400);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.summary-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.summary-footnote svg {
+  color: var(--purple-300);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* -----------------------------------------------------------------------
+   8. Welcome step
+----------------------------------------------------------------------- */
+.step-panel--centered {
+  align-items: center;
+  text-align: center;
+  padding: 32px 8px 12px;
+}
+
+.welcome-logo {
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.welcome-logo img {
+  width: 120%;
+  height: 120%;
+  object-fit: contain;
+}
+
+.welcome-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.welcome-description {
+  margin: 0 0 26px;
+  max-width: 420px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.welcome-actions .btn--large {
+  width: 100%;
+  max-width: 280px;
+}
+
+/* -----------------------------------------------------------------------
+   9. Responsive breakpoints
+   Small mobile → mobile → tablet → desktop → large desktop.
+   Everything above this section is the small-mobile / mobile baseline
+   (mobile-first); each breakpoint below only adjusts what needs to change.
+----------------------------------------------------------------------- */
+
+/* Small mobile (≤ 380px): tighten spacing/type so nothing crowds narrow
+   phones (e.g. iPhone SE) or clips at the edges. */
+@media (max-width: 380px) {
+  .onboarding-page {
+    padding: 0 12px 40px;
+  }
+
+  .onboarding-shell {
+    gap: 16px;
+    padding-top: 16px;
+  }
+
+  .onboarding-logo {
+    width: 76px;
+    height: 76px;
+  }
+
+  .welcome-logo {
+    width: 96px;
+  }
+
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+
+  .welcome-description {
+    font-size: 0.88rem;
+  }
+
+  .step-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .btn {
+    padding: 0 16px;
+    font-size: 0.86rem;
+  }
+
+  .btn--large {
+    padding: 0 20px;
+  }
+
+  .combobox-panel {
+    max-height: 180px;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+}
+
+/* Short viewports in landscape (e.g. phone rotated): trim vertical rhythm
+   so the primary action stays reachable without excessive scrolling. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .onboarding-page {
+    padding-bottom: 24px;
+  }
+
+  .onboarding-shell {
+    padding-top: 12px;
+    gap: 12px;
+  }
+
+  .step-panel--centered {
+    padding: 12px 8px 8px;
+  }
+
+  .welcome-logo {
+    width: 72px;
+  }
+
+  .welcome-description {
+    margin-bottom: 14px;
+  }
+
+  .combobox-panel {
+    max-height: 160px;
+  }
+}
+
+/* Tablet (768px–1023px) */
+@media (min-width: 768px) {
+  .onboarding-page {
+    padding: 36px 24px 48px;
+    align-items: flex-start;
+  }
+
+  .onboarding-shell {
+    max-width: 700px;
+  }
+
+  .personalization-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .welcome-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .welcome-actions .btn--large {
+    width: auto;
+    min-width: 200px;
+  }
+
+  .combobox-panel {
+    max-height: 260px;
+  }
+
+  /* Above mobile, the footer returns to being part of the normal flow
+     inside the centered card rather than sticking to the viewport edge. */
+  .onboarding-footer {
+    position: static;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    border-top: none;
+  }
+
+  .onboarding-page {
+    padding-bottom: 48px;
+  }
+}
+
+/* Desktop (1024px–1279px): centered card, rounded corners, purple glow frame */
+@media (min-width: 1024px) {
+  .onboarding-shell {
+    max-width: 760px;
+    padding: 40px 44px;
+    background: rgba(11, 36, 71, 0.55);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 30px 80px rgba(76, 29, 149, 0.35), 0 0 0 1px rgba(124, 58, 237, 0.12);
+  }
+
+  .welcome-title {
+    font-size: 2rem;
+  }
+
+  .step-header h2 {
+    font-size: 1.55rem;
+  }
+}
+
+/* Large desktop (1280px+): a bit more breathing room and a wider card so
+   the layout doesn't feel squeezed on big monitors. */
+@media (min-width: 1280px) {
+  .onboarding-page {
+    padding: 56px 24px 64px;
+  }
+
+  .onboarding-shell {
+    max-width: 860px;
+    padding: 48px 56px;
+  }
+
+  .personalization-grid {
+    gap: 20px;
+  }
+
+  .welcome-description {
+    max-width: 480px;
+    font-size: 1rem;
+  }
+
+  .summary-card {
+    padding: 20px;
+  }
+}
+
+/* Respect reduced-motion preferences across every breakpoint. */
+@media (prefers-reduced-motion: reduce) {
+  .step-transition,
+  .chip,
+  .btn,
+  .combobox-input,
+  .combobox-option {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.option-content{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-flag{
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.combobox-selected-flag {
+  position: absolute;
+  left: 14px;
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.summary-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+}
+
+.summary-country-flag {
+  width: 20px;
+  height: 12px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

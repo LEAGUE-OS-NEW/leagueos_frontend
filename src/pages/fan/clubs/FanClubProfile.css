@@ -1,0 +1,41 @@
+.fcp-profile-content {
+  z-index: 1;
+  /* Re-declare ClubProfile.css local vars — they're scoped to .club-profile-page
+     which doesn't exist in the fan layout, so they'd be undefined otherwise. */
+  --text-secondary: #b8bfd8;
+  --text-muted: #7d84a3;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --gradient-brand: linear-gradient(135deg, #6d5efc 0%, #9d7bff 100%);
+}
+
+.fcp-profile-back {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: 4px;
+  transition: color 0.15s ease;
+}
+
+.fcp-profile-back:hover {
+  color: var(--color-text-primary);
+}
+
+/* Lift all club-profile elements above the fan-dashboard-content::before overlay */
+.fcp-profile-content .club-profile-header,
+.fcp-profile-content .club-profile-tabs,
+.fcp-profile-content .club-profile-panel,
+.fcp-profile-content .club-profile-fixture-list,
+.fcp-profile-content .club-profile-fixture-row,
+.fcp-profile-content .squad-grid,
+.fcp-profile-content .club-profile-status,
+.fcp-profile-content .profile-empty-state {
+  position: relative;
+  z-index: 1;
+}

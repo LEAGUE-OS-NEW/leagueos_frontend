@@ -1,0 +1,753 @@
+.pmd-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.pmd-main {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pmd-loading {
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 60px 0;
+}
+
+.pmd-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.pmd-back:hover {
+  color: var(--color-text-primary);
+}
+
+.pmd-head h1 {
+  margin: 8px 0 4px;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  color: var(--color-text-primary);
+}
+
+.pmd-question {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.pmd-meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.pmd-description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.pmd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pmd-status-pill--live {
+  background: rgba(220, 38, 38, 0.16);
+  color: var(--color-live);
+}
+
+.pmd-status-pill--upcoming {
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+}
+
+.pmd-status-pill--resolved {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--color-open);
+}
+
+.pmd-status-pill--cancelled,
+.pmd-status-pill--voided {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--color-accent-light);
+}
+
+.pmd-outcomes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.pmd-outcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-bg);
+}
+
+.pmd-outcome-card--yes {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.pmd-outcome-card--no {
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.pmd-outcome-card__label {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.pmd-outcome-card__price {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.pmd-outcome-card__pct {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.pmd-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+}
+
+.pmd-notice--resolved {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pmd-notice--cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.pmd-notice--upcoming {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.pmd-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.pmd-panel {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: clamp(16px, 3vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pmd-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.pmd-position-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pmd-position-row:last-of-type {
+  border-bottom: none;
+}
+
+.pmd-positions-link {
+  align-self: flex-start;
+  color: var(--color-primary-light);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pmd-positions-link:hover {
+  text-decoration: underline;
+}
+
+.pmd-outcome-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.pmd-outcome-choice {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmd-outcome-choice.is-selected {
+  border-color: var(--color-primary-light);
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+}
+
+.pmd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.pmd-field > span:first-child {
+  font-weight: 700;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pmd-field input {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+.pmd-estimate {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.pmd-btn {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.pmd-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pmd-btn--gradient {
+  background: var(--gradient-primary);
+  color: #ffffff;
+}
+
+.pmd-orderbook-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.pmd-orderbook-col__title {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pmd-orderbook-col__title--bid {
+  color: var(--color-open);
+}
+
+.pmd-orderbook-col__title--ask {
+  color: var(--color-live);
+}
+
+.pmd-orderbook-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pmd-orderbook-row--bid {
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--color-open);
+}
+
+.pmd-orderbook-row--ask {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-live);
+}
+
+@media (max-width: 600px) {
+  .pmd-outcomes,
+  .pmd-orderbook-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   Market Detail trading layout
+   ========================================================= */
+
+.pmd-page {
+  background:
+    radial-gradient(
+      circle at 82% 8%,
+      rgba(124, 58, 237, 0.12),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 10% 44%,
+      rgba(249, 115, 22, 0.06),
+      transparent 24rem
+    ),
+    var(--color-bg);
+}
+
+.pmd-main {
+  max-width: 1180px;
+  padding-top: 36px;
+  padding-bottom: 56px;
+  gap: 24px;
+}
+
+.pmd-head {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(124, 58, 237, 0.13),
+      rgba(15, 8, 31, 0.72) 48%,
+      rgba(249, 115, 22, 0.06)
+    );
+}
+
+.pmd-head::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -120px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.08);
+  pointer-events: none;
+}
+
+.pmd-head h1 {
+  position: relative;
+  z-index: 1;
+  max-width: 780px;
+  margin-top: 12px;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.06;
+}
+
+.pmd-question,
+.pmd-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.pmd-question {
+  margin-top: 10px;
+  font-size: 1.08rem;
+}
+
+.pmd-meta {
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+.pmd-outcomes {
+  gap: 18px;
+}
+
+.pmd-outcome-card {
+  min-height: 138px;
+  justify-content: center;
+  padding: 22px 24px;
+  border-radius: 18px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.pmd-outcome-card:hover {
+  transform: translateY(-2px);
+}
+
+.pmd-outcome-card.is-selected {
+  box-shadow:
+    0 0 0 2px rgba(168, 85, 247, 0.3),
+    0 18px 45px rgba(0, 0, 0, 0.16);
+}
+
+.pmd-outcome-card--yes {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(124, 58, 237, 0.16),
+      var(--color-card-bg)
+    );
+  border-color: rgba(168, 85, 247, 0.55);
+}
+
+.pmd-outcome-card--no {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(249, 115, 22, 0.13),
+      var(--color-card-bg)
+    );
+  border-color: rgba(249, 115, 22, 0.48);
+}
+
+.pmd-outcome-card__eyebrow {
+  margin-bottom: 3px;
+  color: var(--color-text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.pmd-outcome-card__price {
+  margin-top: 5px;
+  font-size: clamp(1.55rem, 3vw, 2rem);
+}
+
+.pmd-content-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.35fr)
+    minmax(330px, 0.65fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.pmd-market-column,
+.pmd-trade-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.pmd-trade-column {
+  position: sticky;
+  top: 24px;
+}
+
+.pmd-description {
+  margin: 0;
+  padding: 15px 18px;
+  border-left: 3px solid var(--color-primary-light);
+  border-radius: 0 12px 12px 0;
+  background: rgba(124, 58, 237, 0.06);
+  line-height: 1.6;
+}
+
+.pmd-panel {
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(124, 58, 237, 0.055),
+      var(--color-card-bg) 42%
+    );
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.12);
+}
+
+.pmd-trade-panel {
+  border-color: rgba(124, 58, 237, 0.38);
+}
+
+.pmd-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.pmd-panel-heading h2 {
+  margin: 0;
+  font-size: 1.16rem;
+}
+
+.pmd-panel-heading p {
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.pmd-trader-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.pmd-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pmd-wallet-balance {
+  color: var(--color-text-secondary);
+  font-size: 0.77rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pmd-outcome-picker {
+  gap: 10px;
+}
+
+.pmd-outcome-choice {
+  min-height: 52px;
+  border-radius: 12px;
+}
+
+.pmd-quote-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.pmd-quote-label {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.pmd-quote-value {
+  color: var(--color-text-primary);
+  font-size: 0.86rem;
+  text-align: right;
+}
+
+.pmd-quick-amounts {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pmd-quick-amount {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmd-quick-amount:hover,
+.pmd-quick-amount.is-active {
+  border-color: var(--color-primary-light);
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--color-primary-light);
+}
+
+.pmd-field input {
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pmd-estimate {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 13px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.pmd-estimate > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pmd-estimate span {
+  color: var(--color-text-secondary);
+}
+
+.pmd-estimate strong {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pmd-btn--gradient {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+}
+
+.pmd-btn--secondary {
+  border: 1px solid var(--color-primary-light);
+  background: transparent;
+  color: var(--color-primary-light);
+}
+
+.pmd-action-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--color-primary-light);
+  border-radius: 11px;
+  color: var(--color-primary-light);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pmd-action-link:hover {
+  background: rgba(124, 58, 237, 0.13);
+}
+
+.pmd-eligibility-panel {
+  border-color: rgba(124, 58, 237, 0.34);
+}
+
+.pmd-muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.pmd-market-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.pmd-orderbook-grid > div {
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.pmd-orderbook-row {
+  margin-bottom: 4px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 900px) {
+  .pmd-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pmd-trade-column {
+    position: static;
+  }
+}
+
+@media (max-width: 600px) {
+  .pmd-main {
+    padding-top: 20px;
+  }
+
+  .pmd-panel-heading {
+    flex-direction: column;
+  }
+
+  .pmd-trader-state {
+    align-items: flex-start;
+  }
+
+  .pmd-quick-amounts {
+    grid-template-columns: 1fr 1fr;
+  }
+}

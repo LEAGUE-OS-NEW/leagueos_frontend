@@ -1,0 +1,76 @@
+.fan-profile-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+.fan-profile {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+.fan-profile-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-profile-content {
+  position: relative;
+  background-image: url('/images/stadium-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.fan-profile-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-section);
+  z-index: 0;
+}
+
+.fan-profile-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 767px) {
+  .fan-profile-content {
+    background-attachment: scroll;
+  }
+}
+
+.fan-profile-header {
+  color: var(--color-text-primary);
+}
+
+.fan-profile-eyebrow {
+  margin: 0 0 6px;
+  color: var(--color-primary-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.fan-profile-header h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+}
+
+.fan-profile-header p:last-child {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}

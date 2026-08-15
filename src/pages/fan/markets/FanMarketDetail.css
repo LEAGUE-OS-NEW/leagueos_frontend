@@ -1,0 +1,483 @@
+/* ============================================================================
+ * FAN MARKET DETAIL
+ * ========================================================================== */
+
+.market-detail-page {
+  gap: 18px;
+}
+
+.market-detail-grid {
+  /* Lift above .fan-dashboard-content's decorative ::before background
+     overlay — every other page's top-level content does this (see
+     Markets.css's `.markets-terminal-content > .dashboard-card` rule and
+     its comment). This page never had the equivalent, so the overlay was
+     painting on top of the market detail card instead of behind it,
+     washing out all the text/buttons underneath it. */
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-items: start;
+  gap: 20px;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 0.85fr);
+}
+
+.market-detail-main,
+.market-detail-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.market-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.market-detail-topline,
+.market-detail-topline-actions,
+.market-detail-meta-grid,
+.market-detail-stat-row,
+.trade-ticket-balance-row,
+.order-placed-actions,
+.my-positions-panel-row-actions {
+  display: flex;
+  align-items: center;
+}
+
+.market-detail-topline {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.market-back-btn,
+.market-detail-topline-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.market-back-btn {
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.market-detail-topline-actions {
+  gap: 8px;
+}
+
+.market-detail-topline-actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.market-back-btn:hover,
+.market-detail-topline-actions button:hover,
+.market-detail-topline-actions button.active {
+  border-color: var(--color-primary-light);
+  background-color: var(--color-card-bg);
+  color: var(--color-primary-light);
+}
+
+.yesno-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.yesno-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.yesno-card:hover,
+.yesno-card.active {
+  transform: translateY(-1px);
+  background-color: var(--color-card-bg);
+}
+
+.yesno-card--yes.active {
+  border-color: var(--color-open, #22c55e);
+}
+
+.yesno-card--no.active {
+  border-color: var(--color-danger, #ef4444);
+}
+
+.yesno-card-label,
+.yesno-card-probability {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.yesno-card-question {
+  min-height: 38px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-text-primary);
+}
+
+.yesno-card-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.yesno-card-cta {
+  width: 100%;
+  margin-top: auto;
+  padding: 9px 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.yesno-card-cta--yes {
+  background-color: var(--color-open, #22c55e);
+}
+
+.yesno-card-cta--no {
+  background-color: var(--color-danger, #ef4444);
+}
+
+.market-detail-meta-grid {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.market-detail-meta-grid div,
+.market-detail-stat-row div,
+.trade-ticket-balance-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.market-detail-meta-grid span,
+.market-detail-stat-row span,
+.trade-ticket-balance-row span,
+.my-positions-panel-row-grid span,
+.order-placed-summary dt {
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.market-detail-meta-grid b,
+.market-detail-stat-row b,
+.trade-ticket-balance-row b,
+.my-positions-panel-row-grid b,
+.order-placed-summary dd {
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.market-detail-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.market-detail-subtabs button {
+  padding: 9px 4px;
+  margin-right: 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.market-detail-subtabs button.active {
+  color: var(--color-primary-light);
+  border-bottom-color: var(--color-primary-light);
+}
+
+.market-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.market-detail-stat-row {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.price-sparkline-wrap {
+  min-height: 210px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+}
+
+.price-sparkline {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
+
+.chart-range-tabs,
+.trade-tabs,
+.my-positions-panel-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.chart-range-tabs button,
+.trade-tabs button,
+.my-positions-panel-tabs button {
+  flex: 1;
+  min-height: 34px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chart-range-tabs button.active,
+.trade-tabs button.active,
+.my-positions-panel-tabs button.active {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #ffffff;
+}
+
+.orderbook-table,
+.activity-list,
+.market-info-fields,
+.trade-review-list,
+.order-placed-summary,
+.my-positions-panel-row-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.orderbook-row,
+.activity-row,
+.market-info-fields > div,
+.trade-review-list > div,
+.order-placed-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.trade-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trade-ticket-back {
+  width: fit-content;
+}
+
+.trade-ticket-question,
+.trade-ticket-heading,
+.my-positions-panel h3,
+.order-placed h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.trade-ticket-balance-row {
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+}
+
+.trade-ticket .trade-amount-label {
+  margin-bottom: -8px;
+}
+
+.order-placed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.order-placed-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-open, #22c55e);
+  font-size: 1.5rem;
+}
+
+.order-placed p {
+  margin: 0;
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.86rem;
+}
+
+.order-placed-summary {
+  width: 100%;
+  margin: 0;
+  text-align: left;
+}
+
+.order-placed-actions {
+  width: 100%;
+  gap: 10px;
+}
+
+.my-positions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.my-positions-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-positions-panel-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-card-hover);
+}
+
+.my-positions-panel-row-head,
+.my-positions-panel-total,
+.my-positions-panel-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.my-positions-panel-row-head b {
+  color: var(--color-text-primary);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.my-positions-panel-row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.my-positions-panel-row-actions {
+  gap: 8px;
+}
+
+.my-positions-sell-btn,
+.my-positions-hold-btn,
+.add-funds-link {
+  flex: 1;
+  min-height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card-hover);
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.my-positions-sell-btn {
+  background-color: var(--color-danger, #ef4444);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.my-positions-panel-total,
+.my-positions-panel-balance {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary, #8a94a6);
+  font-size: 0.84rem;
+}
+
+.add-funds-link {
+  flex: 0 0 auto;
+  padding: 0 12px;
+}
+
+@media (max-width: 1180px) {
+  .market-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .yesno-cards,
+  .market-detail-stat-row,
+  .market-detail-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .market-detail-topline,
+  .order-placed-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .market-detail-topline-actions {
+    justify-content: flex-start;
+  }
+}

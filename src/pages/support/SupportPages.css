@@ -1,0 +1,166 @@
+/* ============================================================
+   Shared styles for all Support section pages
+   ============================================================ */
+
+.sp-page {
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+}
+
+/* ── Hero ── */
+.sp-hero {
+  padding: 100px 24px 72px;
+  text-align: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.18) 0%, transparent 70%);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sp-hero__badge {
+  display: inline-block;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  color: var(--color-primary-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+
+.sp-hero__title {
+  font-family: var(--font-family-heading);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  color: var(--color-text-primary);
+}
+
+.sp-hero__title span {
+  background: var(--gradient-hero-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sp-hero__sub {
+  font-size: 1.05rem;
+  color: var(--color-text-secondary);
+  max-width: 600px;
+  margin: 0 auto 28px;
+  line-height: 1.7;
+}
+
+/* ── Section wrapper ── */
+.sp-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 72px 24px;
+}
+
+.sp-section__title {
+  font-family: var(--font-family-heading);
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+}
+
+.sp-section__sub {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 40px;
+  line-height: 1.6;
+}
+
+/* ── Cards grid ── */
+.sp-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.sp-grid--2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.sp-grid--3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+.sp-card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.sp-card:hover {
+  border-color: var(--color-primary);
+  background: var(--color-card-hover);
+}
+
+.sp-card__icon {
+  width: 44px;
+  height: 44px;
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light);
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+}
+
+.sp-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+}
+
+.sp-card__text {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ── Primary button ── */
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  text-decoration: none;
+  border: none;
+}
+
+.sp-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.sp-btn--primary {
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.sp-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.sp-btn--ghost:hover {
+  border-color: var(--color-primary);
+}
+
+/* ── Divider ── */
+.sp-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+}

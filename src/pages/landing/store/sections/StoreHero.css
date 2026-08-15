@@ -1,0 +1,205 @@
+.store-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  min-height: clamp(400px, 55vh, 540px);
+  display: flex;
+  align-items: center;
+  margin-top: clamp(16px, 3vw, 28px);
+}
+
+.store-hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.store-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(10, 7, 19, 0.88) 0%,
+    rgba(10, 7, 19, 0.72) 40%,
+    rgba(10, 7, 19, 0.4) 70%,
+    rgba(10, 7, 19, 0.2) 100%
+  );
+}
+
+.store-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  padding: clamp(28px, 5vw, 48px);
+}
+
+.store-hero-eyebrow {
+  margin: 0 0 10px;
+  color: var(--color-primary-light);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.store-hero-heading {
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-size: clamp(1.9rem, 4.6vw, 3.1rem);
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
+.store-hero-heading-gradient {
+  background: var(--gradient-hero-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.store-hero-subtext {
+  margin: 0 0 24px;
+  max-width: 48ch;
+  color: var(--color-text-primary);
+  font-weight: 500;
+  font-size: clamp(0.92rem, 1.4vw, 1.02rem);
+  line-height: 1.6;
+}
+
+.store-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.store-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  border: none;
+  transition: transform 0.15s ease, filter 0.2s ease, background-color 0.2s ease;
+}
+
+.store-cta--primary {
+  background: var(--gradient-accent);
+}
+
+.store-cta:hover {
+  transform: scale(1.04);
+  filter: brightness(1.1);
+}
+
+.store-cta:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.store-hero-search {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 180px;
+  min-width: 0;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 8px;
+  min-height: 44px;
+  background: rgba(10, 7, 19, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.6);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.store-hero-search:focus-within {
+  border-color: var(--color-primary-light);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.store-hero-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.store-hero-search input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.store-hero-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.store-hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.store-hero-badge-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-primary-light);
+  font-size: 1rem;
+}
+
+.store-hero-badge-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.store-hero-badge-sublabel {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .store-hero-inner {
+    max-width: 100%;
+  }
+
+  .store-hero-overlay {
+    background: linear-gradient(180deg, rgba(10, 7, 19, 0.6) 0%, rgba(10, 7, 19, 0.9) 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-cta,
+  .store-hero-search {
+    transition: none;
+  }
+}
