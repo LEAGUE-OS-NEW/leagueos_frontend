@@ -94,6 +94,12 @@ function SearchPage() {
   }, [results, searchText, sportFilter, entityTab]);
 
   const { visibleItems, hasMore, loadMore, reset } = useInfiniteResults(filteredResults, 12);
+  const queryParam = searchParams.get('q') ?? '';
+
+  useEffect(() => {
+    setSearchText(queryParam);
+    reset();
+  }, [queryParam, reset]);
 
   const handleSearchTextChange = (value: string) => {
     setSearchText(value);
