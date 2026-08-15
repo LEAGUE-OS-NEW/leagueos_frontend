@@ -128,7 +128,12 @@ describe('KYC status → Identity Verification UI', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.clearAllMocks();
+    // clearAllMocks only clears call history, not implementations — a plain
+    // mockResolvedValue(...) from an earlier test in this block would stay
+    // as the fallback once a later test's mockResolvedValueOnce queue runs
+    // out (shouldAdvanceTime can let the 5s poll interval fire more times
+    // than a test explicitly queues for). resetAllMocks clears both.
+    vi.resetAllMocks();
     useAuthStore.setState({ user: null, accessToken: null, refreshToken: null });
   });
 
