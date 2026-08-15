@@ -59,9 +59,9 @@ function matchesQuery(result: SearchResult, query: string): boolean {
 
 function SearchPage() {
   const isSignedIn = Boolean(useAuthStore((state) => state.accessToken));
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchText = searchParams.get('q') ?? '';
 
-  const [searchText, setSearchText] = useState(() => searchParams.get('q') ?? '');
   const [sportFilter, setSportFilter] = useState<'All' | Sport>('All');
   const [entityTab, setEntityTab] = useState<'All' | SearchResultKind>('All');
   const [isLoading, setIsLoading] = useState(true);
@@ -94,15 +94,10 @@ function SearchPage() {
   }, [results, searchText, sportFilter, entityTab]);
 
   const { visibleItems, hasMore, loadMore, reset } = useInfiniteResults(filteredResults, 12);
-  const queryParam = searchParams.get('q') ?? '';
-
-  useEffect(() => {
-    setSearchText(queryParam);
-    reset();
-  }, [queryParam, reset]);
 
   const handleSearchTextChange = (value: string) => {
-    setSearchText(value);
+    const query = value.trim();
+    setSearchParams(query ? { q: value } : {}, { replace: true });
     reset();
   };
 
