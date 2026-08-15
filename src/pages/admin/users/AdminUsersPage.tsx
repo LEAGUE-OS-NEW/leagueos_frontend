@@ -3,10 +3,12 @@ import { FiAlertTriangle, FiActivity, FiPlus, FiX } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   assignAdminRole,
+  createRealClub,
   fetchAdminInvitations,
   fetchAdminRoles,
   fetchAdminUsers,
   fetchRealClubs,
+  fetchRealSports,
   findRoleConflict,
   inviteAdminUser,
   inviteClubAdmin,
@@ -17,18 +19,11 @@ import {
   type AdminRole,
   type AdminUser,
   type RealClubSummary,
+  type RealSportSummary,
 } from '../../../services/adminUsersService';
-import { createClub } from '../../../services/clubsService';
-import {
-  createCompetition,
-  fetchCompetitions,
-  type Competition,
-  type Sport,
-} from '../../../services/sportsDataService';
 import './AdminUsersPage.css';
 
 const CLUB_ADMIN_SENTINEL = '__CLUB_ADMIN__';
-const SPORTS: Sport[] = ['Football', 'Rugby', 'Basketball'];
 
 function formatDateTime(iso: string): string {
   if (!iso) return '—';
@@ -61,24 +56,19 @@ function InviteModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [clubs, setClubs] = useState<RealClubSummary[]>([]);
-  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [sports, setSports] = useState<RealSportSummary[]>([]);
   const [clubMode, setClubMode] = useState<'existing' | 'new'>('existing');
   const [clubId, setClubId] = useState('');
   const [newClubName, setNewClubName] = useState('');
-  const [newClubSport, setNewClubSport] = useState<Sport>('Football');
-  const [competitionMode, setCompetitionMode] = useState<'existing' | 'new'>('existing');
-  const [competitionId, setCompetitionId] = useState('');
-  const [newCompetitionName, setNewCompetitionName] = useState('');
-  const [newCompetitionCountry, setNewCompetitionCountry] = useState('UG');
+  const [newClubSportId, setNewClubSportId] = useState('');
 
   const isClubAdmin = roleId === CLUB_ADMIN_SENTINEL;
 
   useEffect(() => {
     if (!isClubAdmin) return;
     let cancelled = false;
-    // Fetched independently, not via Promise.all — fetchRealClubs() is a
-    // real API call that can fail on its own (auth/network), and that must
-    // not take the mocked fetchCompetitions() down with it.
+    // Fetched independently — a failure fetching sports (needed only for
+    // the "new club" branch) must not take the club dropdown down with it.
     fetchRealClubs()
       .then((clubResult) => {
         if (cancelled) return;
@@ -88,14 +78,14 @@ function InviteModal({
       .catch(() => {
         // Non-fatal — existing-club dropdown just stays empty; "new club" still works.
       });
-    fetchCompetitions()
-      .then((competitionResult) => {
+    fetchRealSports()
+      .then((sportResult) => {
         if (cancelled) return;
-        setCompetitions(competitionResult);
-        if (competitionResult.length > 0) setCompetitionId(competitionResult[0].id);
+        setSports(sportResult);
+        if (sportResult.length > 0) setNewClubSportId(sportResult[0].id);
       })
       .catch(() => {
-        // Non-fatal — existing-competition dropdown just stays empty; "new competition" still works.
+        // Non-fatal — "new club" sport dropdown just stays empty.
       });
     return () => {
       cancelled = true;
@@ -108,27 +98,16 @@ function InviteModal({
     try {
       if (!personalEmail.trim()) throw new Error('Enter a personal email to send the invite to.');
       if (isClubAdmin) {
-        let clubName: string;
-        if (clubMode === 'existing') {
-          const club = clubs.find((item) => item.id === clubId);
-          if (!club) throw new Error('Select a club.');
-          clubName = club.name;
-        } else {
-          let resolvedCompetitionName = competitions.find((item) => item.id === competitionId)?.name;
-          if (competitionMode === 'new') {
-            const competition = await createCompetition({
-              name: newCompetitionName,
-              sport: newClubSport,
-              country: newCompetitionCountry,
-            });
-            resolvedCompetitionName = competition.name;
-          }
-          const club = await createClub({ name: newClubName, sport: newClubSport, competitionName: resolvedCompetitionName });
-          clubName = club.name;
+        let resolvedClubId = clubId;
+        if (clubMode === 'new') {
+          const club = await createRealClub({ name: newClubName, sportId: newClubSportId });
+          resolvedClubId = club.id;
+        } else if (!resolvedClubId) {
+          throw new Error('Select a club.');
         }
-        const invite = await inviteClubAdmin({ email, notifyEmail: personalEmail, clubName });
+        const invite = await inviteClubAdmin({ clubId: resolvedClubId, loginEmail: email, notifyEmail: personalEmail });
         setSuccessMessage(
-          `Preview only — club-scoped invitations aren't wired to a real endpoint yet. Once built, this would email a setup link to ${invite.notifyEmail} for the ${invite.clubName} Club Admin account (${invite.email}).`,
+          `Invite sent to ${personalEmail.trim()} — they'll set a password for the ${email.trim()} login and land in their Club Admin dashboard once accepted (invitation ${invite.status.toLowerCase()}, expires ${new Date(invite.expiresAt).toLocaleDateString()}).`,
         );
       } else {
         await onInvite({ email, roleId });
@@ -162,7 +141,7 @@ function InviteModal({
         <h3>Invite Admin</h3>
         <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>
           {isClubAdmin
-            ? "Club Admin invites are a preview for now — see the note after you submit."
+            ? "They'll get an email at the personal address below with a link to set a password for their LeagueOS login, then land in their Club Admin dashboard."
             : "They'll receive an email invitation and set their own password when they accept."}
         </p>
         {error && (
@@ -183,9 +162,12 @@ function InviteModal({
             onChange={(event) => setPersonalEmail(event.target.value)}
             placeholder="jane.doe@gmail.com"
           />
-          <span className="au-field__note">
-            Email delivery isn't wired up on the backend yet — this is captured and ready for once it is.
-          </span>
+          {!isClubAdmin && (
+            <span className="au-field__note">
+              Email delivery isn't wired up on the backend yet for platform-role invites — this is
+              captured and ready for once it is.
+            </span>
+          )}
         </label>
         <label className="au-field">
           <span>Role</span>
@@ -198,7 +180,7 @@ function InviteModal({
               ))}
             </optgroup>
             <optgroup label="Club-scoped">
-              <option value={CLUB_ADMIN_SENTINEL}>Club Admin (preview)</option>
+              <option value={CLUB_ADMIN_SENTINEL}>Club Admin</option>
             </optgroup>
           </select>
         </label>
@@ -243,66 +225,15 @@ function InviteModal({
                 </label>
                 <label className="au-field">
                   <span>Sport</span>
-                  <select value={newClubSport} onChange={(event) => setNewClubSport(event.target.value as Sport)}>
-                    {SPORTS.map((sport) => (
-                      <option key={sport} value={sport}>
-                        {sport}
+                  <select value={newClubSportId} onChange={(event) => setNewClubSportId(event.target.value)}>
+                    <option value="">Select a sport…</option>
+                    {sports.map((sport) => (
+                      <option key={sport.id} value={sport.id}>
+                        {sport.name}
                       </option>
                     ))}
                   </select>
                 </label>
-
-                <div className="au-toggle-row">
-                  <button
-                    type="button"
-                    className={`au-toggle${competitionMode === 'existing' ? ' is-active' : ''}`}
-                    onClick={() => setCompetitionMode('existing')}
-                    disabled={competitions.length === 0}
-                  >
-                    Existing competition
-                  </button>
-                  <button
-                    type="button"
-                    className={`au-toggle${competitionMode === 'new' ? ' is-active' : ''}`}
-                    onClick={() => setCompetitionMode('new')}
-                  >
-                    New competition
-                  </button>
-                </div>
-
-                {competitionMode === 'existing' ? (
-                  <label className="au-field">
-                    <span>Competition</span>
-                    <select value={competitionId} onChange={(event) => setCompetitionId(event.target.value)}>
-                      {competitions.map((competition) => (
-                        <option key={competition.id} value={competition.id}>
-                          {competition.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <>
-                    <label className="au-field">
-                      <span>Competition name</span>
-                      <input
-                        type="text"
-                        value={newCompetitionName}
-                        onChange={(event) => setNewCompetitionName(event.target.value)}
-                        placeholder="Uganda Premier League"
-                      />
-                    </label>
-                    <label className="au-field">
-                      <span>Country code</span>
-                      <input
-                        type="text"
-                        value={newCompetitionCountry}
-                        onChange={(event) => setNewCompetitionCountry(event.target.value.toUpperCase())}
-                        maxLength={2}
-                      />
-                    </label>
-                  </>
-                )}
               </>
             )}
           </>
