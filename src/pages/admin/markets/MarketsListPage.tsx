@@ -24,14 +24,28 @@ import {
 import { formatUgx } from '../../../utils/rules';
 import './MarketsListPage.css';
 
-type TabKey = 'Live' | 'Upcoming' | 'Draft' | 'Closed' | 'Resolved' | 'Cancelled' | 'Proposals';
+type TabKey =
+  | 'Live'
+  | 'Upcoming'
+  | 'Pending Approval'
+  | 'Draft'
+  | 'Suspended'
+  | 'Closed'
+  | 'Resolved'
+  | 'Voided'
+  | 'Cancelled'
+  | 'Proposals';
+
 const MARKET_TABS: { key: TabKey; statuses: MarketStatus[] }[] = [
   { key: 'Live', statuses: ['Live'] },
   { key: 'Upcoming', statuses: ['Upcoming'] },
+  { key: 'Pending Approval', statuses: ['Pending Approval'] },
   { key: 'Draft', statuses: ['Draft'] },
+  { key: 'Suspended', statuses: ['Suspended'] },
   { key: 'Closed', statuses: ['Closed'] },
   { key: 'Resolved', statuses: ['Resolved'] },
-  { key: 'Cancelled', statuses: ['Cancelled', 'Voided', 'Suspended'] },
+  { key: 'Voided', statuses: ['Voided'] },
+  { key: 'Cancelled', statuses: ['Cancelled'] },
 ];
 
 function formatDateTime(iso: string): string {
@@ -48,6 +62,7 @@ function statusPillClass(status: MarketStatus): string {
     case 'Live':
       return 'mkt-status-pill mkt-status-pill--live';
     case 'Upcoming':
+    case 'Pending Approval':
       return 'mkt-status-pill mkt-status-pill--upcoming';
     case 'Draft':
       return 'mkt-status-pill mkt-status-pill--draft';

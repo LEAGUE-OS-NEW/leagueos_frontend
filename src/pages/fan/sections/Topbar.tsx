@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSearch, FiBell, FiChevronDown, FiMenu, FiUser, FiLogOut } from 'react-icons/fi';
 import { useAuthStore } from '../../../store/authStore';
@@ -12,6 +13,7 @@ type TopbarProps = {
 
 function Topbar({ onMenuClick }: TopbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const clearAuth = useAuthStore((state) => state.clearAuth);
@@ -51,16 +53,31 @@ function Topbar({ onMenuClick }: TopbarProps) {
     navigate('/login');
   };
 
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchText.trim();
+    if (!query) return;
+    navigate(`/search?q=${encodeURIComponent(query)}`);
+  };
+
   return (
     <header className="fan-topbar">
       <button type="button" className="fan-topbar-menu" aria-label="Open menu" onClick={onMenuClick}>
         <FiMenu />
       </button>
 
-      <label className="fan-topbar-search">
+      <form className="fan-topbar-search" role="search" onSubmit={handleSearchSubmit}>
         <FiSearch className="fan-topbar-search-icon" />
-        <input type="text" placeholder="Search games, teams, markets..." className="fan-topbar-search-input" />
-      </label>
+        <input
+          type="search"
+          placeholder="Search games, teams, markets..."
+          className="fan-topbar-search-input"
+          aria-label="Search League OS"
+          enterKeyHint="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+        />
+      </form>
 
       <div className="fan-topbar-actions">
         <button

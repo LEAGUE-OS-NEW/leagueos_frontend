@@ -289,3 +289,30 @@
 }
 
 /* .fan-sidebar is position: fixed at all breakpoints (see Sidebar.css),
+
+
+.fan-wallet-verified-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #4ade80;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fan-wallet-demo-note {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.fan-wallet-demo-note strong {
+  color: var(--color-text-primary);
+}

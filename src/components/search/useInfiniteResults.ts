@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface UseInfiniteResults<T> {
   visibleItems: T[];
@@ -14,11 +14,13 @@ interface UseInfiniteResults<T> {
 // pill) so a new query doesn't stay scrolled deep into the old result set.
 export function useInfiniteResults<T>(items: T[], pageSize = 12): UseInfiniteResults<T> {
   const [visibleCount, setVisibleCount] = useState(pageSize);
+  const loadMore = useCallback(() => setVisibleCount((current) => current + pageSize), [pageSize]);
+  const reset = useCallback(() => setVisibleCount(pageSize), [pageSize]);
 
   return {
     visibleItems: items.slice(0, visibleCount),
     hasMore: visibleCount < items.length,
-    loadMore: () => setVisibleCount((current) => current + pageSize),
-    reset: () => setVisibleCount(pageSize),
+    loadMore,
+    reset,
   };
 }

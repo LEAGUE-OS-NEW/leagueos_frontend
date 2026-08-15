@@ -39,7 +39,7 @@ import {
 import '../sections/FanDashboard.css';
 import './Markets.css';
 
-type ListTab = 'live' | 'upcoming' | 'trending' | 'all';
+type ListTab = 'live' | 'upcoming' | 'trending' | 'suspended' | 'closed' | 'resolved' | 'voided' | 'all';
 type DetailTab = 'details' | 'positions' | 'info';
 type TradeSide = 'buy' | 'sell';
 
@@ -47,6 +47,10 @@ const LIST_TABS: { key: ListTab; label: string }[] = [
   { key: 'live', label: 'Live' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'trending', label: 'Trending' },
+  { key: 'suspended', label: 'Suspended' },
+  { key: 'closed', label: 'Closed' },
+  { key: 'resolved', label: 'Resolved' },
+  { key: 'voided', label: 'Voided' },
   { key: 'all', label: 'All Markets' },
 ];
 
@@ -58,10 +62,17 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
 
 const PRESET_AMOUNTS = [10_000, 20_000, 50_000, 100_000];
 
-const STATUS_OPTIONS: { key: 'live' | 'upcoming' | 'trending'; label: string }[] = [
+const STATUS_OPTIONS: {
+  key: Exclude<ListTab, 'all'>;
+  label: string;
+}[] = [
   { key: 'live', label: 'Live' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'trending', label: 'Trending' },
+  { key: 'suspended', label: 'Suspended' },
+  { key: 'closed', label: 'Closed' },
+  { key: 'resolved', label: 'Resolved' },
+  { key: 'voided', label: 'Voided' },
 ];
 
 function CrestOrPlaceholder({ src, name }: { src?: string; name: string }) {
@@ -84,17 +95,15 @@ function StatusChip({ market }: { market: MarketListItem }) {
       </span>
     );
   }
-  if (market.status === 'closed') {
-    return (
-      <span className="market-status-badge market-status-badge--upcoming">
-        CLOSED
-      </span>
-    );
-  }
+
+  const label =
+    market.status === 'upcoming'
+      ? market.scheduleLabel ?? 'UPCOMING'
+      : market.status.toUpperCase();
 
   return (
     <span className="market-status-badge market-status-badge--upcoming">
-      {market.scheduleLabel ?? 'UPCOMING'}
+      {label}
     </span>
   );
 }
@@ -182,7 +191,7 @@ function Markets() {
     return '';
   }, [amount, numericAmount]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['live', 'upcoming']);
+  const [selectedStatuses, setSelectedStatuses] = useState<Array<Exclude<ListTab, 'all'>>>([]);
 
  
   useEffect(() => {
@@ -197,11 +206,23 @@ function Markets() {
     const byTab = tab === 'all'
       ? markets
       : tab === 'trending'
-        ? markets.filter((m) => m.status === 'live' || m.status === 'trending')
+        ? markets.filter((m) => m.isTrending)
         : markets.filter((m) => m.status === tab);
+
     return byTab.filter((market) => {
-      const matchesType = selectedTypes.length === 0 || selectedTypes.includes(market.marketType);
-      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(market.status);
+      const matchesType =
+        selectedTypes.length === 0 ||
+        selectedTypes.includes(market.marketType);
+
+      const matchesStatus =
+        tab !== 'all' ||
+        selectedStatuses.length === 0 ||
+        selectedStatuses.some((status) =>
+          status === 'trending'
+            ? market.isTrending
+            : market.status === status,
+        );
+
       return matchesType && matchesStatus;
     });
   }, [markets, selectedStatuses, selectedTypes, tab]);
@@ -248,13 +269,13 @@ function Markets() {
     setSelectedTypes((current) => (current.includes(type) ? current.filter((t) => t !== type) : [...current, type]));
   };
 
-  const toggleStatus = (status: 'live' | 'upcoming' | 'trending') => {
+  const toggleStatus = (status: Exclude<ListTab, 'all'>) => {
     setSelectedStatuses((current) => (current.includes(status) ? current.filter((s) => s !== status) : [...current, status]));
   };
 
   const resetFilters = () => {
     setSelectedTypes([]);
-    setSelectedStatuses(['live', 'upcoming']);
+    setSelectedStatuses([]);
   };
 
   const openMarketDetail = (id: string) => {
