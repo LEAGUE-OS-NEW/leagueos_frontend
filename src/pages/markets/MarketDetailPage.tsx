@@ -4,13 +4,18 @@ import { FiAlertTriangle, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
 import {
-  fetchMarket,
   fetchOrderBook,
-  type Market,
   type OrderBook,
-  type OutcomeId,
 } from '../../services/marketAdminService';
-import { fetchFanPositions, fetchMarketOrderBook, placeOrder, type Position } from '../../services/fanMarketsServices';
+import {
+  fetchMarket as fetchPublicMarket,
+  fetchFanPositions,
+  fetchMarketOrderBook,
+  placeOrder,
+  type Market,
+  type OutcomeId,
+  type Position,
+} from '../../services/fanMarketsServices';
 import { normalizedPriceToUgxSharePrice } from '../../utils/marketPricing.ts';
 import { useMarketEligibility } from '../../hooks/useMarketEligibility';
 import './MarketDetailPage.css';
@@ -33,6 +38,20 @@ function getInitialOutcome(searchParams: URLSearchParams): OutcomeId {
   return searchParams.get('outcome') === 'NO' ? 'NO' : 'YES';
 }
 
+function outcomeDisplayPrice(
+  outcome: Market['outcomes'][number],
+): string {
+  const price =
+    outcome.bestAsk ??
+    outcome.price ??
+    outcome.openingReference ??
+    null;
+
+  return price === null
+    ? 'Price unavailable'
+    : `${formatUgx(price)}/share`;
+}
+
 function MarketDetailPage() {
   const { marketId } = useParams<{ marketId: string }>();
   const navigate = useNavigate();
@@ -53,28 +72,62 @@ function MarketDetailPage() {
 
   useEffect(() => {
     if (!marketId) return;
+
     let cancelled = false;
-    Promise.all([
-      fetchMarket(marketId),
-      fetchOrderBook(marketId),
-      fetchFanPositions(),
-    ])
-      .then(([marketResult, orderBookResult, positions]) => {
+
+    fetchPublicMarket(marketId)
+      .then(async (marketResult) => {
         if (cancelled) return;
+
         setMarket(marketResult);
-        setOrderBook(orderBookResult);
-        setMyPositions(positions.filter((position: Position) => position.market.id === marketId));
+        setLoadError(null);
+
+        const optionalRequests = await Promise.allSettled([
+          fetchOrderBook(marketId),
+          isIdentityVerified
+            ? fetchFanPositions()
+            : Promise.resolve([] as Position[]),
+        ]);
+
+        if (cancelled) return;
+
+        const [bookResult, positionsResult] =
+          optionalRequests;
+
+        if (bookResult.status === 'fulfilled') {
+          setOrderBook(bookResult.value);
+        } else {
+          setOrderBook(null);
+        }
+
+        if (positionsResult.status === 'fulfilled') {
+          setMyPositions(
+            positionsResult.value.filter(
+              (position: Position) =>
+                position.market.id === marketId,
+            ),
+          );
+        } else {
+          setMyPositions([]);
+        }
       })
       .catch(() => {
-        if (!cancelled) setLoadError('Could not load this market. Please try again.');
+        if (!cancelled) {
+          setLoadError(
+            'Could not load this market. Please try again.',
+          );
+        }
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       });
+
     return () => {
       cancelled = true;
     };
-  }, [marketId]);
+  }, [marketId, isIdentityVerified]);
 
   useEffect(() => {
     const outcome = market?.outcomes.find((item) => item.id === selectedOutcome);
@@ -171,12 +224,12 @@ function MarketDetailPage() {
         <div className="pmd-outcomes">
           <div className="pmd-outcome-card pmd-outcome-card--yes">
             <span className="pmd-outcome-card__label">{yesOutcome.label}</span>
-            <span className="pmd-outcome-card__price">Price unavailable</span>
+            <span className="pmd-outcome-card__price">{outcomeDisplayPrice(yesOutcome)}</span>
             <span className="pmd-outcome-card__pct">Not traded yet</span>
           </div>
           <div className="pmd-outcome-card pmd-outcome-card--no">
             <span className="pmd-outcome-card__label">{noOutcome.label}</span>
-            <span className="pmd-outcome-card__price">Price unavailable</span>
+            <span className="pmd-outcome-card__price">{outcomeDisplayPrice(noOutcome)}</span>
             <span className="pmd-outcome-card__pct">Not traded yet</span>
           </div>
         </div>

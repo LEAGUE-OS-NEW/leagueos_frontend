@@ -146,13 +146,25 @@ describe("Markets API states", () => {
     expect(fetchMarketStats).toHaveBeenCalledTimes(1);
   });
 
-  it("does not fabricate prices or contract-derived metrics", async () => {
+  it("shows authoritative prices without fabricating contract-derived metrics", async () => {
     vi.mocked(fetchPublishedMarkets).mockResolvedValue([openMarket]);
     renderMarkets();
 
-    expect(await screen.findAllByText("Price unavailable")).not.toHaveLength(0);
-    expect(screen.getByText("Not traded yet")).toBeInTheDocument();
-    expect(screen.queryByText("55% likely YES")).not.toBeInTheDocument();
+    expect(
+      await screen.findAllByText("UGX 550/share"),
+    ).not.toHaveLength(0);
+
+    expect(
+      screen.getAllByText("UGX 450/share"),
+    ).not.toHaveLength(0);
+
+    expect(
+      screen.getByText("Not traded yet"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("55% likely YES"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the existing loading state", async () => {
