@@ -197,11 +197,22 @@ function Markets() {
     const byTab = tab === 'all'
       ? markets
       : tab === 'trending'
-        ? markets.filter((m) => m.status === 'live' || m.status === 'trending')
+        ? markets.filter((m) => m.isTrending)
         : markets.filter((m) => m.status === tab);
+
     return byTab.filter((market) => {
-      const matchesType = selectedTypes.length === 0 || selectedTypes.includes(market.marketType);
-      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(market.status);
+      const matchesType =
+        selectedTypes.length === 0 ||
+        selectedTypes.includes(market.marketType);
+
+      const matchesStatus =
+        selectedStatuses.length === 0 ||
+        selectedStatuses.some((status) =>
+          status === 'trending'
+            ? market.isTrending
+            : market.status === status,
+        );
+
       return matchesType && matchesStatus;
     });
   }, [markets, selectedStatuses, selectedTypes, tab]);

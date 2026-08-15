@@ -33,23 +33,22 @@ const SPORT_CLASS: Record<Sport, string> = {
   Basketball: 'sport-basketball',
 };
 
-function isSupportedSport(market: AdminMarket): market is AdminMarket & { category: Sport } {
-  const sport = (market.tags[0] ?? market.competition ?? '').toLowerCase();
-  return (
-    market.category === 'Football' ||
-    market.category === 'Rugby' ||
-    market.category === 'Basketball' ||
-    sport.includes('football') ||
-    sport.includes('rugby') ||
-    sport.includes('basketball')
-  );
-}
+function marketSport(
+  market: AdminMarket,
+): Sport | null {
+  const source = [
+    market.category,
+    market.competition,
+    ...market.tags,
+  ]
+    .join(' ')
+    .toLowerCase();
 
-function marketSport(market: AdminMarket): Sport {
-  if (market.category === 'Football' || (market.tags[0] ?? '').toLowerCase().includes('football')) return 'Football';
-  if (market.category === 'Rugby' || (market.tags[0] ?? '').toLowerCase().includes('rugby')) return 'Rugby';
-  if (market.category === 'Basketball' || (market.tags[0] ?? '').toLowerCase().includes('basketball')) return 'Basketball';
-  return 'Football'; // safe default — only reached when isSupportedSport passes
+  if (source.includes('football')) return 'Football';
+  if (source.includes('rugby')) return 'Rugby';
+  if (source.includes('basketball')) return 'Basketball';
+
+  return null;
 }
 
 function teamsFromEventLabel(eventLabel: string): { teamA: string; teamB: string } {
@@ -70,12 +69,15 @@ async function loadFeaturedMarkets(): Promise<Market[]> {
   const published = await fetchFeaturedPublishedMarkets(5);
   // Keep all featured open markets; fall back to 'Football' for any market
   // whose sport tag doesn't match one of the three supported sport classes.
-  const supported = published.filter(isSupportedSport);
+  const supported = published.flatMap((market) => {
+    const sport = marketSport(market);
+    return sport ? [{ market, sport }] : [];
+  });
 
-  return supported.map((market) => {
+  return supported.map(({ market, sport }) => {
     return {
       id: market.id,
-      sport: marketSport(market),
+      sport,
       status:
         market.status === 'Live'
           ? { label: 'LIVE', meta: 'In play' }
