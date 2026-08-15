@@ -347,8 +347,7 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
           ? candidate
           : new Date(Date.now() + 60 * 60_000).toISOString();
       })(),
-      closesAt: market.closes_at ?? kickoff,
-      settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
+      
       initialLiquidityUgx: 0,
       minTradeUgx: 1_000,
       maxTradeUgx: 500_000,
