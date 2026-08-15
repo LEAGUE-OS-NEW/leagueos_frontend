@@ -130,7 +130,7 @@ function FanVerification() {
     refresh: refreshEligibility,
     isEligible,
     isLoading: isEligibilityLoading,
-    isPending,
+
     isRejected,
     needsKyc,
     needsProfile,
