@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { FiStar } from 'react-icons/fi';
-import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
@@ -8,7 +7,6 @@ import { fetchMarketUpdate } from '../../../services/fanDashboardService';
 import './MarketUpdate.css';
 
 function MarketUpdate() {
-  const { currentUser } = useCurrentUser();
   const { data: market, isLoading, error, retry } = useDashboardSection(fetchMarketUpdate);
 
   return (
@@ -20,15 +18,7 @@ function MarketUpdate() {
         </Link>
       </div>
 
-      {!currentUser.isEmailVerified ? (
-        <DashboardNotice
-          tone="forbidden"
-          title="Verify your email to unlock markets"
-          message="Betting markets need a verified email before you can trade."
-          actionLabel="Verify email"
-          actionTo="/settings"
-        />
-      ) : isLoading ? (
+      {isLoading ? (
         <DashboardSkeleton rows={3} />
       ) : error ? (
         <DashboardNotice tone="error" title="Couldn't load the market update" message={error} onRetry={retry} />
@@ -40,9 +30,9 @@ function MarketUpdate() {
           </span>
 
           <p className="market-question">
-            <strong>{market.teamA} to win</strong>
+            <strong>{market.question}</strong>
             <br />
-            vs {market.teamB}
+            {market.teamA} vs {market.teamB}
           </p>
 
           <div className="market-chart">
@@ -51,25 +41,31 @@ function MarketUpdate() {
             <div className="market-chart-content">
               <div className="market-price-row">
                 <span className="market-price">{market.price}</span>
-                <span className="market-price-change">▲ {market.priceChangePct}%</span>
+                {market.priceChangePct !== '—' && (
+                  <span className="market-price-change">
+                    ▲ {market.priceChangePct}%
+                  </span>
+                )}
               </div>
-              <div className="market-chart-graphic">
-                <svg className="market-chart-svg" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true">
-                  <polyline
-                    points={market.chartPoints}
-                    fill="none"
-                    stroke="var(--color-primary-light)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div className="market-chart-axis">
-                  <span>2.00</span>
-                  <span>1.50</span>
-                  <span>1.00</span>
+              {market.chartPoints && (
+                <div className="market-chart-graphic">
+                  <svg
+                    className="market-chart-svg"
+                    viewBox="0 0 300 90"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <polyline
+                      points={market.chartPoints}
+                      fill="none"
+                      stroke="var(--color-primary-light)"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -84,8 +80,11 @@ function MarketUpdate() {
             </div>
           </div>
 
-          <Link to="/markets" className="market-explore-btn">
-            Explore Markets
+          <Link
+            to={`/markets/${market.marketId}`}
+            className="market-explore-btn"
+          >
+            View Market
           </Link>
         </>
       ) : null}

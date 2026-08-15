@@ -1,3 +1,5 @@
+import { fetchMarkets as fetchFanMarkets } from './fanMarketsServices.ts';
+
 // Fan dashboard — service layer (US-2.3).
 //
 // No real backend endpoint exists for any of these yet, so this is
@@ -102,8 +104,10 @@ export async function fetchFixtures(): Promise<Fixture[]> {
 /* ------------------------------------------------------------------ */
 
 export interface MarketUpdateData {
+  marketId: string;
   teamA: string;
   teamB: string;
+  question: string;
   price: string;
   priceChangePct: string;
   volume24h: string;
@@ -111,18 +115,52 @@ export interface MarketUpdateData {
   chartPoints: string;
 }
 
-const MARKET_UPDATE: MarketUpdateData = {
-  teamA: 'Vipers SC',
-  teamB: 'Express FC',
-  price: 'UGX 1.85',
-  priceChangePct: '8.2',
-  volume24h: 'UGX 46.6M',
-  trades24h: '342',
-  chartPoints: '0,78 25,68 50,72 75,58 100,62 125,45 150,50 175,32 200,38 225,20 250,26 275,8 300,14',
-};
+export async function fetchMarketUpdate(): Promise<MarketUpdateData | null> {
+  const markets = await fetchFanMarkets();
 
-export async function fetchMarketUpdate(): Promise<MarketUpdateData> {
-  return delay({ ...MARKET_UPDATE });
+  const liveMarkets = markets.filter(
+    (market) => market.status === 'live',
+  );
+
+  const market =
+    liveMarkets.find(
+      (item) =>
+        item.isTrending &&
+        item.yesPrice !== null,
+    ) ??
+    liveMarkets.find(
+      (item) => item.yesPrice !== null,
+    ) ??
+    liveMarkets[0] ??
+    markets.find(
+      (item) => item.status === 'upcoming',
+    );
+
+  if (!market) {
+    return null;
+  }
+
+  return {
+    marketId: market.id,
+    teamA: market.teamA,
+    teamB: market.teamB,
+    question: market.question,
+    price:
+      market.yesPrice === null
+        ? 'Awaiting liquidity'
+        : `UGX ${Math.round(
+            market.yesPrice,
+          ).toLocaleString('en-US')}/share`,
+    priceChangePct:
+      market.changePct === null
+        ? '—'
+        : market.changePct.toFixed(1),
+    volume24h:
+      market.volumeLabel ?? '—',
+    trades24h:
+      market.totalContractsLabel ?? '—',
+    chartPoints: '',
+  };
 }
 
 /* ------------------------------------------------------------------ */
