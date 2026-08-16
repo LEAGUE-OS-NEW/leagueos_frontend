@@ -1,6 +1,15 @@
+.my-positions-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
 .my-positions {
   display: flex;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
   background-color: var(--color-bg);
 }
 

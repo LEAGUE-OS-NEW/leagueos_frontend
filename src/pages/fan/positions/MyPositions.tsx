@@ -5,8 +5,6 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
-import { useCurrentUser } from '../../../hooks/useCurrentUser';
-import { useMarketEligibility } from '../../../hooks/useMarketEligibility';
 import { fetchFanPositions, type Position } from '../../../services/fanMarketsServices';
 import '../sections/FanDashboard.css';
 import './MyPositions.css';
@@ -30,8 +28,6 @@ function isSettled(position: Position): boolean {
 
 function MyPositions() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { currentUser } = useCurrentUser();
-  const { isEligible: isIdentityVerified } = useMarketEligibility();
   const [positions, setPositions] = useState<Position[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,8 +69,9 @@ function MyPositions() {
   const settledPositions = positions.filter(isSettled);
 
   return (
-    <div className="my-positions">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+    <div className="my-positions-shell">
+      <div className="my-positions">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="my-positions-main">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="my-positions-content">
@@ -85,23 +82,7 @@ function MyPositions() {
               <p>Track the markets you've backed and review outcomes after settlement.</p>
             </div>
 
-            {!currentUser.isEmailVerified ? (
-              <DashboardNotice
-                tone="forbidden"
-                title="Verify your email to trade"
-                message="Placing orders and tracking positions needs a verified email."
-                actionLabel="Verify email"
-                actionTo="/settings"
-              />
-            ) : !isIdentityVerified ? (
-              <DashboardNotice
-                tone="forbidden"
-                title="Verify your identity to trade"
-                message="Tracking positions and trading needs identity verification."
-                actionLabel="Verify identity"
-                actionTo="/fan/verify"
-              />
-            ) : isLoading ? (
+            {isLoading ? (
               <DashboardSkeleton rows={4} />
             ) : error ? (
               <DashboardNotice tone="error" title="Couldn't load your positions" message={error} onRetry={refreshPositions} />
@@ -161,8 +142,10 @@ function MyPositions() {
             )}
           </div>
         </div>
-        <Footer />
       </div>
+      </div>
+
+      <Footer />
     </div>
   );
 }
