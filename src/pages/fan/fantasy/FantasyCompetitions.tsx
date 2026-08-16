@@ -71,7 +71,6 @@ export default function FantasyCompetitions(){
      }catch{/* silent — background refresh, errors are non-fatal */}
    },60_000);
    return ()=>window.clearInterval(interval);
-   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[active]);
 
  async function ensurePlayers(c: Competition) {

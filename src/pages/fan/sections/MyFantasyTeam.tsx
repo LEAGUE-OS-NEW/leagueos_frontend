@@ -203,8 +203,6 @@ function MyFantasyTeam() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // run once on mount — load is defined inside the component but is stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

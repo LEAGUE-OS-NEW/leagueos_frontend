@@ -159,18 +159,20 @@ export default function FantasyAdminPage() {
     }).catch(e => setError(err(e)));
   }, [competitionId]);
 
-  // Auto-fill position from candidate profile
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => {
+  // Auto-fill position from candidate profile — derived value, no effect needed
+  const autoPosition = useMemo(() => {
     const cand = candidates.find(r => r.id === candidateId);
-    if (cand && competition) {
-      setPosition(
-        competition.position_rules[cand.profile_position] !== undefined
-          ? cand.profile_position
-          : Object.keys(competition.position_rules)[0] ?? ''
-      );
-    }
+    if (!cand || !competition) return '';
+    return competition.position_rules[cand.profile_position] !== undefined
+      ? cand.profile_position
+      : Object.keys(competition.position_rules)[0] ?? '';
   }, [candidateId, candidates, competition]);
+
+  // Sync autoPosition → position state only when it has a real value
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (autoPosition) setPosition(autoPosition);
+  }, [autoPosition]);
 
   /* ── mutations ────────────────────────────────────────── */
 
