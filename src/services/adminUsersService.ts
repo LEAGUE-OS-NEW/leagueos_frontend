@@ -1,16 +1,15 @@
 // Admin Users, Roles & Invitations — service layer, backed by
 // platform_admin's real REST surface (`/admin/users/`, `/admin/roles/`,
-// `/admin/invitations/`). There is no direct "create a user with a
-// password" endpoint — accounts are created by inviting an email address
-// to one or more platform roles; the invitee sets their own password when
-// they accept.
+// `/admin/invitations/`, `/admin/clubs/`). There is no direct "create a
+// user with a password" endpoint — accounts are created by inviting an
+// email address, and the invitee sets their own password when they accept.
 //
-// Platform roles (fetchAdminRoles/inviteAdminUser) are real end-to-end.
-// Club Admin invites are a special case, kept separate below: the backend's
-// generic Role/UserRole system has no club-scoping field, so a real Club
-// Admin invite needs backend work that doesn't exist yet (see
-// inviteClubAdmin's own comment) — that path is mock-backed for now, not
-// wired to /admin/invitations/.
+// Platform roles (fetchAdminRoles/inviteAdminUser) go through
+// /admin/invitations/ (AdminInvitation), which has no club-scoping field.
+// Club Admin invites are a separate real path, kept below: they go through
+// clubs/<club_pk>/staff-invitations/invite-admin/ instead, which bridges
+// StaffInvitation (club scoping) with an account-setup email for a
+// brand-new login — see ClubAdminInvitationService on the backend.
 
 import apiClient from './apiClient.ts';
 import { normalizeApiList } from './apiUtils.ts';
@@ -270,11 +269,11 @@ export interface RealClubSummary {
   slug: string;
 }
 
-// Real — GET /profiles/clubs/. Deliberately not clubsService.ts's
-// fetchClubs(), which is 100% hardcoded mock data and doesn't reflect
-// what clubs actually exist in the database.
+// Real — GET /admin/clubs/ (platform_admin, reuses profiles.ClubListView).
+// Deliberately not clubsService.ts's fetchClubs(), which is 100%
+// hardcoded mock data and doesn't reflect what clubs actually exist.
 export async function fetchRealClubs(): Promise<RealClubSummary[]> {
-  const response = await apiClient.get('/profiles/clubs/');
+  const response = await apiClient.get('/admin/clubs/');
   return normalizeApiList<Record<string, unknown>>(response.data).map((raw) => ({
     id: String(raw.id),
     name: String(raw.name ?? ''),
@@ -282,37 +281,68 @@ export async function fetchRealClubs(): Promise<RealClubSummary[]> {
   }));
 }
 
-export interface MockClubAdminInvite {
-  email: string;
-  notifyEmail: string;
-  clubName: string;
-  createdAt: string;
+export interface RealSportSummary {
+  id: string;
+  name: string;
 }
 
-// Mock-backed — there is no real endpoint for this yet. The real
-// /admin/invitations/ endpoint accepts only email + role_ids, with no
-// club-scoping field and no separate delivery-address field, so a Club
-// Admin invite can't actually be sent via it today. This simulates the
-// target flow (create the club if new, "send" the scoped invite to the
-// personal address) so the UI is ready to swap in a real call once the
-// backend adds club-scoping + a notify_email field to invitations (see the
-// plan/backend report for the exact service points needed).
-export async function inviteClubAdmin(input: { email: string; notifyEmail: string; clubName: string }): Promise<MockClubAdminInvite> {
+// Real — GET /sports/ (public catalog). Club creation needs a real Sport
+// id, not the free-text 'Football' | 'Rugby' | 'Basketball' union that
+// sportsDataService.ts's still-mock Competition flow uses.
+export async function fetchRealSports(): Promise<RealSportSummary[]> {
+  const response = await apiClient.get('/sports/');
+  return normalizeApiList<Record<string, unknown>>(response.data).map((raw) => ({
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+  }));
+}
+
+// Real — POST /admin/clubs/ (platform_admin, reuses profiles.ClubListView,
+// gated on admin.clubs.manage).
+export async function createRealClub(input: { name: string; sportId: string }): Promise<RealClubSummary> {
+  if (!input.name.trim()) throw new Error('Enter a club name.');
+  if (!input.sportId) throw new Error('Select a sport.');
+  const response = await apiClient.post('/admin/clubs/', {
+    name: input.name.trim(),
+    sport: input.sportId,
+  });
+  const raw = response.data as Record<string, unknown>;
+  return { id: String(raw.id), name: String(raw.name ?? ''), slug: String(raw.slug ?? '') };
+}
+
+export interface ClubAdminInvite {
+  id: string;
+  email: string;
+  status: string;
+  expiresAt: string;
+}
+
+// Real — POST /<club_pk>/staff-invitations/invite-admin/ (clubs app).
+// Bridges StaffInvitation (club scoping) with an account-setup email for a
+// brand-new login — see ClubAdminInvitationService on the backend. The
+// LeagueOS login identity is distinct from the personal delivery address
+// since a brand-new club admin has no working inbox at their assigned
+// login yet.
+export async function inviteClubAdmin(input: { clubId: string; loginEmail: string; notifyEmail: string }): Promise<ClubAdminInvite> {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailPattern.test(input.email.trim())) {
+  if (!emailPattern.test(input.loginEmail.trim())) {
     throw new Error('Enter a valid LeagueOS email address.');
   }
   if (!emailPattern.test(input.notifyEmail.trim())) {
     throw new Error('Enter a valid personal email address.');
   }
-  if (!input.clubName.trim()) {
+  if (!input.clubId) {
     throw new Error('A club is required for a Club Admin invite.');
   }
-  const result: MockClubAdminInvite = {
-    email: input.email.trim(),
-    notifyEmail: input.notifyEmail.trim(),
-    clubName: input.clubName.trim(),
-    createdAt: new Date().toISOString(),
+  const response = await apiClient.post(`/${encodeURIComponent(input.clubId)}/staff-invitations/invite-admin/`, {
+    login_email: input.loginEmail.trim(),
+    notify_email: input.notifyEmail.trim(),
+  });
+  const raw = response.data as Record<string, unknown>;
+  return {
+    id: String(raw.id),
+    email: String(raw.email ?? ''),
+    status: String(raw.status ?? ''),
+    expiresAt: String(raw.expires_at ?? ''),
   };
-  return new Promise((resolve) => setTimeout(() => resolve(result), 300));
 }

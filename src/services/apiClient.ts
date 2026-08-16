@@ -15,6 +15,7 @@ export const publicAuthPaths = [
   "/auth/password-reset/request/",
   "/auth/password-reset/verify/",
   "/auth/password-reset/confirm/",
+  "/auth/account-setup/",
 ];
 
 const axiosInstance = axios.create({
