@@ -259,3 +259,21 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* Gameweek status pills */
+.fa-status-pill--draft     { background: rgba(100,100,120,0.15); color: #9ca3af; }
+.fa-status-pill--open      { background: rgba(34,197,94,0.14);   color: var(--color-open); }
+.fa-status-pill--locked    { background: rgba(234,179,8,0.16);   color: #eab308; }
+.fa-status-pill--live      { background: rgba(239,68,68,0.14);   color: var(--color-live); }
+.fa-status-pill--scoring   { background: rgba(124,58,237,0.14);  color: #a78bfa; }
+.fa-status-pill--finalized { background: rgba(34,197,94,0.10);   color: #4ade80; }
+
+/* Action button row within a gameweek card */
+.fa-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color, rgba(255,255,255,0.08));
+}

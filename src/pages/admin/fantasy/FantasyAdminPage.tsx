@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   adminCreateCompetition, adminCreateCorrection, adminCreateGameweek, adminCreatePlayer, adminCreateScoringRule, adminFinalizeGameweek, adminRecalculateGameweek,
-  adminTransitionGameweek, adminUpdateCompetition, adminUpdateGameweek, adminUpdatePlayer, fetchAdminCorrections, fetchAdminFantasyCompetitions, fetchAdminLeagueOverview, fetchCanonicalFantasyOptions, fetchCompetitionLeaderboard, fetchFantasyFixtureCandidates, fetchFantasyGameweeks, fetchFantasyPlayerCandidates, fetchFantasyPlayers, fetchFantasyStatisticTypes, fetchGameweekLeaderboard,
-  type FantasyAvailability, type FantasyCompetition, type FantasyPlayer,
+  adminTransitionGameweek, adminUpdateCompetition, adminUpdateGameweek, adminUpdatePlayer, fetchAdminCorrections, fetchAdminFantasyCompetitions, fetchAdminLeagueOverview, fetchCanonicalFantasyOptions, fetchCompetitionLeaderboard, fetchFantasyFixtureCandidates, fetchFantasyGameweeks, fetchFantasyPlayerCandidates, fetchFantasyPlayers, fetchFantasyStatisticTypes, fetchGameweekLeaderboard, fetchGameweekPoints,
+  type FantasyAvailability, type FantasyCompetition, type FantasyPlayer, type FantasyStatisticType,
   type CanonicalFantasyOptions, type FantasyFixture, type FantasyGameweek, type FantasyLeagueOverview, type FantasyPlayerCandidate, type FantasyStanding, type FantasyTeamScore,
 } from '../../../services/fantasyAdminService';
 import './FantasyAdminPage.css';
@@ -32,45 +32,203 @@ export default function FantasyAdminPage() {
   const [price,setPrice] = useState('');
   const [playerAvailability,setPlayerAvailability] = useState<FantasyAvailability>('AVAILABLE');
   const [gameweek,setGameweek] = useState({number:'',name:'',starts_at:'',deadline_at:'',ends_at:''});
-  const [allGameweeks,setAllGameweeks]=useState<FantasyGameweek[]>([]); const [fixtures,setFixtures]=useState<FantasyFixture[]>([]); const [fixtureIds,setFixtureIds]=useState<string[]>([]);
-  const [statistic,setStatistic] = useState(''); const [points,setPoints] = useState('');
-  const [statisticTypes,setStatisticTypes]=useState<string[]>([]); const [canonical,setCanonical]=useState<CanonicalFantasyOptions>({competitions:[],seasons:[]});
+  const [allGameweeks,setAllGameweeks]=useState<FantasyGameweek[]>([]);
+  const [fixtures,setFixtures]=useState<FantasyFixture[]>([]);
+  // Per-gameweek fixture selections — keyed by gameweek ID so each gameweek
+  // card maintains its own independent checkbox state
+  const [gwFixtureIds,setGwFixtureIds]=useState<Record<string,string[]>>({});
+  // Fixture selection for the create-gameweek form
+  const [newGwFixtureIds,setNewGwFixtureIds]=useState<string[]>([]);
+  const [statistic,setStatistic] = useState('');
+  const [points,setPoints] = useState('');
+  // Full statistic type objects — label shown in UI, observed flag visible to admin
+  const [statisticTypes,setStatisticTypes]=useState<FantasyStatisticType[]>([]);
+  const [canonical,setCanonical]=useState<CanonicalFantasyOptions>({competitions:[],seasons:[]});
   const [competitionForm,setCompetitionForm]=useState({competition:'',season:'',name:'',description:'',squad_size:'',starting_lineup_size:'',bench_size:'',initial_budget:'100',max_players_per_team:'3',captain_multiplier:'2',free_transfers_per_gameweek:'1',transfer_penalty:'4',position_rules:'{}',formation_rules:'{}'});
   const [editingCompetitionId,setEditingCompetitionId]=useState('');
   const [competitionEdit,setCompetitionEdit]=useState<ReturnType<typeof editableCompetition>|null>(null);
   const [editingPlayerId,setEditingPlayerId]=useState('');
   const [playerEdit,setPlayerEdit]=useState<{position:string;price:string;eligible:boolean;availability:FantasyAvailability}|null>(null);
   const [pointRecords,setPointRecords]=useState<Array<{id:string;player:{player_name:string};total_points:string}>>([]); const [correctionPoint,setCorrectionPoint]=useState(''); const [correctionValue,setCorrectionValue]=useState(''); const [correctionReason,setCorrectionReason]=useState(''); const [corrections,setCorrections]=useState<Array<Record<string,unknown>>>([]);
+  const [correctionGameweekId,setCorrectionGameweekId]=useState('');
   const [overall,setOverall]=useState<FantasyStanding[]>([]); const [gameweekBoard,setGameweekBoard]=useState<FantasyTeamScore[]>([]); const [leagueOverview,setLeagueOverview]=useState<FantasyLeagueOverview[]>([]);
   const [error,setError] = useState(''); const [notice,setNotice] = useState(''); const [loading,setLoading] = useState(true); const [saving,setSaving]=useState(false);
   const competition = competitions.find(row=>row.id===competitionId);
   const currentPlayers = players.filter(row=>row.fantasy_competition===competitionId);
   const gameweeks = useMemo(()=>competitions.flatMap(row=>row.current_gameweek?[row.current_gameweek]:[]),[competitions]);
-  const reload = async () => { setLoading(true); try { const [rows,options,leagues]=await Promise.all([fetchAdminFantasyCompetitions(),fetchCanonicalFantasyOptions(),fetchAdminLeagueOverview()]); setCompetitions(rows);setCanonical(options);setLeagueOverview(leagues); setCompetitionId(current=>current||rows[0]?.id||''); if(rows[0]) setPlayers(await fetchFantasyPlayers(rows[0].id)); } catch(requestError){setError(message(requestError));} finally{setLoading(false);} };
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const [rows,options,leagues]=await Promise.all([fetchAdminFantasyCompetitions(),fetchCanonicalFantasyOptions(),fetchAdminLeagueOverview()]);
+      setCompetitions(rows);setCanonical(options);setLeagueOverview(leagues);
+      setCompetitionId(current=>current||rows[0]?.id||'');
+      if(rows[0]) setPlayers(await fetchFantasyPlayers(rows[0].id));
+    } catch(requestError){setError(message(requestError));}
+    finally{setLoading(false);}
+  };
   // Initial API synchronization for this route.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{void reload();},[]);
-  useEffect(()=>{if(!competitionId)return; void Promise.all([fetchFantasyPlayers(competitionId),fetchFantasyPlayerCandidates(competitionId),fetchFantasyGameweeks(competitionId),fetchFantasyFixtureCandidates(competitionId),fetchFantasyStatisticTypes(competitionId),fetchCompetitionLeaderboard(competitionId)]).then(([pool,options,weeks,eventOptions,stats,ranking])=>{setPlayers(pool);setCandidates(options);setAllGameweeks(weeks);setFixtures(eventOptions);setStatisticTypes(stats);setOverall(ranking);}).catch(requestError=>setError(message(requestError)));},[competitionId]);
+
+  useEffect(()=>{
+    if(!competitionId)return;
+    void Promise.all([
+      fetchFantasyPlayers(competitionId),
+      fetchFantasyPlayerCandidates(competitionId),
+      fetchFantasyGameweeks(competitionId),
+      fetchFantasyFixtureCandidates(competitionId),
+      fetchFantasyStatisticTypes(competitionId),
+      fetchCompetitionLeaderboard(competitionId),
+    ]).then(([pool,options,weeks,eventOptions,stats,ranking])=>{
+      setPlayers(pool);
+      setCandidates(options);
+      setAllGameweeks(weeks);
+      setFixtures(eventOptions);
+      setStatisticTypes(stats); // now full objects with code, label, observed
+      setOverall(ranking);
+      // Initialise per-gameweek fixture selections from the existing
+      // fixture_details so the checkboxes reflect the current assignments
+      setGwFixtureIds(prev=>{
+        const next={...prev};
+        weeks.forEach(gw=>{
+          if(!next[gw.id]) next[gw.id]=gw.fixture_details.map(f=>f.id);
+        });
+        return next;
+      });
+    }).catch(requestError=>setError(message(requestError)));
+  },[competitionId]);
+
   // Keep the suggested Fantasy position aligned with the selected canonical athlete.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{const candidate=candidates.find(row=>row.id===candidateId);if(candidate&&competition) setPosition(competition.position_rules[candidate.profile_position]!==undefined?candidate.profile_position:Object.keys(competition.position_rules)[0]??'');},[candidateId,candidates,competition]);
+
   const run=async(action:()=>Promise<unknown>,success:string)=>{setError('');setNotice('');setSaving(true);try{await action();setNotice(success);await reload();return true;}catch(requestError){setError(message(requestError));return false;}finally{setSaving(false);}};
   const saveCompetition=async()=>{if(!competitionEdit||!editingCompetitionId)return;const saved=await run(()=>adminUpdateCompetition(editingCompetitionId,{...competitionEdit,registration_deadline:competitionEdit.registration_deadline||null,squad_size:Number(competitionEdit.squad_size),starting_lineup_size:Number(competitionEdit.starting_lineup_size),bench_size:Number(competitionEdit.bench_size),initial_budget:competitionEdit.initial_budget,max_players_per_team:Number(competitionEdit.max_players_per_team),captain_multiplier:competitionEdit.captain_multiplier,free_transfers_per_gameweek:Number(competitionEdit.free_transfers_per_gameweek),transfer_penalty:Number(competitionEdit.transfer_penalty),position_rules:JSON.parse(competitionEdit.position_rules),formation_rules:JSON.parse(competitionEdit.formation_rules),tie_break_rules:JSON.parse(competitionEdit.tie_break_rules),prize_metadata:JSON.parse(competitionEdit.prize_metadata)}),'Fantasy competition updated.');if(saved){setEditingCompetitionId('');setCompetitionEdit(null);}};
   const savePlayer=async()=>{if(!playerEdit||!editingPlayerId)return;const saved=await run(()=>adminUpdatePlayer(editingPlayerId,{position:playerEdit.position,price:Number(playerEdit.price),eligible:playerEdit.eligible,availability:playerEdit.availability}),'Fantasy player updated.');if(saved){setEditingPlayerId('');setPlayerEdit(null);}};
+
+  // Load corrections for a specific gameweek — uses statically imported functions
+  const loadCorrections = async (gwId: string) => {
+    setCorrectionGameweekId(gwId);
+    setPointRecords([]);
+    setCorrections([]);
+    if(!gwId) return;
+    try {
+      const [records,audit]=await Promise.all([fetchGameweekPoints(gwId),fetchAdminCorrections(gwId)]);
+      setPointRecords(records as Array<{id:string;player:{player_name:string};total_points:string}>);
+      setCorrections(audit);
+    } catch(requestError){setError(message(requestError));}
+  };
+
+  // Competition name lookup for the leagues tab
+  const competitionName=(fantasyCompetitionId:string)=>competitions.find(c=>c.id===fantasyCompetitionId)?.name??fantasyCompetitionId;
 
   return <AdminLayout><div className="fa-root"><header className="fa-head"><div><p className="fa-eyebrow">Sports operations</p><h1>Fantasy Admin</h1><p>Configure official Fantasy competitions against canonical League OS sports, players, fixtures, and statistics.</p></div></header>
     {error&&<div className="fa-error-banner" role="alert">{error}</div>}{notice&&<div className="fa-success-banner" role="status">{notice}</div>}{saving&&<div className="fa-empty" role="status">Saving Fantasy changes…</div>}
     <nav className="fa-tabs">{(['overview','competitions','players','gameweeks','scoring','corrections','leaderboards','leagues'] as Tab[]).map(item=><button key={item} className={tab===item?'active':''} onClick={()=>setTab(item)}>{item}</button>)}</nav>
     {loading?<div className="fa-empty">Loading Fantasy operations…</div>:<>
       {tab==='overview'&&<div className="fa-stats"><article><span>Fantasy competitions</span><strong>{competitions.length}</strong></article><article><span>Configured players</span><strong>{players.length}</strong></article><article><span>Current gameweeks</span><strong>{gameweeks.length}</strong></article><article><span>Awaiting/scoring</span><strong>{gameweeks.filter(row=>['LOCKED','LIVE','SCORING'].includes(row.status)).length}</strong></article></div>}
+
       {tab==='competitions'&&<section className="fa-panel"><h2>Create official Fantasy competition</h2><div className="fa-form-grid"><label className="fa-field"><span>Canonical competition</span><select value={competitionForm.competition} onChange={event=>setCompetitionForm({...competitionForm,competition:event.target.value,season:''})}><option value="">Select</option>{canonical.competitions.map(row=><option value={row.id} key={row.id}>{row.name} · {row.sport}</option>)}</select></label><label className="fa-field"><span>Canonical season</span><select value={competitionForm.season} onChange={event=>setCompetitionForm({...competitionForm,season:event.target.value})}><option value="">Select</option>{canonical.seasons.filter(row=>row.competition===competitionForm.competition).map(row=><option value={row.id} key={row.id}>{row.name}</option>)}</select></label>{(['name','description','squad_size','starting_lineup_size','bench_size','initial_budget','max_players_per_team','captain_multiplier','free_transfers_per_gameweek','transfer_penalty'] as const).map(field=><label className="fa-field" key={field}><span>{field.replaceAll('_',' ')}</span><input value={competitionForm[field]} onChange={event=>setCompetitionForm({...competitionForm,[field]:event.target.value})}/></label>)}<label className="fa-field"><span>Position rules JSON</span><textarea value={competitionForm.position_rules} onChange={event=>setCompetitionForm({...competitionForm,position_rules:event.target.value})}/></label><label className="fa-field"><span>Formation rules JSON</span><textarea value={competitionForm.formation_rules} onChange={event=>setCompetitionForm({...competitionForm,formation_rules:event.target.value})}/></label><button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminCreateCompetition({...competitionForm,squad_size:Number(competitionForm.squad_size),starting_lineup_size:Number(competitionForm.starting_lineup_size),bench_size:Number(competitionForm.bench_size),max_players_per_team:Number(competitionForm.max_players_per_team),free_transfers_per_gameweek:Number(competitionForm.free_transfers_per_gameweek),transfer_penalty:Number(competitionForm.transfer_penalty),position_rules:JSON.parse(competitionForm.position_rules),formation_rules:JSON.parse(competitionForm.formation_rules),enabled:true,visibility:'PUBLIC',registration_state:'OPEN',vice_captain_fallback:true,tie_break_rules:['total_points','fewer_transfer_penalties','earlier_registration']}),'Fantasy competition created.')}>Create competition</button></div><h2>Official Fantasy competitions</h2><table className="fa-table"><thead><tr><th>Name</th><th>Sport</th><th>Registration</th><th>Visibility</th><th>Squad</th><th>Budget</th><th>Action</th></tr></thead><tbody>{competitions.map(row=><tr key={row.id}><td>{row.name}</td><td>{row.sport}</td><td>{row.registration_state}</td><td>{row.visibility}</td><td>{row.squad_size}</td><td>{row.initial_budget}</td><td><button onClick={()=>{setEditingCompetitionId(row.id);setCompetitionEdit(editableCompetition(row));}}>Edit</button></td></tr>)}</tbody></table>{competitionEdit&&<div className="fa-card" role="dialog" aria-label="Edit Fantasy competition"><h2>Edit {competitions.find(row=>row.id===editingCompetitionId)?.name}</h2><p>Canonical competition and season are fixed for existing Fantasy competitions.</p><div className="fa-form-grid">{(['name','description','registration_deadline','squad_size','starting_lineup_size','bench_size','initial_budget','max_players_per_team','captain_multiplier','free_transfers_per_gameweek','transfer_penalty'] as const).map(field=><label className="fa-field" key={field}><span>{field.replaceAll('_',' ')}</span><input aria-label={`Edit ${field.replaceAll('_',' ')}`} type={field==='registration_deadline'?'datetime-local':'text'} value={competitionEdit[field]} onChange={event=>setCompetitionEdit({...competitionEdit,[field]:event.target.value})}/></label>)}<label className="fa-field"><span>Visibility</span><select value={competitionEdit.visibility} onChange={event=>setCompetitionEdit({...competitionEdit,visibility:event.target.value as FantasyCompetition['visibility']})}><option>PUBLIC</option><option>PRIVATE</option></select></label><label className="fa-field"><span>Registration state</span><select value={competitionEdit.registration_state} onChange={event=>setCompetitionEdit({...competitionEdit,registration_state:event.target.value as FantasyCompetition['registration_state']})}><option>OPEN</option><option>CLOSED</option></select></label><label><input type="checkbox" checked={competitionEdit.enabled} onChange={event=>setCompetitionEdit({...competitionEdit,enabled:event.target.checked})}/> Enabled</label><label><input type="checkbox" checked={competitionEdit.vice_captain_fallback} onChange={event=>setCompetitionEdit({...competitionEdit,vice_captain_fallback:event.target.checked})}/> Vice captain fallback</label>{(['position_rules','formation_rules','tie_break_rules','prize_metadata'] as const).map(field=><label className="fa-field" key={field}><span>{field.replaceAll('_',' ')} JSON</span><textarea aria-label={`Edit ${field.replaceAll('_',' ')}`} value={competitionEdit[field]} onChange={event=>setCompetitionEdit({...competitionEdit,[field]:event.target.value})}/></label>)}</div><button className="fa-btn fa-btn--gradient" onClick={()=>void saveCompetition()}>Save competition</button><button onClick={()=>{setEditingCompetitionId('');setCompetitionEdit(null);}}>Cancel</button></div>}</section>}
+
       {['players','gameweeks','scoring'].includes(tab)&&<label className="fa-field"><span>Fantasy competition</span><select value={competitionId} onChange={event=>setCompetitionId(event.target.value)}>{competitions.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
+
       {tab==='players'&&competition&&<section className="fa-panel"><h2>Canonical player pool</h2><div className="fa-form-grid"><label className="fa-field"><span>Existing athlete Participant</span><select value={candidateId} onChange={event=>setCandidateId(event.target.value)}><option value="">Select athlete</option>{candidates.map(row=><option key={row.id} value={row.id}>{row.name} — {row.club??'Club unavailable'}</option>)}</select></label><label className="fa-field"><span>Fantasy position</span><select value={position} onChange={event=>setPosition(event.target.value)}>{Object.keys(competition.position_rules).map(row=><option key={row}>{row}</option>)}</select></label><label className="fa-field"><span>Fantasy price</span><input type="number" min="0.01" step="0.01" value={price} onChange={event=>setPrice(event.target.value)}/></label><label className="fa-field"><span>Availability</span><select value={playerAvailability} onChange={event=>setPlayerAvailability(event.target.value as FantasyAvailability)}>{availability.map(row=><option key={row}>{row}</option>)}</select></label><button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminCreatePlayer({fantasy_competition:competition.id,player:candidateId,position,price:Number(price),eligible:true,availability:playerAvailability}),'Canonical player added to pool.')}>Add player entry</button></div><table className="fa-table"><thead><tr><th>Player</th><th>Canonical club</th><th>Position</th><th>Price</th><th>Eligible</th><th>Availability</th><th>Action</th></tr></thead><tbody>{currentPlayers.map(row=><tr key={row.id}><td>{row.player_name}</td><td>{row.club||'Club unavailable'}</td><td>{row.position}</td><td>{row.price}</td><td>{row.eligible?'Yes':'No'}</td><td>{row.availability}</td><td><button onClick={()=>{setEditingPlayerId(row.id);setPlayerEdit({position:row.position,price:String(row.price),eligible:row.eligible,availability:row.availability});}}>Edit</button></td></tr>)}</tbody></table>{playerEdit&&<div className="fa-card" role="dialog" aria-label="Edit Fantasy player"><h2>Edit {currentPlayers.find(row=>row.id===editingPlayerId)?.player_name}</h2><p>Canonical participant, club, and sport are read-only.</p><div className="fa-form-grid"><label className="fa-field"><span>Fantasy position</span><select aria-label="Edit Fantasy position" value={playerEdit.position} onChange={event=>setPlayerEdit({...playerEdit,position:event.target.value})}>{Object.keys(competition.position_rules).map(row=><option key={row}>{row}</option>)}</select></label><label className="fa-field"><span>Fantasy price</span><input aria-label="Edit Fantasy price" type="number" min="0.01" step="0.01" value={playerEdit.price} onChange={event=>setPlayerEdit({...playerEdit,price:event.target.value})}/></label><label><input aria-label="Edit eligible" type="checkbox" checked={playerEdit.eligible} onChange={event=>setPlayerEdit({...playerEdit,eligible:event.target.checked})}/> Eligible</label><label className="fa-field"><span>Availability</span><select aria-label="Edit availability" value={playerEdit.availability} onChange={event=>setPlayerEdit({...playerEdit,availability:event.target.value as FantasyAvailability})}>{availability.map(row=><option key={row}>{row}</option>)}</select></label></div><button className="fa-btn fa-btn--gradient" onClick={()=>void savePlayer()}>Save player</button><button onClick={()=>{setEditingPlayerId('');setPlayerEdit(null);}}>Cancel</button></div>}</section>}
-      {tab==='gameweeks'&&competition&&<section className="fa-panel"><h2>Gameweek lifecycle and official fixtures</h2><div className="fa-form-grid"><input placeholder="Number" type="number" value={gameweek.number} onChange={event=>setGameweek({...gameweek,number:event.target.value})}/><input placeholder="Name" value={gameweek.name} onChange={event=>setGameweek({...gameweek,name:event.target.value})}/>{(['starts_at','deadline_at','ends_at'] as const).map(field=><label className="fa-field" key={field}><span>{field.replace('_',' ')}</span><input type="datetime-local" value={gameweek[field]} onChange={event=>setGameweek({...gameweek,[field]:event.target.value})}/></label>)}<fieldset><legend>Assign canonical SportingEvents</legend>{fixtures.map(row=><label key={row.id}><input type="checkbox" checked={fixtureIds.includes(row.id)} onChange={()=>setFixtureIds(current=>current.includes(row.id)?current.filter(id=>id!==row.id):[...current,row.id])}/>{row.name} · {row.status}</label>)}</fieldset><button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminCreateGameweek({fantasy_competition:competition.id,number:Number(gameweek.number),name:gameweek.name,starts_at:gameweek.starts_at,deadline_at:gameweek.deadline_at,ends_at:gameweek.ends_at,status:'DRAFT',fixtures:fixtureIds}),'Gameweek created.')}>Create gameweek</button></div>{allGameweeks.map(row=><div className="fa-card" key={row.id}><h3>{row.name} · {row.status}</h3><p>{row.fixture_details.map(fixture=>fixture.name).join(', ')||'No fixtures assigned'}</p><button className="fa-btn" onClick={()=>void run(()=>adminUpdateGameweek(row.id,{fixtures:fixtureIds}),'Fixture assignment saved.')}>Save selected fixtures</button>{row.status==='DRAFT'&&<button onClick={()=>void run(()=>adminTransitionGameweek(row.id,'OPEN'),'Gameweek opened.')}>Open</button>}{row.status==='OPEN'&&<button onClick={()=>void run(()=>adminTransitionGameweek(row.id,'LOCKED'),'Gameweek locked.')}>Lock</button>}<button onClick={()=>void run(()=>adminRecalculateGameweek(row.id),'Scoring recalculated.')}>Recalculate</button>{row.status==='SCORING'&&<button onClick={()=>void run(()=>adminFinalizeGameweek(row.id),'Gameweek finalized.')}>Finalize</button>}</div>)}</section>}
-      {tab==='scoring'&&competition&&<section className="fa-panel"><h2>Verified statistic scoring</h2><p>Only statistic types found in authoritative match data for this real competition are available.</p><div className="fa-form-grid"><select value={statistic} onChange={event=>setStatistic(event.target.value)}><option value="">Select statistic</option>{statisticTypes.map(row=><option key={row}>{row}</option>)}</select><input placeholder="Points per unit" type="number" value={points} onChange={event=>setPoints(event.target.value)}/><button className="fa-btn fa-btn--gradient" disabled={!statistic||!points} onClick={()=>void run(()=>adminCreateScoringRule({fantasy_competition:competition.id,statistic_type:statistic,points,conditions:{},enabled:true}),'Scoring rule created.')}>Add rule</button></div>{!statisticTypes.length&&<div className="fa-empty">No authoritative player statistic types are available for this competition yet.</div>}<table className="fa-table"><thead><tr><th>Statistic</th><th>Points</th></tr></thead><tbody>{competition.scoring_rules.map(row=><tr key={row.id}><td>{row.statistic_type}</td><td>{row.points}</td></tr>)}</tbody></table></section>}
-      {tab==='corrections'&&<section className="fa-panel"><h2>Immutable scoring corrections</h2><label className="fa-field"><span>Gameweek</span><select onChange={event=>{const id=event.target.value;void import('../../../services/fantasyAdminService').then(api=>Promise.all([api.fetchGameweekPoints(id),fetchAdminCorrections(id)])).then(([records,audit])=>{setPointRecords(records);setCorrections(audit);});}}><option value="">Select</option>{allGameweeks.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><div className="fa-form-grid"><select value={correctionPoint} onChange={event=>setCorrectionPoint(event.target.value)}><option value="">Select player point record</option>{pointRecords.map(row=><option key={row.id} value={row.id}>{row.player.player_name} · current {row.total_points}</option>)}</select><input type="number" value={correctionValue} onChange={event=>setCorrectionValue(event.target.value)} placeholder="Corrected final points"/><textarea value={correctionReason} onChange={event=>setCorrectionReason(event.target.value)} placeholder="Required audit reason"/><button disabled={!correctionPoint||!correctionReason.trim()} onClick={()=>void run(()=>adminCreateCorrection({player_points:correctionPoint,new_value:correctionValue,reason:correctionReason}),'Correction saved and scores recalculated.')}>Submit correction</button></div><table className="fa-table"><thead><tr><th>Player</th><th>Previous</th><th>Corrected</th><th>Reason</th><th>Created</th></tr></thead><tbody>{corrections.map(row=><tr key={String(row.id)}><td>{String(row.player_name)}</td><td>{String(row.previous_value)}</td><td>{String(row.new_value)}</td><td>{String(row.reason)}</td><td>{new Date(String(row.created_at)).toLocaleString()}</td></tr>)}</tbody></table></section>}
-      {tab==='leaderboards'&&<section className="fa-panel"><h2>Competition and gameweek leaderboards</h2><label className="fa-field"><span>Fantasy competition</span><select value={competitionId} onChange={event=>setCompetitionId(event.target.value)}>{competitions.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label className="fa-field"><span>Gameweek ranking</span><select onChange={event=>void fetchGameweekLeaderboard(event.target.value).then(setGameweekBoard)}><option value="">Select</option>{allGameweeks.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><h3>Overall</h3><table className="fa-table"><thead><tr><th>Rank</th><th>Team</th><th>Manager</th><th>Points</th></tr></thead><tbody>{overall.map(row=><tr key={row.team_id}><td>{row.rank}</td><td>{row.team__name}</td><td>{row.manager}</td><td>{row.total_points}</td></tr>)}</tbody></table><h3>Selected gameweek</h3><table className="fa-table"><thead><tr><th>Rank</th><th>Team</th><th>Manager</th><th>Points</th></tr></thead><tbody>{gameweekBoard.map((row,index)=><tr key={row.id}><td>{index+1}</td><td>{row.team_name}</td><td>{row.manager}</td><td>{row.total_points}</td></tr>)}</tbody></table></section>}
-      {tab==='leagues'&&<section className="fa-panel"><h2>Fan league overview</h2><table className="fa-table"><thead><tr><th>League</th><th>Competition</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Capacity</th><th>Status</th></tr></thead><tbody>{leagueOverview.map(row=><tr key={row.id}><td>{row.name}</td><td>{row.competition}</td><td>{row.visibility}</td><td>{row.owner}</td><td>{row.member_count}</td><td>{row.capacity??'Unlimited'}</td><td>{row.status}</td></tr>)}</tbody></table>{!leagueOverview.length&&<div className="fa-empty">No fan leagues have been created.</div>}</section>}
+
+      {tab==='gameweeks'&&competition&&<section className="fa-panel">
+        <h2>Gameweek lifecycle and official fixtures</h2>
+        <div className="fa-form-grid">
+          <input placeholder="Number" type="number" value={gameweek.number} onChange={event=>setGameweek({...gameweek,number:event.target.value})}/>
+          <input placeholder="Name" value={gameweek.name} onChange={event=>setGameweek({...gameweek,name:event.target.value})}/>
+          {(['starts_at','deadline_at','ends_at'] as const).map(field=><label className="fa-field" key={field}><span>{field.replace('_',' ')}</span><input type="datetime-local" value={gameweek[field]} onChange={event=>setGameweek({...gameweek,[field]:event.target.value})}/></label>)}
+          <fieldset>
+            <legend>Assign canonical SportingEvents (new gameweek)</legend>
+            {fixtures.map(row=><label key={row.id}><input type="checkbox" checked={newGwFixtureIds.includes(row.id)} onChange={()=>setNewGwFixtureIds(current=>current.includes(row.id)?current.filter(id=>id!==row.id):[...current,row.id])}/>{row.name} · {row.status}</label>)}
+          </fieldset>
+          <button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminCreateGameweek({fantasy_competition:competition.id,number:Number(gameweek.number),name:gameweek.name,starts_at:gameweek.starts_at,deadline_at:gameweek.deadline_at,ends_at:gameweek.ends_at,status:'DRAFT',fixtures:newGwFixtureIds}),'Gameweek created.').then(ok=>{if(ok)setNewGwFixtureIds([]);})}>Create gameweek</button>
+        </div>
+        {allGameweeks.map(row=>{
+          const gwIds=gwFixtureIds[row.id]??[];
+          const toggleGwFixture=(fixtureId:string)=>setGwFixtureIds(prev=>({...prev,[row.id]:prev[row.id]?.includes(fixtureId)?prev[row.id].filter(x=>x!==fixtureId):[...(prev[row.id]??[]),fixtureId]}));
+          return <div className="fa-card" key={row.id}>
+            <h3>{row.name} · <span className={`fa-status-pill fa-status-pill--${row.status.toLowerCase()}`}>{row.status}</span></h3>
+            <p>{row.fixture_details.map(fixture=>fixture.name).join(', ')||'No fixtures assigned'}</p>
+            <fieldset>
+              <legend>Fixtures for this gameweek</legend>
+              {fixtures.map(f=><label key={f.id}><input type="checkbox" checked={gwIds.includes(f.id)} onChange={()=>toggleGwFixture(f.id)}/>{f.name} · {f.status}</label>)}
+            </fieldset>
+            <div className="fa-card-actions">
+              <button className="fa-btn" onClick={()=>void run(()=>adminUpdateGameweek(row.id,{fixtures:gwIds}),'Fixture assignment saved.')}>Save fixtures</button>
+              {row.status==='DRAFT'&&<button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminTransitionGameweek(row.id,'OPEN'),'Gameweek opened.')}>Open</button>}
+              {row.status==='OPEN'&&<button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminTransitionGameweek(row.id,'LOCKED'),'Gameweek locked.')}>Lock (close entries)</button>}
+              {row.status==='LOCKED'&&<button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminTransitionGameweek(row.id,'SCORING'),'Gameweek moved to scoring.')}>Begin Scoring</button>}
+              {(row.status==='LOCKED'||row.status==='SCORING')&&<button className="fa-btn" onClick={()=>void run(()=>adminRecalculateGameweek(row.id),'Scoring recalculated.')}>Recalculate</button>}
+              {row.status==='SCORING'&&<button className="fa-btn fa-btn--gradient" onClick={()=>void run(()=>adminFinalizeGameweek(row.id),'Gameweek finalized.')}>Finalize</button>}
+            </div>
+          </div>;
+        })}
+      </section>}
+
+      {tab==='scoring'&&competition&&<section className="fa-panel">
+        <h2>Verified statistic scoring</h2>
+        <p>Only statistic types found in authoritative match data for this real competition are available.</p>
+        <div className="fa-form-grid">
+          <select value={statistic} onChange={event=>setStatistic(event.target.value)}>
+            <option value="">Select statistic</option>
+            {statisticTypes.map(row=>(
+              <option key={row.code} value={row.code}>
+                {row.label}{!row.observed?' (no match data yet)':''}
+              </option>
+            ))}
+          </select>
+          <input placeholder="Points per unit" type="number" value={points} onChange={event=>setPoints(event.target.value)}/>
+          <button className="fa-btn fa-btn--gradient" disabled={!statistic||!points} onClick={()=>void run(()=>adminCreateScoringRule({fantasy_competition:competition.id,statistic_type:statistic,points,conditions:{},enabled:true}),'Scoring rule created.')}>Add rule</button>
+        </div>
+        {!statisticTypes.length&&<div className="fa-empty">No authoritative player statistic types are available for this competition yet.</div>}
+        <table className="fa-table"><thead><tr><th>Statistic</th><th>Points</th></tr></thead><tbody>{competition.scoring_rules.map(row=><tr key={row.id}><td>{row.statistic_type}</td><td>{row.points}</td></tr>)}</tbody></table>
+      </section>}
+
+      {tab==='corrections'&&<section className="fa-panel">
+        <h2>Immutable scoring corrections</h2>
+        <label className="fa-field"><span>Gameweek</span>
+          <select value={correctionGameweekId} onChange={event=>void loadCorrections(event.target.value)}>
+            <option value="">Select</option>
+            {allGameweeks.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}
+          </select>
+        </label>
+        <div className="fa-form-grid">
+          <select value={correctionPoint} onChange={event=>setCorrectionPoint(event.target.value)}>
+            <option value="">Select player point record</option>
+            {pointRecords.map(row=><option key={row.id} value={row.id}>{row.player.player_name} · current {row.total_points}</option>)}
+          </select>
+          <input type="number" value={correctionValue} onChange={event=>setCorrectionValue(event.target.value)} placeholder="Corrected final points"/>
+          <textarea value={correctionReason} onChange={event=>setCorrectionReason(event.target.value)} placeholder="Required audit reason"/>
+          <button disabled={!correctionPoint||!correctionReason.trim()} onClick={()=>void run(()=>adminCreateCorrection({player_points:correctionPoint,new_value:correctionValue,reason:correctionReason}),'Correction saved and scores recalculated.')}>Submit correction</button>
+        </div>
+        <table className="fa-table"><thead><tr><th>Player</th><th>Previous</th><th>Corrected</th><th>Reason</th><th>Created</th></tr></thead><tbody>{corrections.map(row=><tr key={String(row.id)}><td>{String(row.player_name)}</td><td>{String(row.previous_value)}</td><td>{String(row.new_value)}</td><td>{String(row.reason)}</td><td>{new Date(String(row.created_at)).toLocaleString()}</td></tr>)}</tbody></table>
+      </section>}
+
+      {tab==='leaderboards'&&<section className="fa-panel">
+        <h2>Competition and gameweek leaderboards</h2>
+        <label className="fa-field"><span>Fantasy competition</span><select value={competitionId} onChange={event=>setCompetitionId(event.target.value)}>{competitions.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+        <label className="fa-field"><span>Gameweek ranking</span><select onChange={event=>void fetchGameweekLeaderboard(event.target.value).then(setGameweekBoard)}><option value="">Select</option>{allGameweeks.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+        <h3>Overall</h3>
+        <table className="fa-table"><thead><tr><th>Rank</th><th>Team</th><th>Manager</th><th>Points</th></tr></thead>
+          <tbody>{overall.map(row=><tr key={row.team_id}><td>{row.rank}</td><td>{row.team__name??row.team_name}</td><td>{row.manager}</td><td>{row.total_points}</td></tr>)}</tbody>
+        </table>
+        <h3>Selected gameweek</h3>
+        <table className="fa-table"><thead><tr><th>Rank</th><th>Team</th><th>Manager</th><th>Points</th></tr></thead>
+          <tbody>{gameweekBoard.map((row,index)=><tr key={row.id}><td>{index+1}</td><td>{row.team_name}</td><td>{row.manager}</td><td>{row.total_points}</td></tr>)}</tbody>
+        </table>
+      </section>}
+
+      {tab==='leagues'&&<section className="fa-panel">
+        <h2>Fan league overview</h2>
+        <table className="fa-table"><thead><tr><th>League</th><th>Competition</th><th>Visibility</th><th>Owner</th><th>Members</th><th>Capacity</th><th>Status</th></tr></thead>
+          <tbody>{leagueOverview.map(row=><tr key={row.id}><td>{row.name}</td><td>{competitionName(row.fantasy_competition)}</td><td>{row.visibility}</td><td>{row.owner}</td><td>{row.member_count}</td><td>{row.capacity??'Unlimited'}</td><td>{row.status}</td></tr>)}</tbody>
+        </table>
+        {!leagueOverview.length&&<div className="fa-empty">No fan leagues have been created.</div>}
+      </section>}
     </>}
   </div></AdminLayout>;
 }
