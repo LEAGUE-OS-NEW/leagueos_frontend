@@ -1,24 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSend, FiX, FiEye, FiImage, FiDownload, FiArchive, FiBell } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useAuthStore } from '../../../store/authStore';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
-import { submitClubStory } from '../../../services/newsAdminService';
+import { fetchClubSubmissions, submitClubStory } from '../../../services/newsAdminService';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubNewsPage.css';
 
 const TABS = ['All', 'Published', 'Drafts', 'Scheduled', 'Archived', 'Media'];
 const TYPES = ['Match Report', 'Preview', 'Announcement', 'Club News', 'Transfer'];
 
-type Status = 'published' | 'pending' | 'scheduled' | 'draft' | 'archived';
-type Article = { title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string };
+type Status = 'published' | 'pending' | 'rejected' | 'scheduled' | 'draft' | 'archived';
+type Article = { id?: string; title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string; rejectionReason?: string };
 
 type MediaItem = { name: string; type: 'image' | 'video' | 'doc'; size: string; date: string; used: boolean };
 
 
 const STATUS_CLASS: Record<string, string> = {
-  published: 'ca-pill-green', pending: 'ca-pill-orange', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
+  published: 'ca-pill-green', pending: 'ca-pill-orange', rejected: 'ca-pill-red', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
 };
 
 const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '', coverImage: '' };
@@ -31,10 +31,19 @@ export default function ClubNewsPage() {
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
-  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
+  const hasRealEntitlement = rawEntitlements.length > 0;
+  const entitlements = hasRealEntitlement ? rawEntitlements : DEMO_ENTITLEMENTS;
   const currentEntitlement = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
   const scopeId = currentEntitlement?.scope_id ?? 1;
-  const clubName = (CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}` }).name;
+
+  // AuthContextService.user_context() populates user.club from the real
+  // active ClubWorkspace — prefer that over the demo registry whenever we
+  // have a genuine (non-demo) entitlement (see ClubAdminSidebar.tsx).
+  const realClub =
+    hasRealEntitlement && user?.club && typeof user.club === 'object' && 'id' in user.club && 'name' in user.club
+      ? (user.club as { id: string; name: string })
+      : null;
+  const clubName = realClub?.name ?? (CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}` }).name;
 
   const [activeTab, setActiveTab] = useState('All');
   const [articles, setArticles] = useState<Article[]>([]);
@@ -46,6 +55,36 @@ export default function ClubNewsPage() {
   const [toast, setToast] = useState('');
   const [notifyFollowers, setNotifyFollowers] = useState(true);
   const [userRole] = useState('Communications');
+
+  // Real submissions (any status) for this club — replaces the always-empty
+  // local state the page previously started with on every load.
+  useEffect(() => {
+    if (!realClub) return;
+    let cancelled = false;
+
+    fetchClubSubmissions(realClub.id).then((submissions) => {
+      if (cancelled) return;
+      const mapped: Article[] = submissions.map((s) => ({
+        id: s.id,
+        title: s.title,
+        type: 'Club News',
+        date: s.submittedAt ? s.submittedAt.slice(0, 10) : '',
+        author: s.submittedBy ?? clubName,
+        reads: '—',
+        status: s.status === 'approved' ? 'published' : s.status,
+        body: s.body ?? s.description,
+        coverImage: '',
+        rejectionReason: s.rejectionReason,
+      }));
+      setArticles(mapped);
+    }).catch(() => {
+      // Real club has no reachable backend right now — leave the list empty
+      // rather than showing stale/fabricated data.
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realClub?.id]);
 
   const canNotify = STAFF_ROLES.includes(userRole);
 
@@ -90,17 +129,23 @@ export default function ClubNewsPage() {
     const article = articles[idx];
     if (!article) return;
 
-    submitClubStory(clubName, {
+    if (!realClub) {
+      showToast('Cannot submit — no club is linked to this account yet.');
+      return;
+    }
+
+    submitClubStory(realClub.id, clubName, {
       title: article.title,
       description: article.body.slice(0, 200),
       body: article.body,
       image: article.coverImage,
       category: 'Clubs',
-    }).then(() => {
+    }).then((submitted) => {
       showToast('Submitted for review by League OS staff');
+      setArticles(prev => prev.map((a, i) => i === idx ? { ...a, id: submitted.id, status: 'pending' } : a));
+    }).catch(() => {
+      showToast('Could not submit — please try again.');
     });
-
-    setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'pending' } : a));
   };
 
   const schedulePost = (e: React.FormEvent<HTMLFormElement>) => {
