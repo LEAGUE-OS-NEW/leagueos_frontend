@@ -1,117 +1,314 @@
-import { useState } from 'react';
-import { FiDownload, FiTruck, FiPackage } from 'react-icons/fi';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import {
+  FiDownload,
+  FiPackage,
+  FiRefreshCw,
+} from 'react-icons/fi';
+
 import ClubAdminLayout from '../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../store/authStore';
-import { DEMO_ENTITLEMENTS } from '../../components/clubadmin/clubAdminData';
-import { useCartStore } from '../../store/cartStore';
+import {
+  fetchClubStoreOrders,
+  type ClubStoreOrder,
+} from '../../services/clubStoreService';
+
 import '../../components/clubadmin/ClubAdminLayout.css';
 
-// Map clubSlug → club admin scope_id via the registry
-import { CLUB_REGISTRY } from '../../components/clubadmin/clubAdminData';
-
-type FulfilmentStatus = 'pending' | 'shipped' | 'delivered';
-
-const STATUS_CLASS: Record<FulfilmentStatus, string> = {
-  pending: 'ca-pill-orange',
-  shipped: 'ca-pill-blue',
-  delivered: 'ca-pill-green',
+const STATUS_CLASS: Record<
+  ClubStoreOrder['status'],
+  string
+> = {
+  PENDING: 'ca-pill-orange',
+  PAID: 'ca-pill-blue',
+  PROCESSING: 'ca-pill-blue',
+  FULFILLED: 'ca-pill-green',
+  CANCELLED: 'ca-pill-red',
+  REFUNDED: 'ca-pill-red',
 };
 
-function exportCSV(rows: Record<string, unknown>[], filename: string) {
-  if (!rows.length) return;
-  const headers = Object.keys(rows[0]);
-  const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '')}"`).join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
-    download: filename,
-  });
-  a.click();
+function formatMoney(
+  value: string,
+  currency: string,
+) {
+  const amount = Number(value);
+
+  return `${currency || 'UGX'} ${
+    Number.isFinite(amount)
+      ? Math.round(amount).toLocaleString('en-UG')
+      : '0'
+  }`;
 }
 
-/** Derive a slug-like string from a club registry entry name, e.g. "KCCA FC" → "kcca-fc" */
-function nameToSlug(name: string) {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+function formatAddress(
+  address: Record<string, unknown>,
+) {
+  const values = Object.values(
+    address ?? {},
+  ).filter(
+    value =>
+      typeof value === 'string' &&
+      value.trim(),
+  );
+
+  return values.length > 0
+    ? values.join(', ')
+    : '—';
+}
+
+function exportCSV(
+  rows: Record<string, unknown>[],
+  filename: string,
+) {
+  if (!rows.length) return;
+
+  const headers = Object.keys(rows[0]);
+
+  const csv = [
+    headers.join(','),
+    ...rows.map(row =>
+      headers
+        .map(
+          header =>
+            `"${String(
+              row[header] ?? '',
+            ).replaceAll('"', '""')}"`,
+        )
+        .join(','),
+    ),
+  ].join('\n');
+
+  const href = URL.createObjectURL(
+    new Blob(
+      [csv],
+      {
+        type: 'text/csv',
+      },
+    ),
+  );
+
+  const link = Object.assign(
+    document.createElement('a'),
+    {
+      href,
+      download: filename,
+    },
+  );
+
+  link.click();
+
+  URL.revokeObjectURL(href);
 }
 
 export default function ClubOrdersPage() {
-  const user = useAuthStore(s => s.user);
-  const { selectedEntitlementId } = useClubWorkspaceStore();
+  const user = useAuthStore(
+    state => state.user,
+  );
 
-  // Resolve the current club scope
-  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
-  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
-  const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
-  const scopeId = current?.scope_id ?? 1;
-  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
-  const currentClubSlug = nameToSlug(clubInfo.name);
+  const {
+    selectedEntitlementId,
+  } = useClubWorkspaceStore();
 
-  // Pull cart items that belong to this club and treat them as "pending" orders
-  const cartItems = useCartStore(s => s.items);
-  const removeItem = useCartStore(s => s.removeItem);
+  const entitlements =
+    user?.dashboard_access?.entitlements.filter(
+      entitlement =>
+        entitlement.dashboard ===
+          'CLUB_ADMIN' &&
+        entitlement.scope_type === 'CLUB' &&
+        entitlement.scope_id,
+    ) ?? [];
 
-  // Fulfilment status overlay — lives in local state (would be API-backed in prod)
-  const [statuses, setStatuses] = useState<Record<string, FulfilmentStatus>>({});
-  const [toast, setToast] = useState('');
+  const current =
+    entitlements.find(
+      entitlement =>
+        entitlement.id ===
+        selectedEntitlementId,
+    ) ??
+    entitlements[0] ??
+    null;
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const clubId =
+    current?.scope_id
+      ? String(current.scope_id)
+      : '';
 
-  const clubOrders = cartItems.filter(item => item.clubSlug === currentClubSlug);
+  const [
+    orders,
+    setOrders,
+  ] = useState<ClubStoreOrder[]>([]);
 
-  const getStatus = (id: string): FulfilmentStatus => statuses[id] ?? 'pending';
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const markShipped = (id: string) => {
-    setStatuses(s => ({ ...s, [id]: 'shipped' }));
-    showToast(`Order marked as shipped`);
-  };
+  const [
+    error,
+    setError,
+  ] = useState('');
 
-  const markDelivered = (id: string) => {
-    setStatuses(s => ({ ...s, [id]: 'delivered' }));
-    showToast(`Order marked as delivered`);
-  };
+  const loadOrders = useCallback(
+    async () => {
+      if (!clubId) {
+        setOrders([]);
+        setError(
+          'No Club Admin workspace is selected.',
+        );
+        setIsLoading(false);
+        return;
+      }
 
-  const exportRows = clubOrders.map(o => ({
-    item: o.name,
-    size: o.size ?? '—',
-    qty: o.qty,
-    amount: o.price,
-    status: getStatus(o.id),
-  }));
+      setIsLoading(true);
+      setError('');
+
+      try {
+        setOrders(
+          await fetchClubStoreOrders(
+            clubId,
+          ),
+        );
+      } catch (loadError) {
+        setOrders([]);
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'Could not load store orders.',
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [clubId],
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadOrders();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadOrders]);
+
+  const exportRows = orders.map(
+    order => ({
+      order_id: order.id,
+      customer: order.user,
+      amount: order.total_amount,
+      currency: order.currency,
+      status: order.status,
+      delivery_address:
+        formatAddress(
+          order.shipping_address,
+        ),
+    }),
+  );
 
   return (
     <ClubAdminLayout>
-      {toast && <div className="ca-toast">{toast}</div>}
-
       <div className="ca-page-header">
         <div>
-          <p className="ca-page-eyebrow">Club Admin</p>
-          <h1 className="ca-page-title">Orders</h1>
-          <p className="ca-page-subtitle">Track and manage all store orders, fulfilment and delivery status.</p>
+          <p className="ca-page-eyebrow">
+            Club Admin
+          </p>
+
+          <h1 className="ca-page-title">
+            Orders
+          </h1>
+
+          <p className="ca-page-subtitle">
+            Track real merchandise orders
+            recorded for the selected club.
+          </p>
         </div>
+
         <div className="ca-page-actions">
           <button
             type="button"
             className="ca-btn ca-btn-secondary"
-            disabled={clubOrders.length === 0}
-            onClick={() => exportCSV(exportRows as unknown as Record<string, unknown>[], 'orders.csv')}
+            disabled={
+              orders.length === 0
+            }
+            onClick={() =>
+              exportCSV(
+                exportRows,
+                'orders.csv',
+              )
+            }
           >
             <FiDownload /> Export
+          </button>
+
+          <button
+            type="button"
+            className="ca-btn ca-btn-secondary"
+            onClick={() =>
+              void loadOrders()
+            }
+          >
+            <FiRefreshCw /> Refresh
           </button>
         </div>
       </div>
 
       <div className="ca-panel">
         <div className="ca-panel-header">
-          <h2 className="ca-panel-title">All Orders</h2>
-          <span className="ca-panel-count">{clubOrders.length} orders</span>
+          <h2 className="ca-panel-title">
+            All Orders
+          </h2>
+
+          <span className="ca-panel-count">
+            {orders.length} orders
+          </span>
         </div>
 
-        {clubOrders.length === 0 ? (
+        {isLoading ? (
+          <div className="ca-empty-state">
+            <FiRefreshCw className="ca-empty-icon" />
+
+            <p className="ca-empty-title">
+              Loading orders…
+            </p>
+          </div>
+        ) : error ? (
           <div className="ca-empty-state">
             <FiPackage className="ca-empty-icon" />
-            <p className="ca-empty-title">No orders yet</p>
+
+            <p className="ca-empty-title">
+              Could not load orders
+            </p>
+
             <p className="ca-empty-sub">
-              Orders from your store will appear here once customers start purchasing.
+              {error}
+            </p>
+
+            <button
+              type="button"
+              className="ca-btn ca-btn-secondary"
+              onClick={() =>
+                void loadOrders()
+              }
+            >
+              Retry
+            </button>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="ca-empty-state">
+            <FiPackage className="ca-empty-icon" />
+
+            <p className="ca-empty-title">
+              No orders yet
+            </p>
+
+            <p className="ca-empty-sub">
+              Completed customer store
+              purchases will appear here.
             </p>
           </div>
         ) : (
@@ -119,61 +316,73 @@ export default function ClubOrdersPage() {
             <table className="ca-table">
               <thead>
                 <tr>
-                  <th>Item</th>
-                  <th>Size</th>
-                  <th>Qty</th>
+                  <th>Order</th>
+                  <th>Customer</th>
                   <th>Amount</th>
+                  <th>Delivery</th>
                   <th>Status</th>
-                  <th>Action</th>
                 </tr>
               </thead>
+
               <tbody>
-                {clubOrders.map((o) => {
-                  const status = getStatus(o.id);
-                  return (
-                    <tr key={o.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{o.name}</td>
-                      <td>{o.size ?? '—'}</td>
-                      <td>{o.qty}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--color-primary-light)' }}>{o.price}</td>
-                      <td>
-                        <span className={`ca-pill ${STATUS_CLASS[status]}`}>{status}</span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {status === 'pending' && (
-                            <button
-                              type="button"
-                              className="ca-btn ca-btn-secondary ca-btn-sm"
-                              onClick={() => markShipped(o.id)}
-                            >
-                              <FiTruck /> Mark Shipped
-                            </button>
-                          )}
-                          {status === 'shipped' && (
-                            <button
-                              type="button"
-                              className="ca-btn ca-btn-secondary ca-btn-sm"
-                              onClick={() => markDelivered(o.id)}
-                            >
-                              Mark Delivered
-                            </button>
-                          )}
-                          {status === 'delivered' && (
-                            <button
-                              type="button"
-                              className="ca-btn ca-btn-secondary ca-btn-sm"
-                              style={{ color: '#ef4444' }}
-                              onClick={() => { removeItem(o.id); showToast('Order removed'); }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {orders.map(order => (
+                  <tr key={order.id}>
+                    <td
+                      style={{
+                        fontFamily:
+                          'monospace',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {order.id.slice(
+                        0,
+                        8,
+                      )}
+                    </td>
+
+                    <td>
+                      {String(
+                        order.user,
+                      ).slice(
+                        0,
+                        8,
+                      )}
+                    </td>
+
+                    <td
+                      style={{
+                        fontWeight: 700,
+                        color:
+                          'var(--color-primary-light)',
+                      }}
+                    >
+                      {formatMoney(
+                        order.total_amount,
+                        order.currency,
+                      )}
+                    </td>
+
+                    <td>
+                      {formatAddress(
+                        order.shipping_address,
+                      )}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`ca-pill ${
+                          STATUS_CLASS[
+                            order.status
+                          ]
+                        }`}
+                      >
+                        {
+                          order.status
+                        }
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

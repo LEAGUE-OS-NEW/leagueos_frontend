@@ -12,7 +12,7 @@ function StorePicks() {
     <div className="store-picks dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Store Picks</h2>
-        <Link to="/store" className="dashboard-card-link">
+        <Link to="/fan/store" className="dashboard-card-link">
           Shop now
         </Link>
       </div>
@@ -22,11 +22,11 @@ function StorePicks() {
       ) : error ? (
         <DashboardNotice tone="error" title="Couldn't load store picks" message={error} onRetry={retry} />
       ) : picks && picks.length === 0 ? (
-        <DashboardNotice tone="empty" title="Nothing here yet" message="Check the store for new merchandise." actionLabel="Browse store" actionTo="/store" />
+        <DashboardNotice tone="empty" title="Nothing here yet" message="Check the store for new merchandise." actionLabel="Browse store" actionTo="/fan/store" />
       ) : (
         <div className="dashboard-store-list">
           {(picks ?? []).map((pick) => (
-            <Link to="/store" className="dashboard-store-item" key={pick.id}>
+            <Link to="/fan/store" className="dashboard-store-item" key={pick.id}>
               <img src={pick.image} alt="" className="dashboard-store-image" />
               <p className="store-pick-name">{pick.name}</p>
               <p className="store-pick-price">{pick.price}</p>
