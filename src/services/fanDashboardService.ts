@@ -465,6 +465,7 @@ export async function fetchFantasyTeam(): Promise<FantasyTeamData | null> {
 }
 
 export interface NewsItem {
+  id: string;
   category: Sport;
   categoryLabel: string;
   headline: string;
@@ -479,6 +480,7 @@ export async function fetchNews(): Promise<NewsItem[]> {
   return (data.articles || []).map((article) => {
     const sport = normalizeSport(article.sport || article.category);
     return {
+      id: article.id || article.title || 'news-item',
       category: sport,
       categoryLabel: article.category || sportLabel(sport),
       headline: article.title || 'League OS news',
