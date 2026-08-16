@@ -15,8 +15,10 @@ import {
 } from '../../../utils/marketPricing.ts';
 import { fetchFanPositions, fetchPublishedMarkets, MARKET_CATEGORIES } from '../../../services/fanMarketsServices';
 import type { Market, Position } from '../../../services/fanMarketsServices';
-import { fetchWalletDetails } from '../../../services/walletService';
-import type { WalletDetails } from '../../../services/walletService';
+import {
+  fetchFanWallet,
+  type FanWalletBalance,
+} from '../../../services/fanWalletApiService';
 import DepositModal from '../wallet/sections/DepositModal';
 import '../sections/FanDashboard.css';
 import './Markets.css';
@@ -96,7 +98,7 @@ function FanTradeHub() {
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [wallet, setWallet] = useState<WalletDetails | null>(null);
+  const [wallet, setWallet] = useState<FanWalletBalance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -112,7 +114,7 @@ function FanTradeHub() {
       return;
     }
 
-    Promise.all([fetchPublishedMarkets(), fetchFanPositions(), fetchWalletDetails()])
+    Promise.all([fetchPublishedMarkets(), fetchFanPositions(), fetchFanWallet()])
       .then(([marketsData, positionsData, walletData]) => {
         if (cancelled) return;
         setMarkets(marketsData);
@@ -135,7 +137,7 @@ function FanTradeHub() {
     if (!isVerified) return;
     setIsLoading(true);
     setError('');
-    Promise.all([fetchPublishedMarkets(), fetchFanPositions(), fetchWalletDetails()])
+    Promise.all([fetchPublishedMarkets(), fetchFanPositions(), fetchFanWallet()])
       .then(([marketsData, positionsData, walletData]) => {
         setMarkets(marketsData);
         setPositions(positionsData);
@@ -158,11 +160,6 @@ function FanTradeHub() {
     () => filteredMarkets.filter((market) => CLOSED_STATUSES.includes(market.status)),
     [filteredMarkets],
   );
-
-  const handleDepositSuccess = () => {
-    setIsDepositOpen(false);
-    refresh();
-  };
 
   return (
     <div className="fan-dashboard">
@@ -194,7 +191,7 @@ function FanTradeHub() {
                 </div>
                 <div className="trade-hub-hero-wallet">
                   <span>Available Balance</span>
-                  <b>{wallet?.balance ?? formatUgx(0)}</b>
+                  <b>{formatUgx(wallet?.availableBalance ?? 0)}</b>
                   <button type="button" className="verify-btn verify-btn--primary" onClick={() => setIsDepositOpen(true)}>
                     <FiCreditCard /> Top Up
                   </button>
@@ -305,7 +302,7 @@ function FanTradeHub() {
         <Footer />
       </div>
 
-      {isDepositOpen && <DepositModal onClose={() => setIsDepositOpen(false)} onSuccess={handleDepositSuccess} />}
+      {isDepositOpen && <DepositModal onClose={() => setIsDepositOpen(false)} />}
     </div>
   );
 }

@@ -9,7 +9,9 @@ import {
 import apiClient from './apiClient.ts';
 
 import {
+  createFanWalletDeposit,
   fetchFanWallet,
+  fetchFanWalletDeposit,
   fetchFanWalletTransactions,
 } from './fanWalletApiService.ts';
 
@@ -19,6 +21,8 @@ vi.mock(
   () => ({
     default: {
       get:
+        vi.fn(),
+      post:
         vi.fn(),
     },
   }),
@@ -101,11 +105,11 @@ describe(
                 status:
                   'COMPLETED',
                 provider_code:
-                  'PESAPAL',
+                  'PESAPAL_SANDBOX',
                 provider_reference:
                   '',
                 description:
-                  'Wallet deposit',
+                  'Pesapal wallet deposit',
                 completed_at:
                   '2026-08-15T12:00:00Z',
                 created_at:
@@ -140,6 +144,131 @@ describe(
                 100,
             },
           },
+        );
+      },
+    );
+
+
+    it(
+      'creates a Pesapal Sandbox wallet deposit through the backend',
+      async () => {
+        vi.mocked(
+          apiClient.post,
+        ).mockResolvedValue({
+          data: {
+            id:
+              '4d4439cb-3c90-4e19-b490-fd595277d81d',
+            amount:
+              '50000.0000',
+            currency:
+              'UGX',
+            status:
+              'PENDING',
+            created_at:
+              '2026-08-16T10:00:00Z',
+            expires_at:
+              '2026-08-16T10:30:00Z',
+            payment_url:
+              'https://pay.pesapal.com/checkout/example',
+            provider_code:
+              'PESAPAL_SANDBOX',
+            order_tracking_id:
+              'tracking-123',
+            provider_status:
+              'PENDING',
+          },
+        });
+
+        const idempotencyKey =
+          '2b604cdb-64d3-4baf-ae2a-2b190e543ee5';
+
+        await expect(
+          createFanWalletDeposit({
+            amount:
+              50_000,
+            currency:
+              'UGX',
+            idempotencyKey,
+          }),
+        ).resolves.toMatchObject({
+          amount:
+            50_000,
+          currency:
+            'UGX',
+          status:
+            'PENDING',
+          paymentUrl:
+            'https://pay.pesapal.com/checkout/example',
+          providerCode:
+            'PESAPAL_SANDBOX',
+        });
+
+        expect(
+          apiClient.post,
+        ).toHaveBeenCalledWith(
+          '/wallets/deposits/',
+          {
+            provider_code:
+              'PESAPAL_SANDBOX',
+            amount:
+              50_000,
+            currency:
+              'UGX',
+            idempotency_key:
+              idempotencyKey,
+          },
+        );
+      },
+    );
+
+
+    it(
+      'loads the authoritative backend status for a deposit intent',
+      async () => {
+        vi.mocked(
+          apiClient.get,
+        ).mockResolvedValue({
+          data: {
+            id:
+              '4d4439cb-3c90-4e19-b490-fd595277d81d',
+            amount:
+              '50000.0000',
+            currency:
+              'UGX',
+            status:
+              'COMPLETED',
+            created_at:
+              '2026-08-16T10:00:00Z',
+            expires_at:
+              '2026-08-16T10:30:00Z',
+            payment_url:
+              'https://pay.pesapal.com/checkout/example',
+            provider_code:
+              'PESAPAL_SANDBOX',
+            order_tracking_id:
+              'tracking-123',
+            provider_status:
+              'COMPLETED',
+          },
+        });
+
+        await expect(
+          fetchFanWalletDeposit(
+            '4d4439cb-3c90-4e19-b490-fd595277d81d',
+          ),
+        ).resolves.toMatchObject({
+          status:
+            'COMPLETED',
+          amount:
+            50_000,
+          orderTrackingId:
+            'tracking-123',
+        });
+
+        expect(
+          apiClient.get,
+        ).toHaveBeenCalledWith(
+          '/wallets/deposits/4d4439cb-3c90-4e19-b490-fd595277d81d/',
         );
       },
     );

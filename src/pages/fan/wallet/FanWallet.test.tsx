@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FanWallet from './FanWallet';
 import { useFanWallet } from '../../../hooks/useFanWallet';
-import { fetchFanWalletTransactions } from '../../../services/fanWalletApiService';
+import {
+  fetchFanWalletDeposit,
+  fetchFanWalletTransactions,
+} from '../../../services/fanWalletApiService';
 
 vi.mock('../../../components/fan/Sidebar', () => ({
   default: () => null,
@@ -24,6 +27,8 @@ vi.mock('../../../hooks/useFanWallet', () => ({
 
 vi.mock('../../../services/fanWalletApiService', () => ({
   fetchFanWalletTransactions: vi.fn(),
+  fetchFanWalletDeposit: vi.fn(),
+  createFanWalletDeposit: vi.fn(),
 }));
 
 describe('FanWallet', () => {
@@ -38,7 +43,119 @@ describe('FanWallet', () => {
     });
 
     vi.mocked(fetchFanWalletTransactions).mockResolvedValue([]);
+
+    vi.mocked(fetchFanWalletDeposit).mockResolvedValue({
+      id:
+        'deposit-default',
+      amount:
+        50_000,
+      currency:
+        'UGX',
+      status:
+        'PENDING',
+      createdAt:
+        '2026-08-16T10:00:00Z',
+      expiresAt:
+        '2026-08-16T10:30:00Z',
+      paymentUrl:
+        '',
+      providerCode:
+        'PESAPAL_SANDBOX',
+      orderTrackingId:
+        '',
+      providerStatus:
+        'PENDING',
+    });
   });
+
+
+  it(
+    'reconciles a completed Pesapal return and refreshes the wallet',
+    async () => {
+      const refreshWallet =
+        vi.fn()
+          .mockResolvedValue(
+            undefined,
+          );
+
+      vi.mocked(
+        useFanWallet,
+      ).mockReturnValue({
+        wallet: {
+          id:
+            'wallet-1',
+          currency:
+            'UGX',
+          availableBalance:
+            100_000,
+          reservedBalance:
+            0,
+          totalBalance:
+            100_000,
+        },
+        isLoading:
+          false,
+        error:
+          '',
+        refresh:
+          refreshWallet,
+      });
+
+      vi.mocked(
+        fetchFanWalletDeposit,
+      ).mockResolvedValue({
+        id:
+          '4d4439cb-3c90-4e19-b490-fd595277d81d',
+        amount:
+          50_000,
+        currency:
+          'UGX',
+        status:
+          'COMPLETED',
+        createdAt:
+          '2026-08-16T10:00:00Z',
+        expiresAt:
+          '2026-08-16T10:30:00Z',
+        paymentUrl:
+          '',
+        providerCode:
+          'PESAPAL_SANDBOX',
+        orderTrackingId:
+          'tracking-123',
+        providerStatus:
+          'COMPLETED',
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            '/wallet?deposit=4d4439cb-3c90-4e19-b490-fd595277d81d&status=completed',
+          ]}
+        >
+          <FanWallet />
+        </MemoryRouter>,
+      );
+
+      expect(
+        await screen.findByText(
+          'Wallet top-up completed',
+        ),
+      ).toBeInTheDocument();
+
+      expect(
+        fetchFanWalletDeposit,
+      ).toHaveBeenCalledWith(
+        '4d4439cb-3c90-4e19-b490-fd595277d81d',
+      );
+
+      expect(
+        refreshWallet,
+      ).toHaveBeenCalledTimes(
+        1,
+      );
+    },
+  );
+
 
   it('loads the wallet without requiring Markets eligibility', async () => {
     render(
