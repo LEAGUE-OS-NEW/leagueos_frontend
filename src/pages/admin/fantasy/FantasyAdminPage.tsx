@@ -21,9 +21,12 @@ const AVAILABILITY: FantasyAvailability[] = ['AVAILABLE','DOUBTFUL','INJURED','S
 const err = (e: unknown) => e instanceof Error ? e.message : 'Fantasy administration request failed.';
 
 /** Safely parse a JSON string. Returns [parsed, null] on success or [null, errorMessage] on failure. */
-function safeJson(raw: string): [unknown, null] | [null, string] {
-  try { return [JSON.parse(raw), null]; }
-  catch (e) { return [null, e instanceof Error ? e.message : 'Invalid JSON']; }
+function safeJson<T>(raw: string): [T, null] | [null, string] {
+  try {
+    return [JSON.parse(raw) as T, null];
+  } catch (e) {
+    return [null, e instanceof Error ? e.message : 'Invalid JSON'];
+  }
 }
 
 const editableCompetition = (row: FantasyCompetition) => ({
@@ -193,8 +196,8 @@ export default function FantasyAdminPage() {
     if (!compForm.starting_lineup_size) newErrors.starting_lineup_size = 'Required';
     if (!compForm.bench_size) newErrors.bench_size = 'Required';
 
-    const [posRules, posErr] = safeJson(compForm.position_rules);
-    const [fmtRules, fmtErr] = safeJson(compForm.formation_rules);
+    const [posRules, posErr] = safeJson<Record<string, number>>(compForm.position_rules);
+const [fmtRules, fmtErr] = safeJson<Record<string, { min: number; max: number }>>(compForm.formation_rules);
     if (posErr) newErrors.position_rules = posErr;
     if (fmtErr) newErrors.formation_rules = fmtErr;
 
@@ -209,8 +212,8 @@ export default function FantasyAdminPage() {
       max_players_per_team: Number(compForm.max_players_per_team),
       free_transfers_per_gameweek: Number(compForm.free_transfers_per_gameweek),
       transfer_penalty: Number(compForm.transfer_penalty),
-      position_rules: posRules,
-      formation_rules: fmtRules,
+      position_rules: posRules ?? undefined,
+formation_rules: fmtRules ?? undefined,
       enabled: true, visibility: 'PUBLIC', registration_state: 'OPEN',
       vice_captain_fallback: true,
       tie_break_rules: ['total_points', 'fewer_transfer_penalties', 'earlier_registration'],
@@ -222,10 +225,19 @@ export default function FantasyAdminPage() {
   const saveCompetition = async () => {
     if (!competitionEdit || !editingCompId) return;
     const newErrors: Record<string, string> = {};
-    const [posRules, posErr] = safeJson(competitionEdit.position_rules);
-    const [fmtRules, fmtErr] = safeJson(competitionEdit.formation_rules);
-    const [tieRules, tieErr] = safeJson(competitionEdit.tie_break_rules);
-    const [prizeRules, prizeErr] = safeJson(competitionEdit.prize_metadata);
+    const [posRules, posErr] =
+  safeJson<Record<string, number>>(competitionEdit.position_rules);
+
+const [fmtRules, fmtErr] =
+  safeJson<Record<string, { min: number; max: number }>>(
+    competitionEdit.formation_rules
+  );
+
+const [tieRules, tieErr] =
+  safeJson<string[]>(competitionEdit.tie_break_rules);
+
+const [prizeRules, prizeErr] =
+  safeJson<Record<string, unknown>>(competitionEdit.prize_metadata);;
     if (posErr) newErrors.position_rules = posErr;
     if (fmtErr) newErrors.formation_rules = fmtErr;
     if (tieErr) newErrors.tie_break_rules = tieErr;
@@ -244,8 +256,10 @@ export default function FantasyAdminPage() {
       captain_multiplier: competitionEdit.captain_multiplier,
       free_transfers_per_gameweek: Number(competitionEdit.free_transfers_per_gameweek),
       transfer_penalty: Number(competitionEdit.transfer_penalty),
-      position_rules: posRules, formation_rules: fmtRules,
-      tie_break_rules: tieRules, prize_metadata: prizeRules,
+      position_rules: posRules ?? undefined,
+formation_rules: fmtRules ?? undefined,
+tie_break_rules: tieRules ?? undefined,
+prize_metadata: prizeRules ?? undefined,
     }), 'Fantasy competition updated.');
     if (ok) { setEditingCompId(''); setCompetitionEdit(null); setCompEditErrors({}); }
   };
