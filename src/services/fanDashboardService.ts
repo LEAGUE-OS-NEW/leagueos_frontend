@@ -1,6 +1,10 @@
 import axiosInstance from './apiClient';
 import { extractApiError, unwrapApiData } from './apiUtils';
 import { fetchMarkets as fetchFanMarkets } from './fanMarketsServices.ts';
+import { fetchFanPositions } from './fanMarketsServices.ts';
+import { fetchMyTeams, fetchTeamPoints } from './fantasyService.ts';
+import { getMyTickets } from './ticketingService.ts';
+import { fetchNews as fetchPublicNews } from './newsService.ts';
 import type { ApiEnvelope } from '../types/api';
 
 type DashboardModuleStatus = 'success' | 'unavailable';
@@ -280,7 +284,7 @@ function splitFixtureName(name?: string): [string, string] {
   return [teamA || 'Home', teamB || 'Away'];
 }
 
-export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs' | 'tickets';
+export type QuickStatId = 'positions' | 'fantasy' | 'clubs' | 'tickets';
 
 export interface QuickStat {
   id: QuickStatId;
@@ -290,32 +294,32 @@ export interface QuickStat {
 }
 
 export async function fetchQuickStats(): Promise<QuickStat[]> {
-  const [dashboard, portfolio] = await Promise.all([fetchDashboardAggregate(), fetchPortfolioSummary()]);
-  const wallet = moduleData<WalletModuleData>(dashboard, 'wallet');
-  const favourites = moduleData<FavouritesModuleData>(dashboard, 'favourites');
-  const fantasy = moduleData<FantasyModuleData>(dashboard, 'fantasy');
-  const tickets = moduleData<TicketsModuleData>(dashboard, 'tickets');
-  const currency = portfolio?.currency || wallet.currency || 'UGX';
-  const balance = portfolio?.wallet?.available_balance ?? portfolio?.wallet?.balance ?? wallet.balance ?? 0;
+  const [positionsResult, fantasyResult, clubsResult, ticketsResult] = await Promise.allSettled([
+    fetchFanPositions(),
+    fetchMyTeams().then(async (teams) => {
+      const team = teams[0];
+      if (!team) return 0;
+      const scores = await fetchTeamPoints(team.id);
+      return scores.reduce((total, score) => total + Number(score.total_points || 0), 0);
+    }),
+    fetchDashboardAggregate().then((dashboard) => moduleData<FavouritesModuleData>(dashboard, 'favourites')),
+    getMyTickets(),
+  ]);
+
+  const openPositions = positionsResult.status === 'fulfilled' ? positionsResult.value.length : 0;
+  const fantasyPoints = fantasyResult.status === 'fulfilled' ? fantasyResult.value : 0;
+  const clubCount = clubsResult.status === 'fulfilled' ? clubsResult.value.clubs?.length ?? 0 : 0;
+  const upcomingTickets = ticketsResult.status === 'fulfilled' ? ticketsResult.value.length : 0;
 
   return [
-    { id: 'wallet', value: formatCurrency(balance, currency), sublabel: 'Available balance' },
-    {
-      id: 'positions',
-      value: formatNumber(portfolio?.positions?.open_position_count ?? 0),
-      sublabel: 'Active positions',
-    },
+    { id: 'positions', value: formatNumber(openPositions), sublabel: 'Active positions' },
     {
       id: 'fantasy',
-      value: formatNumber(fantasy.team?.total_points ?? 0),
-      sublabel: fantasy.team ? 'Fantasy points' : 'No fantasy team yet',
+      value: formatNumber(fantasyPoints),
+      sublabel: fantasyPoints > 0 ? 'Fantasy points' : 'No fantasy points yet',
     },
-    { id: 'clubs', value: formatNumber(favourites.clubs?.length ?? 0), sublabel: 'Clubs joined' },
-    {
-      id: 'tickets',
-      value: formatNumber(tickets.tickets?.length ?? 0),
-      sublabel: 'Upcoming tickets',
-    },
+    { id: 'clubs', value: formatNumber(clubCount), sublabel: 'Clubs followed' },
+    { id: 'tickets', value: formatNumber(upcomingTickets), sublabel: 'Upcoming tickets' },
   ];
 }
 
@@ -405,18 +409,17 @@ export interface Ticket {
 }
 
 export async function fetchTickets(): Promise<Ticket[]> {
-  const dashboard = await fetchDashboardAggregate();
-  const data = moduleData<TicketsModuleData>(dashboard, 'tickets');
+  const tickets = await getMyTickets();
 
-  return (data.tickets || []).map((ticket) => {
-    const date = formatTicketDate(ticket.starts_at);
+  return tickets.map((ticket) => {
+    const date = formatTicketDate(ticket.match_date);
     return {
       month: date.month,
       day: date.day,
-      match: ticket.match || 'Match ticket',
+      match: ticket.match_label || 'Match ticket',
       time: date.time,
-      competition: ticket.competition || 'League OS',
-      seat: ticket.venue || `${ticket.quantity || 1} ticket${ticket.quantity === 1 ? '' : 's'}`,
+      competition: ticket.competition_name || 'League OS',
+      seat: ticket.venue || ticket.ticket_type_name || 'Ticket issued',
     };
   });
 }
@@ -474,18 +477,17 @@ export interface NewsItem {
 }
 
 export async function fetchNews(): Promise<NewsItem[]> {
-  const dashboard = await fetchDashboardAggregate();
-  const data = moduleData<NewsModuleData>(dashboard, 'news');
+  const stories = await fetchPublicNews();
 
-  return (data.articles || []).map((article) => {
-    const sport = normalizeSport(article.sport || article.category);
+  return stories.slice(0, 2).map((article) => {
+    const sport = normalizeSport(article.category);
     return {
       id: article.id || article.title || 'news-item',
       category: sport,
       categoryLabel: article.category || sportLabel(sport),
       headline: article.title || 'League OS news',
-      timeAgo: formatRelativeTime(article.published_at || undefined),
-      image: '/images/news/news-placeholder.jpg',
+      timeAgo: article.time,
+      image: article.image,
     };
   });
 }
@@ -582,7 +584,7 @@ export async function fetchNotificationsPreview(): Promise<NotificationPreviewIt
   const dashboard = await fetchDashboardAggregate();
   const data = moduleData<NotificationsModuleData>(dashboard, 'notifications');
 
-  return (data.recent_notifications || []).map((notification, index) => ({
+  return (data.recent_notifications || []).slice(0, 2).map((notification, index) => ({
     id: notification.id || `notification-${index}`,
     message: notification.message || notification.title || 'Notification',
     timeAgo: formatRelativeTime(notification.created_at),

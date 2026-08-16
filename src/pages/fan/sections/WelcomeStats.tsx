@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { FiBriefcase, FiAward, FiUsers, FiChevronRight } from 'react-icons/fi';
-import { GiTicket, GiWallet } from 'react-icons/gi';
+import { GiTicket } from 'react-icons/gi';
 import { useCurrentUser } from '../../../hooks/useCurrentUser';
 import { useDashboardSection } from '../../../components/fan/dashboard/useDashboardSection';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
@@ -8,12 +9,14 @@ import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import { fetchQuickStats, type QuickStatId } from '../../../services/fanDashboardService';
 import './WelcomeStats.css';
 
-const STAT_META: Record<QuickStatId, { label: string; icon: ReactNode; iconClassName: string; highlighted?: boolean }> = {
-  wallet: { label: 'Wallet Balance', icon: <GiWallet />, iconClassName: 'stat-card-icon-purple' },
-  positions: { label: 'Open Positions', icon: <FiBriefcase />, iconClassName: 'stat-card-icon-orange' },
-  fantasy: { label: 'Fantasy Points', icon: <FiAward />, iconClassName: 'stat-card-icon-purple', highlighted: true },
-  clubs: { label: 'My Clubs', icon: <FiUsers />, iconClassName: 'stat-card-icon-blue' },
-  tickets: { label: 'Tickets', icon: <GiTicket />, iconClassName: 'stat-card-icon-gold' },
+const STAT_META: Record<
+  QuickStatId,
+  { label: string; icon: ReactNode; iconClassName: string; route: string; highlighted?: boolean }
+> = {
+  positions: { label: 'Open Positions', icon: <FiBriefcase />, iconClassName: 'stat-card-icon-orange', route: '/positions' },
+  fantasy: { label: 'Fantasy Points', icon: <FiAward />, iconClassName: 'stat-card-icon-purple', route: '/fan/fantasy', highlighted: true },
+  clubs: { label: 'My Clubs', icon: <FiUsers />, iconClassName: 'stat-card-icon-blue', route: '/fan/clubs' },
+  tickets: { label: 'Tickets', icon: <GiTicket />, iconClassName: 'stat-card-icon-gold', route: '/fan/tickets' },
 };
 
 function WelcomeStats() {
@@ -39,7 +42,7 @@ function WelcomeStats() {
           {(stats ?? []).map((stat) => {
             const meta = STAT_META[stat.id];
             return (
-              <div className={`stat-card${meta.highlighted ? ' highlighted' : ''}`} key={stat.id}>
+              <Link to={meta.route} className={`stat-card${meta.highlighted ? ' highlighted' : ''}`} key={stat.id}>
                 <div className="stat-card-header">
                   <span className="stat-card-label">{meta.label}</span>
                   <span className={`stat-card-icon ${meta.iconClassName}`}>{meta.icon}</span>
@@ -49,7 +52,7 @@ function WelcomeStats() {
                   <span className={`stat-card-sublabel${stat.positive ? ' positive' : ''}`}>{stat.sublabel}</span>
                   <FiChevronRight className="stat-card-chevron" />
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
