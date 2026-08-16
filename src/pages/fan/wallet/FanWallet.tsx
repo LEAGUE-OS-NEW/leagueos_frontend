@@ -4,6 +4,10 @@ import {
 } from 'react';
 
 import {
+  useSearchParams,
+} from 'react-router-dom';
+
+import {
   FiArrowDownLeft,
   FiArrowUpRight,
   FiCheckCircle,
@@ -18,9 +22,12 @@ import {
 } from '../../../hooks/useFanWallet';
 
 import {
+  fetchFanWalletDeposit,
   fetchFanWalletTransactions,
   type FanWalletTransaction,
 } from '../../../services/fanWalletApiService';
+
+import DepositModal from './sections/DepositModal';
 
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
@@ -70,6 +77,72 @@ function formatDate(
 
 
 function FanWallet() {
+  const [
+    searchParams,
+    setSearchParams,
+  ] =
+    useSearchParams();
+
+  const depositReturnId =
+    searchParams.get(
+      'deposit',
+    )?.trim() ?? '';
+
+  const depositReturnStatus =
+    searchParams.get(
+      'status',
+    )?.trim().toLowerCase() ?? '';
+
+  const [
+    depositReturnNotice,
+    setDepositReturnNotice,
+  ] =
+    useState<{
+      tone:
+        | 'success'
+        | 'pending'
+        | 'error';
+      title: string;
+      message: string;
+    } | null>(() => {
+      if (
+        depositReturnId
+      ) {
+        return {
+          tone:
+            'pending',
+          title:
+            'Checking your wallet top-up',
+          message:
+            'Confirming the payment result with League OS.',
+        };
+      }
+
+      if (
+        depositReturnStatus ===
+        'error'
+      ) {
+        return {
+          tone:
+            'error',
+          title:
+            'Wallet top-up could not be confirmed',
+          message:
+            'Pesapal returned without a confirmed deposit. No wallet credit has been applied.',
+        };
+      }
+
+      return null;
+    });
+
+  const [
+    isDepositOpen,
+    setIsDepositOpen,
+  ] =
+    useState(
+      false,
+    );
+
   const [
     isSidebarOpen,
     setIsSidebarOpen,
@@ -170,6 +243,189 @@ function FanWallet() {
 
 
   useEffect(() => {
+    let cancelled =
+      false;
+
+    function clearReturnParams() {
+      const next =
+        new URLSearchParams(
+          window.location.search,
+        );
+
+      next.delete(
+        'deposit',
+      );
+
+      next.delete(
+        'status',
+      );
+
+      setSearchParams(
+        next,
+        {
+          replace:
+            true,
+        },
+      );
+    }
+
+
+    if (
+      !depositReturnId
+    ) {
+      if (
+        depositReturnStatus ===
+        'error'
+      ) {
+        clearReturnParams();
+      }
+
+      return () => {
+        cancelled =
+          true;
+      };
+    }
+
+
+    fetchFanWalletDeposit(
+      depositReturnId,
+    )
+      .then(
+        async (
+          deposit,
+        ) => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+
+          try {
+            sessionStorage.removeItem(
+              'leagueos.wallet.pendingDepositId',
+            );
+
+            sessionStorage.removeItem(
+              'leagueos.wallet.depositReturnPath',
+            );
+          } catch {
+            // Storage can be unavailable in privacy-restricted browsers.
+          }
+
+
+          if (
+            deposit.status ===
+            'COMPLETED'
+          ) {
+            const refreshedTransactions =
+              await fetchFanWalletTransactions();
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            setTransactions(
+              refreshedTransactions,
+            );
+
+            setTransactionsError(
+              '',
+            );
+
+            await refreshWallet();
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            setDepositReturnNotice({
+              tone:
+                'success',
+              title:
+                'Wallet top-up completed',
+              message:
+                `UGX ${Math.round(
+                  deposit.amount,
+                ).toLocaleString(
+                  'en-UG',
+                )} has been credited to your wallet.`,
+            });
+          } else if (
+            deposit.status ===
+              'FAILED' ||
+            deposit.status ===
+              'EXPIRED'
+          ) {
+            setDepositReturnNotice({
+              tone:
+                'error',
+              title:
+                deposit.status ===
+                'EXPIRED'
+                  ? 'Wallet top-up expired'
+                  : 'Wallet top-up failed',
+              message:
+                'The payment was not credited to your wallet. You can start a new top-up when ready.',
+            });
+          } else {
+            setDepositReturnNotice({
+              tone:
+                'pending',
+              title:
+                'Wallet top-up is still pending',
+              message:
+                'League OS has not yet received final payment confirmation. Your wallet will only be credited after provider confirmation.',
+            });
+          }
+
+          clearReturnParams();
+        },
+      )
+      .catch(
+        (
+          error,
+        ) => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          setDepositReturnNotice({
+            tone:
+              'error',
+            title:
+              'Could not verify wallet top-up',
+            message:
+              error instanceof
+              Error
+                ? error.message
+                : 'League OS could not confirm this deposit.',
+          });
+
+          clearReturnParams();
+        },
+      );
+
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    depositReturnId,
+    depositReturnStatus,
+    refreshWallet,
+    setSearchParams,
+  ]);
+
+
+  useEffect(() => {
     document.body.style.overflow =
       isSidebarOpen
         ? 'hidden'
@@ -225,6 +481,34 @@ function FanWallet() {
               </div>
 
 
+              {depositReturnNotice && (
+                <div
+                  className={
+                    `fan-wallet-deposit-return ` +
+                    `fan-wallet-deposit-return--${depositReturnNotice.tone}`
+                  }
+                  role={
+                    depositReturnNotice.tone ===
+                    'error'
+                      ? 'alert'
+                      : 'status'
+                  }
+                >
+                  <strong>
+                    {
+                      depositReturnNotice.title
+                    }
+                  </strong>
+
+                  <span>
+                    {
+                      depositReturnNotice.message
+                    }
+                  </span>
+                </div>
+              )}
+
+
               {isWalletLoading ? (
                 <DashboardSkeleton
                   rows={
@@ -278,6 +562,18 @@ function FanWallet() {
                         )}
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      className="fan-wallet-topup-btn"
+                      onClick={() =>
+                        setIsDepositOpen(
+                          true,
+                        )
+                      }
+                    >
+                      Top Up
+                    </button>
                   </div>
 
 
@@ -412,6 +708,16 @@ function FanWallet() {
       </div>
 
       <Footer />
+
+      {isDepositOpen && (
+        <DepositModal
+          onClose={() =>
+            setIsDepositOpen(
+              false,
+            )
+          }
+        />
+      )}
     </div>
   );
 }
