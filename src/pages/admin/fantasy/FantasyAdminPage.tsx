@@ -55,6 +55,7 @@ const editableCompetition = (row: FantasyCompetition) => ({
   formation_rules: JSON.stringify(row.formation_rules, null, 2),
   tie_break_rules: JSON.stringify(row.tie_break_rules, null, 2),
   prize_metadata: JSON.stringify(row.prize_metadata, null, 2),
+  gameweek_rules: JSON.stringify(row.gameweek_rules ?? {}, null, 2),
 });
 
 /* ── component ────────────────────────────────────────────── */
@@ -142,8 +143,11 @@ export default function FantasyAdminPage() {
       setCompetitions(rows);
       setCanonical(options);
       setLeagueOverview(leagues);
-      setCompetitionId(cur => cur || rows[0]?.id || '');
-      if (rows[0]) setPlayers(await fetchFantasyPlayers(rows[0].id));
+      // Preserve the current selection; fall back to first competition on first load
+      setCompetitionId(cur => {
+        const resolved = cur || rows[0]?.id || '';
+        return resolved;
+      });
     } catch (e) { setError(err(e)); }
     finally { setLoading(false); }
   };
@@ -199,6 +203,23 @@ export default function FantasyAdminPage() {
     finally { setSaving(false); }
   };
 
+  /** Like run() but also refreshes gameweeks for the current competition. */
+  const runAndRefreshGameweeks = async (action: () => Promise<unknown>, success: string) => {
+    const ok = await run(action, success);
+    if (ok && competitionId) {
+      try {
+        const weeks = await fetchFantasyGameweeks(competitionId);
+        setAllGameweeks(weeks);
+        setGwFixtureIds(prev => {
+          const next = { ...prev };
+          weeks.forEach(gw => { if (!next[gw.id]) next[gw.id] = gw.fixture_details.map(f => f.id); });
+          return next;
+        });
+      } catch { /* non-fatal */ }
+    }
+    return ok;
+  };
+
   /* Validate + parse JSON fields before submitting competition create form */
   const submitCreateCompetition = async () => {
     const newErrors: Record<string, string> = {};
@@ -237,6 +258,7 @@ const [fmtRules, fmtErr] = safeJson<Record<string, { min: number; max: number }>
       registration_state: 'OPEN',
       vice_captain_fallback: true,
       tie_break_rules: ['total_points', 'fewer_transfer_penalties', 'earlier_registration'],
+      gameweek_rules: {},
     }), 'Fantasy competition created.');
     if (ok) setCompForm({ competition: '', season: '', name: '', description: '', squad_size: '', starting_lineup_size: '', bench_size: '', initial_budget: '100', max_players_per_team: '3', captain_multiplier: '2', free_transfers_per_gameweek: '1', transfer_penalty: '4', position_rules: '{}', formation_rules: '{}' });
   };
@@ -257,11 +279,15 @@ const [tieRules, tieErr] =
   safeJson<string[]>(competitionEdit.tie_break_rules);
 
 const [prizeRules, prizeErr] =
-  safeJson<Record<string, unknown>>(competitionEdit.prize_metadata);;
+  safeJson<Record<string, unknown>>(competitionEdit.prize_metadata);
+
+const [gwRules, gwErr] =
+  safeJson<Record<string, unknown>>(competitionEdit.gameweek_rules ?? '{}');;
     if (posErr) newErrors.position_rules = posErr;
     if (fmtErr) newErrors.formation_rules = fmtErr;
     if (tieErr) newErrors.tie_break_rules = tieErr;
     if (prizeErr) newErrors.prize_metadata = prizeErr;
+    if (gwErr) newErrors.gameweek_rules = gwErr;
     if (Object.keys(newErrors).length > 0) { setCompEditErrors(newErrors); return; }
     setCompEditErrors({});
 
@@ -285,6 +311,7 @@ const [prizeRules, prizeErr] =
       formation_rules: fmtRules ?? undefined,
       tie_break_rules: tieRules ?? undefined,
       prize_metadata: prizeRules ?? undefined,
+      gameweek_rules: gwRules ?? undefined,
     }), 'Fantasy competition updated.');
     if (ok) { setEditingCompId(''); setCompetitionEdit(null); setCompEditErrors({}); }
   };
@@ -579,7 +606,7 @@ const [prizeRules, prizeErr] =
                       <button
                         className="fa-btn fa-btn--gradient"
                         disabled={saving || !gwForm.number || !gwForm.name || !gwForm.deadline_at}
-                        onClick={() => void run(() => adminCreateGameweek({ fantasy_competition: competition.id, number: Number(gwForm.number), name: gwForm.name, starts_at: gwForm.starts_at, deadline_at: gwForm.deadline_at, ends_at: gwForm.ends_at, status: 'DRAFT', fixtures: newGwFixtureIds }), 'Gameweek created.').then(ok => { if (ok) { setGwForm({ number: '', name: '', starts_at: '', deadline_at: '', ends_at: '' }); setNewGwFixtureIds([]); } })}
+                        onClick={() => void runAndRefreshGameweeks(() => adminCreateGameweek({ fantasy_competition: competition.id, number: Number(gwForm.number), name: gwForm.name, starts_at: gwForm.starts_at, deadline_at: gwForm.deadline_at, ends_at: gwForm.ends_at, status: 'DRAFT', fixtures: newGwFixtureIds }), 'Gameweek created.').then(ok => { if (ok) { setGwForm({ number: '', name: '', starts_at: '', deadline_at: '', ends_at: '' }); setNewGwFixtureIds([]); } })}
                       >
                         Create gameweek
                       </button>
@@ -610,31 +637,31 @@ const [prizeRules, prizeErr] =
                             </fieldset>
                           )}
                           <div className="fa-card-actions">
-                            <button className="fa-btn fa-btn--sm" disabled={saving} onClick={() => void run(() => adminUpdateGameweek(row.id, { fixtures: gwIds }), 'Fixtures saved.')}>
+                            <button className="fa-btn fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminUpdateGameweek(row.id, { fixtures: gwIds }), 'Fixtures saved.')}>
                               Save fixtures
                             </button>
                             {row.status === 'DRAFT' && (
-                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void run(() => adminTransitionGameweek(row.id, 'OPEN'), 'Gameweek opened.')}>
+                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminTransitionGameweek(row.id, 'OPEN'), 'Gameweek opened.')}>
                                 Open
                               </button>
                             )}
                             {row.status === 'OPEN' && (
-                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void run(() => adminTransitionGameweek(row.id, 'LOCKED'), 'Gameweek locked.')}>
+                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminTransitionGameweek(row.id, 'LOCKED'), 'Gameweek locked.')}>
                                 Lock entries
                               </button>
                             )}
                             {row.status === 'LOCKED' && (
-                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void run(() => adminTransitionGameweek(row.id, 'SCORING'), 'Scoring started.')}>
+                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminTransitionGameweek(row.id, 'SCORING'), 'Scoring started.')}>
                                 Begin scoring
                               </button>
                             )}
                             {(row.status === 'LOCKED' || row.status === 'SCORING') && (
-                              <button className="fa-btn fa-btn--sm" disabled={saving} onClick={() => void run(() => adminRecalculateGameweek(row.id), 'Scores recalculated.')}>
+                              <button className="fa-btn fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminRecalculateGameweek(row.id), 'Scores recalculated.')}>
                                 Recalculate
                               </button>
                             )}
                             {row.status === 'SCORING' && (
-                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void run(() => adminFinalizeGameweek(row.id), 'Gameweek finalized.')}>
+                              <button className="fa-btn fa-btn--gradient fa-btn--sm" disabled={saving} onClick={() => void runAndRefreshGameweeks(() => adminFinalizeGameweek(row.id), 'Gameweek finalized.')}>
                                 Finalize
                               </button>
                             )}
@@ -915,7 +942,7 @@ const [prizeRules, prizeErr] =
                     <input type="checkbox" checked={competitionEdit.vice_captain_fallback} onChange={e => setCompetitionEdit({ ...competitionEdit, vice_captain_fallback: e.target.checked })} />
                     Vice captain fallback
                   </label>
-                  {(['position_rules','formation_rules','tie_break_rules','prize_metadata'] as const).map(f => (
+                  {(['position_rules','formation_rules','tie_break_rules','prize_metadata','gameweek_rules'] as const).map(f => (
                     <label key={f} className={`fa-field fa-form-grid-fullwidth ${compEditErrors[f] ? 'fa-field--error' : ''}`}>
                       <span>{f.replaceAll('_',' ')} JSON</span>
                       <textarea
