@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FiPlus, FiDownload, FiEdit2, FiAlertTriangle, FiX,
   FiPackage, FiCheck, FiEye, FiRefreshCw, FiShoppingCart,
@@ -6,17 +6,54 @@ import {
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../../store/authStore';
-import { DEMO_ENTITLEMENTS } from '../../../components/clubadmin/clubAdminData';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubStorePage.css';
+import {
+  createClubProduct,
+  createClubProductCategory,
+  fetchClubProductCategories,
+  fetchClubProducts,
+  fetchClubStoreOrders,
+  updateClubProduct,
+  type ClubMerchandiseProduct,
+  type ClubProductCategory,
+  type ClubStoreOrder,
+} from '../../../services/clubStoreService';
 
 const TABS = ['Products', 'Orders', 'Inventory'];
 
 const CATEGORIES = ['Apparel', 'Fan Gear', 'Training', 'Accessories', 'Other'];
 type ProductStatus = 'active' | 'low stock' | 'out of stock';
-type Product = { id: string; name: string; cat: string; price: string; stock: number; status: ProductStatus; sku?: string; description?: string };
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'fulfilled' | 'cancelled';
-type Order = { id: string; item: string; buyer: string; email: string; amt: string; date: string; qty: number; address: string; notes: string; status: OrderStatus };
+
+type Product = {
+  id: string;
+  name: string;
+  cat: string;
+  price: string;
+  stock: number;
+  status: ProductStatus;
+  sku?: string;
+  description?: string;
+};
+
+type OrderStatus =
+  | 'pending'
+  | 'processing'
+  | 'fulfilled'
+  | 'cancelled';
+
+type Order = {
+  id: string;
+  item: string;
+  buyer: string;
+  email: string;
+  amt: string;
+  date: string;
+  qty: number;
+  address: string;
+  notes: string;
+  status: OrderStatus;
+};
 
 
 const STATUS_CLASS: Record<string, string> = {
@@ -24,15 +61,11 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 const ORDER_STATUS_CLASS: Record<OrderStatus, string> = {
-  pending: 'ca-pill-orange', processing: 'ca-pill-blue', shipped: 'ca-pill-purple',
-  fulfilled: 'ca-pill-green', cancelled: 'ca-pill-red',
+  pending: 'ca-pill-orange',
+  processing: 'ca-pill-blue',
+  fulfilled: 'ca-pill-green',
+  cancelled: 'ca-pill-red',
 };
-
-function getStatus(stock: number): ProductStatus {
-  if (stock === 0) return 'out of stock';
-  if (stock < 20) return 'low stock';
-  return 'active';
-}
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
   if (!rows.length) return;
@@ -46,12 +79,16 @@ const BLANK_PRODUCT: Omit<Product, 'id' | 'status'> = { name: '', cat: 'Apparel'
 
 type ModalKind = null | 'product' | 'order-detail' | 'restock';
 
-let prodIdCounter = 300;
 
 export default function ClubStorePage() {
   const [activeTab, setActiveTab] = useState('Products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [categories, setCategories] =
+    useState<ClubProductCategory[]>([]);
+  const [isLoadingStore, setIsLoadingStore] = useState(true);
+  const [storeError, setStoreError] = useState('');
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, 'id' | 'status'>>(BLANK_PRODUCT);
@@ -64,57 +101,399 @@ export default function ClubStorePage() {
 
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
-  const rawEnt = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
-  const ents = rawEnt.length > 0 ? rawEnt : DEMO_ENTITLEMENTS;
-  const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
-  const canManage = current?.permissions.includes('club.admin.manage') ?? true;
+  const clubEntitlements =
+    user?.dashboard_access?.entitlements.filter(
+      e =>
+        e.dashboard === 'CLUB_ADMIN' &&
+        e.scope_type === 'CLUB' &&
+        e.scope_id,
+    ) ?? [];
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const current =
+    clubEntitlements.find(
+      e => e.id === selectedEntitlementId,
+    ) ??
+    clubEntitlements[0] ??
+    null;
+
+  const clubId =
+    current?.scope_id
+      ? String(current.scope_id)
+      : '';
+
+  const canManage =
+    current?.permissions.includes('club.admin.manage') ??
+    false;
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  const formatMoney = (
+    value: string | number,
+    currency = 'UGX',
+  ) => {
+    const amount = Number(value);
+
+    if (!Number.isFinite(amount)) {
+      return `${currency} 0`;
+    }
+
+    return `${currency} ${Math.round(amount).toLocaleString(
+      'en-UG',
+    )}`;
+  };
+
+  const parseMoney = (value: string) => {
+    const amount = Number(
+      value
+        .replace(/UGX/gi, '')
+        .replace(/,/g, '')
+        .trim(),
+    );
+
+    return Number.isFinite(amount)
+      ? amount
+      : Number.NaN;
+  };
+
+  const productFromApi = useCallback(
+    (
+      record: ClubMerchandiseProduct,
+      productCategories: ClubProductCategory[],
+    ): Product => {
+      const category =
+        productCategories.find(
+          item => item.id === record.category,
+        )?.name ?? 'Other';
+
+      const availableStock =
+        Number(record.available_stock);
+
+      return {
+        id: record.id,
+        name: record.name,
+        cat: category,
+        price: formatMoney(
+          record.price,
+          record.currency || 'UGX',
+        ),
+        stock: Number(record.stock),
+        status:
+          availableStock <= 0
+            ? 'out of stock'
+            : record.is_low_stock
+              ? 'low stock'
+              : 'active',
+        sku: record.sku,
+        description: record.description,
+      };
+    },
+    [],
+  );
+
+  const orderFromApi = useCallback(
+    (record: ClubStoreOrder): Order => {
+      const metadata = record.metadata ?? {};
+      const shipping = record.shipping_address ?? {};
+
+      const item =
+        typeof metadata.item_name === 'string'
+          ? metadata.item_name
+          : typeof metadata.summary === 'string'
+            ? metadata.summary
+            : 'Merchandise order';
+
+      const buyer =
+        typeof metadata.buyer_name === 'string'
+          ? metadata.buyer_name
+          : `Customer ${String(record.user).slice(0, 8)}`;
+
+      const email =
+        typeof metadata.buyer_email === 'string'
+          ? metadata.buyer_email
+          : '';
+
+      const qty =
+        typeof metadata.quantity === 'number'
+          ? metadata.quantity
+          : 0;
+
+      const notes =
+        typeof metadata.notes === 'string'
+          ? metadata.notes
+          : '';
+
+      const date =
+        typeof metadata.created_at === 'string'
+          ? metadata.created_at
+          : '—';
+
+      const address = Object.values(shipping)
+        .filter(
+          value =>
+            typeof value === 'string' &&
+            value.trim(),
+        )
+        .join(', ');
+
+      const status: OrderStatus =
+        record.status === 'FULFILLED'
+          ? 'fulfilled'
+          : record.status === 'CANCELLED' ||
+              record.status === 'REFUNDED'
+            ? 'cancelled'
+            : record.status === 'PROCESSING' ||
+                record.status === 'PAID'
+              ? 'processing'
+              : 'pending';
+
+      return {
+        id: record.id,
+        item,
+        buyer,
+        email,
+        amt: formatMoney(
+          record.total_amount,
+          record.currency || 'UGX',
+        ),
+        date,
+        qty,
+        address: address || 'No delivery address recorded',
+        notes,
+        status,
+      };
+    },
+    [],
+  );
+
+  const loadStore = useCallback(async () => {
+    if (!clubId) {
+      setProducts([]);
+      setOrders([]);
+      setCategories([]);
+      setStoreError(
+        'No Club Admin workspace is selected.',
+      );
+      setIsLoadingStore(false);
+      return;
+    }
+
+    setIsLoadingStore(true);
+    setStoreError('');
+
+    try {
+      const [
+        nextCategories,
+        nextProducts,
+        nextOrders,
+      ] = await Promise.all([
+        fetchClubProductCategories(clubId),
+        fetchClubProducts(clubId),
+        fetchClubStoreOrders(clubId),
+      ]);
+
+      setCategories(nextCategories);
+
+      setProducts(
+        nextProducts.map(product =>
+          productFromApi(
+            product,
+            nextCategories,
+          ),
+        ),
+      );
+
+      setOrders(
+        nextOrders.map(orderFromApi),
+      );
+    } catch (error) {
+      setProducts([]);
+      setOrders([]);
+
+      setStoreError(
+        error instanceof Error
+          ? error.message
+          : 'Could not load the club store.',
+      );
+    } finally {
+      setIsLoadingStore(false);
+    }
+  }, [
+    clubId,
+    orderFromApi,
+    productFromApi,
+  ]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadStore();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadStore]);
+
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...CATEGORIES,
+          ...categories.map(
+            category => category.name,
+          ),
+        ]),
+      ),
+    [categories],
+  );
 
   const openNewProduct = () => { setProductForm(BLANK_PRODUCT); setEditProductId(null); setModal('product'); };
   const openEditProduct = (p: Product) => { setProductForm({ name: p.name, cat: p.cat, price: p.price, stock: p.stock, sku: p.sku ?? '', description: p.description ?? '' }); setEditProductId(p.id); setModal('product'); };
 
-  const saveProduct = () => {
-    if (!productForm.name.trim()) return;
-    const status = getStatus(productForm.stock);
-    if (editProductId) {
-      setProducts(prev => prev.map(p => p.id === editProductId ? { ...productForm, id: editProductId, status } : p));
-      showToast('Product updated');
-    } else {
-      const id = `p-${prodIdCounter++}`;
-      setProducts(prev => [...prev, { ...productForm, id, status }]);
-      showToast(`${productForm.name} added to catalog`);
+  const saveProduct = async () => {
+    if (
+      !clubId ||
+      !productForm.name.trim() ||
+      isSavingProduct
+    ) {
+      return;
     }
-    setModal(null);
+
+    const price = parseMoney(
+      productForm.price,
+    );
+
+    if (
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      showToast(
+        'Enter a valid product price.',
+      );
+      return;
+    }
+
+    setIsSavingProduct(true);
+
+    try {
+      let category =
+        categories.find(
+          item =>
+            item.name.toLowerCase() ===
+            productForm.cat.toLowerCase(),
+        ) ?? null;
+
+      if (!category) {
+        category =
+          await createClubProductCategory(
+            clubId,
+            productForm.cat,
+          );
+
+        setCategories(previous => [
+          ...previous,
+          category as ClubProductCategory,
+        ]);
+      }
+
+      const payload = {
+        category: category.id,
+        name: productForm.name.trim(),
+        description:
+          productForm.description?.trim() ??
+          '',
+        price: price.toFixed(2),
+        currency: 'UGX',
+        sku: productForm.sku?.trim() ?? '',
+        stock: Math.max(
+          0,
+          Math.trunc(productForm.stock),
+        ),
+        low_stock_threshold: 20,
+        images: [],
+        metadata: {},
+        status: 'ACTIVE' as const,
+        is_featured: false,
+      };
+
+      if (editProductId) {
+        await updateClubProduct(
+          clubId,
+          editProductId,
+          payload,
+        );
+
+        showToast('Product updated');
+      } else {
+        await createClubProduct(
+          clubId,
+          payload,
+        );
+
+        showToast(
+          `${productForm.name} added to catalog`,
+        );
+      }
+
+      setModal(null);
+
+      await loadStore();
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : 'Could not save product.',
+      );
+    } finally {
+      setIsSavingProduct(false);
+    }
   };
 
   const openRestock = (p: Product) => { setRestockProduct(p); setRestockQty(50); setModal('restock'); };
-  const confirmRestock = () => {
-    if (!restockProduct) return;
-    setProducts(prev => prev.map(p => {
-      if (p.id !== restockProduct.id) return p;
-      const newStock = p.stock + restockQty;
-      return { ...p, stock: newStock, status: getStatus(newStock) };
-    }));
-    showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
-    setModal(null);
+  const confirmRestock = async () => {
+    if (
+      !clubId ||
+      !restockProduct ||
+      restockQty <= 0
+    ) {
+      return;
+    }
+
+    try {
+      await updateClubProduct(
+        clubId,
+        restockProduct.id,
+        {
+          stock:
+            restockProduct.stock +
+            Math.trunc(restockQty),
+        },
+      );
+
+      showToast(
+        `Restocked ${restockProduct.name} (+${restockQty})`,
+      );
+
+      setModal(null);
+
+      await loadStore();
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : 'Could not restock product.',
+      );
+    }
   };
 
-  const openOrderDetail = (o: Order) => { setSelectedOrder(o); setModal('order-detail'); };
-  const advanceOrderStatus = (id: string) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id !== id) return o;
-      const next: Record<OrderStatus, OrderStatus> = { pending: 'processing', processing: 'shipped', shipped: 'fulfilled', fulfilled: 'fulfilled', cancelled: 'cancelled' };
-      return { ...o, status: next[o.status] };
-    }));
-    showToast('Order status updated');
-    setModal(null);
+  const openOrderDetail = (o: Order) => {
+    setSelectedOrder(o);
+    setModal('order-detail');
   };
-  const cancelOrder = (id: string) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
-    showToast('Order cancelled');
-    setModal(null);
-  };
+
+
 
   const filteredProducts = products.filter(p => catFilter === 'All' || p.cat === catFilter);
   const filteredOrders = orders.filter(o => orderFilter === 'all' || o.status === orderFilter);
@@ -146,7 +525,7 @@ export default function ClubStorePage() {
                 <div className="ca-field">
                   <label className="ca-label">Category</label>
                   <select className="ca-select" value={productForm.cat} onChange={e => setProductForm(f => ({ ...f, cat: e.target.value }))}>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    {categoryOptions.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="ca-field">
@@ -166,7 +545,11 @@ export default function ClubStorePage() {
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
               <button type="button" className="ca-btn ca-btn-primary" onClick={saveProduct}>
-                {editProductId ? 'Save Changes' : 'Add Product'}
+                {isSavingProduct
+                  ? 'Saving…'
+                  : editProductId
+                    ? 'Save Changes'
+                    : 'Add Product'}
               </button>
             </div>
           </div>
@@ -210,17 +593,7 @@ export default function ClubStorePage() {
               </div>
             </div>
             <div className="ca-modal-footer">
-              {selectedOrder.status !== 'fulfilled' && selectedOrder.status !== 'cancelled' && (
-                <button type="button" className="ca-btn ca-btn-danger" style={{ marginRight: 'auto' }} onClick={() => cancelOrder(selectedOrder.id)}>
-                  <FiX /> Cancel Order
-                </button>
-              )}
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Close</button>
-              {selectedOrder.status !== 'fulfilled' && selectedOrder.status !== 'cancelled' && (
-                <button type="button" className="ca-btn ca-btn-primary" onClick={() => advanceOrderStatus(selectedOrder.id)}>
-                  <FiPackage /> {selectedOrder.status === 'pending' ? 'Mark Processing' : selectedOrder.status === 'processing' ? 'Mark Shipped' : 'Mark Fulfilled'}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -278,6 +651,36 @@ export default function ClubStorePage() {
         </div>
       </div>
 
+      {isLoadingStore && (
+        <div className="ca-panel">
+          <p className="ca-page-subtitle">
+            Loading store data…
+          </p>
+        </div>
+      )}
+
+      {storeError && (
+        <div className="ca-panel">
+          <p
+            style={{
+              color: '#ef4444',
+              margin: 0,
+            }}
+          >
+            {storeError}
+          </p>
+
+          <button
+            type="button"
+            className="ca-btn ca-btn-secondary"
+            style={{ marginTop: 12 }}
+            onClick={() => void loadStore()}
+          >
+            <FiRefreshCw /> Retry
+          </button>
+        </div>
+      )}
+
       <div className="ca-tabs">
         {TABS.map(t => (
           <button key={t} type="button" className={`ca-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
@@ -299,7 +702,7 @@ export default function ClubStorePage() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <select className="ca-select" style={{ padding: '5px 8px', fontSize: '0.78rem' }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
                     <option value="All">All Categories</option>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                    {categoryOptions.map(c => <option key={c}>{c}</option>)}
                   </select>
                   <span className="ca-panel-count">{filteredProducts.length} products</span>
                 </div>
@@ -380,7 +783,6 @@ export default function ClubStorePage() {
                     <option value="all">All Orders</option>
                     <option value="pending">Pending</option>
                     <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
                     <option value="fulfilled">Fulfilled</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
@@ -404,9 +806,6 @@ export default function ClubStorePage() {
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button type="button" className="ca-icon-btn" title="View details" onClick={() => openOrderDetail(o)}><FiEye /></button>
-                            {o.status !== 'fulfilled' && o.status !== 'cancelled' && (
-                              <button type="button" className="ca-icon-btn" title="Advance status" onClick={() => advanceOrderStatus(o.id)}><FiPackage /></button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -423,7 +822,7 @@ export default function ClubStorePage() {
             <div className="ca-panel">
               <div className="ca-panel-header"><h2 className="ca-panel-title">Order Summary</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(['pending', 'processing', 'shipped', 'fulfilled', 'cancelled'] as const).map(s => {
+                {(['pending', 'processing', 'fulfilled', 'cancelled'] as const).map(s => {
                   const count = orders.filter(o => o.status === s).length;
                   return (
                     <div key={s} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
@@ -441,7 +840,6 @@ export default function ClubStorePage() {
               <div className="ca-panel-header"><h2 className="ca-panel-title">Quick Actions</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { label: 'Fulfil all pending orders', icon: FiPackage, action: () => { setOrders(prev => prev.map(o => o.status === 'pending' ? { ...o, status: 'processing' as OrderStatus } : o)); showToast('Moved all pending to processing'); } },
                   { label: 'Export order report', icon: FiDownload, action: () => exportCSV(orders as unknown as Record<string, unknown>[], 'orders.csv') },
                 ].map((qa, i) => (
                   <button key={i} type="button" className="ca-btn ca-btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.78rem' }} onClick={qa.action}>

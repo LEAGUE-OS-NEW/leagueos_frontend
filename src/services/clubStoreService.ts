@@ -1,0 +1,164 @@
+import apiClient from './apiClient.ts';
+import { normalizeApiList } from './apiUtils.ts';
+
+export type MerchandiseStatus =
+  | 'DRAFT'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'ARCHIVED'
+  | 'OUT_OF_STOCK';
+
+export interface ClubProductCategory {
+  id: string;
+  club: string;
+  name: string;
+  slug: string;
+  description: string;
+  is_active: boolean;
+  display_order: number;
+}
+
+export interface ClubMerchandiseProduct {
+  id: string;
+  club: string;
+  category: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  price: string;
+  currency: string;
+  sku: string;
+  stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  is_low_stock: boolean;
+  low_stock_threshold: number;
+  images: unknown[];
+  metadata: Record<string, unknown>;
+  status: MerchandiseStatus;
+  is_featured: boolean;
+  published_at: string | null;
+  published_by: string | null;
+  created_by: string | null;
+}
+
+export interface ClubStoreOrder {
+  id: string;
+  user: string;
+  club: string;
+  status:
+    | 'PENDING'
+    | 'PAID'
+    | 'PROCESSING'
+    | 'FULFILLED'
+    | 'CANCELLED'
+    | 'REFUNDED';
+  total_amount: string;
+  currency: string;
+  shipping_address: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  fulfilled_at: string | null;
+  cancelled_at: string | null;
+}
+
+export interface SaveClubProductInput {
+  category: string | null;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  sku: string;
+  stock: number;
+  low_stock_threshold: number;
+  images: unknown[];
+  metadata: Record<string, unknown>;
+  status: MerchandiseStatus;
+  is_featured: boolean;
+}
+
+export async function fetchClubProducts(
+  clubId: string,
+): Promise<ClubMerchandiseProduct[]> {
+  const response = await apiClient.get(
+    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+  );
+
+  return normalizeApiList<ClubMerchandiseProduct>(
+    response.data,
+  );
+}
+
+export async function createClubProduct(
+  clubId: string,
+  payload: SaveClubProductInput,
+): Promise<ClubMerchandiseProduct> {
+  const response = await apiClient.post(
+    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+    payload,
+  );
+
+  return response.data as ClubMerchandiseProduct;
+}
+
+export async function updateClubProduct(
+  clubId: string,
+  productId: string,
+  payload: Partial<SaveClubProductInput>,
+): Promise<ClubMerchandiseProduct> {
+  const response = await apiClient.patch(
+    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+    payload,
+  );
+
+  return response.data as ClubMerchandiseProduct;
+}
+
+export async function deleteClubProduct(
+  clubId: string,
+  productId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+  );
+}
+
+export async function fetchClubProductCategories(
+  clubId: string,
+): Promise<ClubProductCategory[]> {
+  const response = await apiClient.get(
+    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+  );
+
+  return normalizeApiList<ClubProductCategory>(
+    response.data,
+  );
+}
+
+export async function createClubProductCategory(
+  clubId: string,
+  name: string,
+): Promise<ClubProductCategory> {
+  const response = await apiClient.post(
+    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+    {
+      name,
+      description: '',
+      is_active: true,
+      display_order: 0,
+    },
+  );
+
+  return response.data as ClubProductCategory;
+}
+
+export async function fetchClubStoreOrders(
+  clubId: string,
+): Promise<ClubStoreOrder[]> {
+  const response = await apiClient.get(
+    `/clubs/${encodeURIComponent(clubId)}/orders/`,
+  );
+
+  return normalizeApiList<ClubStoreOrder>(
+    response.data,
+  );
+}
