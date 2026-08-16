@@ -384,3 +384,250 @@ export async function fetchFanWalletDeposit(
     );
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Withdrawals                                                         */
+/* ------------------------------------------------------------------ */
+
+export type FanWalletWithdrawalStatus =
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
+
+interface WalletWithdrawalApi {
+  id: string;
+  amount: string;
+  currency: string;
+  destination: Record<string, unknown>;
+  status: string;
+  risk_status: string;
+  risk_reasons: unknown[];
+  approval_mode: string;
+  approval_policy_version: string;
+  approved_at: string | null;
+  rejection_reason: string;
+  failure_reason: string;
+  created_at: string;
+  updated_at: string;
+  transaction_id: string | null;
+}
+
+export interface FanWalletWithdrawal {
+  id: string;
+  amount: number;
+  currency: string;
+  destination: Record<string, unknown>;
+  status: FanWalletWithdrawalStatus;
+  riskStatus: string;
+  riskReasons: unknown[];
+  approvalMode: string;
+  approvalPolicyVersion: string;
+  approvedAt: string | null;
+  rejectionReason: string;
+  failureReason: string;
+  createdAt: string;
+  updatedAt: string;
+  transactionId: string | null;
+}
+
+export type FanWalletWithdrawalNetwork =
+  | 'MTN'
+  | 'AIRTEL';
+
+export interface CreateFanWalletWithdrawalInput {
+  amount: number;
+  currency?: string;
+  network: FanWalletWithdrawalNetwork;
+  phoneNumber: string;
+  accountName: string;
+  idempotencyKey: string;
+}
+
+function normalizeWithdrawalStatus(
+  value: string,
+): FanWalletWithdrawalStatus {
+  switch (
+    value
+      .trim()
+      .toUpperCase()
+  ) {
+    case 'APPROVED':
+      return 'APPROVED';
+
+    case 'REJECTED':
+      return 'REJECTED';
+
+    case 'PROCESSING':
+      return 'PROCESSING';
+
+    case 'COMPLETED':
+      return 'COMPLETED';
+
+    case 'FAILED':
+      return 'FAILED';
+
+    case 'PENDING_APPROVAL':
+    default:
+      return 'PENDING_APPROVAL';
+  }
+}
+
+function mapFanWalletWithdrawal(
+  data: WalletWithdrawalApi,
+): FanWalletWithdrawal {
+  return {
+    id:
+      data.id,
+    amount:
+      Number(
+        data.amount,
+      ),
+    currency:
+      data.currency,
+    destination:
+      data.destination,
+    status:
+      normalizeWithdrawalStatus(
+        data.status,
+      ),
+    riskStatus:
+      data.risk_status,
+    riskReasons:
+      data.risk_reasons ?? [],
+    approvalMode:
+      data.approval_mode,
+    approvalPolicyVersion:
+      data.approval_policy_version,
+    approvedAt:
+      data.approved_at,
+    rejectionReason:
+      data.rejection_reason ?? '',
+    failureReason:
+      data.failure_reason ?? '',
+    createdAt:
+      data.created_at,
+    updatedAt:
+      data.updated_at,
+    transactionId:
+      data.transaction_id,
+  };
+}
+
+export async function createFanWalletWithdrawal(
+  input: CreateFanWalletWithdrawalInput,
+): Promise<FanWalletWithdrawal> {
+  try {
+    const response =
+      await apiClient.post(
+        '/wallets/withdrawals/',
+        {
+          amount:
+            input.amount,
+          currency:
+            (
+              input.currency ??
+              'UGX'
+            ).toUpperCase(),
+          destination: {
+            method:
+              'MOBILE_MONEY',
+            network:
+              input.network,
+            mobile_money_number:
+              input.phoneNumber.trim(),
+            account_name:
+              input.accountName.trim(),
+          },
+          idempotency_key:
+            input.idempotencyKey,
+        },
+      );
+
+    return mapFanWalletWithdrawal(
+      response.data as
+        WalletWithdrawalApi,
+    );
+  } catch (
+    error
+  ) {
+    throw apiError(
+      error,
+    );
+  }
+}
+
+export async function fetchFanWalletWithdrawals(
+  options: {
+    status?: FanWalletWithdrawalStatus;
+    currency?: string;
+  } = {},
+): Promise<FanWalletWithdrawal[]> {
+  try {
+    const params:
+      Record<string, string | number> = {
+        page_size:
+          100,
+      };
+
+    if (
+      options.status
+    ) {
+      params.status =
+        options.status;
+    }
+
+    if (
+      options.currency
+    ) {
+      params.currency =
+        options.currency.toUpperCase();
+    }
+
+    const response =
+      await apiClient.get(
+        '/wallets/withdrawals/',
+        {
+          params,
+        },
+      );
+
+    return normalizeApiList<WalletWithdrawalApi>(
+      response.data,
+    ).map(
+      mapFanWalletWithdrawal,
+    );
+  } catch (
+    error
+  ) {
+    throw apiError(
+      error,
+    );
+  }
+}
+
+export async function fetchFanWalletWithdrawal(
+  withdrawalId: string,
+): Promise<FanWalletWithdrawal> {
+  try {
+    const response =
+      await apiClient.get(
+        `/wallets/withdrawals/${encodeURIComponent(
+          withdrawalId,
+        )}/`,
+      );
+
+    return mapFanWalletWithdrawal(
+      response.data as
+        WalletWithdrawalApi,
+    );
+  } catch (
+    error
+  ) {
+    throw apiError(
+      error,
+    );
+  }
+}

@@ -24,10 +24,13 @@ import {
 import {
   fetchFanWalletDeposit,
   fetchFanWalletTransactions,
+  fetchFanWalletWithdrawals,
   type FanWalletTransaction,
+  type FanWalletWithdrawal,
 } from '../../../services/fanWalletApiService';
 
 import DepositModal from './sections/DepositModal';
+import WithdrawModal from './sections/WithdrawModal';
 
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
@@ -73,6 +76,41 @@ function formatDate(
       minute: '2-digit',
     },
   );
+}
+
+
+function withdrawalStatusLabel(
+  status: string,
+): string {
+  return status
+    .replaceAll(
+      '_',
+      ' ',
+    )
+    .toLowerCase()
+    .replace(
+      /\b\w/g,
+      (
+        value,
+      ) =>
+        value.toUpperCase(),
+    );
+}
+
+
+function destinationValue(
+  withdrawal: FanWalletWithdrawal,
+  key: string,
+): string {
+  const value =
+    withdrawal.destination[
+      key
+    ];
+
+  return typeof value ===
+    'string'
+    ? value
+    : '';
 }
 
 
@@ -144,6 +182,14 @@ function FanWallet() {
     );
 
   const [
+    isWithdrawOpen,
+    setIsWithdrawOpen,
+  ] =
+    useState(
+      false,
+    );
+
+  const [
     isSidebarOpen,
     setIsSidebarOpen,
   ] =
@@ -175,6 +221,32 @@ function FanWallet() {
     );
 
   const [
+    withdrawals,
+    setWithdrawals,
+  ] =
+    useState<
+      FanWalletWithdrawal[]
+    >(
+      [],
+    );
+
+  const [
+    withdrawalsLoading,
+    setWithdrawalsLoading,
+  ] =
+    useState(
+      true,
+    );
+
+  const [
+    withdrawalsError,
+    setWithdrawalsError,
+  ] =
+    useState(
+      '',
+    );
+
+  const [
     transactionsLoading,
     setTransactionsLoading,
   ] =
@@ -189,6 +261,60 @@ function FanWallet() {
     useState(
       '',
     );
+
+
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    fetchFanWalletWithdrawals({
+      currency:
+        'UGX',
+    })
+      .then(
+        (
+          records,
+        ) => {
+          if (
+            !cancelled
+          ) {
+            setWithdrawals(
+              records,
+            );
+          }
+        },
+      )
+      .catch(
+        (
+          error,
+        ) => {
+          if (
+            !cancelled
+          ) {
+            setWithdrawalsError(
+              error instanceof
+              Error
+                ? error.message
+                : 'Could not load withdrawal requests.',
+            );
+          }
+        },
+      )
+      .finally(() => {
+        if (
+          !cancelled
+        ) {
+          setWithdrawalsLoading(
+            false,
+          );
+        }
+      });
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -563,17 +689,35 @@ function FanWallet() {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      className="fan-wallet-topup-btn"
-                      onClick={() =>
-                        setIsDepositOpen(
-                          true,
-                        )
-                      }
-                    >
-                      Top Up
-                    </button>
+                    <div className="fan-wallet-balance-actions">
+                      <button
+                        type="button"
+                        className="fan-wallet-topup-btn"
+                        onClick={() =>
+                          setIsDepositOpen(
+                            true,
+                          )
+                        }
+                      >
+                        Top Up
+                      </button>
+
+                      <button
+                        type="button"
+                        className="fan-wallet-withdraw-btn"
+                        disabled={
+                          wallet.availableBalance <=
+                          0
+                        }
+                        onClick={() =>
+                          setIsWithdrawOpen(
+                            true,
+                          )
+                        }
+                      >
+                        Withdraw
+                      </button>
+                    </div>
                   </div>
 
 
@@ -588,6 +732,120 @@ function FanWallet() {
                       Test funding is managed through
                       the staging environment.
                     </span>
+                  </div>
+
+
+                  <div className="fan-wallet-withdrawal-history">
+                    <div className="fan-wallet-section-heading">
+                      <div>
+                        <h2>
+                          Withdrawal Requests
+                        </h2>
+
+                        <p>
+                          Track the Finance review and payout status
+                          of your withdrawal requests.
+                        </p>
+                      </div>
+                    </div>
+
+                    {withdrawalsLoading ? (
+                      <DashboardSkeleton
+                        rows={
+                          3
+                        }
+                      />
+                    ) : withdrawalsError ? (
+                      <DashboardNotice
+                        tone="error"
+                        title="Couldn't load withdrawal requests"
+                        message={
+                          withdrawalsError
+                        }
+                      />
+                    ) : withdrawals.length ===
+                      0 ? (
+                      <DashboardNotice
+                        tone="empty"
+                        title="No withdrawal requests yet"
+                        message="Your withdrawal requests will appear here after you submit one."
+                      />
+                    ) : (
+                      <ul className="fan-wallet-withdrawal-list">
+                        {withdrawals.map(
+                          (
+                            withdrawal,
+                          ) => (
+                            <li
+                              className="fan-wallet-withdrawal-row"
+                              key={
+                                withdrawal.id
+                              }
+                            >
+                              <div className="fan-wallet-withdrawal-main">
+                                <div>
+                                  <strong>
+                                    {formatUgx(
+                                      withdrawal.amount,
+                                    )}
+                                  </strong>
+
+                                  <span>
+                                    {destinationValue(
+                                      withdrawal,
+                                      'network',
+                                    ) || 'Mobile Money'}
+                                    {' · '}
+                                    {destinationValue(
+                                      withdrawal,
+                                      'mobile_money_number',
+                                    ) || 'Destination unavailable'}
+                                  </span>
+                                </div>
+
+                                <span
+                                  className={
+                                    `fan-wallet-withdrawal-status ` +
+                                    `fan-wallet-withdrawal-status--${withdrawal.status.toLowerCase()}`
+                                  }
+                                >
+                                  {withdrawalStatusLabel(
+                                    withdrawal.status,
+                                  )}
+                                </span>
+                              </div>
+
+                              <div className="fan-wallet-withdrawal-meta">
+                                <span>
+                                  Requested{' '}
+                                  {formatDate(
+                                    withdrawal.createdAt,
+                                  )}
+                                </span>
+
+                                {withdrawal.rejectionReason && (
+                                  <span className="fan-wallet-withdrawal-reason">
+                                    Rejected:{' '}
+                                    {
+                                      withdrawal.rejectionReason
+                                    }
+                                  </span>
+                                )}
+
+                                {withdrawal.failureReason && (
+                                  <span className="fan-wallet-withdrawal-reason">
+                                    Failed:{' '}
+                                    {
+                                      withdrawal.failureReason
+                                    }
+                                  </span>
+                                )}
+                              </div>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    )}
                   </div>
 
 
@@ -718,6 +976,80 @@ function FanWallet() {
           }
         />
       )}
+
+      {isWithdrawOpen &&
+        wallet && (
+          <WithdrawModal
+            availableBalance={
+              wallet.availableBalance
+            }
+            onClose={() =>
+              setIsWithdrawOpen(
+                false,
+              )
+            }
+            onSubmitted={() => {
+              void refreshWallet();
+
+              void fetchFanWalletWithdrawals({
+                currency:
+                  'UGX',
+              })
+                .then(
+                  (
+                    records,
+                  ) => {
+                    setWithdrawals(
+                      records,
+                    );
+
+                    setWithdrawalsError(
+                      '',
+                    );
+                  },
+                )
+                .catch(
+                  (
+                    error,
+                  ) => {
+                    setWithdrawalsError(
+                      error instanceof
+                      Error
+                        ? error.message
+                        : 'Could not refresh withdrawal requests.',
+                    );
+                  },
+                );
+
+              void fetchFanWalletTransactions()
+                .then(
+                  (
+                    records,
+                  ) => {
+                    setTransactions(
+                      records,
+                    );
+
+                    setTransactionsError(
+                      '',
+                    );
+                  },
+                )
+                .catch(
+                  (
+                    error,
+                  ) => {
+                    setTransactionsError(
+                      error instanceof
+                      Error
+                        ? error.message
+                        : 'Could not refresh wallet transactions.',
+                    );
+                  },
+                );
+            }}
+          />
+        )}
     </div>
   );
 }

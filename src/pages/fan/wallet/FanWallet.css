@@ -351,3 +351,136 @@
   border-color: rgba(248, 113, 113, 0.45);
   background: rgba(248, 113, 113, 0.08);
 }
+
+.fan-wallet-balance-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fan-wallet-withdraw-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.fan-wallet-withdrawal-history {
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background-color: var(--color-card-bg);
+}
+
+.fan-wallet-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.fan-wallet-section-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.fan-wallet-section-heading p {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.fan-wallet-withdrawal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fan-wallet-withdrawal-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fan-wallet-withdrawal-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.fan-wallet-withdrawal-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fan-wallet-withdrawal-main > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fan-wallet-withdrawal-main strong {
+  color: var(--color-text-primary);
+  font-size: 0.92rem;
+}
+
+.fan-wallet-withdrawal-main > div > span {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.fan-wallet-withdrawal-status {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.fan-wallet-withdrawal-status--pending_approval,
+.fan-wallet-withdrawal-status--approved,
+.fan-wallet-withdrawal-status--processing {
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--color-primary-light);
+}
+
+.fan-wallet-withdrawal-status--completed {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--color-open);
+}
+
+.fan-wallet-withdrawal-status--rejected,
+.fan-wallet-withdrawal-status--failed {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+}
+
+.fan-wallet-withdrawal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.fan-wallet-withdrawal-reason {
+  color: #f87171;
+}
+
+@media (max-width: 600px) {
+  .fan-wallet-withdrawal-main {
+    flex-direction: column;
+  }
+}
