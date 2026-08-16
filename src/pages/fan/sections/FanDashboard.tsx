@@ -10,8 +10,6 @@ import MarketUpdate from './MarketUpdate';
 import MyTickets from './MyTickets';
 import MyFantasyTeam from './MyFantasyTeam';
 import FavouriteClubs from './FavouriteClubs';
-import StorePicks from './StorePicks';
-import Wallet from './Wallet';
 import NotificationsPreview from './NotificationsPreview';
 import LatestNews from './LatestNews';
 import './FanDashboard.css';
@@ -82,14 +80,12 @@ function FanDashboard() {
                   </div>
                   <div className="dashboard-two-col">
                     <FavouriteClubs />
-                    <StorePicks />
+                    <LatestNews />
                   </div>
                 </div>
                 <div className="dashboard-column">
                   <MyFantasyTeam />
-                  <Wallet />
                   <NotificationsPreview />
-                  <LatestNews />
                 </div>
               </div>
             </>
