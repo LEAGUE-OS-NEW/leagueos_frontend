@@ -47,7 +47,7 @@ function InviteModal({
 }: {
   roles: AdminRole[];
   onCancel: () => void;
-  onInvite: (input: { email: string; roleId: string }) => Promise<void>;
+  onInvite: (input: { email: string; roleId: string }) => Promise<AdminInvitation>;
 }) {
   const [email, setEmail] = useState('');
   const [personalEmail, setPersonalEmail] = useState('');
@@ -97,8 +97,8 @@ function InviteModal({
     setIsSaving(true);
     setError(null);
     try {
-      if (!personalEmail.trim()) throw new Error('Enter a personal email to send the invite to.');
       if (isClubAdmin) {
+        if (!personalEmail.trim()) throw new Error('Enter a personal email to send the invite to.');
         let resolvedClubId = clubId;
         if (clubMode === 'new') {
           const club = await createRealClub({ name: newClubName, sportId: newClubSportId });
@@ -111,7 +111,10 @@ function InviteModal({
           `Invite sent to ${personalEmail.trim()} — they'll set a password for the ${email.trim()} login and land in their Club Admin dashboard once accepted (invitation ${invite.status.toLowerCase()}, expires ${new Date(invite.expiresAt).toLocaleDateString()}).`,
         );
       } else {
-        await onInvite({ email, roleId });
+        const invite = await onInvite({ email, roleId });
+        setSuccessMessage(
+          `Invite sent to ${email.trim()} — they'll follow the link in that email to accept and gain access (invitation ${invite.status.toLowerCase()}, expires ${new Date(invite.expiresAt).toLocaleDateString()}).`,
+        );
       }
     } catch (submitError) {
       setError(extractApiError(submitError).message);
@@ -143,7 +146,7 @@ function InviteModal({
         <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>
           {isClubAdmin
             ? "They'll get an email at the personal address below with a link to set a password for their LeagueOS login, then land in their Club Admin dashboard."
-            : "They'll receive an email invitation and set their own password when they accept."}
+            : "They'll get an email with a link to accept — they'll need to log in (or register) with a LeagueOS account before the role is granted."}
         </p>
         {error && (
           <div className="au-error-banner">
@@ -152,24 +155,20 @@ function InviteModal({
           </div>
         )}
         <label className="au-field">
-          <span>LeagueOS email (login identity)</span>
+          <span>{isClubAdmin ? 'LeagueOS email (login identity)' : 'Email address'}</span>
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="clubadminkcca@leagueos.africa" />
         </label>
-        <label className="au-field">
-          <span>Personal email (invite sent here)</span>
-          <input
-            type="email"
-            value={personalEmail}
-            onChange={(event) => setPersonalEmail(event.target.value)}
-            placeholder="jane.doe@gmail.com"
-          />
-          {!isClubAdmin && (
-            <span className="au-field__note">
-              Email delivery isn't wired up on the backend yet for platform-role invites — this is
-              captured and ready for once it is.
-            </span>
-          )}
-        </label>
+        {isClubAdmin && (
+          <label className="au-field">
+            <span>Personal email (invite sent here)</span>
+            <input
+              type="email"
+              value={personalEmail}
+              onChange={(event) => setPersonalEmail(event.target.value)}
+              placeholder="jane.doe@gmail.com"
+            />
+          </label>
+        )}
         <label className="au-field">
           <span>Role</span>
           <select value={roleId} onChange={(event) => setRoleId(event.target.value)}>
@@ -302,7 +301,7 @@ function AdminUsersPage() {
   const handleInvite = async (input: { email: string; roleId: string }) => {
     const created = await inviteAdminUser(input);
     setInvitations((current) => [created, ...current]);
-    setShowInviteModal(false);
+    return created;
   };
 
   const handleRevokeInvitation = async (id: string) => {

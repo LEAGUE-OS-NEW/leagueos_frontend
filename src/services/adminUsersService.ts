@@ -203,6 +203,14 @@ export async function revokeAdminInvitation(id: string): Promise<AdminInvitation
   return adaptInvitation(response.data);
 }
 
+// Platform-role invites (Compliance Admin, Finance Admin, etc.) assign a
+// role to an already-registered user rather than creating a new login —
+// unlike inviteClubAdmin/AcceptInvite, there's no password-setup step here.
+export async function acceptAdminInvitation(token: string): Promise<AdminInvitation> {
+  const response = await apiClient.post('/admin/invitations/accept/', { token });
+  return adaptInvitation(response.data);
+}
+
 export async function setAdminUserActive(userId: string, isActive: boolean): Promise<AdminUser> {
   const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, { is_active: isActive });
   return adaptUser(response.data);

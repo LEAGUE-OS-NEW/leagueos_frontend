@@ -51,6 +51,7 @@ import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import AcceptInvite from "./pages/auth/acceptinvite/AcceptInvite";
+import AcceptAdminInvite from "./pages/auth/acceptadmininvite/AcceptAdminInvite";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
@@ -208,6 +209,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/accept-admin-invite" element={<AcceptAdminInvite />} />
 
         {/* Shared admin shell — Super Admin + every specialist role */}
         <Route path="/dashboard/admin" element={admin(<AdminDashboard />)} />
