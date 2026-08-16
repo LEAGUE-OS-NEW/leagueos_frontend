@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import FantasyAdminPage from './FantasyAdminPage';
@@ -36,10 +36,13 @@ beforeEach(() => {
 describe('FantasyAdminPage editing', () => {
   it('edits an existing competition through the PATCH service', async () => {
     const user = userEvent.setup(); render(<FantasyAdminPage/>);
-    await user.click(await screen.findByRole('button',{name:'competitions'}));
+    // Tab labels are capitalised in the UI ("Competitions", "Players", etc.)
+    await user.click(await screen.findByRole('button',{name:'Competitions'}));
     await user.click(screen.getByRole('button',{name:'Edit'}));
     expect(screen.getByRole('dialog',{name:'Edit Fantasy competition'})).toBeVisible();
-    const name = screen.getByLabelText('Edit name'); await user.clear(name); await user.type(name,'Edited Fantasy');
+    // The name input aria-label is the field name with underscores replaced by spaces: "name"
+    const nameInput = screen.getByRole('dialog',{name:'Edit Fantasy competition'}).querySelector('[aria-label="name"]') as HTMLInputElement;
+    await user.clear(nameInput); await user.type(nameInput,'Edited Fantasy');
     await user.click(screen.getByRole('button',{name:'Save competition'}));
     await waitFor(()=>expect(api.adminUpdateCompetition).toHaveBeenCalledWith('c1',expect.objectContaining({name:'Edited Fantasy',enabled:true,squad_size:15})));
     expect(await screen.findByRole('status')).toHaveTextContent('Fantasy competition updated.');
@@ -47,19 +50,21 @@ describe('FantasyAdminPage editing', () => {
 
   it('edits only Fantasy-owned player settings', async () => {
     const user = userEvent.setup(); render(<FantasyAdminPage/>);
-    await user.click(await screen.findByRole('button',{name:'players'}));
+    await user.click(await screen.findByRole('button',{name:'Players'}));
     await user.click((await screen.findAllByRole('button',{name:'Edit'}))[0]);
-    const price = screen.getByLabelText('Edit Fantasy price'); await user.clear(price); await user.type(price,'8');
-    await user.click(screen.getByLabelText('Edit eligible'));
-    await user.selectOptions(screen.getByLabelText('Edit availability'),'INJURED');
-    await user.click(screen.getByRole('button',{name:'Save player'}));
+    // Scope label queries to the modal dialog to avoid matching the add-player form fields
+    const dialog = within(screen.getByRole('dialog',{name:'Edit Fantasy player'}));
+    const price = dialog.getByLabelText('Price (M)'); await user.clear(price); await user.type(price,'8');
+    await user.click(dialog.getByLabelText('Eligible (can be selected by fans)'));
+    await user.selectOptions(dialog.getByLabelText('Availability'),'INJURED');
+    await user.click(dialog.getByRole('button',{name:'Save player'}));
     await waitFor(()=>expect(api.adminUpdatePlayer).toHaveBeenCalledWith('p1',{position:'Forward',price:8,eligible:false,availability:'INJURED'}));
   });
 
   it('renders an API error visibly', async () => {
     vi.mocked(api.adminUpdatePlayer).mockRejectedValueOnce(new Error('Unable to update player'));
     const user = userEvent.setup(); render(<FantasyAdminPage/>);
-    await user.click(await screen.findByRole('button',{name:'players'}));
+    await user.click(await screen.findByRole('button',{name:'Players'}));
     await user.click((await screen.findAllByRole('button',{name:'Edit'}))[0]);
     await user.click(screen.getByRole('button',{name:'Save player'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to update player');
