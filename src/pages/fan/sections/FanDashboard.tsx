@@ -13,7 +13,6 @@ import FavouriteClubs from './FavouriteClubs';
 import StorePicks from './StorePicks';
 import Wallet from './Wallet';
 import NotificationsPreview from './NotificationsPreview';
-import Memberships from './Memberships';
 import LatestNews from './LatestNews';
 import './FanDashboard.css';
 
@@ -90,7 +89,6 @@ function FanDashboard() {
                   <MyFantasyTeam />
                   <Wallet />
                   <NotificationsPreview />
-                  <Memberships />
                   <LatestNews />
                 </div>
               </div>
