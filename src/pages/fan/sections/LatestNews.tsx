@@ -12,7 +12,7 @@ function LatestNews() {
     <div className="latest-news dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Latest News</h2>
-        <Link to="/news" className="dashboard-card-link">
+        <Link to="/fan/news" className="dashboard-card-link">
           View all
         </Link>
       </div>
@@ -26,7 +26,7 @@ function LatestNews() {
       ) : (
         <div className="news-list">
           {(news ?? []).map((item) => (
-            <Link to="/news" className="news-item" key={item.headline}>
+            <Link to={`/fan/news/${item.id}`} className="news-item" key={item.id}>
               <img src={item.image} alt="" className="news-item-image" />
               <div className="news-item-body">
                 <span className={`news-item-category news-item-category--${item.category}`}>{item.categoryLabel}</span>
