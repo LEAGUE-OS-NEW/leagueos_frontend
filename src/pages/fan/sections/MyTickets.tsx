@@ -13,7 +13,7 @@ function MyTickets() {
     <div className="my-tickets dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">My Tickets</h2>
-        <Link to="/tickets" className="dashboard-card-link">
+        <Link to="/fan/tickets" className="dashboard-card-link">
           View all
         </Link>
       </div>
@@ -32,7 +32,7 @@ function MyTickets() {
 
           <div className="tickets-list">
             {(tickets ?? []).map((ticket) => (
-              <Link to="/tickets" className="ticket-row" key={ticket.match}>
+              <Link to="/fan/tickets" className="ticket-row" key={ticket.match}>
                 <div className="ticket-date">
                   <span className="ticket-date-month">{ticket.month}</span>
                   <span className="ticket-date-day">{ticket.day}</span>
@@ -52,7 +52,7 @@ function MyTickets() {
             ))}
           </div>
 
-          <Link to="/tickets" className="tickets-manage-btn">
+          <Link to="/fan/tickets" className="tickets-manage-btn">
             Manage Tickets
           </Link>
         </>
