@@ -111,8 +111,15 @@ export default function SquadBuilder({ competition, players: pool, teamName: ini
 
   function handleFinalSubmit() {
     setConfirmSubmit(false);
+    // benchIds is already in the visual order the fan set (squad step order).
+    // Assign 1-based bench_order so the backend validate_selections() check passes.
+    const benchOrderMap = new Map(benchIds.map((id, i) => [id, i + 1]));
     onSubmitted({
-      squad: squadIds.map((id) => ({ playerId: id, isStarter: starterIds.includes(id) })),
+      squad: squadIds.map((id) => ({
+        playerId: id,
+        isStarter: starterIds.includes(id),
+        benchOrder: benchOrderMap.get(id),
+      })),
       captainId: captainId!,
       viceCaptainId: viceCaptainId ?? '',
       teamName,
