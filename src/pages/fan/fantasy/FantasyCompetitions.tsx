@@ -12,7 +12,32 @@ function selections(squad:SquadSlot[],captain:string|null,vice:string|null):Fant
 export default function FantasyCompetitions(){
  const [screen,setScreen]=useState<Screen>('hub'); const [competitions,setCompetitions]=useState<Competition[]>([]); const [active,setActive]=useState<Competition|null>(null); const [teams,setTeams]=useState<Record<string,FantasyTeam>>({}); const [players,setPlayers]=useState<Record<string,Player[]>>({}); const [leagueCount,setLeagueCount]=useState(0); const [notifications,setNotifications]=useState<NotificationItem[]>([]); const [notificationsOpen,setNotificationsOpen]=useState(false); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [toasts,setToasts]=useState<Toast[]>([]); const [sidebarOpen,setSidebarOpen]=useState(false);
  function toast(message:string,tone:Toast['tone']='success'){setToasts(t=>[...t,{id:String(Date.now()),message,tone}]);}
- async function load(){setLoading(true);setError('');try{const [apiCompetitions,apiTeams,myLeagues,noteSummary]=await Promise.all([fetchFantasyCompetitions(),fetchMyTeams(),fetchMyLeagues(),fetchFanNotificationSummary()]);const cs=apiCompetitions.map(competitionFromApi);setCompetitions(cs);setLeagueCount(myLeagues.length);setNotifications(noteSummary.notifications.filter(n=>n.eventType?.startsWith('FANTASY_')));const mapped:Record<string,FantasyTeam>={};await Promise.all(apiTeams.map(async t=>{const c=cs.find(x=>x.id===t.fantasy_competition);if(c)mapped[c.id]=teamFromApi(t,c,await fetchTeamPoints(t.id));}));setTeams(mapped);}catch(e){setError(e instanceof Error?e.message:'Could not load Fantasy.');}finally{setLoading(false);}}
+ async function load(){
+   setLoading(true);setError('');
+   try{
+     // Critical Fantasy data — if any of these fail the page shows an error
+     const [apiCompetitions,apiTeams,myLeagues]=await Promise.all([
+       fetchFantasyCompetitions(),
+       fetchMyTeams(),
+       fetchMyLeagues(),
+     ]);
+     const cs=apiCompetitions.map(competitionFromApi);
+     setCompetitions(cs);
+     setLeagueCount(myLeagues.length);
+     const mapped:Record<string,FantasyTeam>={};
+     await Promise.all(apiTeams.map(async t=>{
+       const c=cs.find(x=>x.id===t.fantasy_competition);
+       if(c)mapped[c.id]=teamFromApi(t,c,await fetchTeamPoints(t.id));
+     }));
+     setTeams(mapped);
+   }catch(e){setError(e instanceof Error?e.message:'Could not load Fantasy.');}
+   finally{setLoading(false);}
+   // Non-critical — runs after core data, failures silently ignored so a
+   // missing /notifications/summary/ endpoint cannot crash the Fantasy page
+   fetchFanNotificationSummary()
+     .then(s=>setNotifications(s.notifications.filter(n=>n.eventType?.startsWith('FANTASY_'))))
+     .catch(()=>{});
+ }
  // Initial API hydration is intentionally performed once on mount.
  // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{void load();},[]);
