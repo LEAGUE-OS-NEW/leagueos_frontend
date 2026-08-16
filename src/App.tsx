@@ -129,7 +129,6 @@ function App() {
          <Route path="/tickets" element={<Tickets />} />
          <Route path="/privacy-policy" element={<LegalPolicy />} />
          <Route path="/terms-and-conditions" element={<TermsConditions />} />
-        <Route path="/tickets" element={<Tickets />} />
         <Route path="/tickets/:matchId/checkout" element={<TicketCheckoutPage />} />
         <Route path="/store" element={<Store />} />
         <Route path="/fantasy" element={<Fantasy />} />
@@ -146,36 +145,34 @@ function App() {
         <Route path="/dashboard/fan" element={authenticated(<FanDashboard />)} />
         <Route path="/fan" element={<Navigate to="/dashboard/fan" replace />} />
         <Route path="/fandashboard" element={<Navigate to="/dashboard/fan" replace />} />
-        <Route path="/profile" element={<FanProfile />} />
-        <Route path="/settings" element={<FanSettings />} />
-        <Route path="/wallet" element={<FanWallet />} />
-        <Route path="/positions" element={<MyPositions />} />
+        <Route path="/profile" element={authenticated(<FanProfile />)} />
+        <Route path="/settings" element={authenticated(<FanSettings />)} />
+        <Route path="/wallet" element={authenticated(<FanWallet />)} />
+        <Route path="/positions" element={authenticated(<MyPositions />)} />
         <Route path="/memberships" element={<FanMembershipsPage />} />
         <Route path="/fan/clubs" element={<FanClubsPage />} />
         <Route path="/fan/clubs/:clubSlug" element={<FanClubProfile />} />
         <Route path="/fan/clubs/:clubSlug/players/:playerId" element={<FanPlayerProfile />} />
         <Route path="/fan/store" element={<FanStorePage />} />
         <Route path="/fan/store/category/:categorySlug" element={<FanStoreCategoryPage />} />
-        <Route path="/fan/tickets" element={<FanTicketsPage />} />
-        <Route path="/markets" element={<Markets />} />
-        <Route path="/markets/:marketId" element={<PublicMarketDetailPage />} />
+        <Route path="/fan/tickets" element={authenticated(<FanTicketsPage />)} />
 
         {/* Authenticated fan markets/trading flow */}
 
         <Route path="/fan/markets" element={<FanMarkets />} />
         <Route path="/fan/markets/:marketId" element={authenticated(<MarketDetailOverview />)} />
-        <Route path="/fan/markets/:marketId/chart" element={<MarketDetailChart />} />
-        <Route path="/fan/markets/:marketId/trade" element={<PlaceOrder />} />
-        <Route path="/fan/markets/:marketId/review" element={<ReviewOrder />} />
-        <Route path="/fan/markets/:marketId/placed" element={<OrderPlaced />} />
-        <Route path="/fan/verify" element={<FanVerification />} />
-        <Route path="/fan/trade" element={<FanTradeHub />} />
+        <Route path="/fan/markets/:marketId/chart" element={authenticated(<MarketDetailChart />)} />
+        <Route path="/fan/markets/:marketId/trade" element={authenticated(<PlaceOrder />)} />
+        <Route path="/fan/markets/:marketId/review" element={authenticated(<ReviewOrder />)} />
+        <Route path="/fan/markets/:marketId/placed" element={authenticated(<OrderPlaced />)} />
+        <Route path="/fan/verify" element={authenticated(<FanVerification />)} />
+        <Route path="/fan/trade" element={authenticated(<FanTradeHub />)} />
         <Route path="/notifications" element={<Navigate to="/settings?tab=notifications" replace />} />
 
         {/* Positions / sell flow */}
-        <Route path="/fan/positions/:positionId" element={<PositionDetail />} />
-        <Route path="/fan/positions/:positionId/sell" element={<SellPosition />} />
-        <Route path="/fan/positions/:positionId/sell/confirm" element={<SellConfirmation />} />
+        <Route path="/fan/positions/:positionId" element={authenticated(<PositionDetail />)} />
+        <Route path="/fan/positions/:positionId/sell" element={authenticated(<SellPosition />)} />
+        <Route path="/fan/positions/:positionId/sell/confirm" element={authenticated(<SellConfirmation />)} />
 
         {/* Fantasy section */ }
         <Route path="/search" element={<SearchPage />} />

@@ -29,11 +29,29 @@ export default function ClubAdminDashboard() {
   const { selectedEntitlementId } = useClubWorkspaceStore();
 
   const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
-  const entitlements = rawEntitlements.length > 0 ? rawEntitlements : DEMO_ENTITLEMENTS;
+  const hasRealEntitlement = rawEntitlements.length > 0;
+  const entitlements = hasRealEntitlement ? rawEntitlements : DEMO_ENTITLEMENTS;
   const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
 
+  // AuthContextService.user_context() populates user.club from the user's
+  // real active ClubWorkspace — prefer that over the demo registry
+  // whenever we have a genuine (non-demo) entitlement, so the header
+  // shows the club this admin was actually invited to, not a stand-in.
+  const realClub =
+    user?.club && typeof user.club === 'object' && 'id' in user.club && 'name' in user.club
+      ? (user.club as { id: string; name: string })
+      : null;
+
   const scopeId = current?.scope_id ?? 1;
-  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: 'Uganda Premier League', season: 'Season 2025/26', badge: String(scopeId).slice(0, 2).toUpperCase() };
+  const clubInfo =
+    hasRealEntitlement && realClub
+      ? { name: realClub.name, league: null, season: null, badge: realClub.name.slice(0, 2).toUpperCase() }
+      : (CLUB_REGISTRY[scopeId] ?? {
+          name: `Club #${scopeId}`,
+          league: 'Uganda Premier League',
+          season: 'Season 2025/26',
+          badge: String(scopeId).slice(0, 2).toUpperCase(),
+        });
   const roleLabel = current?.workspace_role ? (ROLE_LABELS[current.workspace_role] ?? current.workspace_role) : '—';
 
   const canAccess = (permission: string | null) => {
@@ -54,7 +72,9 @@ export default function ClubAdminDashboard() {
         <div className="ca-club-context-badge">{clubInfo.badge}</div>
         <div className="ca-club-context-info">
           <h1 className="ca-club-context-name">{clubInfo.name}</h1>
-          <span className="ca-club-context-meta">{clubInfo.league} · {clubInfo.season}</span>
+          {clubInfo.league && clubInfo.season && (
+            <span className="ca-club-context-meta">{clubInfo.league} · {clubInfo.season}</span>
+          )}
         </div>
         <span className="ca-club-context-role">{roleLabel}</span>
       </div>

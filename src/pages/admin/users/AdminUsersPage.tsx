@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FiAlertTriangle, FiActivity, FiPlus, FiX } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
+import { extractApiError } from '../../../services/apiUtils';
 import {
   assignAdminRole,
   createRealClub,
@@ -113,7 +114,7 @@ function InviteModal({
         await onInvite({ email, roleId });
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Could not send this invitation.');
+      setError(extractApiError(submitError).message);
     } finally {
       setIsSaving(false);
     }
