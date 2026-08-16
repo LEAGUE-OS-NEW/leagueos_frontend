@@ -20,6 +20,11 @@ interface FanDashboardAggregate {
     favourites?: DashboardModule<FavouritesModuleData>;
     fixtures?: DashboardModule<FixturesModuleData>;
     wallet?: DashboardModule<WalletModuleData>;
+    tickets?: DashboardModule<TicketsModuleData>;
+    fantasy?: DashboardModule<FantasyModuleData>;
+    news?: DashboardModule<NewsModuleData>;
+    memberships?: DashboardModule<MembershipsModuleData>;
+    store?: DashboardModule<StoreModuleData>;
   };
 }
 
@@ -40,6 +45,26 @@ interface WalletModuleData {
   balance?: string | number | null;
   currency?: string;
   transactions_count?: number;
+}
+
+interface TicketsModuleData {
+  tickets?: BackendTicket[];
+}
+
+interface FantasyModuleData {
+  team?: BackendFantasyTeam | null;
+}
+
+interface NewsModuleData {
+  articles?: BackendNewsItem[];
+}
+
+interface MembershipsModuleData {
+  memberships?: BackendMembership[];
+}
+
+interface StoreModuleData {
+  picks?: BackendStorePick[];
 }
 
 interface PortfolioSummary {
@@ -91,6 +116,62 @@ interface BackendFixture {
   score_b?: number;
   crest_a?: string;
   crest_b?: string;
+}
+
+interface BackendTicket {
+  id?: string;
+  match?: string;
+  starts_at?: string | null;
+  competition?: string;
+  venue?: string;
+  quantity?: number;
+  status?: string;
+}
+
+interface BackendFantasySelection {
+  name?: string;
+  position?: string;
+  points?: number | string | null;
+  is_starter?: boolean;
+  bench_order?: number | null;
+}
+
+interface BackendFantasyTeam {
+  id?: string;
+  name?: string;
+  competition?: string;
+  league?: string;
+  total_points?: number | string | null;
+  rank?: number | string | null;
+  gameweek?: string;
+  selections?: BackendFantasySelection[];
+}
+
+interface BackendNewsItem {
+  id?: string;
+  title?: string;
+  summary?: string;
+  category?: string;
+  sport?: string | null;
+  club?: string | null;
+  published_at?: string | null;
+}
+
+interface BackendMembership {
+  id?: string;
+  club_name?: string;
+  tier?: string;
+  status?: string;
+  starts_at?: string;
+  expires_at?: string | null;
+}
+
+interface BackendStorePick {
+  id?: string;
+  name?: string;
+  price?: string | number;
+  currency?: string;
+  image?: string;
 }
 
 let dashboardPromise: Promise<FanDashboardAggregate> | null = null;
@@ -165,6 +246,24 @@ function formatFixtureTime(value?: string): string {
   });
 }
 
+function formatTicketDate(value?: string | null): { month: string; day: string; time: string } {
+  if (!value) return { month: 'TBA', day: '--', time: 'Time TBA' };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { month: 'TBA', day: '--', time: value };
+  return {
+    month: date.toLocaleString(undefined, { month: 'short' }).toUpperCase(),
+    day: date.toLocaleString(undefined, { day: '2-digit' }),
+    time: date.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }),
+  };
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return 'No expiry date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function normalizeSport(value?: string | null): Sport {
   const sport = String(value || '').toLowerCase();
   if (sport.includes('rugby')) return 'rugby';
@@ -181,7 +280,7 @@ function splitFixtureName(name?: string): [string, string] {
   return [teamA || 'Home', teamB || 'Away'];
 }
 
-export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs' | 'memberships';
+export type QuickStatId = 'wallet' | 'positions' | 'fantasy' | 'clubs' | 'tickets';
 
 export interface QuickStat {
   id: QuickStatId;
@@ -194,6 +293,8 @@ export async function fetchQuickStats(): Promise<QuickStat[]> {
   const [dashboard, portfolio] = await Promise.all([fetchDashboardAggregate(), fetchPortfolioSummary()]);
   const wallet = moduleData<WalletModuleData>(dashboard, 'wallet');
   const favourites = moduleData<FavouritesModuleData>(dashboard, 'favourites');
+  const fantasy = moduleData<FantasyModuleData>(dashboard, 'fantasy');
+  const tickets = moduleData<TicketsModuleData>(dashboard, 'tickets');
   const currency = portfolio?.currency || wallet.currency || 'UGX';
   const balance = portfolio?.wallet?.available_balance ?? portfolio?.wallet?.balance ?? wallet.balance ?? 0;
 
@@ -204,9 +305,17 @@ export async function fetchQuickStats(): Promise<QuickStat[]> {
       value: formatNumber(portfolio?.positions?.open_position_count ?? 0),
       sublabel: 'Active positions',
     },
-    { id: 'fantasy', value: '0', sublabel: 'No fantasy data yet' },
+    {
+      id: 'fantasy',
+      value: formatNumber(fantasy.team?.total_points ?? 0),
+      sublabel: fantasy.team ? 'Fantasy points' : 'No fantasy team yet',
+    },
     { id: 'clubs', value: formatNumber(favourites.clubs?.length ?? 0), sublabel: 'Clubs joined' },
-    { id: 'memberships', value: '0', sublabel: 'No active memberships' },
+    {
+      id: 'tickets',
+      value: formatNumber(tickets.tickets?.length ?? 0),
+      sublabel: 'Upcoming tickets',
+    },
   ];
 }
 
@@ -296,7 +405,20 @@ export interface Ticket {
 }
 
 export async function fetchTickets(): Promise<Ticket[]> {
-  return [];
+  const dashboard = await fetchDashboardAggregate();
+  const data = moduleData<TicketsModuleData>(dashboard, 'tickets');
+
+  return (data.tickets || []).map((ticket) => {
+    const date = formatTicketDate(ticket.starts_at);
+    return {
+      month: date.month,
+      day: date.day,
+      match: ticket.match || 'Match ticket',
+      time: date.time,
+      competition: ticket.competition || 'League OS',
+      seat: ticket.venue || `${ticket.quantity || 1} ticket${ticket.quantity === 1 ? '' : 's'}`,
+    };
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -318,7 +440,28 @@ export interface FantasyTeamData {
 }
 
 export async function fetchFantasyTeam(): Promise<FantasyTeamData | null> {
-  return null;
+  const dashboard = await fetchDashboardAggregate();
+  const data = moduleData<FantasyModuleData>(dashboard, 'fantasy');
+  const team = data.team;
+  if (!team) return null;
+
+  const starters = (team.selections || []).filter((selection) => selection.is_starter);
+  const rows = [starters.slice(0, 3), starters.slice(3, 7), starters.slice(7, 11)].filter((row) => row.length > 0);
+
+  return {
+    teamName: team.name || 'Fantasy team',
+    leagueName: team.league || team.competition || 'Fantasy League',
+    points: Number(team.total_points || 0),
+    rank: team.rank ? `#${team.rank}` : 'Rank pending',
+    gameweek: team.gameweek || 'No active gameweek',
+    formation: rows.map((row) =>
+      row.map((player) => ({
+        name: player.name || 'Player',
+        points: Number(player.points || 0),
+        jerseyColor: '#2563eb',
+      })),
+    ),
+  };
 }
 
 export interface NewsItem {
@@ -330,7 +473,19 @@ export interface NewsItem {
 }
 
 export async function fetchNews(): Promise<NewsItem[]> {
-  return [];
+  const dashboard = await fetchDashboardAggregate();
+  const data = moduleData<NewsModuleData>(dashboard, 'news');
+
+  return (data.articles || []).map((article) => {
+    const sport = normalizeSport(article.sport || article.category);
+    return {
+      category: sport,
+      categoryLabel: article.category || sportLabel(sport),
+      headline: article.title || 'League OS news',
+      timeAgo: formatRelativeTime(article.published_at || undefined),
+      image: '/images/news/news-placeholder.jpg',
+    };
+  });
 }
 
 export interface FavouriteClub {
@@ -363,7 +518,27 @@ export interface Membership {
 }
 
 export async function fetchMemberships(): Promise<Membership[]> {
-  return [];
+  const dashboard = await fetchDashboardAggregate();
+  const data = moduleData<MembershipsModuleData>(dashboard, 'memberships');
+
+  return (data.memberships || []).map((membership) => {
+    const expiresAt = membership.expires_at ? new Date(membership.expires_at) : null;
+    const daysRemaining = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000) : null;
+    const status =
+      membership.status === 'EXPIRED' || membership.status === 'CANCELLED'
+        ? 'Expired'
+        : daysRemaining !== null && daysRemaining <= 14
+          ? 'Expiring Soon'
+          : 'Active';
+
+    return {
+      id: membership.id || `${membership.club_name}-${membership.tier}`,
+      clubName: membership.club_name || 'Club',
+      tier: membership.tier || 'Member',
+      status,
+      validUntil: formatDate(membership.expires_at),
+    };
+  });
 }
 
 export interface WalletTransaction {
@@ -421,5 +596,13 @@ export interface StorePick {
 }
 
 export async function fetchStorePicks(): Promise<StorePick[]> {
-  return [];
+  const dashboard = await fetchDashboardAggregate();
+  const data = moduleData<StoreModuleData>(dashboard, 'store');
+
+  return (data.picks || []).map((pick) => ({
+    id: pick.id || pick.name || 'store-pick',
+    name: pick.name || 'Store item',
+    price: formatCurrency(pick.price, pick.currency || 'UGX'),
+    image: pick.image || '/images/sstore.jpg',
+  }));
 }
