@@ -36,6 +36,9 @@ export interface MarketListItem {
   question: string;
   yesPrice: number | null;
   noPrice: number | null;
+  yesBestAsk: number | null;
+  noBestAsk: number | null;
+  faceValueUgx: number;
   changePct: number | null;
   tradersCount: number | null;
   totalContractsLabel: string | null;
@@ -69,6 +72,8 @@ export interface MarketParameters {
   initialLiquidityUgx: number;
   liquiditySource: 'PLATFORM_TREASURY' | 'EXTERNAL_MARKET_MAKER';
   openingSpreadBps: number;
+  openingLiquidityAvailable: boolean;
+  liquidityActivationStatus: string;
   minTradeUgx: number;
   maxTradeUgx: number;
   positionLimitUgx?: number;
@@ -423,9 +428,16 @@ function adaptMarket(market: ApiMarket): Market {
       opensAt: market.opens_at ?? market.created_at ?? new Date().toISOString(),
       closesAt: market.closes_at ?? kickoff,
       settlesBy: market.settles_by ?? market.closes_at ?? kickoff,
-      initialLiquidityUgx: 0,
+      initialLiquidityUgx: Number(
+        market.opening_liquidity?.initial_liquidity_ugx ?? 0,
+      ),
       liquiditySource: 'PLATFORM_TREASURY',
-      openingSpreadBps: 0,
+      openingSpreadBps:
+        market.opening_liquidity?.opening_spread_bps ?? 0,
+      openingLiquidityAvailable:
+        market.opening_liquidity_available ?? false,
+      liquidityActivationStatus:
+        market.opening_liquidity?.activation_status ?? 'UNCONFIGURED',
       minTradeUgx: DEFAULT_MIN_TRADE_UGX,
       maxTradeUgx: DEFAULT_MAX_TRADE_UGX,
       feePct: DEFAULT_FEE_PCT,
@@ -461,6 +473,9 @@ function adaptListItem(market: Market): MarketListItem {
     question: market.question,
     yesPrice: yes?.price ?? null,
     noPrice: no?.price ?? null,
+    yesBestAsk: yes?.bestAsk ?? null,
+    noBestAsk: no?.bestAsk ?? null,
+    faceValueUgx: market.faceValueUgx,
     changePct: null,
     tradersCount: null,
     totalContractsLabel: null,
