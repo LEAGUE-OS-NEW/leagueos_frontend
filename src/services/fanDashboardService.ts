@@ -479,7 +479,7 @@ export interface NewsItem {
 export async function fetchNews(): Promise<NewsItem[]> {
   const stories = await fetchPublicNews();
 
-  return stories.slice(0, 4).map((article) => {
+  return stories.slice(0, 2).map((article) => {
     const sport = normalizeSport(article.category);
     return {
       id: article.id || article.title || 'news-item',
@@ -584,7 +584,7 @@ export async function fetchNotificationsPreview(): Promise<NotificationPreviewIt
   const dashboard = await fetchDashboardAggregate();
   const data = moduleData<NotificationsModuleData>(dashboard, 'notifications');
 
-  return (data.recent_notifications || []).map((notification, index) => ({
+  return (data.recent_notifications || []).slice(0, 2).map((notification, index) => ({
     id: notification.id || `notification-${index}`,
     message: notification.message || notification.title || 'Notification',
     timeAgo: formatRelativeTime(notification.created_at),

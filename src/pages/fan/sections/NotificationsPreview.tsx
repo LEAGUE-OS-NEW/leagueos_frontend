@@ -12,7 +12,7 @@ function NotificationsPreview() {
     <div className="notifications-preview dashboard-card">
       <div className="dashboard-card-heading-row">
         <h2 className="dashboard-card-heading">Notifications</h2>
-        <Link to="/settings" className="dashboard-card-link">
+        <Link to="/settings?tab=notifications" className="dashboard-card-link">
           Manage
         </Link>
       </div>
