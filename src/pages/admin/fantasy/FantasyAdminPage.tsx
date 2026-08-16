@@ -12,13 +12,26 @@ import {
   type CanonicalFantasyOptions, type FantasyFixture, type FantasyGameweek,
   type FantasyLeagueOverview, type FantasyPlayerCandidate, type FantasyStanding, type FantasyTeamScore,
 } from '../../../services/fantasyAdminService';
+import { extractApiError } from '../../../services/apiUtils';
 import './FantasyAdminPage.css';
 
 /* ── helpers ─────────────────────────────────────────────── */
 
 type Tab = 'overview'|'competitions'|'players'|'gameweeks'|'scoring'|'corrections'|'leaderboards'|'leagues';
 const AVAILABILITY: FantasyAvailability[] = ['AVAILABLE','DOUBTFUL','INJURED','SUSPENDED','UNAVAILABLE'];
-const err = (e: unknown) => e instanceof Error ? e.message : 'Fantasy administration request failed.';
+const err = (e: unknown) => {
+  const details = extractApiError(e);
+  // Build a human-readable message that includes field errors if present.
+  // For non-HTTP errors (plain Error), extractApiError returns a generic message —
+  // fall back to the original error message so test assertions remain accurate.
+  const isAxiosError = e != null && typeof e === 'object' && 'response' in e;
+  if (!isAxiosError && e instanceof Error) return e.message;
+  const fieldErrors = Object.entries(details.fields)
+    .filter(([k]) => k !== 'non_field_errors' && k !== 'detail' && k !== 'message')
+    .map(([k, msgs]) => `${k}: ${msgs.join(', ')}`)
+    .join(' | ');
+  return fieldErrors ? `${details.message} — ${fieldErrors}` : details.message;
+};
 
 /** Safely parse a JSON string. Returns [parsed, null] on success or [null, errorMessage] on failure. */
 function safeJson<T>(raw: string): [T, null] | [null, string] {
@@ -205,16 +218,23 @@ const [fmtRules, fmtErr] = safeJson<Record<string, { min: number; max: number }>
     setCompFormErrors({});
 
     const ok = await run(() => adminCreateCompetition({
-      ...compForm,
+      competition: compForm.competition,
+      season: compForm.season,
+      name: compForm.name.trim(),
+      description: compForm.description.trim(),
       squad_size: Number(compForm.squad_size),
       starting_lineup_size: Number(compForm.starting_lineup_size),
       bench_size: Number(compForm.bench_size),
+      initial_budget: compForm.initial_budget,
       max_players_per_team: Number(compForm.max_players_per_team),
+      captain_multiplier: compForm.captain_multiplier,
       free_transfers_per_gameweek: Number(compForm.free_transfers_per_gameweek),
       transfer_penalty: Number(compForm.transfer_penalty),
       position_rules: posRules ?? undefined,
-formation_rules: fmtRules ?? undefined,
-      enabled: true, visibility: 'PUBLIC', registration_state: 'OPEN',
+      formation_rules: fmtRules ?? undefined,
+      enabled: true,
+      visibility: 'PUBLIC',
+      registration_state: 'OPEN',
       vice_captain_fallback: true,
       tie_break_rules: ['total_points', 'fewer_transfer_penalties', 'earlier_registration'],
     }), 'Fantasy competition created.');
@@ -246,7 +266,11 @@ const [prizeRules, prizeErr] =
     setCompEditErrors({});
 
     const ok = await run(() => adminUpdateCompetition(editingCompId, {
-      ...competitionEdit,
+      name: competitionEdit.name,
+      description: competitionEdit.description,
+      enabled: competitionEdit.enabled,
+      visibility: competitionEdit.visibility,
+      registration_state: competitionEdit.registration_state,
       registration_deadline: competitionEdit.registration_deadline || null,
       squad_size: Number(competitionEdit.squad_size),
       starting_lineup_size: Number(competitionEdit.starting_lineup_size),
@@ -254,12 +278,13 @@ const [prizeRules, prizeErr] =
       initial_budget: competitionEdit.initial_budget,
       max_players_per_team: Number(competitionEdit.max_players_per_team),
       captain_multiplier: competitionEdit.captain_multiplier,
+      vice_captain_fallback: competitionEdit.vice_captain_fallback,
       free_transfers_per_gameweek: Number(competitionEdit.free_transfers_per_gameweek),
       transfer_penalty: Number(competitionEdit.transfer_penalty),
       position_rules: posRules ?? undefined,
-formation_rules: fmtRules ?? undefined,
-tie_break_rules: tieRules ?? undefined,
-prize_metadata: prizeRules ?? undefined,
+      formation_rules: fmtRules ?? undefined,
+      tie_break_rules: tieRules ?? undefined,
+      prize_metadata: prizeRules ?? undefined,
     }), 'Fantasy competition updated.');
     if (ok) { setEditingCompId(''); setCompetitionEdit(null); setCompEditErrors({}); }
   };
