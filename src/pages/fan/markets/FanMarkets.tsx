@@ -41,7 +41,7 @@ import './Markets.css';
 
 type ListTab = 'live' | 'upcoming' | 'trending' | 'suspended' | 'closed' | 'resolved' | 'voided' | 'all';
 type DetailTab = 'details' | 'positions' | 'info';
-type TradeSide = 'buy' | 'sell';
+type TradeOutcome = 'YES' | 'NO';
 
 const LIST_TABS: { key: ListTab; label: string }[] = [
   { key: 'live', label: 'Live' },
@@ -180,7 +180,7 @@ function Markets() {
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<DetailTab>('details');
-  const [tradeSide, setTradeSide] = useState<TradeSide>('buy');
+  const [tradeOutcome, setTradeOutcome] = useState<TradeOutcome>('YES');
   const [amount, setAmount] = useState('');
   const numericAmount = Number(amount);
   const amountError = useMemo(() => {
@@ -255,13 +255,68 @@ function Markets() {
     return markets.find((m) => m.id === selectedMarketId) ?? visibleMarkets[0] ?? markets[0];
   }, [markets, selectedMarketId, visibleMarkets]);
 
-  const potentialReturn = useMemo(() => {
-    const numericAmount = Number(amount);
-    if (!selectedMarket || !numericAmount || Number.isNaN(numericAmount)) return null;
-    const price = tradeSide === 'buy' ? selectedMarket.yesPrice : selectedMarket.noPrice;
-    if (price === null) return null;
-    return Math.round(numericAmount / price);
-  }, [amount, selectedMarket, tradeSide]);
+  const selectedMarkPrice =
+    tradeOutcome === 'YES'
+      ? selectedMarket?.yesPrice ?? null
+      : selectedMarket?.noPrice ?? null;
+
+  const selectedBestAsk =
+    tradeOutcome === 'YES'
+      ? selectedMarket?.yesBestAsk ?? null
+      : selectedMarket?.noBestAsk ?? null;
+
+  const estimatedShares = useMemo(() => {
+    const value = Number(amount);
+
+    if (
+      !selectedMarket ||
+      !Number.isFinite(value) ||
+      value <= 0 ||
+      selectedBestAsk === null ||
+      selectedBestAsk <= 0
+    ) {
+      return null;
+    }
+
+    return value / selectedBestAsk;
+  }, [
+    amount,
+    selectedBestAsk,
+    selectedMarket,
+  ]);
+
+  const maximumPayout = useMemo(() => {
+    if (
+      estimatedShares === null ||
+      !selectedMarket
+    ) {
+      return null;
+    }
+
+    return (
+      estimatedShares *
+      selectedMarket.faceValueUgx
+    );
+  }, [
+    estimatedShares,
+    selectedMarket,
+  ]);
+
+  const grossUpside = useMemo(() => {
+    const value = Number(amount);
+
+    if (
+      maximumPayout === null ||
+      !Number.isFinite(value)
+    ) {
+      return null;
+    }
+
+    return maximumPayout - value;
+  }, [
+    amount,
+    maximumPayout,
+  ]);
 
   const positionsTotal = useMemo(() => (positions ?? []).reduce((sum, p) => sum + p.value, 0), [positions]);
 
@@ -387,7 +442,7 @@ function Markets() {
                     onClick={() =>
                       requireVerification(() => {
                         setDetailTab('details');
-                        setTradeSide('buy');
+                        setTradeOutcome('YES');
                       })
                     }
                   >
@@ -401,7 +456,7 @@ function Markets() {
                     onClick={() =>
                       requireVerification(() => {
                         setDetailTab('details');
-                        setTradeSide('sell');
+                        setTradeOutcome('NO');
                       })
                     }
                   >
@@ -413,8 +468,12 @@ function Markets() {
                 {isVerified ? (
                   <div className="market-details-verified-row">
                     <div>
-                      <span>Your Potential Win</span>
-                      <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
+                      <span>Estimated Maximum Payout</span>
+                      <b>
+                        {maximumPayout === null
+                          ? '—'
+                          : formatUgx(maximumPayout)}
+                      </b>
                     </div>
                     <div>
                       <span>Your Available Balance</span>
@@ -503,12 +562,29 @@ function Markets() {
                     <b>{selectedMarket?.endsInLabel ?? '—'}</b>
                   </div>
 
-                  <div className="trade-tabs" role="tablist" aria-label="Trade side">
-                    <button type="button" role="tab" aria-selected={tradeSide === 'buy'} className={tradeSide === 'buy' ? 'active' : ''} onClick={() => setTradeSide('buy')}>
-                      Buy
+                  <div
+                    className="trade-tabs"
+                    role="tablist"
+                    aria-label="Outcome"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tradeOutcome === 'YES'}
+                      className={tradeOutcome === 'YES' ? 'active' : ''}
+                      onClick={() => setTradeOutcome('YES')}
+                    >
+                      Yes
                     </button>
-                    <button type="button" role="tab" aria-selected={tradeSide === 'sell'} className={tradeSide === 'sell' ? 'active' : ''} onClick={() => setTradeSide('sell')}>
-                      Sell
+
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={tradeOutcome === 'NO'}
+                      className={tradeOutcome === 'NO' ? 'active' : ''}
+                      onClick={() => setTradeOutcome('NO')}
+                    >
+                      No
                     </button>
                   </div>
 
@@ -535,9 +611,56 @@ function Markets() {
                   </div>
 
                   <div className="potential-return-row">
-                    <span>Potential Return</span>
-                    <b>{potentialReturn === null ? '—' : formatUgx(potentialReturn)}</b>
+                    <span>Last / Mark Price</span>
+                    <b>
+                      {selectedMarkPrice === null
+                        ? '—'
+                        : formatMarketSharePrice(selectedMarkPrice)}
+                    </b>
                   </div>
+
+                  <div className="potential-return-row">
+                    <span>Executable Ask</span>
+                    <b>
+                      {selectedBestAsk === null
+                        ? 'No immediate liquidity'
+                        : formatMarketSharePrice(selectedBestAsk)}
+                    </b>
+                  </div>
+
+                  <div className="potential-return-row">
+                    <span>Estimated Shares</span>
+                    <b>
+                      {estimatedShares === null
+                        ? '—'
+                        : estimatedShares.toFixed(2)}
+                    </b>
+                  </div>
+
+                  <div className="potential-return-row">
+                    <span>Maximum Payout</span>
+                    <b>
+                      {maximumPayout === null
+                        ? '—'
+                        : formatUgx(maximumPayout)}
+                    </b>
+                  </div>
+
+                  <div className="potential-return-row">
+                    <span>Gross Upside</span>
+                    <b>
+                      {grossUpside === null
+                        ? '—'
+                        : formatUgx(grossUpside)}
+                    </b>
+                  </div>
+
+                  {selectedBestAsk === null && (
+                    <p className="field-error">
+                      No immediate sell liquidity is available for this outcome.
+                      You can continue to the full trade page and place a limit order.
+                    </p>
+                  )}
 
                   {selectedMarket.status === 'closed' && (
                     <p className="field-error">
@@ -548,7 +671,11 @@ function Markets() {
                   <div className="trade-actions">
                     <button
                       type="button"
-                      className="buy-button buy-button--yes"
+                      className={
+                        tradeOutcome === 'YES'
+                          ? 'buy-button buy-button--yes'
+                          : 'buy-button buy-button--no'
+                      }
                       disabled={selectedMarket.status === 'closed'}
                       onClick={() =>
                         requireVerification(() =>
@@ -556,7 +683,7 @@ function Markets() {
                             `/fan/markets/${selectedMarket.id}/trade`,
                             {
                               state: {
-                                outcomeId: 'YES',
+                                outcomeId: tradeOutcome,
                                 amount:
                                   Number(amount) > 0
                                     ? Number(amount)
@@ -567,31 +694,7 @@ function Markets() {
                         )
                       }
                     >
-                      Trade Yes
-                    </button>
-
-                    <button
-                      type="button"
-                      className="buy-button buy-button--no"
-                      disabled={selectedMarket.status === 'closed'}
-                      onClick={() =>
-                        requireVerification(() =>
-                          navigate(
-                            `/fan/markets/${selectedMarket.id}/trade`,
-                            {
-                              state: {
-                                outcomeId: 'NO',
-                                amount:
-                                  Number(amount) > 0
-                                    ? Number(amount)
-                                    : undefined,
-                              },
-                            },
-                          ),
-                        )
-                      }
-                    >
-                      Trade No
+                      Continue with {tradeOutcome === 'YES' ? 'Yes' : 'No'}
                     </button>
                   </div>
                   <button type="button" className="hold-position-btn" onClick={closeMarketDetail}>

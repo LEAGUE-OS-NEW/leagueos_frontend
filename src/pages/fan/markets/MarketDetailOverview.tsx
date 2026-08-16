@@ -180,9 +180,28 @@ function MarketDetailOverview() {
 
                   <div className="market-detail-meta-grid">
                     <div>
-                      <span>Initial Liquidity</span>
-                      <b>UGX {market.parameters.initialLiquidityUgx.toLocaleString()}</b>
+                      <span>Opening Liquidity</span>
+                      <b>
+                        UGX {market.parameters.initialLiquidityUgx.toLocaleString()}
+                      </b>
                     </div>
+
+                    <div>
+                      <span>Opening Spread</span>
+                      <b>
+                        {(market.parameters.openingSpreadBps / 100).toFixed(2)}%
+                      </b>
+                    </div>
+
+                    <div>
+                      <span>Immediate Liquidity</span>
+                      <b>
+                        {market.parameters.openingLiquidityAvailable
+                          ? 'Available'
+                          : 'No opening inventory available'}
+                      </b>
+                    </div>
+
                     <div>
                       <span>Trade Limits</span>
                       <b>
