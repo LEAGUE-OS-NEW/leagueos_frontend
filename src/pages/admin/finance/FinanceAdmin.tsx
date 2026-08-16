@@ -33,6 +33,8 @@ import {
   getExportHistory,
 } from "./FinanceService";
 
+import FinanceWithdrawalQueue from "./FinanceWithdrawalQueue";
+
 /* ============================================================================
    UI-ONLY TYPES
    (tab keys are a display concern, not part of the data layer)
@@ -314,17 +316,6 @@ const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQu
             d.provider.toLowerCase().includes(search.toLowerCase()))
       ),
     [deposits, search, statusFilter]
-  );
-
-  const filteredWithdrawals = useMemo(
-    () =>
-      withdrawals.filter(
-        (w) =>
-          (statusFilter === "all" || w.status === statusFilter) &&
-          (w.withdrawalBatch.toLowerCase().includes(search.toLowerCase()) ||
-            w.provider.toLowerCase().includes(search.toLowerCase()))
-      ),
-    [withdrawals, search, statusFilter]
   );
 
   const filteredSettlements = useMemo(
@@ -656,7 +647,14 @@ const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQu
       case "deposits":
         return queueStatuses(deposits);
       case "withdrawals":
-        return queueStatuses(withdrawals);
+        return [
+          "PENDING_APPROVAL",
+          "APPROVED",
+          "REJECTED",
+          "PROCESSING",
+          "COMPLETED",
+          "FAILED",
+        ];
       case "settlements":
         return queueStatuses(settlements);
       case "refunds":
@@ -666,7 +664,7 @@ const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQu
       default:
         return [];
     }
-  }, [activeQueue, deposits, withdrawals, settlements, refunds, clubs]);
+  }, [activeQueue, deposits, settlements, refunds, clubs]);
 
   return (
     <>
@@ -784,33 +782,10 @@ const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQu
                   )}
 
                   {activeQueue === "withdrawals" && (
-                    <table className="fa-table">
-                      <thead>
-                        <tr>
-                          <th>Withdrawal Batch</th>
-                          <th>Requested Amount</th>
-                          <th>Paid Amount</th>
-                          <th>Provider Reference</th>
-                          <th>Difference</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredWithdrawals.map((w) => (
-                          <tr key={w.id} className="fa-row" onClick={() => openDrawer(w, `Withdrawal Batch ${w.withdrawalBatch}`, "withdrawals")}>
-                            <td className="fa-mono">{w.withdrawalBatch}</td>
-                            <td>{formatUGX(w.requestedAmount)}</td>
-                            <td>{formatUGX(w.paidAmount)}</td>
-                            <td className="fa-mono">{w.providerReference}</td>
-                            <td><DiffBadge value={w.difference} /></td>
-                            <td><StatusPill status={w.status} /></td>
-                          </tr>
-                        ))}
-                        {filteredWithdrawals.length === 0 && (
-                          <tr><td colSpan={6} className="fa-empty">No withdrawal batches match your filters.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                    <FinanceWithdrawalQueue
+                      search={search}
+                      statusFilter={statusFilter}
+                    />
                   )}
 
                   {activeQueue === "settlements" && (
