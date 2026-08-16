@@ -102,15 +102,13 @@ function Topbar({ onMenuClick }: TopbarProps) {
   useEffect(() => {
     const query = searchText.trim();
     if (query.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
       return;
     }
 
     let cancelled = false;
-    setIsSearching(true);
 
     const timer = window.setTimeout(() => {
+      setIsSearching(true);
       Promise.allSettled([fetchFanMarkets(), fetchFixtures(), fetchFavouriteClubs(), fetchNews()])
         .then(([marketsResult, fixturesResult, clubsResult, newsResult]) => {
           if (cancelled) return;
