@@ -23,8 +23,7 @@ export function useFanWallet(
   const [wallet, setWallet] =
     useState<FanWalletBalance | null>(null);
 
-  // Start true so that when eligibility changes from
-  // false -> true we do not briefly display a fake
+  // Start true so the page does not briefly display a fake
   // zero balance while the first real request is running.
   const [isLoading, setIsLoading] =
     useState(true);

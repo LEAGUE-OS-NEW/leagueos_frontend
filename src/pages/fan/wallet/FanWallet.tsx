@@ -14,10 +14,6 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 
 import {
-  useMarketEligibility,
-} from '../../../hooks/useMarketEligibility';
-
-import {
   useFanWallet,
 } from '../../../hooks/useFanWallet';
 
@@ -83,17 +79,6 @@ function FanWallet() {
     );
 
   const {
-    isEligible,
-    isLoading:
-      isEligibilityLoading,
-    error:
-      eligibilityError,
-    refresh:
-      refreshEligibility,
-  } =
-    useMarketEligibility();
-
-  const {
     wallet,
     isLoading:
       isWalletLoading,
@@ -104,7 +89,6 @@ function FanWallet() {
   } =
     useFanWallet(
       'UGX',
-      isEligible,
     );
 
   const [
@@ -137,12 +121,6 @@ function FanWallet() {
   useEffect(() => {
     let cancelled =
       false;
-
-    if (
-      !isEligible
-    ) {
-      return;
-    }
 
     fetchFanWalletTransactions()
       .then(
@@ -188,9 +166,7 @@ function FanWallet() {
       cancelled =
         true;
     };
-  }, [
-    isEligible,
-  ]);
+  }, []);
 
 
   useEffect(() => {
@@ -206,14 +182,6 @@ function FanWallet() {
   }, [
     isSidebarOpen,
   ]);
-
-
-  const retryWallet =
-    () => {
-      void refreshEligibility();
-
-      void refreshWallet();
-    };
 
 
   return (
@@ -257,33 +225,7 @@ function FanWallet() {
               </div>
 
 
-              {isEligibilityLoading ? (
-                <DashboardSkeleton
-                  rows={
-                    4
-                  }
-                />
-              ) : eligibilityError ? (
-                <DashboardNotice
-                  tone="error"
-                  title="Couldn't confirm wallet access"
-                  message={
-                    'Your verification has not been reset. ' +
-                    'We could not confirm your current Markets eligibility.'
-                  }
-                  onRetry={
-                    retryWallet
-                  }
-                />
-              ) : !isEligible ? (
-                <DashboardNotice
-                  tone="forbidden"
-                  title="Identity verification required"
-                  message="Complete identity verification before accessing your League OS wallet."
-                  actionLabel="Continue verification"
-                  actionTo="/fan/verify"
-                />
-              ) : isWalletLoading ? (
+              {isWalletLoading ? (
                 <DashboardSkeleton
                   rows={
                     6
@@ -310,7 +252,7 @@ function FanWallet() {
                         />
 
                         <span>
-                          Verified wallet
+                          Wallet balance
                         </span>
                       </div>
 
