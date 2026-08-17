@@ -1,25 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
+import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { fetchClubs, fetchFollowedClubSlugs, followClub, unfollowClub, type ClubSummary } from '../../../services/clubsService';
 import './FeaturedClubs.css';
-
-type Club = {
-  name: string;
-  sport: string;
-  league: string;
-  crest?: string;
-};
-
-const CLUBS: Club[] = [
-  { name: 'Vipers SC', sport: 'Football', league: 'UPL', crest: '/clubs/vipers-sc.png' },
-  { name: 'KCCA FC', sport: 'Football', league: 'UPL', crest: '/clubs/kcca-fc.png' },
-  { name: 'SC Villa', sport: 'Football', league: 'UPL', crest: '/clubs/sc-villa.png' },
-  { name: 'Express FC', sport: 'Football', league: 'UPL', crest: '/clubs/express-fc.png' },
-  { name: 'Kobs Rugby', sport: 'Rugby', league: 'Rugby Africa', crest: '/clubs/kobs.jpg' },
-  { name: 'Black Pirates', sport: 'Rugby', league: 'Rugby Africa', crest: '/clubs/black-pirates.png' },
-  { name: 'City Oilers', sport: 'Basketball', league: 'NBL', crest: '/clubs/city-oilers.png' },
-  { name: 'UCU Canons', sport: 'Basketball', league: 'NBL' },
-];
 
 function CrestPlaceholder() {
   return (
@@ -53,11 +37,52 @@ function ClubCrest({ src, name }: { src?: string; name: string }) {
 function FeaturedClubs() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [clubs, setClubs] = useState<ClubSummary[]>([]);
+  const [followedSlugs, setFollowedSlugs] = useState<Set<string>>(new Set());
+
+  const { profile } = useCurrentUser();
+  const isLoggedIn = Boolean(profile);
 
   const closePrompt = () => setIsPromptOpen(false);
 
   const scrollByAmount = (amount: number) => {
     trackRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchClubs({ ordering: '-created_at' }).then((result) => {
+      if (!cancelled) setClubs(result);
+    });
+    if (isLoggedIn) {
+      fetchFollowedClubSlugs().then((slugs) => {
+        if (!cancelled) setFollowedSlugs(new Set(slugs));
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  const handleToggleFollow = async (slug: string) => {
+    try {
+      if (followedSlugs.has(slug)) {
+        await unfollowClub(slug);
+        setFollowedSlugs((current) => {
+          const next = new Set(current);
+          next.delete(slug);
+          return next;
+        });
+      } else {
+        await followClub(slug);
+        setFollowedSlugs((current) => new Set(current).add(slug));
+      }
+    } catch {
+      // Follow/unfollow failed silently — the button just stays in its
+      // previous state, matching this page's existing no-toast pattern.
+    }
   };
 
   useEffect(() => {
@@ -101,18 +126,25 @@ function FeaturedClubs() {
           </button>
 
           <div className="clubs-track" ref={trackRef}>
-            {CLUBS.map((club) => (
-              <div className="club-card" key={club.name}>
-                <ClubCrest src={club.crest} name={club.name} />
-                <p className="club-name">{club.name}</p>
-                <p className="club-meta">
-                  {club.sport} · {club.league}
-                </p>
-                <button type="button" className="club-follow-btn" onClick={() => setIsPromptOpen(true)}>
-                  Follow
-                </button>
-              </div>
-            ))}
+            {clubs.map((club) => {
+              const isFollowing = followedSlugs.has(club.slug);
+              return (
+                <div className="club-card" key={club.slug}>
+                  <ClubCrest src={club.crest} name={club.name} />
+                  <p className="club-name">{club.name}</p>
+                  <p className="club-meta">
+                    {club.sport} · {club.league}
+                  </p>
+                  <button
+                    type="button"
+                    className="club-follow-btn"
+                    onClick={() => (isLoggedIn ? void handleToggleFollow(club.slug) : setIsPromptOpen(true))}
+                  >
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           <button

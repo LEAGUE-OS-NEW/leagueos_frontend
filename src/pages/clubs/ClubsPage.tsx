@@ -98,6 +98,7 @@ function ClubsPage() {
   const [clubs, setClubs] = useState<ClubSummary[]>([]);
   const [followedSlugs, setFollowedSlugs] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
+  const [search, setSearch] = useState('');
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
@@ -116,20 +117,27 @@ function ClubsPage() {
   }, [isLoggedIn]);
 
   const handleToggleFollow = async (slug: string) => {
-    if (followedSlugs.has(slug)) {
-      await unfollowClub(slug);
-      setFollowedSlugs((current) => {
-        const next = new Set(current);
-        next.delete(slug);
-        return next;
-      });
-    } else {
-      await followClub(slug);
-      setFollowedSlugs((current) => new Set(current).add(slug));
+    try {
+      if (followedSlugs.has(slug)) {
+        await unfollowClub(slug);
+        setFollowedSlugs((current) => {
+          const next = new Set(current);
+          next.delete(slug);
+          return next;
+        });
+      } else {
+        await followClub(slug);
+        setFollowedSlugs((current) => new Set(current).add(slug));
+      }
+    } catch {
+      // Follow/unfollow failed — leave the button in its previous state.
     }
   };
 
-  const filtered = activeFilter === 'All' ? clubs : clubs.filter((c) => c.sport === activeFilter);
+  const searched = search.trim()
+    ? clubs.filter((c) => c.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : clubs;
+  const filtered = activeFilter === 'All' ? searched : searched.filter((c) => c.sport === activeFilter);
 
   const grouped = (['Football', 'Rugby', 'Basketball'] as const)
     .map((sport) => ({
@@ -151,6 +159,17 @@ function ClubsPage() {
           <p className="clubs-hero__sub">
             Follow your favourite clubs across football, rugby, and basketball — all in one place.
           </p>
+        </div>
+
+        <div className="clubs-search">
+          <input
+            type="search"
+            className="clubs-search__input"
+            placeholder="Search clubs by name…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search clubs by name"
+          />
         </div>
 
         <div className="clubs-filters">

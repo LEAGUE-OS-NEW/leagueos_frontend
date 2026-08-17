@@ -5,15 +5,16 @@ import Navbar from '../../components/landing/Navbar';
 import Footer from '../../components/landing/Footer';
 import SafeImage from '../../components/SafeImage/SafeImage';
 import CrestFallback from '../../components/SafeImage/CrestFallback';
-import { getPublicFixtures, getPublicResults } from '../../services/publicDashboardService';
-import type { PublicFixtureApi } from '../../services/publicDashboardService';
 import {
   deriveFixtureStatus,
+  fetchResults,
+  fetchUpcomingFixtures,
   fixtureHasScore,
   fixtureStatusClass,
   formatFixtureKickoff,
+  type RealFixture,
 } from '../../services/fixturesService';
-import { deriveSport, type Sport } from '../../utils/sport';
+import type { Sport } from '../../utils/sport';
 import './FixturesPage.css';
 
 type Tab = 'Upcoming' | 'Results';
@@ -21,7 +22,7 @@ type Tab = 'Upcoming' | 'Results';
 const TABS: Tab[] = ['Upcoming', 'Results'];
 const SPORT_FILTERS: Array<'All' | Sport> = ['All', 'Football', 'Rugby', 'Basketball'];
 
-function FixtureCard({ fixture }: { fixture: PublicFixtureApi }) {
+function FixtureCard({ fixture }: { fixture: RealFixture }) {
   const status = deriveFixtureStatus(fixture.status, fixtureHasScore(fixture));
   const showScore = status === 'Live' || status === 'Provisional' || status === 'Final';
 
@@ -29,7 +30,9 @@ function FixtureCard({ fixture }: { fixture: PublicFixtureApi }) {
     <Link to={`/matches/${fixture.id}`} className="fx-card">
       <div className="fx-card__top">
         <span className="fx-card__competition">{fixture.competition_name}</span>
-        <span className={fixtureStatusClass(status)}>{status}</span>
+        <span className={fixtureStatusClass(status)}>
+          {status === 'Live' && fixture.clock_display ? fixture.clock_display : status}
+        </span>
       </div>
 
       <div className="fx-card__teams">
@@ -75,11 +78,11 @@ function FixturesPage() {
   const [sportFilter, setSportFilter] = useState<'All' | Sport>('All');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [fixtures, setFixtures] = useState<PublicFixtureApi[]>([]);
-  const [results, setResults] = useState<PublicFixtureApi[]>([]);
+  const [fixtures, setFixtures] = useState<RealFixture[]>([]);
+  const [results, setResults] = useState<RealFixture[]>([]);
 
   // Pure fetch — no setState inside, safe to call from an effect.
-  const fetchAll = () => Promise.all([getPublicFixtures(), getPublicResults()]);
+  const fetchAll = () => Promise.all([fetchUpcomingFixtures(), fetchResults()]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +121,7 @@ function FixturesPage() {
   const activeList = tab === 'Upcoming' ? fixtures : results;
   const filteredList = activeList.filter((fixture) => {
     if (sportFilter === 'All') return true;
-    return deriveSport(fixture.competition_name) === sportFilter;
+    return fixture.sport_name === sportFilter;
   });
 
   return (

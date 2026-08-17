@@ -3,6 +3,11 @@ import { useAuthStore } from "../store/authStore.ts";
 import { getRefreshToken, getToken } from "../utils/tokenManager.ts";
 import { unwrapApiData } from "./apiUtils.ts";
 
+if (!import.meta.env.VITE_API_BASE_URL && import.meta.env.PROD) {
+  console.error(
+    "VITE_API_BASE_URL is not set in this production build — falling back to http://localhost:8000/api/v1, which will not work for real users. Set it in the Render dashboard for this service.",
+  );
+}
 export const apiBaseUrl = String(
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
 ).replace(/\/+$/, "");

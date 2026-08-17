@@ -9,18 +9,25 @@ interface Props {
 /**
  * Route guard for all /club-admin/* pages.
  *
- * Rules:
- *  - accessStatus === 'unauthenticated' → redirect to /login, preserving
- *    the attempted URL so the login page can send the user straight back.
- *  - accessStatus === 'loading'         → render nothing while the stored
- *    session is being restored (avoids a flash redirect on hard refresh).
- *  - No CLUB_ADMIN entitlement          → redirect to /unauthorized.
- *  - Otherwise                          → render children.
+ * In development (import.meta.env.DEV) the guard is bypassed entirely so
+ * the UI can be worked on without a login session. Demo entitlements in
+ * ClubAdminLayout/Sidebar provide the club context.
+ *
+ * In production:
+ *  - unauthenticated → redirect to /login (preserving the return URL)
+ *  - loading         → render nothing while the stored session hydrates
+ *  - no CLUB_ADMIN entitlement → redirect to /unauthorized
+ *  - otherwise → render children
  */
 export default function ClubAdminRoute({ children }: Props) {
   const location = useLocation();
   const accessStatus = useAuthStore((s) => s.accessStatus);
   const user = useAuthStore((s) => s.user);
+
+  // ── Skip auth in local development ──────────────────────────────────────
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
 
   // Session still being hydrated from storage — wait silently.
   if (accessStatus === 'loading') {

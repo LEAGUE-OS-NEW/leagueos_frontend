@@ -188,11 +188,17 @@ export async function fetchAdminInvitations(): Promise<AdminInvitation[]> {
   return normalizeApiList<Record<string, unknown>>(response.data).map(adaptInvitation);
 }
 
-export async function inviteAdminUser(input: { email: string; roleId: string }): Promise<AdminInvitation> {
-  if (!EMAIL_PATTERN.test(input.email.trim())) fail('Enter a valid email address.');
+// Mirrors inviteClubAdmin's two-email model: loginEmail is the LeagueOS
+// identity assigned to this role, notifyEmail is the real inbox the invite
+// is actually delivered to — a brand-new platform-role admin has no working
+// inbox at their assigned login yet, same rationale as Club Admin.
+export async function inviteAdminUser(input: { loginEmail: string; notifyEmail: string; roleId: string }): Promise<AdminInvitation> {
+  if (!EMAIL_PATTERN.test(input.loginEmail.trim())) fail('Enter a valid LeagueOS email address.');
+  if (!EMAIL_PATTERN.test(input.notifyEmail.trim())) fail('Enter a valid personal email address.');
   if (!input.roleId) fail('Select a role for this invitation.');
   const response = await apiClient.post('/admin/invitations/', {
-    email: input.email.trim(),
+    login_email: input.loginEmail.trim(),
+    notify_email: input.notifyEmail.trim(),
     role_ids: [input.roleId],
   });
   return adaptInvitation(response.data);
@@ -200,6 +206,14 @@ export async function inviteAdminUser(input: { email: string; roleId: string }):
 
 export async function revokeAdminInvitation(id: string): Promise<AdminInvitation> {
   const response = await apiClient.post(`/admin/invitations/${encodeURIComponent(id)}/revoke/`);
+  return adaptInvitation(response.data);
+}
+
+// Platform-role invites (Compliance Admin, Finance Admin, etc.) assign a
+// role to an already-registered user rather than creating a new login —
+// unlike inviteClubAdmin/AcceptInvite, there's no password-setup step here.
+export async function acceptAdminInvitation(token: string): Promise<AdminInvitation> {
+  const response = await apiClient.post('/admin/invitations/accept/', { token });
   return adaptInvitation(response.data);
 }
 
@@ -308,6 +322,24 @@ export async function createRealClub(input: { name: string; sportId: string }): 
   });
   const raw = response.data as Record<string, unknown>;
   return { id: String(raw.id), name: String(raw.name ?? ''), slug: String(raw.slug ?? '') };
+}
+
+// Real — POST /<club_pk>/logo/ (clubs app, IsClubAdmin — Super Admin can
+// set any club's logo, a Club Admin only their own). Usable right after
+// createRealClub (before any workspace exists) or later by the club's own
+// admin from ClubProfilePage.tsx.
+export async function uploadClubLogo(clubId: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const response = await apiClient.post(`/${encodeURIComponent(clubId)}/logo/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  const raw = response.data as Record<string, unknown>;
+  return String(raw.logo_url ?? '');
+}
+
+export async function deleteClubLogo(clubId: string): Promise<void> {
+  await apiClient.delete(`/${encodeURIComponent(clubId)}/logo/`);
 }
 
 export interface ClubAdminInvite {
