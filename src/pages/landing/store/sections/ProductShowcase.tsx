@@ -1,158 +1,39 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { IconType } from 'react-icons';
-import { FiArrowRight, FiStar, FiShoppingCart, FiCheck } from 'react-icons/fi';
-import { GiTShirt, GiClothes } from 'react-icons/gi';
-import { FaHatCowboy } from 'react-icons/fa';
+import { FiArrowRight, FiShoppingCart, FiCheck, FiImage } from 'react-icons/fi';
 import type { CategorySlug } from './shopCategories';
-import { useCartStore, parseUGX } from '../../../../store/cartStore';
+import { useCartStore } from '../../../../store/cartStore';
+import { useClubProductStore, type StoreProduct } from '../../../../store/clubProductStore';
 import './ProductShowcase.css';
 
-type Product = {
+// ── Unified product shape for display ────────────────────────────────────────
+interface DisplayProduct {
   id: string;
+  clubSlug: string;
   name: string;
   price: string;
+  priceValue: number;
   originalPrice?: string;
-  rating: number;
-  reviews: number;
   sizes?: string[];
-  badge?: { label: string; tone: 'new' | 'discount' };
-  icon: IconType;
+  badge?: string;
+  image?: string;
   color: string;
   category: CategorySlug;
-};
+  isNew: boolean;
+}
 
-type ProductColumn = {
-  title: string;
-  products: Product[];
-};
-
-const COLUMNS: ProductColumn[] = [
-  {
-    title: 'New Arrivals',
-    products: [
-      {
-        id: 'vipers-home-jersey',
-        name: 'Vipers SC Home Jersey 2024/25',
-        price: 'UGX 120,000',
-        rating: 4.8,
-        reviews: 26,
-        sizes: ['S', 'M', 'L', 'XL'],
-        badge: { label: 'NEW', tone: 'new' },
-        icon: GiTShirt,
-        color: '#dc2626',
-        category: 'jerseys',
-      },
-      {
-        id: 'kcca-training-top',
-        name: 'KCCA FC Training Top Navy 2024',
-        price: 'UGX 85,000',
-        rating: 4.6,
-        reviews: 15,
-        sizes: ['S', 'M', 'L', 'XL'],
-        icon: GiTShirt,
-        color: '#1e3a8a',
-        category: 'training-wear',
-      },
-    ],
-  },
-  {
-    title: 'Best Sellers',
-    products: [
-      {
-        id: 'vipers-away-jersey',
-        name: 'Vipers SC Away Jersey 2024/25',
-        price: 'UGX 120,000',
-        rating: 4.6,
-        reviews: 42,
-        sizes: ['S', 'M', 'L', 'XL'],
-        icon: GiTShirt,
-        color: '#dc2626',
-        category: 'jerseys',
-      },
-      {
-        id: 'oilers-home-jersey',
-        name: 'City Oilers Jersey Home 2024',
-        price: 'UGX 95,000',
-        rating: 4.7,
-        reviews: 31,
-        sizes: ['S', 'M', 'L', 'XL'],
-        icon: GiTShirt,
-        color: '#1d4ed8',
-        category: 'jerseys',
-      },
-    ],
-  },
-  {
-    title: 'Matchday Offers',
-    products: [
-      {
-        id: 'vipers-matchday-bundle',
-        name: 'Vipers SC Matchday Bundle Jersey + Cap',
-        price: 'UGX 144,500',
-        originalPrice: 'UGX 170,000',
-        rating: 4.8,
-        reviews: 18,
-        badge: { label: '-15%', tone: 'discount' },
-        icon: GiTShirt,
-        color: '#dc2626',
-        category: 'jerseys',
-      },
-      {
-        id: 'kcca-matchday-bundle',
-        name: 'KCCA FC Matchday Bundle Jersey + Scarf',
-        price: 'UGX 136,000',
-        originalPrice: 'UGX 170,000',
-        rating: 4.7,
-        reviews: 22,
-        badge: { label: '-20%', tone: 'discount' },
-        icon: GiTShirt,
-        color: '#ca8a04',
-        category: 'accessories',
-      },
-    ],
-  },
-  {
-    title: 'Fan Favourites',
-    products: [
-      {
-        id: 'black-pirates-cap',
-        name: 'Black Pirates Cap',
-        price: 'UGX 45,000',
-        rating: 4.6,
-        reviews: 38,
-        icon: FaHatCowboy,
-        color: '#18181b',
-        category: 'caps',
-      },
-      {
-        id: 'heathens-scarf',
-        name: 'Heathens RC Scarf',
-        price: 'UGX 30,000',
-        rating: 4.5,
-        reviews: 21,
-        icon: GiClothes,
-        color: '#7f1d1d',
-        category: 'fan-gear',
-      },
-    ],
-  },
-];
-
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product }: { product: DisplayProduct }) {
   const addItem = useCartStore((s) => s.addItem);
-  const [selectedSize, setSelectedSize] = useState<string | undefined>(
-    product.sizes?.[0],
-  );
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(product.sizes?.[0]);
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
     addItem({
       productId: product.id,
-      clubSlug: product.id.split('-')[0], // derive club from product id prefix
+      clubSlug: product.clubSlug,
       name: product.name,
       price: product.price,
-      priceValue: parseUGX(product.price),
+      priceValue: product.priceValue,
       size: selectedSize,
       color: product.color,
     });
@@ -163,20 +44,25 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="product-card">
       <div className="product-card-image" style={{ backgroundColor: product.color }}>
-        {product.badge && <span className={`product-card-badge product-card-badge--${product.badge.tone}`}>{product.badge.label}</span>}
-        <product.icon className="product-card-icon" />
+        {product.badge && (
+          <span className={`product-card-badge product-card-badge--${product.badge.startsWith('-') ? 'discount' : 'new'}`}>
+            {product.badge}
+          </span>
+        )}
+        {product.image ? (
+          <img src={product.image} alt={product.name} className="product-card-photo" />
+        ) : (
+          <FiImage className="product-card-icon" />
+        )}
       </div>
 
       <p className="product-card-name">{product.name}</p>
 
       <p className="product-card-price">
         {product.price}
-        {product.originalPrice && <span className="product-card-original-price">{product.originalPrice}</span>}
-      </p>
-
-      <p className="product-card-rating">
-        <FiStar />
-        {product.rating.toFixed(1)} ({product.reviews})
+        {product.originalPrice && (
+          <span className="product-card-original-price">{product.originalPrice}</span>
+        )}
       </p>
 
       <div className="product-card-footer">
@@ -209,6 +95,29 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
+// ── Convert a StoreProduct → DisplayProduct ───────────────────────────────────
+function toDisplay(p: StoreProduct): DisplayProduct {
+  return {
+    id: p.id,
+    clubSlug: p.clubSlug,
+    name: p.name,
+    price: p.price,
+    priceValue: p.priceValue,
+    originalPrice: p.originalPrice,
+    sizes: p.sizes,
+    badge: p.badge,
+    image: p.image,
+    color: p.accentColor,
+    category: p.category,
+    isNew: MODULE_LOAD_TIME - p.createdAt < ONE_WEEK_MS,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// Snapshot time at module load — products created before this are not "new"
+const MODULE_LOAD_TIME = Date.now();
+
 function ProductShowcase({
   storePath = '/store',
   activeCategory = 'all',
@@ -216,40 +125,56 @@ function ProductShowcase({
   storePath?: string;
   activeCategory?: CategorySlug;
 }) {
-  // Filter columns — hide columns whose every product is excluded,
-  // and filter individual products within each column.
-  const visibleColumns = COLUMNS.map(col => ({
-    ...col,
-    products: activeCategory === 'all'
-      ? col.products
-      : col.products.filter(p => p.category === activeCategory),
-  })).filter(col => col.products.length > 0);
+  const allProducts = useClubProductStore((s) => s.products);
+
+  // Filter by category
+  const filtered = (activeCategory === 'all'
+    ? allProducts
+    : allProducts.filter((p) => p.category === activeCategory)
+  ).filter((p) => p.stock > 0); // only in-stock products
+
+  if (filtered.length === 0) {
+    return (
+      <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', padding: '24px 0' }}>
+        {activeCategory === 'all'
+          ? 'No products available yet.'
+          : 'No products found in this category.'}
+      </p>
+    );
+  }
+
+  // Group: newest first in "New Arrivals", rest in "All Products"
+  const now = MODULE_LOAD_TIME;
+  const newArrivals = filtered.filter((p) => now - p.createdAt < ONE_WEEK_MS);
+  const rest = filtered.filter((p) => now - p.createdAt >= ONE_WEEK_MS);
+
+  const columns = [
+    ...(newArrivals.length > 0 ? [{ title: 'New Arrivals', products: newArrivals }] : []),
+    ...(rest.length > 0 ? [{ title: 'All Products', products: rest }] : []),
+    // If everything is new, just show one column
+    ...(newArrivals.length > 0 && rest.length === 0 ? [] : []),
+  ];
+
+  // Edge case: all products are new — show one column
+  const display = columns.length > 0 ? columns : [{ title: 'Products', products: filtered }];
 
   return (
     <section className="product-showcase" aria-label="Product showcase">
-      {visibleColumns.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', padding: '24px 0' }}>
-          No products found in this category.
-        </p>
-      ) : (
-        visibleColumns.map((column) => (
-          <div className="product-column" key={column.title}>
-            <div className="product-column-heading">
-              <h2>{column.title}</h2>
-              <Link to={storePath} className="store-view-link">
-                View all
-                <FiArrowRight />
-              </Link>
-            </div>
-
-            <div className="product-column-list">
-              {column.products.map((product) => (
-                <ProductCard product={product} key={product.id} />
-              ))}
-            </div>
+      {display.map((column) => (
+        <div className="product-column" key={column.title}>
+          <div className="product-column-heading">
+            <h2>{column.title}</h2>
+            <Link to={storePath} className="store-view-link">
+              View all <FiArrowRight />
+            </Link>
           </div>
-        ))
-      )}
+          <div className="product-column-list">
+            {column.products.map((p) => (
+              <ProductCard product={toDisplay(p)} key={p.id} />
+            ))}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }
