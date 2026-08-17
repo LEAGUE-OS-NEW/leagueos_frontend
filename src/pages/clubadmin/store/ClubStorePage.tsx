@@ -1,71 +1,38 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  FiPlus, FiDownload, FiEdit2, FiAlertTriangle, FiX,
-  FiPackage, FiCheck, FiEye, FiRefreshCw, FiShoppingCart,
+  FiPlus, FiDownload, FiEdit2, FiAlertTriangle, FiX, FiTrash2,
+  FiPackage, FiCheck, FiEye, FiRefreshCw, FiShoppingCart, FiImage,
 } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../../store/authStore';
+import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
+import { useClubProductStore, toCategorySlug, nameToSlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
+import { parseUGX } from '../../../store/cartStore';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubStorePage.css';
-import {
-  createClubProduct,
-  createClubProductCategory,
-  fetchClubProductCategories,
-  fetchClubProducts,
-  fetchClubStoreOrders,
-  updateClubProduct,
-  type ClubMerchandiseProduct,
-  type ClubProductCategory,
-  type ClubStoreOrder,
-} from '../../../services/clubStoreService';
 
 const TABS = ['Products', 'Orders', 'Inventory'];
-
 const CATEGORIES = ['Apparel', 'Fan Gear', 'Training', 'Accessories', 'Other'];
+
 type ProductStatus = 'active' | 'low stock' | 'out of stock';
-
-type Product = {
-  id: string;
-  name: string;
-  cat: string;
-  price: string;
-  stock: number;
-  status: ProductStatus;
-  sku?: string;
-  description?: string;
-};
-
-type OrderStatus =
-  | 'pending'
-  | 'processing'
-  | 'fulfilled'
-  | 'cancelled';
-
-type Order = {
-  id: string;
-  item: string;
-  buyer: string;
-  email: string;
-  amt: string;
-  date: string;
-  qty: number;
-  address: string;
-  notes: string;
-  status: OrderStatus;
-};
-
+type Product = { id: string; name: string; cat: string; price: string; stock: number; status: ProductStatus; sku?: string; description?: string; image?: string };
+type OrderStatus = 'pending' | 'processing' | 'shipped' | 'fulfilled' | 'cancelled';
+type Order = { id: string; item: string; buyer: string; email: string; amt: string; date: string; qty: number; address: string; notes: string; status: OrderStatus };
 
 const STATUS_CLASS: Record<string, string> = {
   active: 'ca-pill-green', 'low stock': 'ca-pill-orange', 'out of stock': 'ca-pill-red',
 };
-
 const ORDER_STATUS_CLASS: Record<OrderStatus, string> = {
-  pending: 'ca-pill-orange',
-  processing: 'ca-pill-blue',
-  fulfilled: 'ca-pill-green',
-  cancelled: 'ca-pill-red',
+  pending: 'ca-pill-orange', processing: 'ca-pill-blue', shipped: 'ca-pill-blue',
+  fulfilled: 'ca-pill-green', cancelled: 'ca-pill-red',
 };
+
+function getStatus(stock: number): ProductStatus {
+  if (stock <= 0) return 'out of stock';
+  if (stock < 20) return 'low stock';
+  return 'active';
+}
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
   if (!rows.length) return;
@@ -75,425 +42,120 @@ function exportCSV(rows: Record<string, unknown>[], filename: string) {
   a.click();
 }
 
-const BLANK_PRODUCT: Omit<Product, 'id' | 'status'> = { name: '', cat: 'Apparel', price: '', stock: 0, sku: '', description: '' };
-
-type ModalKind = null | 'product' | 'order-detail' | 'restock';
-
+const BLANK_PRODUCT: Omit<Product, 'id' | 'status'> = { name: '', cat: 'Apparel', price: '', stock: 0, sku: '', description: '', image: '' };
+type ModalKind = null | 'product' | 'order-detail' | 'restock' | 'confirm-delete';
+let prodIdCounter = Date.now();
 
 export default function ClubStorePage() {
   const [activeTab, setActiveTab] = useState('Products');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [categories, setCategories] =
-    useState<ClubProductCategory[]>([]);
-  const [isLoadingStore, setIsLoadingStore] = useState(true);
-  const [storeError, setStoreError] = useState('');
-  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, 'id' | 'status'>>(BLANK_PRODUCT);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [restockProduct, setRestockProduct] = useState<Product | null>(null);
   const [restockQty, setRestockQty] = useState(50);
-  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'processing' | 'shipped' | 'fulfilled' | 'cancelled'>('all');
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [orderFilter, setOrderFilter] = useState<'all' | OrderStatus>('all');
   const [catFilter, setCatFilter] = useState('All');
   const [toast, setToast] = useState('');
 
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
-  const clubEntitlements =
-    user?.dashboard_access?.entitlements.filter(
-      e =>
-        e.dashboard === 'CLUB_ADMIN' &&
-        e.scope_type === 'CLUB' &&
-        e.scope_id,
-    ) ?? [];
+  const rawEnt = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const ents = rawEnt.length > 0 ? rawEnt : DEMO_ENTITLEMENTS;
+  const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
+  const canManage = current?.permissions.includes('club.admin.manage') ?? true;
 
-  const current =
-    clubEntitlements.find(
-      e => e.id === selectedEntitlementId,
-    ) ??
-    clubEntitlements[0] ??
-    null;
+  const { addProduct, updateProduct, removeProduct } = useClubProductStore();
 
-  const clubId =
-    current?.scope_id
-      ? String(current.scope_id)
-      : '';
+  const scopeId = current?.scope_id ?? 1;
+  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
 
-  const canManage =
-    current?.permissions.includes('club.admin.manage') ??
-    false;
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
-
-  const formatMoney = (
-    value: string | number,
-    currency = 'UGX',
-  ) => {
-    const amount = Number(value);
-
-    if (!Number.isFinite(amount)) {
-      return `${currency} 0`;
-    }
-
-    return `${currency} ${Math.round(amount).toLocaleString(
-      'en-UG',
-    )}`;
-  };
-
-  const parseMoney = (value: string) => {
-    const amount = Number(
-      value
-        .replace(/UGX/gi, '')
-        .replace(/,/g, '')
-        .trim(),
-    );
-
-    return Number.isFinite(amount)
-      ? amount
-      : Number.NaN;
-  };
-
-  const productFromApi = useCallback(
-    (
-      record: ClubMerchandiseProduct,
-      productCategories: ClubProductCategory[],
-    ): Product => {
-      const category =
-        productCategories.find(
-          item => item.id === record.category,
-        )?.name ?? 'Other';
-
-      const availableStock =
-        Number(record.available_stock);
-
-      return {
-        id: record.id,
-        name: record.name,
-        cat: category,
-        price: formatMoney(
-          record.price,
-          record.currency || 'UGX',
-        ),
-        stock: Number(record.stock),
-        status:
-          availableStock <= 0
-            ? 'out of stock'
-            : record.is_low_stock
-              ? 'low stock'
-              : 'active',
-        sku: record.sku,
-        description: record.description,
-      };
-    },
-    [],
-  );
-
-  const orderFromApi = useCallback(
-    (record: ClubStoreOrder): Order => {
-      const metadata = record.metadata ?? {};
-      const shipping = record.shipping_address ?? {};
-
-      const item =
-        typeof metadata.item_name === 'string'
-          ? metadata.item_name
-          : typeof metadata.summary === 'string'
-            ? metadata.summary
-            : 'Merchandise order';
-
-      const buyer =
-        typeof metadata.buyer_name === 'string'
-          ? metadata.buyer_name
-          : `Customer ${String(record.user).slice(0, 8)}`;
-
-      const email =
-        typeof metadata.buyer_email === 'string'
-          ? metadata.buyer_email
-          : '';
-
-      const qty =
-        typeof metadata.quantity === 'number'
-          ? metadata.quantity
-          : 0;
-
-      const notes =
-        typeof metadata.notes === 'string'
-          ? metadata.notes
-          : '';
-
-      const date =
-        typeof metadata.created_at === 'string'
-          ? metadata.created_at
-          : '—';
-
-      const address = Object.values(shipping)
-        .filter(
-          value =>
-            typeof value === 'string' &&
-            value.trim(),
-        )
-        .join(', ');
-
-      const status: OrderStatus =
-        record.status === 'FULFILLED'
-          ? 'fulfilled'
-          : record.status === 'CANCELLED' ||
-              record.status === 'REFUNDED'
-            ? 'cancelled'
-            : record.status === 'PROCESSING' ||
-                record.status === 'PAID'
-              ? 'processing'
-              : 'pending';
-
-      return {
-        id: record.id,
-        item,
-        buyer,
-        email,
-        amt: formatMoney(
-          record.total_amount,
-          record.currency || 'UGX',
-        ),
-        date,
-        qty,
-        address: address || 'No delivery address recorded',
-        notes,
-        status,
-      };
-    },
-    [],
-  );
-
-  const loadStore = useCallback(async () => {
-    if (!clubId) {
-      setProducts([]);
-      setOrders([]);
-      setCategories([]);
-      setStoreError(
-        'No Club Admin workspace is selected.',
-      );
-      setIsLoadingStore(false);
-      return;
-    }
-
-    setIsLoadingStore(true);
-    setStoreError('');
-
-    try {
-      const [
-        nextCategories,
-        nextProducts,
-        nextOrders,
-      ] = await Promise.all([
-        fetchClubProductCategories(clubId),
-        fetchClubProducts(clubId),
-        fetchClubStoreOrders(clubId),
-      ]);
-
-      setCategories(nextCategories);
-
-      setProducts(
-        nextProducts.map(product =>
-          productFromApi(
-            product,
-            nextCategories,
-          ),
-        ),
-      );
-
-      setOrders(
-        nextOrders.map(orderFromApi),
-      );
-    } catch (error) {
-      setProducts([]);
-      setOrders([]);
-
-      setStoreError(
-        error instanceof Error
-          ? error.message
-          : 'Could not load the club store.',
-      );
-    } finally {
-      setIsLoadingStore(false);
-    }
-  }, [
-    clubId,
-    orderFromApi,
-    productFromApi,
-  ]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadStore();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [loadStore]);
-
-  const categoryOptions = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...CATEGORIES,
-          ...categories.map(
-            category => category.name,
-          ),
-        ]),
-      ),
-    [categories],
-  );
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const categoryOptions = useMemo(() => CATEGORIES, []);
 
   const openNewProduct = () => { setProductForm(BLANK_PRODUCT); setEditProductId(null); setModal('product'); };
-  const openEditProduct = (p: Product) => { setProductForm({ name: p.name, cat: p.cat, price: p.price, stock: p.stock, sku: p.sku ?? '', description: p.description ?? '' }); setEditProductId(p.id); setModal('product'); };
+  const openEditProduct = (p: Product) => {
+    setProductForm({ name: p.name, cat: p.cat, price: p.price, stock: p.stock, sku: p.sku ?? '', description: p.description ?? '', image: p.image ?? '' });
+    setEditProductId(p.id);
+    setModal('product');
+  };
 
-  const saveProduct = async () => {
-    if (
-      !clubId ||
-      !productForm.name.trim() ||
-      isSavingProduct
-    ) {
-      return;
+  const handleProductImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('Please select an image file'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setProductForm(f => ({ ...f, image: ev.target?.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const saveProduct = () => {
+    if (!productForm.name.trim()) return;
+    const status = getStatus(productForm.stock);
+    const categorySlug = toCategorySlug(productForm.cat);
+    const clubSlug = nameToSlug(clubInfo.name);
+
+    if (editProductId) {
+      setProducts(prev => prev.map(p => p.id === editProductId ? { ...productForm, id: editProductId, status } : p));
+      updateProduct(editProductId, {
+        name: productForm.name, category: categorySlug, price: productForm.price,
+        priceValue: parseUGX(productForm.price), stock: productForm.stock,
+        description: productForm.description, sku: productForm.sku,
+        image: productForm.image, accentColor: CATEGORY_COLORS[categorySlug],
+      });
+      showToast('Product updated');
+    } else {
+      const id = `p-${prodIdCounter++}`;
+      setProducts(prev => [...prev, { ...productForm, id, status }]);
+      addProduct({
+        id, clubSlug, clubName: clubInfo.name, name: productForm.name,
+        category: categorySlug, price: productForm.price,
+        priceValue: parseUGX(productForm.price), description: productForm.description,
+        sku: productForm.sku, stock: productForm.stock, image: productForm.image,
+        accentColor: CATEGORY_COLORS[categorySlug], createdAt: Date.now(),
+      });
+      showToast(`${productForm.name} added to catalog`);
     }
-
-    const price = parseMoney(
-      productForm.price,
-    );
-
-    if (
-      !Number.isFinite(price) ||
-      price < 0
-    ) {
-      showToast(
-        'Enter a valid product price.',
-      );
-      return;
-    }
-
-    setIsSavingProduct(true);
-
-    try {
-      let category =
-        categories.find(
-          item =>
-            item.name.toLowerCase() ===
-            productForm.cat.toLowerCase(),
-        ) ?? null;
-
-      if (!category) {
-        category =
-          await createClubProductCategory(
-            clubId,
-            productForm.cat,
-          );
-
-        setCategories(previous => [
-          ...previous,
-          category as ClubProductCategory,
-        ]);
-      }
-
-      const payload = {
-        category: category.id,
-        name: productForm.name.trim(),
-        description:
-          productForm.description?.trim() ??
-          '',
-        price: price.toFixed(2),
-        currency: 'UGX',
-        sku: productForm.sku?.trim() ?? '',
-        stock: Math.max(
-          0,
-          Math.trunc(productForm.stock),
-        ),
-        low_stock_threshold: 20,
-        images: [],
-        metadata: {},
-        status: 'ACTIVE' as const,
-        is_featured: false,
-      };
-
-      if (editProductId) {
-        await updateClubProduct(
-          clubId,
-          editProductId,
-          payload,
-        );
-
-        showToast('Product updated');
-      } else {
-        await createClubProduct(
-          clubId,
-          payload,
-        );
-
-        showToast(
-          `${productForm.name} added to catalog`,
-        );
-      }
-
-      setModal(null);
-
-      await loadStore();
-    } catch (error) {
-      showToast(
-        error instanceof Error
-          ? error.message
-          : 'Could not save product.',
-      );
-    } finally {
-      setIsSavingProduct(false);
-    }
+    setModal(null);
   };
 
   const openRestock = (p: Product) => { setRestockProduct(p); setRestockQty(50); setModal('restock'); };
-  const confirmRestock = async () => {
-    if (
-      !clubId ||
-      !restockProduct ||
-      restockQty <= 0
-    ) {
-      return;
-    }
-
-    try {
-      await updateClubProduct(
-        clubId,
-        restockProduct.id,
-        {
-          stock:
-            restockProduct.stock +
-            Math.trunc(restockQty),
-        },
-      );
-
-      showToast(
-        `Restocked ${restockProduct.name} (+${restockQty})`,
-      );
-
-      setModal(null);
-
-      await loadStore();
-    } catch (error) {
-      showToast(
-        error instanceof Error
-          ? error.message
-          : 'Could not restock product.',
-      );
-    }
+  const confirmRestock = () => {
+    if (!restockProduct || restockQty <= 0) return;
+    const newStock = restockProduct.stock + Math.trunc(restockQty);
+    setProducts(prev => prev.map(p => p.id === restockProduct.id ? { ...p, stock: newStock, status: getStatus(newStock) } : p));
+    showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
+    setModal(null);
   };
 
-  const openOrderDetail = (o: Order) => {
-    setSelectedOrder(o);
-    setModal('order-detail');
+  const confirmDeleteProduct = () => {
+    if (!deleteProductId) return;
+    setProducts(prev => prev.filter(p => p.id !== deleteProductId));
+    removeProduct(deleteProductId);
+    showToast('Product deleted');
+    setDeleteProductId(null);
+    setModal(null);
   };
 
-
+  const openOrderDetail = (o: Order) => { setSelectedOrder(o); setModal('order-detail'); };
+  const advanceOrderStatus = (id: string) => {
+    setOrders(prev => prev.map(o => {
+      if (o.id !== id) return o;
+      const next: Record<OrderStatus, OrderStatus> = { pending: 'processing', processing: 'shipped', shipped: 'fulfilled', fulfilled: 'fulfilled', cancelled: 'cancelled' };
+      return { ...o, status: next[o.status] };
+    }));
+    showToast('Order status updated');
+    setModal(null);
+  };
+  const cancelOrder = (id: string) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
+    showToast('Order cancelled');
+    setModal(null);
+  };
 
   const filteredProducts = products.filter(p => catFilter === 'All' || p.cat === catFilter);
   const filteredOrders = orders.filter(o => orderFilter === 'all' || o.status === orderFilter);
@@ -504,7 +166,7 @@ export default function ClubStorePage() {
     <ClubAdminLayout>
       {toast && <div className="ca-toast"><FiCheck /> {toast}</div>}
 
-      {/* Product modal */}
+      {/* ── Product modal ── */}
       {modal === 'product' && (
         <div className="ca-modal-overlay" onClick={() => setModal(null)}>
           <div className="ca-modal ca-modal-wide" onClick={e => e.stopPropagation()}>
@@ -540,23 +202,33 @@ export default function ClubStorePage() {
                   <label className="ca-label">Description</label>
                   <textarea className="ca-textarea" rows={2} value={productForm.description ?? ''} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief product description…" />
                 </div>
+                <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Product Image</label>
+                  {productForm.image ? (
+                    <div className="ca-cover-preview">
+                      <img src={productForm.image} alt="Product preview" className="ca-cover-preview-img" style={{ height: 140 }} />
+                      <button type="button" className="ca-cover-remove" onClick={() => setProductForm(f => ({ ...f, image: '' }))} aria-label="Remove image"><FiX /></button>
+                    </div>
+                  ) : (
+                    <label className="ca-cover-upload">
+                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleProductImage} />
+                      <FiImage className="ca-cover-upload-icon" />
+                      <span className="ca-cover-upload-text">Click to upload product image</span>
+                      <span className="ca-cover-upload-hint">JPG, PNG, WebP — max 10 MB</span>
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={saveProduct}>
-                {isSavingProduct
-                  ? 'Saving…'
-                  : editProductId
-                    ? 'Save Changes'
-                    : 'Add Product'}
-              </button>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={saveProduct}>{editProductId ? 'Save Changes' : 'Add Product'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Order detail modal */}
+      {/* ── Order detail modal ── */}
       {modal === 'order-detail' && selectedOrder && (
         <div className="ca-modal-overlay" onClick={() => setModal(null)}>
           <div className="ca-modal" onClick={e => e.stopPropagation()}>
@@ -593,13 +265,47 @@ export default function ClubStorePage() {
               </div>
             </div>
             <div className="ca-modal-footer">
+              {selectedOrder.status !== 'fulfilled' && selectedOrder.status !== 'cancelled' && (
+                <button type="button" className="ca-btn ca-btn-danger" style={{ marginRight: 'auto' }} onClick={() => cancelOrder(selectedOrder.id)}>
+                  <FiX /> Cancel Order
+                </button>
+              )}
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Close</button>
+              {selectedOrder.status !== 'fulfilled' && selectedOrder.status !== 'cancelled' && (
+                <button type="button" className="ca-btn ca-btn-primary" onClick={() => advanceOrderStatus(selectedOrder.id)}>
+                  <FiPackage /> {selectedOrder.status === 'pending' ? 'Mark Processing' : selectedOrder.status === 'processing' ? 'Mark Shipped' : 'Mark Fulfilled'}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Restock modal */}
+      {/* ── Confirm delete modal ── */}
+      {modal === 'confirm-delete' && deleteProductId && (() => {
+        const target = products.find(p => p.id === deleteProductId);
+        return (
+          <div className="ca-modal-overlay" onClick={() => { setDeleteProductId(null); setModal(null); }}>
+            <div className="ca-modal" onClick={e => e.stopPropagation()}>
+              <div className="ca-modal-header">
+                <h2 className="ca-modal-title" style={{ color: '#ef4444' }}>Delete Product</h2>
+                <button type="button" className="ca-modal-close" onClick={() => { setDeleteProductId(null); setModal(null); }}><FiX /></button>
+              </div>
+              <div className="ca-modal-body">
+                <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--color-text-primary)' }}>
+                  Are you sure you want to delete <strong>{target?.name}</strong>? This will also remove it from the public store.
+                </p>
+              </div>
+              <div className="ca-modal-footer">
+                <button type="button" className="ca-btn ca-btn-secondary" onClick={() => { setDeleteProductId(null); setModal(null); }}>Cancel</button>
+                <button type="button" className="ca-btn ca-btn-danger" onClick={confirmDeleteProduct}><FiTrash2 /> Delete</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Restock modal ── */}
       {modal === 'restock' && restockProduct && (
         <div className="ca-modal-overlay" onClick={() => setModal(null)}>
           <div className="ca-modal" onClick={e => e.stopPropagation()}>
@@ -619,16 +325,12 @@ export default function ClubStorePage() {
               <div className="ca-field" style={{ marginTop: 12 }}>
                 <label className="ca-label">Add Quantity</label>
                 <input className="ca-input" type="number" min="1" value={restockQty} onChange={e => setRestockQty(Number(e.target.value))} />
-                <p style={{ margin: '6px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                  New total: {restockProduct.stock + restockQty} units
-                </p>
+                <p style={{ margin: '6px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>New total: {restockProduct.stock + restockQty} units</p>
               </div>
             </div>
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={confirmRestock}>
-                <FiRefreshCw /> Restock
-              </button>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={confirmRestock}><FiRefreshCw /> Restock</button>
             </div>
           </div>
         </div>
@@ -636,58 +338,22 @@ export default function ClubStorePage() {
 
       <div className="ca-page-header">
         <div>
-
           <h1 className="ca-page-title">Store &amp; Orders</h1>
           <p className="ca-page-subtitle">Manage club merchandise, orders, inventory and customer fulfilment.</p>
         </div>
         <div className="ca-page-actions">
-          <button type="button" className="ca-btn ca-btn-secondary"
-            onClick={() => exportCSV(products as unknown as Record<string, unknown>[], 'products.csv')}>
-            <FiDownload /> Export
-          </button>
+          <button type="button" className="ca-btn ca-btn-secondary" onClick={() => exportCSV(products as unknown as Record<string, unknown>[], 'products.csv')}><FiDownload /> Export</button>
           {canManage && activeTab === 'Products' && (
             <button type="button" className="ca-btn ca-btn-primary" onClick={openNewProduct}><FiPlus /> Add Product</button>
           )}
         </div>
       </div>
 
-      {isLoadingStore && (
-        <div className="ca-panel">
-          <p className="ca-page-subtitle">
-            Loading store data…
-          </p>
-        </div>
-      )}
-
-      {storeError && (
-        <div className="ca-panel">
-          <p
-            style={{
-              color: '#ef4444',
-              margin: 0,
-            }}
-          >
-            {storeError}
-          </p>
-
-          <button
-            type="button"
-            className="ca-btn ca-btn-secondary"
-            style={{ marginTop: 12 }}
-            onClick={() => void loadStore()}
-          >
-            <FiRefreshCw /> Retry
-          </button>
-        </div>
-      )}
-
       <div className="ca-tabs">
         {TABS.map(t => (
           <button key={t} type="button" className={`ca-tab${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
             {t}
-            {t === 'Orders' && pendingCount > 0 && (
-              <span className="ca-tab-badge">{pendingCount}</span>
-            )}
+            {t === 'Orders' && pendingCount > 0 && <span className="ca-tab-badge">{pendingCount}</span>}
           </button>
         ))}
       </div>
@@ -709,9 +375,7 @@ export default function ClubStorePage() {
               </div>
               <div className="ca-table-wrap">
                 <table className="ca-table">
-                  <thead>
-                    <tr><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
-                  </thead>
+                  <thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {filteredProducts.length === 0 && (
                       <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No products yet. Add a product to start your catalog.</td></tr>
@@ -719,9 +383,18 @@ export default function ClubStorePage() {
                     {filteredProducts.map(p => (
                       <tr key={p.id}>
                         <td>
-                          <div>
-                            <p style={{ margin: 0, fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>{p.name}</p>
-                            {p.description && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{p.description.slice(0, 50)}{p.description.length > 50 ? '…' : ''}</p>}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            {p.image ? (
+                              <img src={p.image} alt={p.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <FiImage style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }} />
+                              </div>
+                            )}
+                            <div>
+                              <p style={{ margin: 0, fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>{p.name}</p>
+                              {p.description && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{p.description.slice(0, 50)}{p.description.length > 50 ? '…' : ''}</p>}
+                            </div>
                           </div>
                         </td>
                         <td style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>{p.sku || '—'}</td>
@@ -730,7 +403,12 @@ export default function ClubStorePage() {
                         <td style={{ fontWeight: p.stock < 20 ? 800 : undefined, color: p.stock === 0 ? '#ef4444' : p.stock < 20 ? '#f97316' : undefined }}>{p.stock}</td>
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>
-                          {canManage && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
+                          {canManage && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button type="button" className="ca-icon-btn" title="Edit" onClick={() => openEditProduct(p)}><FiEdit2 /></button>
+                              <button type="button" className="ca-icon-btn" title="Delete" style={{ color: '#ef4444' }} onClick={() => { setDeleteProductId(p.id); setModal('confirm-delete'); }}><FiTrash2 /></button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -741,10 +419,7 @@ export default function ClubStorePage() {
           </div>
           <div className="ca-content-aside">
             <div className="ca-panel">
-              <div className="ca-panel-header">
-                <h2 className="ca-panel-title">Stock Alerts</h2>
-                <span className="ca-panel-count">{stockAlerts.length} items</span>
-              </div>
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Stock Alerts</h2><span className="ca-panel-count">{stockAlerts.length} items</span></div>
               {stockAlerts.length === 0 && <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>All products well-stocked.</p>}
               {stockAlerts.map(s => (
                 <div key={s.id} className="ca-alert-item" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
@@ -755,11 +430,7 @@ export default function ClubStorePage() {
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Stock: {s.stock}</p>
                     </div>
                   </div>
-                  {canManage && (
-                    <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}>
-                      <FiRefreshCw />
-                    </button>
-                  )}
+                  {canManage && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}><FiRefreshCw /></button>}
                 </div>
               ))}
             </div>
@@ -783,6 +454,7 @@ export default function ClubStorePage() {
                     <option value="all">All Orders</option>
                     <option value="pending">Pending</option>
                     <option value="processing">Processing</option>
+                    <option value="shipped">Shipped</option>
                     <option value="fulfilled">Fulfilled</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
@@ -791,9 +463,7 @@ export default function ClubStorePage() {
               </div>
               <div className="ca-table-wrap">
                 <table className="ca-table">
-                  <thead>
-                    <tr><th>Order ID</th><th>Item</th><th>Buyer</th><th>Amount</th><th>Date</th><th>Status</th><th></th></tr>
-                  </thead>
+                  <thead><tr><th>Order ID</th><th>Item</th><th>Buyer</th><th>Amount</th><th>Date</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {filteredOrders.map(o => (
                       <tr key={o.id}>
@@ -803,11 +473,7 @@ export default function ClubStorePage() {
                         <td>{o.amt}</td>
                         <td>{o.date}</td>
                         <td><span className={`ca-pill ${ORDER_STATUS_CLASS[o.status]}`} style={{ fontSize: '0.65rem' }}>{o.status}</span></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button type="button" className="ca-icon-btn" title="View details" onClick={() => openOrderDetail(o)}><FiEye /></button>
-                          </div>
-                        </td>
+                        <td><div style={{ display: 'flex', gap: 6 }}><button type="button" className="ca-icon-btn" title="View details" onClick={() => openOrderDetail(o)}><FiEye /></button></div></td>
                       </tr>
                     ))}
                     {filteredOrders.length === 0 && (
@@ -822,7 +488,7 @@ export default function ClubStorePage() {
             <div className="ca-panel">
               <div className="ca-panel-header"><h2 className="ca-panel-title">Order Summary</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(['pending', 'processing', 'fulfilled', 'cancelled'] as const).map(s => {
+                {(['pending', 'processing', 'shipped', 'fulfilled', 'cancelled'] as const).map(s => {
                   const count = orders.filter(o => o.status === s).length;
                   return (
                     <div key={s} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
@@ -838,15 +504,9 @@ export default function ClubStorePage() {
             </div>
             <div className="ca-panel">
               <div className="ca-panel-header"><h2 className="ca-panel-title">Quick Actions</h2></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  { label: 'Export order report', icon: FiDownload, action: () => exportCSV(orders as unknown as Record<string, unknown>[], 'orders.csv') },
-                ].map((qa, i) => (
-                  <button key={i} type="button" className="ca-btn ca-btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.78rem' }} onClick={qa.action}>
-                    <qa.icon /> {qa.label}
-                  </button>
-                ))}
-              </div>
+              <button type="button" className="ca-btn ca-btn-secondary" style={{ justifyContent: 'flex-start', fontSize: '0.78rem', width: '100%' }} onClick={() => exportCSV(orders as unknown as Record<string, unknown>[], 'orders.csv')}>
+                <FiDownload /> Export order report
+              </button>
             </div>
           </div>
         </div>
@@ -857,15 +517,10 @@ export default function ClubStorePage() {
         <div className="ca-content-grid">
           <div className="ca-content-main">
             <div className="ca-panel">
-              <div className="ca-panel-header">
-                <h2 className="ca-panel-title">Inventory</h2>
-                <span className="ca-panel-count">{products.length} products</span>
-              </div>
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Inventory</h2><span className="ca-panel-count">{products.length} products</span></div>
               <div className="ca-table-wrap">
                 <table className="ca-table">
-                  <thead>
-                    <tr><th>Product</th><th>SKU</th><th>Category</th><th>Stock</th><th>Status</th><th>Price</th><th></th></tr>
-                  </thead>
+                  <thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Stock</th><th>Status</th><th>Price</th><th></th></tr></thead>
                   <tbody>
                     {products.length === 0 && (
                       <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No products in inventory.</td></tr>
@@ -886,14 +541,8 @@ export default function ClubStorePage() {
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>{p.price}</td>
                         <td>
-                          {canManage && p.status !== 'active' && (
-                            <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}>
-                              <FiRefreshCw /> Restock
-                            </button>
-                          )}
-                          {canManage && p.status === 'active' && (
-                            <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>
-                          )}
+                          {canManage && p.status !== 'active' && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}><FiRefreshCw /> Restock</button>}
+                          {canManage && p.status === 'active' && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
                         </td>
                       </tr>
                     ))}
@@ -908,7 +557,7 @@ export default function ClubStorePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   { label: 'Well-stocked', count: products.filter(p => p.status === 'active').length, color: '#22c55e' },
-                  { label: 'Low stock',    count: products.filter(p => p.status === 'low stock').length, color: '#f97316' },
+                  { label: 'Low stock', count: products.filter(p => p.status === 'low stock').length, color: '#f97316' },
                   { label: 'Out of stock', count: products.filter(p => p.status === 'out of stock').length, color: '#ef4444' },
                 ].map(h => (
                   <div key={h.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
