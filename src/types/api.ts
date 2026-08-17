@@ -85,6 +85,11 @@ export interface Market {
   is_watchlisted: boolean;
   opening_liquidity_available?: boolean;
   opening_reference?: Record<string, string | null>;
+  opening_liquidity?: {
+    initial_liquidity_ugx: string;
+    opening_spread_bps: number;
+    activation_status: string;
+  };
   created_at?: string;
   updated_at?: string;
   trading_snapshot?: {

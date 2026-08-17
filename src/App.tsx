@@ -77,6 +77,7 @@ import ReportsPage from './pages/admin/reports/ReportsPage';
 import SystemSettingsPage from './pages/admin/settings/SystemSettingsPage';
 import ComplianceAdmin from './pages/admin/compliance/ComplianceAdmin';
 import FinanceAdmin from "./pages/admin/finance/FinanceAdmin";
+import PayoutsPage from "./pages/admin/finance/PayoutsPage";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 import SportsDataAdmin from './pages/admin/sportsdata/SportsDataAdmin';
@@ -233,7 +234,7 @@ function App() {
         <Route path="/dashboard/admin/news" element={admin(<NewsAdmin />)} />
         <Route path="/dashboard/admin/compliance" element={admin(<ComplianceAdmin />)} />
         <Route path="/dashboard/admin/payments" element={admin(<FinanceAdmin />)} />
-        <Route path="/dashboard/admin/payouts" element={admin(<FinanceAdmin initialQueue="withdrawals" />)} />
+        <Route path="/dashboard/admin/payouts" element={admin(<PayoutsPage />)} />
         <Route path="/dashboard/admin/support" element={admin(<CustomerSupportAdmin />)} />
         <Route path="/dashboard/admin/support/case-queues" element={admin(<CustomerSupportAdmin />)} />
         <Route path="/dashboard/admin/support/my-cases" element={admin(<CustomerSupportAdmin />)} />

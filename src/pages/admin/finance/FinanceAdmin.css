@@ -1099,3 +1099,30 @@
     padding: 14px 16px;
   }
 }
+
+.fa-pill--pending-approval,
+.fa-pill--processing {
+  background: rgba(240, 178, 60, 0.14);
+  color: var(--fa-amber);
+  border-color: rgba(240, 178, 60, 0.35);
+}
+
+.fa-pill--completed {
+  background: rgba(51, 209, 122, 0.14);
+  color: var(--fa-green);
+  border-color: rgba(51, 209, 122, 0.35);
+}
+
+.fa-pill--failed {
+  background: rgba(240, 85, 92, 0.14);
+  color: var(--fa-red);
+  border-color: rgba(240, 85, 92, 0.35);
+}
+
+.fa-withdrawal-error {
+  margin: 10px 0 0;
+  color: var(--fa-red);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+}

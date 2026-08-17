@@ -1,9 +1,15 @@
+/* ============================================================
+   Fantasy Admin Page
+   ============================================================ */
+
 .fa-root {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  padding-bottom: 40px;
 }
 
+/* ── Header ── */
 .fa-head {
   display: flex;
   align-items: flex-start;
@@ -14,16 +20,17 @@
 
 .fa-eyebrow {
   margin: 0 0 4px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--color-primary-light, #a855f7);
 }
 
 .fa-head h1 {
   margin: 0 0 6px;
   font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-style: italic;
 }
 
 .fa-head > div > p:last-child {
@@ -33,37 +40,115 @@
   max-width: 60ch;
 }
 
-.fa-head__actions {
+/* ── Tabs ── */
+.fa-tabs {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
 }
 
-/* ---------- Buttons ---------- */
+.fa-tabs button {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: background 0.15s, color 0.15s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
 
+.fa-tabs button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-card-hover);
+}
+
+.fa-tabs button.active {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-primary);
+  background: var(--color-card-bg);
+}
+
+/* ── Banners ── */
+.fa-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.fa-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.30);
+  color: #4ade80;
+  font-size: 0.85rem;
+}
+
+.fa-saving-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.10);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  color: #c4b5fd;
+  font-size: 0.85rem;
+}
+
+/* ── Empty / Loading ── */
+.fa-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+/* ── Buttons ── */
 .fa-btn {
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 700;
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
   border: 1px solid var(--color-border);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background-color: transparent;
+  gap: 6px;
+  background-color: var(--color-card-bg);
   color: var(--color-text-primary);
   white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.fa-btn:hover:not(:disabled) {
+  background-color: var(--color-card-hover);
+  border-color: var(--color-border-hover, rgba(255,255,255,0.2));
 }
 
 .fa-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
-}
-
-.fa-btn--ghost {
-  background-color: var(--color-card-bg);
 }
 
 .fa-btn--gradient {
@@ -72,72 +157,220 @@
   border: none;
 }
 
-.fa-btn--outline {
-  background: transparent;
-  border: 1px solid var(--color-border-hover);
+.fa-btn--gradient:hover:not(:disabled) {
+  filter: brightness(1.1);
+  background: var(--gradient-primary);
+}
+
+.fa-btn--ghost {
+  background-color: transparent;
+  border-color: var(--color-border);
+}
+
+.fa-btn--danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.fa-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.20);
 }
 
 .fa-btn--sm {
   padding: 7px 12px;
   font-size: 0.74rem;
-  min-height: 32px;
 }
 
-/* ---------- Loading / error ---------- */
-
-.fa-loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 0;
-  justify-content: center;
-  color: var(--color-text-secondary);
-}
-
-.fa-loading__icon {
-  animation: fa-spin 1.2s linear infinite;
-}
-
-@keyframes fa-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.fa-error-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--color-text-primary);
-  font-size: 0.85rem;
-}
-
-.fa-error-banner > span {
-  flex: 1;
-}
-
-/* ---------- Panel / table ---------- */
-
+/* ── Panel (card container) ── */
 .fa-panel {
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
   border-radius: 16px;
-  padding: clamp(16px, 3vw, 22px);
+  padding: clamp(18px, 3vw, 26px);
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.fa-panel > h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fa-panel > h2::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--gradient-primary);
+  flex-shrink: 0;
+}
+
+/* ── Overview stat cards ── */
+.fa-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 14px;
 }
 
-.fa-panel h2 {
-  margin: 0;
-  font-size: 1.05rem;
+.fa-stats article {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s;
 }
 
-.fa-table-scroll {
+.fa-stats article:hover {
+  border-color: var(--color-primary);
+}
+
+.fa-stats article span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.fa-stats article strong {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+/* ── Form grid ── */
+.fa-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.fa-form-grid fieldset {
+  grid-column: 1 / -1;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fa-form-grid fieldset legend {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: 0 6px;
+}
+
+.fa-form-grid fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.83rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.fa-form-grid .fa-btn {
+  justify-self: start;
+  align-self: end;
+}
+
+/* Full-width item inside the form grid */
+.fa-form-grid-fullwidth {
+  grid-column: 1 / -1;
+}
+
+/* ── Field label ── */
+.fa-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+.fa-field > span:first-child,
+.fa-field > label:first-child {
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.fa-field input,
+.fa-field select,
+.fa-field textarea {
+  font-family: inherit;
+  font-size: 0.86rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated, #0f0a1d);
+  color: var(--color-text-primary);
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.fa-field input:focus,
+.fa-field select:focus,
+.fa-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.fa-field textarea {
+  resize: vertical;
+  min-height: 90px;
+  font-size: 0.78rem;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  line-height: 1.5;
+}
+
+.fa-field--error input,
+.fa-field--error select,
+.fa-field--error textarea {
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.fa-field-error {
+  font-size: 0.72rem;
+  color: #fca5a5;
+  margin-top: 2px;
+}
+
+/* Checkbox row inside a field */
+.fa-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+/* ── Table ── */
+.fa-table-wrap {
   overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
 }
 
 .fa-table {
@@ -151,129 +384,205 @@
   color: var(--color-text-muted);
   font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   font-weight: 700;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-card-hover);
   white-space: nowrap;
+}
+
+.fa-table tbody tr {
+  transition: background 0.12s;
+}
+
+.fa-table tbody tr:hover {
+  background: var(--color-card-hover);
 }
 
 .fa-table tbody td {
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
-  white-space: nowrap;
 }
 
-.fa-table__empty {
+.fa-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fa-table__empty td {
   text-align: center;
   color: var(--color-text-muted);
-  padding: 24px 0 !important;
-  white-space: normal !important;
+  padding: 28px 0 !important;
 }
 
+/* ── Status pill ── */
 .fa-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.66rem;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-.fa-status-pill--available {
-  background: rgba(34, 197, 94, 0.14);
-  color: var(--color-open);
-}
-
+.fa-status-pill--available  { background: rgba(34,197,94,0.14);   color: #4ade80; }
 .fa-status-pill--injured,
-.fa-status-pill--suspended {
-  background: rgba(239, 68, 68, 0.14);
-  color: var(--color-live);
+.fa-status-pill--suspended  { background: rgba(239,68,68,0.14);   color: #fca5a5; }
+.fa-status-pill--doubtful   { background: rgba(234,179,8,0.16);   color: #fde047; }
+.fa-status-pill--unavailable{ background: rgba(100,100,120,0.15); color: #9ca3af; }
+.fa-status-pill--draft      { background: rgba(100,100,120,0.15); color: #9ca3af; }
+.fa-status-pill--open       { background: rgba(34,197,94,0.14);   color: #4ade80; }
+.fa-status-pill--locked     { background: rgba(234,179,8,0.16);   color: #fde047; }
+.fa-status-pill--live       { background: rgba(239,68,68,0.14);   color: #fca5a5; }
+.fa-status-pill--scoring    { background: rgba(124,58,237,0.14);  color: #c4b5fd; }
+.fa-status-pill--finalized  { background: rgba(34,197,94,0.10);   color: #86efac; }
+
+/* ── Gameweek card ── */
+.fa-card {
+  background: var(--color-bg-elevated, #0f0a1d);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s;
 }
 
-.fa-status-pill--doubtful {
-  background: rgba(234, 179, 8, 0.16);
-  color: #eab308;
+.fa-card:hover {
+  border-color: rgba(124,58,237,0.35);
 }
 
-/* ---------- Modal ---------- */
+.fa-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
+.fa-card > p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.fa-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Modal overlay ── */
 .fa-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 3, 10, 0.72);
+  background: rgba(5, 3, 10, 0.75);
   z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
   overflow-y: auto;
+  backdrop-filter: blur(3px);
+  animation: fa-fade-in 0.15s ease;
+}
+
+@keyframes fa-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .fa-modal {
   background: var(--color-card-bg);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 18px;
+  padding: 28px;
   width: 100%;
-  max-width: 440px;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  animation: fa-modal-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+@keyframes fa-modal-in {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+.fa-modal h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.fa-modal > p {
+  margin: -8px 0 0;
+  font-size: 0.83rem;
+  color: var(--color-text-secondary);
+}
+
+.fa-modal-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.fa-modal h3 {
-  margin: 0;
-}
-
-.fa-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.82rem;
-  color: var(--color-text-secondary);
-}
-
-.fa-field > span:first-child {
-  font-weight: 700;
-  font-size: 0.74rem;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.fa-field input,
-.fa-field select {
-  font-family: inherit;
-  font-size: 0.86rem;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-bg-elevated);
-  color: var(--color-text-primary);
+.fa-modal-form .fa-form-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
 .fa-modal__footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
 }
 
-/* Gameweek status pills */
-.fa-status-pill--draft     { background: rgba(100,100,120,0.15); color: #9ca3af; }
-.fa-status-pill--open      { background: rgba(34,197,94,0.14);   color: var(--color-open); }
-.fa-status-pill--locked    { background: rgba(234,179,8,0.16);   color: #eab308; }
-.fa-status-pill--live      { background: rgba(239,68,68,0.14);   color: var(--color-live); }
-.fa-status-pill--scoring   { background: rgba(124,58,237,0.14);  color: #a78bfa; }
-.fa-status-pill--finalized { background: rgba(34,197,94,0.10);   color: #4ade80; }
-
-/* Action button row within a gameweek card */
-.fa-card-actions {
+/* ── Competition selector bar ── */
+.fa-comp-selector {
   display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color, rgba(255,255,255,0.08));
+}
+
+.fa-comp-selector .fa-field {
+  flex: 1;
+  min-width: 200px;
+  max-width: 380px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.fa-comp-selector .fa-field > span:first-child {
+  white-space: nowrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .fa-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fa-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fa-modal {
+    padding: 20px;
+  }
 }
