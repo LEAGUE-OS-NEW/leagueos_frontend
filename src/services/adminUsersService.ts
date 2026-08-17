@@ -188,11 +188,17 @@ export async function fetchAdminInvitations(): Promise<AdminInvitation[]> {
   return normalizeApiList<Record<string, unknown>>(response.data).map(adaptInvitation);
 }
 
-export async function inviteAdminUser(input: { email: string; roleId: string }): Promise<AdminInvitation> {
-  if (!EMAIL_PATTERN.test(input.email.trim())) fail('Enter a valid email address.');
+// Mirrors inviteClubAdmin's two-email model: loginEmail is the LeagueOS
+// identity assigned to this role, notifyEmail is the real inbox the invite
+// is actually delivered to — a brand-new platform-role admin has no working
+// inbox at their assigned login yet, same rationale as Club Admin.
+export async function inviteAdminUser(input: { loginEmail: string; notifyEmail: string; roleId: string }): Promise<AdminInvitation> {
+  if (!EMAIL_PATTERN.test(input.loginEmail.trim())) fail('Enter a valid LeagueOS email address.');
+  if (!EMAIL_PATTERN.test(input.notifyEmail.trim())) fail('Enter a valid personal email address.');
   if (!input.roleId) fail('Select a role for this invitation.');
   const response = await apiClient.post('/admin/invitations/', {
-    email: input.email.trim(),
+    login_email: input.loginEmail.trim(),
+    notify_email: input.notifyEmail.trim(),
     role_ids: [input.roleId],
   });
   return adaptInvitation(response.data);
