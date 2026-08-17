@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { FiGlobe, FiInstagram, FiTwitter, FiYoutube, FiLinkedin, FiDownload, FiSave, FiPlus, FiX, FiUpload, FiImage, FiTrash2 } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
+import { useAuthStore } from '../../../store/authStore';
+import { deleteClubLogo, uploadClubLogo } from '../../../services/adminUsersService';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubProfilePage.css';
 
@@ -31,6 +33,21 @@ function nextId() { return `prof-${seq++}`; }
 export default function ClubProfilePage() {
   const [activeTab, setActiveTab] = useState('Profile');
 
+  // The one real piece of this page — everything else below (Profile
+  // fields, Venues, Media Assets) is still local mock state, out of scope
+  // here. AuthContextService.user_context() populates user.club from the
+  // real active ClubWorkspace (see ClubAdminDashboard.tsx/
+  // ClubAdminSidebar.tsx for the same pattern).
+  const user = useAuthStore((s) => s.user);
+  const realClub =
+    user?.club && typeof user.club === 'object' && 'id' in user.club && 'name' in user.club
+      ? (user.club as { id: string; name: string })
+      : null;
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isSavingLogo, setIsSavingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
   // Profile tab
   const [form, setForm] = useState<FormData>(INIT_FORM);
   const [saved, setSaved] = useState<FormData>(INIT_FORM);
@@ -48,6 +65,36 @@ export default function ClubProfilePage() {
 
   const [toast, setToast] = useState('');
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  // Logo handlers — the one real piece of this page.
+  const handleLogoPick = async (file: File | null) => {
+    if (!file || !realClub) return;
+    setIsSavingLogo(true);
+    setLogoError(null);
+    try {
+      const url = await uploadClubLogo(realClub.id, file);
+      setLogoUrl(url);
+      showToast('Club logo updated');
+    } catch {
+      setLogoError('Could not upload logo. Please try a different image.');
+    } finally {
+      setIsSavingLogo(false);
+    }
+  };
+  const handleLogoRemove = async () => {
+    if (!realClub) return;
+    setIsSavingLogo(true);
+    setLogoError(null);
+    try {
+      await deleteClubLogo(realClub.id);
+      setLogoUrl(null);
+      showToast('Club logo removed');
+    } catch {
+      setLogoError('Could not remove logo. Please try again.');
+    } finally {
+      setIsSavingLogo(false);
+    }
+  };
 
   // Profile handlers
   const handleChange = (k: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -197,6 +244,65 @@ export default function ClubProfilePage() {
       {activeTab === 'Profile' && (
         <div className="ca-content-grid">
           <div className="ca-content-main">
+            <div className="ca-panel">
+              <div className="ca-panel-header">
+                <h2 className="ca-panel-title">Club Crest / Logo</h2>
+              </div>
+              {!realClub ? (
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                  No club is linked to this account yet.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div
+                    style={{
+                      width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',
+                      background: 'var(--color-surface-alt, rgba(255,255,255,0.06))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}
+                  >
+                    {logoUrl ? (
+                      <img src={logoUrl} alt={`${realClub.name} crest`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <FiImage style={{ fontSize: '1.6rem', color: 'var(--color-text-muted)' }} />
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input
+                      ref={logoFileRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={(e) => void handleLogoPick(e.target.files?.[0] ?? null)}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        className="ca-btn ca-btn-secondary ca-btn-sm"
+                        disabled={isSavingLogo}
+                        onClick={() => logoFileRef.current?.click()}
+                      >
+                        <FiUpload /> {logoUrl ? 'Replace' : 'Upload'} Logo
+                      </button>
+                      {logoUrl && (
+                        <button
+                          type="button"
+                          className="ca-btn ca-btn-secondary ca-btn-sm"
+                          disabled={isSavingLogo}
+                          onClick={() => void handleLogoRemove()}
+                          style={{ color: '#ef4444' }}
+                        >
+                          <FiTrash2 /> Remove
+                        </button>
+                      )}
+                    </div>
+                    {logoError && <p style={{ margin: 0, fontSize: '0.76rem', color: '#ef4444' }}>{logoError}</p>}
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>JPG, PNG or WebP</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="ca-panel">
               <div className="ca-panel-header">
                 <h2 className="ca-panel-title">General Club Information</h2>

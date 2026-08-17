@@ -1,23 +1,30 @@
 // Clubs, squads, and player profiles — service layer (US-3.2).
 //
-// No real backend endpoint exists for any of this yet, so it's mock-backed,
-// same convention as every other service this session: typed interfaces,
-// in-memory data, delay()-wrapped async functions, shaped so a real backend
-// swap later only touches this file. Follow state lives in an in-memory
-// Set, same pattern as accountService.ts's accountStatus variable.
+// fetchClubs/followClub/unfollowClub/fetchFollowedClubSlugs are real,
+// calling the discovery app's public club list and follow/unfollow
+// endpoints. Everything else in this file — the extended per-club profile
+// (stadium/description/honours), fetchClubBySlug, squads, and per-club
+// fixtures — stays mock: no real backend model holds that data yet
+// (ClubProfile/ClubProfileVersion exist but nothing populates them from
+// club creation), and building that out is out of scope here. Follow
+// state used to live in an in-memory Set; now it's the real backend's
+// UserClubPreference table.
 
-export type Sport = 'Football' | 'Rugby' | 'Basketball';
-export type VerificationStatus = 'Verified' | 'Pending';
+import apiClient from './apiClient';
 
 function delay<T>(value: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
 /* ------------------------------------------------------------------ */
-/* Clubs                                                                */
+/* Clubs — real list, mock extended profile                            */
 /* ------------------------------------------------------------------ */
 
+export type Sport = 'Football' | 'Rugby' | 'Basketball';
+export type VerificationStatus = 'Verified' | 'Pending';
+
 export interface ClubSummary {
+  id?: string;
   slug: string;
   name: string;
   sport: Sport;
@@ -30,6 +37,8 @@ export interface ClubSummary {
   honours: string[];
 }
 
+// Mock extended profiles — backs fetchClubBySlug/fetchSquad/fetchClubFixtures
+// only. Not used by fetchClubs (the real club list) any more.
 const CLUBS: ClubSummary[] = [
   {
     slug: 'vipers-sc',
@@ -129,10 +138,75 @@ const CLUBS: ClubSummary[] = [
   },
 ];
 
-export async function fetchClubs(): Promise<ClubSummary[]> {
-  return delay([...CLUBS]);
+// ---------------------------------------------------------------------------
+// Real club list — GET /api/v1/clubs/ (discovery app). A club created via
+// adminUsersService.ts's createRealClub shows up here immediately (no
+// featured/verified gate on the backend).
+// ---------------------------------------------------------------------------
+
+interface BackendClub {
+  id: string;
+  name: string;
+  slug: string;
+  sport: string | null;
+  sport_name: string | null;
+  competition: string | null;
+  competition_name: string | null;
+  founded: number | null;
+  logo: string | null;
+  created_at: string;
 }
 
+const KNOWN_SPORTS: Sport[] = ['Football', 'Rugby', 'Basketball'];
+
+function toSport(rawName: string | null): Sport {
+  const match = KNOWN_SPORTS.find((s) => s.toLowerCase() === (rawName ?? '').trim().toLowerCase());
+  return match ?? 'Football';
+}
+
+function mapBackendClub(raw: BackendClub): ClubSummary {
+  return {
+    id: raw.id,
+    slug: raw.slug,
+    name: raw.name,
+    sport: toSport(raw.sport_name),
+    league: raw.competition_name ?? '—',
+    crest: raw.logo ?? undefined,
+    founded: raw.founded ? String(raw.founded) : '—',
+    stadium: '—',
+    description: '',
+    verificationStatus: 'Verified',
+    honours: [],
+  };
+}
+
+// Cache of slug -> real club id, populated by every fetchClubs() call —
+// lets followClub/unfollowClub (real endpoints, keyed by id) work off the
+// slug the rest of the UI already uses.
+const clubIdBySlug = new Map<string, string>();
+
+export interface FetchClubsOptions {
+  ordering?: 'name' | '-name' | 'founded' | '-founded' | 'created_at' | '-created_at';
+}
+
+export async function fetchClubs(options?: FetchClubsOptions): Promise<ClubSummary[]> {
+  try {
+    const response = await apiClient.get<{ results: BackendClub[] } | BackendClub[]>('/clubs/', {
+      params: { page_size: 100, ordering: options?.ordering ?? 'name' },
+    });
+    const raw = Array.isArray(response.data) ? response.data : (response.data.results ?? []);
+    const mapped = raw.map(mapBackendClub);
+    mapped.forEach((club) => {
+      if (club.id) clubIdBySlug.set(club.slug, club.id);
+    });
+    return mapped;
+  } catch {
+    return [];
+  }
+}
+
+// fetchClubBySlug/fetchSquad/fetchClubFixtures below stay mock-backed —
+// see the file header comment for why.
 export async function fetchClubBySlug(slug: string): Promise<ClubSummary | null> {
   return delay(CLUBS.find((club) => club.slug === slug) ?? null);
 }
@@ -253,23 +327,42 @@ export async function fetchClubFixtures(clubSlug: string): Promise<ClubFixture[]
 }
 
 /* ------------------------------------------------------------------ */
-/* Follow / unfollow                                                    */
+/* Follow / unfollow — real, GET/POST/DELETE against discovery's        */
+/* following endpoints (UserClubPreference).                            */
 /* ------------------------------------------------------------------ */
 
-let followedClubSlugs = new Set<string>(['vipers-sc']);
+interface BackendFollow {
+  club: string;
+  club_name: string;
+  club_slug: string;
+}
+
+async function resolveClubId(slug: string): Promise<string | null> {
+  if (clubIdBySlug.has(slug)) return clubIdBySlug.get(slug) ?? null;
+  await fetchClubs();
+  return clubIdBySlug.get(slug) ?? null;
+}
 
 export async function fetchFollowedClubSlugs(): Promise<string[]> {
-  return delay([...followedClubSlugs]);
+  try {
+    const response = await apiClient.get<{ results: BackendFollow[] } | BackendFollow[]>(
+      '/profile/following/',
+    );
+    const raw = Array.isArray(response.data) ? response.data : (response.data.results ?? []);
+    return raw.map((f) => f.club_slug);
+  } catch {
+    return [];
+  }
 }
 
 export async function followClub(slug: string): Promise<void> {
-  followedClubSlugs = new Set(followedClubSlugs).add(slug);
-  return delay(undefined);
+  const clubId = await resolveClubId(slug);
+  if (!clubId) throw new Error('Club not found.');
+  await apiClient.post(`/clubs/${encodeURIComponent(clubId)}/follow/`);
 }
 
 export async function unfollowClub(slug: string): Promise<void> {
-  const next = new Set(followedClubSlugs);
-  next.delete(slug);
-  followedClubSlugs = next;
-  return delay(undefined);
+  const clubId = await resolveClubId(slug);
+  if (!clubId) throw new Error('Club not found.');
+  await apiClient.delete(`/clubs/${encodeURIComponent(clubId)}/follow/`);
 }

@@ -318,6 +318,24 @@ export async function createRealClub(input: { name: string; sportId: string }): 
   return { id: String(raw.id), name: String(raw.name ?? ''), slug: String(raw.slug ?? '') };
 }
 
+// Real — POST /<club_pk>/logo/ (clubs app, IsClubAdmin — Super Admin can
+// set any club's logo, a Club Admin only their own). Usable right after
+// createRealClub (before any workspace exists) or later by the club's own
+// admin from ClubProfilePage.tsx.
+export async function uploadClubLogo(clubId: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const response = await apiClient.post(`/${encodeURIComponent(clubId)}/logo/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  const raw = response.data as Record<string, unknown>;
+  return String(raw.logo_url ?? '');
+}
+
+export async function deleteClubLogo(clubId: string): Promise<void> {
+  await apiClient.delete(`/${encodeURIComponent(clubId)}/logo/`);
+}
+
 export interface ClubAdminInvite {
   id: string;
   email: string;

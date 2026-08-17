@@ -16,6 +16,7 @@ import {
   revokeAdminInvitation,
   revokeAdminRole,
   setAdminUserActive,
+  uploadClubLogo,
   type AdminInvitation,
   type AdminRole,
   type AdminUser,
@@ -62,6 +63,7 @@ function InviteModal({
   const [clubId, setClubId] = useState('');
   const [newClubName, setNewClubName] = useState('');
   const [newClubSportId, setNewClubSportId] = useState('');
+  const [newClubLogo, setNewClubLogo] = useState<File | null>(null);
 
   const isClubAdmin = roleId === CLUB_ADMIN_SENTINEL;
 
@@ -103,6 +105,16 @@ function InviteModal({
         if (clubMode === 'new') {
           const club = await createRealClub({ name: newClubName, sportId: newClubSportId });
           resolvedClubId = club.id;
+          if (newClubLogo) {
+            // Best-effort — a failed logo upload shouldn't block the club
+            // admin invite itself; the club admin can add one later from
+            // their own Club Profile page.
+            try {
+              await uploadClubLogo(club.id, newClubLogo);
+            } catch {
+              // ignored
+            }
+          }
         } else if (!resolvedClubId) {
           throw new Error('Select a club.');
         }
@@ -113,7 +125,7 @@ function InviteModal({
       } else {
         const invite = await onInvite({ email, roleId });
         setSuccessMessage(
-          `Invite sent to ${email.trim()} — they'll follow the link in that email to accept and gain access (invitation ${invite.status.toLowerCase()}, expires ${new Date(invite.expiresAt).toLocaleDateString()}).`,
+          `Invite sent to ${email.trim()} — they'll follow the link in that email to accept and gain access (invitation ${invite.status.toLowerCase()}, expires ${new Date(invite.tokenExpiresAt).toLocaleDateString()}).`,
         );
       }
     } catch (submitError) {
@@ -233,6 +245,14 @@ function InviteModal({
                       </option>
                     ))}
                   </select>
+                </label>
+                <label className="au-field">
+                  <span>Club logo (optional — can also be added later by the club admin)</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => setNewClubLogo(event.target.files?.[0] ?? null)}
+                  />
                 </label>
               </>
             )}
