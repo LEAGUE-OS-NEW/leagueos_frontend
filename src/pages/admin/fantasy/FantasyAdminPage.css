@@ -177,6 +177,14 @@
   background: rgba(239, 68, 68, 0.20);
 }
 
+.fa-modal--danger {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.fa-modal--danger h2 {
+  color: #fca5a5;
+}
+
 .fa-btn--sm {
   padding: 7px 12px;
   font-size: 0.74rem;

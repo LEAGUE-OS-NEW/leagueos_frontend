@@ -20,10 +20,12 @@ export async function fetchAdminFantasyCompetitions(){return list<FantasyCompeti
 export async function fetchCanonicalFantasyOptions(){return (await apiClient.get('/fantasy/competitions/canonical-options/')).data as CanonicalFantasyOptions;}
 export async function adminCreateCompetition(payload:Partial<FantasyCompetition>){return (await apiClient.post('/fantasy/competitions/',payload)).data as FantasyCompetition;}
 export async function adminUpdateCompetition(value:string,payload:Partial<FantasyCompetition>){return (await apiClient.patch(`/fantasy/competitions/${id(value)}/`,payload)).data as FantasyCompetition;}
+export async function adminDeleteCompetition(value:string){await apiClient.delete(`/fantasy/competitions/${id(value)}/`);}
 // Uses list<>() — handles both plain array and paginated {results:[]} shapes
 export async function fetchFantasyPlayerCandidates(competition:string){return list<FantasyPlayerCandidate>((await apiClient.get('/fantasy/players/candidates/',{params:{competition}})).data);}
 export async function adminCreatePlayer(payload:Pick<FantasyPlayer,'fantasy_competition'|'player'|'position'|'price'|'eligible'|'availability'>){return (await apiClient.post('/fantasy/players/',payload)).data as FantasyPlayer;}
 export async function adminUpdatePlayer(value:string,payload:Partial<Pick<FantasyPlayer,'position'|'price'|'eligible'|'availability'>>){return (await apiClient.patch(`/fantasy/players/${id(value)}/`,payload)).data as FantasyPlayer;}
+export async function adminDeletePlayer(value:string){await apiClient.delete(`/fantasy/players/${id(value)}/`);}
 export async function adminCreateGameweek(payload:Partial<FantasyGameweek>){return (await apiClient.post('/fantasy/gameweeks/',payload)).data as FantasyGameweek;}
 export async function adminUpdateGameweek(value:string,payload:Partial<FantasyGameweek>){return (await apiClient.patch(`/fantasy/gameweeks/${id(value)}/`,payload)).data as FantasyGameweek;}
 // Uses list<>() — handles both plain array and paginated {results:[]} shapes

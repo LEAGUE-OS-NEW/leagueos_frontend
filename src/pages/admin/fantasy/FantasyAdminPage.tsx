@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   adminCreateCompetition, adminCreateCorrection, adminCreateGameweek, adminCreatePlayer,
-  adminCreateScoringRule, adminFinalizeGameweek, adminRecalculateGameweek, adminTransitionGameweek,
+  adminCreateScoringRule, adminDeleteCompetition, adminDeletePlayer,
+  adminFinalizeGameweek, adminRecalculateGameweek, adminTransitionGameweek,
   adminUpdateCompetition, adminUpdateGameweek, adminUpdatePlayer,
   createCanonicalCompetition, createCanonicalSeason,
   fetchAdminCorrections, fetchAdminFantasyCompetitions, fetchAdminLeagueOverview,
@@ -150,6 +151,12 @@ export default function FantasyAdminPage() {
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Delete confirmation
+  type DeleteTarget =
+    | { kind: 'competition'; id: string; name: string }
+    | { kind: 'player'; id: string; name: string };
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const competition = competitions.find(r => r.id === competitionId);
   const currentPlayers = players.filter(r => r.fantasy_competition === competitionId);
@@ -376,6 +383,21 @@ export default function FantasyAdminPage() {
       position: snapshot.position, price: Number(snapshot.price),
       eligible: snapshot.eligible, availability: snapshot.availability,
     }), 'Fantasy player updated.');
+  };
+
+  /* ── delete competition / player ─────────────────────── */
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { kind, id: targetId, name } = deleteTarget;
+    setDeleteTarget(null);
+    if (kind === 'competition') {
+      await run(() => adminDeleteCompetition(targetId), `"${name}" deleted.`);
+      // If the deleted competition was selected, fall back to the first remaining one.
+      setCompetitionId(cur => cur === targetId ? '' : cur);
+    } else {
+      await runAndRefreshPlayers(() => adminDeletePlayer(targetId), `"${name}" removed from pool.`);
+    }
   };
 
   /* ── gameweek create validation ───────────────────────── */
@@ -671,7 +693,12 @@ export default function FantasyAdminPage() {
                           <td>{r.squad_size}</td>
                           <td>{r.initial_budget}</td>
                           <td>{r.enabled ? <span className="fa-status-pill fa-status-pill--open">Yes</span> : <span className="fa-status-pill fa-status-pill--unavailable">No</span>}</td>
-                          <td><button className="fa-btn fa-btn--sm" onClick={() => { setEditingCompId(r.id); setCompetitionEdit(editableCompetition(r)); setCompEditErrors({}); }}>Edit</button></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button className="fa-btn fa-btn--sm" onClick={() => { setEditingCompId(r.id); setCompetitionEdit(editableCompetition(r)); setCompEditErrors({}); }}>Edit</button>
+                              <button className="fa-btn fa-btn--sm fa-btn--danger" onClick={() => setDeleteTarget({ kind: 'competition', id: r.id, name: r.name })}>Delete</button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -787,7 +814,12 @@ export default function FantasyAdminPage() {
                               <td>{r.price}</td>
                               <td>{r.eligible ? '✓' : '✗'}</td>
                               <td><span className={`fa-status-pill fa-status-pill--${r.availability.toLowerCase()}`}>{r.availability}</span></td>
-                              <td><button className="fa-btn fa-btn--sm" onClick={() => { setEditingPlayerId(r.id); setPlayerEdit({ position: r.position, price: String(r.price), eligible: r.eligible, availability: r.availability }); }}>Edit</button></td>
+                              <td>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button className="fa-btn fa-btn--sm" onClick={() => { setEditingPlayerId(r.id); setPlayerEdit({ position: r.position, price: String(r.price), eligible: r.eligible, availability: r.availability }); }}>Edit</button>
+                                  <button className="fa-btn fa-btn--sm fa-btn--danger" onClick={() => setDeleteTarget({ kind: 'player', id: r.id, name: r.player_name })}>Delete</button>
+                                </div>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1397,6 +1429,29 @@ export default function FantasyAdminPage() {
                   setConfirmGwAction(null);
                   void runAndRefreshGameweeks(action, success);
                 }}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════ DELETE CONFIRMATION ════ */}
+        {deleteTarget && (
+          <div className="fa-modal-overlay" onClick={() => setDeleteTarget(null)}>
+            <div className="fa-modal fa-modal--danger" onClick={e => e.stopPropagation()} role="dialog" aria-label="Confirm delete" style={{ maxWidth: 420 }}>
+              <h2>Delete {deleteTarget.kind === 'competition' ? 'Competition' : 'Player'}</h2>
+              <p>
+                Are you sure you want to delete{' '}
+                <strong>{deleteTarget.name}</strong>?
+                {deleteTarget.kind === 'competition' && (
+                  <> This will also remove all associated players, gameweeks, and scoring rules.</>
+                )}
+              </p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>This action cannot be undone.</p>
+              <div className="fa-modal__footer">
+                <button className="fa-btn" onClick={() => setDeleteTarget(null)}>Cancel</button>
+                <button className="fa-btn fa-btn--danger" disabled={saving} onClick={() => void confirmDelete()}>
+                  Delete
+                </button>
               </div>
             </div>
           </div>
