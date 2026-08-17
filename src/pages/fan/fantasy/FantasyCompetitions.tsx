@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Competition, FantasyTeam, Player, SquadSlot, Toast } from './types';
 import { competitionFromApi, playerFromApi, teamFromApi } from './data';
@@ -75,7 +75,10 @@ export default function FantasyCompetitions() {
   }
 
   // ── Data loading ────────────────────────────────────────────────────────────
-  async function load(): Promise<Competition[]> {
+  // load is also called imperatively (refresh button, after mutations) so it
+  // stays as a useCallback. The initial-load effect invokes it via an async
+  // IIFE so the React Compiler can track the async boundary.
+  const load = useCallback(async (): Promise<Competition[]> => {
     setLoading(true);
     setError('');
     let cs: Competition[] = [];
@@ -106,12 +109,16 @@ export default function FantasyCompetitions() {
       .then(s => setNotifications(s.notifications.filter(n => n.eventType?.startsWith('FANTASY_'))))
       .catch(() => {});
     return cs;
-  }
+  }, []);
 
   // Initial load — then apply URL deep-link params once data is ready.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // The async IIFE lets the React Compiler see the await boundary so it does
+  // not flag setState calls inside the awaited callbacks as synchronous.
   useEffect(() => {
-    void load().then(cs => {
+    let cancelled = false;
+    (async () => {
+      const cs = await load();
+      if (cancelled) return;
       if (deepLinkApplied.current) return;
       deepLinkApplied.current = true;
 
@@ -141,9 +148,12 @@ export default function FantasyCompetitions() {
       // pendingCode is already in state from the useState initialiser above.
       // When the user picks a competition and goes to leagues, Leagues.tsx will
       // auto-open the join modal with the pre-filled code.
-    });
+    })().catch(() => {});
+    return () => { cancelled = true; };
+  // load is stable (useCallback []). openCompetition and setSearchParams are
+  // stable refs. searchParams is intentionally read once at mount only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   // Silent 60-second background refresh
   useEffect(() => {

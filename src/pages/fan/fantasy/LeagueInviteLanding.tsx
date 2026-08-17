@@ -34,17 +34,19 @@ export default function LeagueInviteLanding() {
   const navigate = useNavigate();
   const code = (params.get('code') ?? '').trim().toUpperCase();
 
-  const [phase, setPhase] = useState<Phase>('joining');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [phase, setPhase] = useState<Phase>(() =>
+    (params.get('code') ?? '').trim() ? 'joining' : 'error',
+  );
+  const [errorMsg, setErrorMsg] = useState(() =>
+    (params.get('code') ?? '').trim() ? '' : 'No invite code was provided. Check the link and try again.',
+  );
   // Stored so we can pass it on to FantasyCompetitions after a redirect
   const leagueCompetitionId = useRef<string>('');
 
   useEffect(() => {
-    if (!code) {
-      setPhase('error');
-      setErrorMsg('No invite code was provided. Check the link and try again.');
-      return;
-    }
+    // code is derived from the URL — it won't change after mount, and we
+    // already initialised phase to 'error' above when code is absent.
+    if (!code) return;
 
     let cancelled = false;
 
@@ -72,9 +74,9 @@ export default function LeagueInviteLanding() {
       });
 
     return () => { cancelled = true; };
-  // Run once — code comes from the URL and won't change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // code is derived from the URL at render time and stable for the lifetime
+  // of this component. navigate is a stable ref from react-router-dom.
+  }, [code, navigate]);
 
   const handleCreateTeam = () => {
     // Pass the pending code through the URL so FantasyCompetitions can

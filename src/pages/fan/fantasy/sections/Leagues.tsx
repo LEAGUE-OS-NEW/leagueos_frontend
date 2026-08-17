@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Competition, FantasyTeam } from '../types';
 import type { FantasyLeague, FantasyLeagueMember, FantasyStanding } from '../../../../services/fantasyService';
 import {
@@ -47,27 +47,19 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
   const [standings, setStandings] = useState<FantasyStanding[]>([]);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [joinOpen, setJoinOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(!!initialCode);
   const [name, setName] = useState('');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PRIVATE');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() => initialCode ?? '');
 
   const [copied, setCopied] = useState(false);
   const [joinError, setJoinError] = useState('');   // error inside the join modal
   const [error, setError] = useState('');            // page-level error
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // When a pending code is passed from the URL, pre-fill the modal and open it.
-  useEffect(() => {
-    if (initialCode) {
-      setCode(initialCode);
-      setJoinOpen(true);
-    }
-  }, [initialCode]);
-
   // ── Data loading ────────────────────────────────────────────────────────────
 
-  async function reload() {
+  const reload = useCallback(async () => {
     const [m, p, o] = await Promise.all([
       fetchMyLeagues(),
       fetchPublicLeagues(),
@@ -76,12 +68,19 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
     setMine(m.filter(x => x.fantasy_competition === competition.id));
     setPublic(p.filter(x => x.fantasy_competition === competition.id));
     setOverall(o);
-  }
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => {
-    void reload().catch(e => setError(e instanceof Error ? e.message : 'Could not load leagues.'));
   }, [competition.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await reload();
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load leagues.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [reload]);
 
   async function open(row: FantasyLeague) {
     setSelected(row);
