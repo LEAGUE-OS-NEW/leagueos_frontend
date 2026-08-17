@@ -14,8 +14,9 @@ import {
 } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
-  deactivateAdminUser,
+  deleteAdminUser,
   fetchAdminUsers,
+  isStaffAccount,
   setAdminUserActive,
   type AdminUser,
 } from '../../../services/adminUsersService';
@@ -33,16 +34,6 @@ const TABS: { key: FanTab; label: string }[] = [
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-const PLATFORM_ADMIN_ROLE_NAMES = new Set([
-  'Super Admin',
-  'Sports Data & Statistics Admin',
-  'Market Operations & Approval Admin',
-  'Result Verification Admin',
-  'Compliance Admin',
-  'Finance Admin',
-  'Customer Support Admin',
-]);
 
 function formatDateTime(iso?: string | null): string {
   if (!iso) return '-';
@@ -63,10 +54,6 @@ function fanCode(id: string): string {
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
-}
-
-function isFanAccount(user: AdminUser): boolean {
-  return !user.isSuperuser && !user.roles.some((role) => PLATFORM_ADMIN_ROLE_NAMES.has(role));
 }
 
 function getFanStatus(fan: AdminUser): 'active' | 'suspended' | 'blocked' | 'deactivated' {
@@ -115,13 +102,14 @@ function FansPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
+  const [confirmDeleteFan, setConfirmDeleteFan] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = () => {
     setIsLoading(true);
     setLoadError(null);
     return fetchAdminUsers()
-      .then((result) => setFans(result.filter(isFanAccount)))
+      .then((result) => setFans(result.filter((user) => !isStaffAccount(user))))
       .catch(() => setLoadError('Could not load fan accounts. Please try again.'))
       .finally(() => setIsLoading(false));
   };
@@ -130,7 +118,7 @@ function FansPage() {
     let cancelled = false;
     fetchAdminUsers()
       .then((result) => {
-        if (!cancelled) setFans(result.filter(isFanAccount));
+        if (!cancelled) setFans(result.filter((user) => !isStaffAccount(user)));
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load fan accounts. Please try again.');
@@ -153,19 +141,18 @@ function FansPage() {
     }
   };
 
-  const handleDeactivate = async (fan: AdminUser) => {
-    if (pendingDeactivateId !== fan.id) {
-      setPendingDeactivateId(fan.id);
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteFan) return;
     setActionError(null);
+    setIsDeleting(true);
     try {
-      const updated = await deactivateAdminUser(fan.id);
+      const updated = await deleteAdminUser(confirmDeleteFan.id);
       setFans((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setConfirmDeleteFan(null);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Could not deactivate this account.');
+      setActionError(error instanceof Error ? error.message : 'Could not delete this account.');
     } finally {
-      setPendingDeactivateId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -370,7 +357,6 @@ function FansPage() {
                   {visibleFans.map((fan) => {
                     const type = getFanType(fan);
                     const status = getFanStatus(fan);
-                    const isArmed = pendingDeactivateId === fan.id;
                     return (
                       <tr key={fan.id}>
                         <td>
@@ -431,10 +417,10 @@ function FansPage() {
                             {status !== 'deactivated' && (
                               <button
                                 type="button"
-                                className={`fp-icon-btn fp-icon-btn--danger${isArmed ? ' fp-icon-btn--confirm' : ''}`}
-                                aria-label={isArmed ? `Confirm deactivate ${fan.fullName}` : `Deactivate ${fan.fullName}`}
-                                onClick={() => handleDeactivate(fan)}
-                                title={isArmed ? 'Click again to confirm' : 'Deactivate account'}
+                                className="fp-icon-btn fp-icon-btn--danger"
+                                aria-label={`Delete ${fan.fullName}`}
+                                onClick={() => setConfirmDeleteFan(fan)}
+                                title="Delete account"
                               >
                                 <FiTrash2 aria-hidden="true" />
                               </button>
@@ -516,6 +502,32 @@ function FansPage() {
           </div>
         )}
       </div>
+
+      {confirmDeleteFan && (
+        <div className="fp-modal-overlay" role="dialog" aria-modal="true" onClick={() => !isDeleting && setConfirmDeleteFan(null)}>
+          <div className="fp-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Delete Account</h3>
+            <p>
+              Are you sure you want to delete <strong>{confirmDeleteFan.fullName || confirmDeleteFan.email}</strong>?
+              This deactivates their account and signs them out everywhere — it can be reversed by reactivating them
+              later, but should only be done for accounts you don't want using the platform.
+            </p>
+            <div className="fp-modal__footer">
+              <button
+                type="button"
+                className="fp-btn fp-btn--outline"
+                onClick={() => setConfirmDeleteFan(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button type="button" className="fp-btn fp-btn--danger" onClick={handleConfirmDelete} disabled={isDeleting}>
+                {isDeleting ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

@@ -145,6 +145,18 @@ export async function fetchAdminRoles(): Promise<AdminRole[]> {
     .filter((role) => PLATFORM_ADMIN_ROLE_NAMES.has(role.name));
 }
 
+// Superset of PLATFORM_ADMIN_ROLE_NAMES that also includes Club Admin —
+// the single source of truth for "is this account staff, not a plain fan"
+// used by both AdminUsersPage.tsx (Users list) and FansPage.tsx (Fans
+// list, inverted). Previously each page hand-maintained its own copy of
+// this set and FansPage.tsx's copy forgot Club Admin, letting club admin
+// accounts leak into the Fans list.
+export const STAFF_ROLE_NAMES = new Set([...PLATFORM_ADMIN_ROLE_NAMES, 'Club Admin']);
+
+export function isStaffAccount(user: AdminUser): boolean {
+  return user.isSuperuser || user.roles.some((role) => STAFF_ROLE_NAMES.has(role));
+}
+
 // Inverse of PLATFORM_ADMIN_ROLE_NAMES — resolves a real Role.name string
 // (as returned by GET /admin/me/) to the frontend's DashboardIdentifier, so
 // useActiveAdminRole can drive the shell's role switcher off the admin's
@@ -222,10 +234,13 @@ export async function setAdminUserActive(userId: string, isActive: boolean): Pro
   return adaptUser(response.data);
 }
 
-// Soft-deactivate — there is no hard-delete endpoint for admin/fan
-// accounts. Uses the same PATCH surface as setAdminUserActive, driven by
-// AdminUserRoleUpdateSerializer's account_status field.
-export async function deactivateAdminUser(userId: string): Promise<AdminUser> {
+// "Delete" — there is no hard-delete endpoint for admin/fan accounts (real
+// financial data FKs to User with on_delete=PROTECT, so a hard delete would
+// routinely fail or destroy history). This moves account_status to
+// DEACTIVATED via AdminUserDetailView.patch, which now routes through
+// UserAdminService.deactivate_user() (session invalidation + audit log +
+// blocks self/superuser deletion) — same PATCH surface as setAdminUserActive.
+export async function deleteAdminUser(userId: string): Promise<AdminUser> {
   const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, {
     account_status: 'DEACTIVATED',
   });

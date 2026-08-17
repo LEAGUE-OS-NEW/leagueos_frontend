@@ -77,6 +77,121 @@
   min-height: 32px;
 }
 
+.au-btn--danger {
+  background-color: #ef4444;
+  border-color: transparent;
+  color: #fff;
+}
+
+/* ---------- Toolbar: tabs, search, role filter ---------- */
+
+.au-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.au-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border-radius: 8px;
+  background-color: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.au-tab {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.au-tab--active {
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.au-toolbar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.au-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.au-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.au-search {
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 9px 12px 9px 34px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  min-width: 220px;
+}
+
+.au-role-filter {
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+/* ---------- Actions cell / icon buttons ---------- */
+
+.au-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+}
+
+.au-icon-btn--danger {
+  color: #f87171;
+}
+
+.au-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ---------- Loading / error ---------- */
 
 .au-loading {
@@ -186,6 +301,11 @@
 .au-status-pill--inactive {
   background: rgba(148, 163, 184, 0.16);
   color: var(--color-text-secondary);
+}
+
+.au-status-pill--deactivated {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
 }
 
 /* ---------- Role chips ---------- */
