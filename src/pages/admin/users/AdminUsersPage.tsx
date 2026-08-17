@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { FiAlertTriangle, FiActivity, FiPlus, FiX } from 'react-icons/fi';
+import { useEffect, useMemo, useState } from 'react';
+import { FiAlertTriangle, FiActivity, FiPlus, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { extractApiError } from '../../../services/apiUtils';
 import {
   assignAdminRole,
   createRealClub,
+  deleteAdminUser,
   fetchAdminInvitations,
   fetchAdminRoles,
   fetchAdminUsers,
@@ -13,6 +14,7 @@ import {
   findRoleConflict,
   inviteAdminUser,
   inviteClubAdmin,
+  isStaffAccount,
   revokeAdminInvitation,
   revokeAdminRole,
   setAdminUserActive,
@@ -27,6 +29,14 @@ import './AdminUsersPage.css';
 
 const CLUB_ADMIN_SENTINEL = '__CLUB_ADMIN__';
 
+type UserTab = 'all' | 'active' | 'deactivated';
+
+const USER_TABS: { key: UserTab; label: string }[] = [
+  { key: 'all', label: 'All Users' },
+  { key: 'active', label: 'Active' },
+  { key: 'deactivated', label: 'Deactivated' },
+];
+
 function formatDateTime(iso: string): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString(undefined, {
@@ -39,6 +49,20 @@ function formatDateTime(iso: string): string {
 
 function roleDisplayName(roles: AdminRole[], name: string): string {
   return roles.find((role) => role.name === name)?.displayName ?? name;
+}
+
+// Deactivated (account_status) is a separate, stronger signal than the
+// isActive toggle — a deleted user keeps isActive=true (delete only moves
+// account_status), so the status pill and tabs both need to check it first.
+function userStatusLabel(user: AdminUser): 'Active' | 'Inactive' | 'Deactivated' {
+  if (user.accountStatus === 'DEACTIVATED') return 'Deactivated';
+  return user.isActive ? 'Active' : 'Inactive';
+}
+
+function matchesUserTab(user: AdminUser, tab: UserTab): boolean {
+  if (tab === 'all') return true;
+  if (tab === 'deactivated') return user.accountStatus === 'DEACTIVATED';
+  return user.accountStatus !== 'DEACTIVATED';
 }
 
 function InviteModal({
@@ -280,15 +304,20 @@ function AdminUsersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [addRoleFor, setAddRoleFor] = useState<string | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState('');
+  const [activeTab, setActiveTab] = useState<UserTab>('all');
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([fetchAdminUsers(), fetchAdminRoles(), fetchAdminInvitations()])
       .then(([userResult, roleResult, invitationResult]) => {
         if (cancelled) return;
-        // Staff only — fans (no platform role assigned) are managed on the
+        // Staff only — fans (no staff/admin role held) are managed on the
         // dedicated Fans page instead, so the same person isn't shown twice.
-        setUsers(userResult.filter((user) => user.roles.length > 0));
+        setUsers(userResult.filter(isStaffAccount));
         setRoles(roleResult);
         setInvitations(invitationResult);
       })
@@ -308,12 +337,38 @@ function AdminUsersPage() {
     setLoadError(null);
     Promise.all([fetchAdminUsers(), fetchAdminRoles(), fetchAdminInvitations()])
       .then(([userResult, roleResult, invitationResult]) => {
-        setUsers(userResult.filter((user) => user.roles.length > 0));
+        setUsers(userResult.filter(isStaffAccount));
         setRoles(roleResult);
         setInvitations(invitationResult);
       })
       .catch(() => setLoadError('Could not load admin users. Please try again.'))
       .finally(() => setIsLoading(false));
+  };
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return users
+      .filter((user) => matchesUserTab(user, activeTab))
+      .filter((user) => !roleFilter || user.roles.includes(roleFilter))
+      .filter((user) => {
+        if (!query) return true;
+        return user.fullName.toLowerCase().includes(query) || user.email.toLowerCase().includes(query);
+      });
+  }, [users, activeTab, search, roleFilter]);
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteUser) return;
+    setActionError(null);
+    setIsDeleting(true);
+    try {
+      const updated = await deleteAdminUser(confirmDeleteUser.id);
+      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setConfirmDeleteUser(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not delete this user.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleInvite = async (input: { loginEmail: string; notifyEmail: string; roleId: string }) => {
@@ -411,6 +466,42 @@ function AdminUsersPage() {
           </div>
         ) : (
           <>
+            <div className="au-toolbar">
+              <div className="au-tabs">
+                {USER_TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    className={`au-tab${activeTab === tab.key ? ' au-tab--active' : ''}`}
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="au-toolbar-controls">
+                <div className="au-search-wrap">
+                  <FiSearch aria-hidden="true" className="au-search-icon" />
+                  <input
+                    type="text"
+                    className="au-search"
+                    placeholder="Search by name or email..."
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                </div>
+                <select className="au-role-filter" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+                  <option value="">All roles</option>
+                  <option value="Club Admin">Club Admin</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.name}>
+                      {role.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="au-panel">
               <div className="au-table-scroll">
                 <table className="au-table">
@@ -425,7 +516,7 @@ function AdminUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => {
+                    {filteredUsers.map((user) => {
                       const availableRoles = roles.filter((role) => !user.roles.includes(role.name));
                       return (
                         <tr key={user.id}>
@@ -483,23 +574,36 @@ function AdminUsersPage() {
                             </div>
                           </td>
                           <td>
-                            <span className={`au-status-pill au-status-pill--${user.isActive ? 'active' : 'inactive'}`}>
-                              {user.isActive ? 'Active' : 'Inactive'}
+                            <span className={`au-status-pill au-status-pill--${userStatusLabel(user).toLowerCase()}`}>
+                              {userStatusLabel(user)}
                             </span>
                           </td>
                           <td>{formatDateTime(user.createdAt)}</td>
                           <td>
-                            <button type="button" className="au-btn au-btn--outline au-btn--sm" onClick={() => handleToggleActive(user)}>
-                              {user.isActive ? 'Deactivate' : 'Reactivate'}
-                            </button>
+                            <div className="au-actions-cell">
+                              <button type="button" className="au-btn au-btn--outline au-btn--sm" onClick={() => handleToggleActive(user)}>
+                                {user.isActive ? 'Deactivate' : 'Reactivate'}
+                              </button>
+                              {user.accountStatus !== 'DEACTIVATED' && (
+                                <button
+                                  type="button"
+                                  className="au-icon-btn au-icon-btn--danger"
+                                  aria-label={`Delete ${user.fullName}`}
+                                  title="Delete account"
+                                  onClick={() => setConfirmDeleteUser(user)}
+                                >
+                                  <FiTrash2 aria-hidden="true" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
                     })}
-                    {users.length === 0 && (
+                    {filteredUsers.length === 0 && (
                       <tr>
                         <td colSpan={6} className="au-table__empty">
-                          No admin users yet.
+                          {users.length === 0 ? 'No admin users yet.' : 'No users match this filter.'}
                         </td>
                       </tr>
                     )}
@@ -559,6 +663,27 @@ function AdminUsersPage() {
       </div>
 
       {showInviteModal && <InviteModal roles={roles} onCancel={() => setShowInviteModal(false)} onInvite={handleInvite} />}
+
+      {confirmDeleteUser && (
+        <div className="au-modal-overlay" role="dialog" aria-modal="true" onClick={() => !isDeleting && setConfirmDeleteUser(null)}>
+          <div className="au-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Delete Admin Account</h3>
+            <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.86rem' }}>
+              Are you sure you want to delete <strong>{confirmDeleteUser.fullName || confirmDeleteUser.email}</strong>
+              {confirmDeleteUser.roles.length > 0 ? ` (${confirmDeleteUser.roles.map((name) => roleDisplayName(roles, name)).join(', ')})` : ''}?
+              This deactivates their account and signs them out everywhere. It can be reversed later if needed.
+            </p>
+            <div className="au-modal__footer">
+              <button type="button" className="au-btn au-btn--ghost" onClick={() => setConfirmDeleteUser(null)} disabled={isDeleting}>
+                Cancel
+              </button>
+              <button type="button" className="au-btn au-btn--danger" onClick={handleConfirmDelete} disabled={isDeleting}>
+                {isDeleting ? 'Deleting…' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
