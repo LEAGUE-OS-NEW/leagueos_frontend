@@ -8,6 +8,11 @@ export interface FantasyLeagueOverview { id:string;name:string;competition:strin
 export interface FantasyCorrection { id:string;player_points:string;player_name:string;gameweek:string;previous_value:string;new_value:string;reason:string;actor:string;created_at:string }
 // Full statistic type — label and observed flag are preserved for the scoring UI
 export interface FantasyStatisticType { code:string; label:string; observed:boolean }
+// Canonical sports catalog — used by the Add Competition / Season modal
+export interface CanonicalSport { id:string; name:string; code:string; slug:string }
+// sport_slug matches the slug field on canonicalSports — used to filter competitions by selected sport
+export interface CanonicalCompetition { id:string; name:string; slug:string; country_code:string; sport:string; sport_slug:string }
+export interface CanonicalSeason { id:string; sport:string; competition:string|null; name:string; slug:string; starts_on:string|null; ends_on:string|null; is_active:boolean; is_verified:boolean }
 const list=<T>(data:T[]|{results:T[]}):T[]=>Array.isArray(data)?data:data.results;
 const id=(value:string)=>encodeURIComponent(value);
 
@@ -33,3 +38,14 @@ export async function adminCreateCorrection(payload:{player_points:string;new_va
 export async function fetchAdminCorrections(gameweek?:string):Promise<Record<string,unknown>[]>{return list<Record<string,unknown>>((await apiClient.get('/fantasy/admin/corrections/',{params:gameweek?{gameweek}:{}})).data);}
 // Uses list<>() — handles both plain array and paginated {results:[]} shapes
 export async function fetchAdminLeagueOverview(){return list<FantasyLeagueOverview>((await apiClient.get('/fantasy/leagues/admin-overview/')).data);}
+
+// ── Canonical sports catalog (Add Competition / Season modal) ──────────────
+export async function fetchCanonicalSports(){return list<CanonicalSport>((await apiClient.get('/sports/')).data);}
+export async function createCanonicalCompetition(payload:{sport:string;name:string;country_code?:string;is_active?:boolean}){
+  // Uses the dedicated admin route — the public /competitions/ path is
+  // served by the discovery app (GET-only) and returns 405 on POST.
+  return (await apiClient.post('/admin/sports/competitions/',payload)).data as CanonicalCompetition;
+}
+export async function createCanonicalSeason(payload:{sport:string;competition?:string|null;name:string;starts_on?:string|null;ends_on?:string|null;is_active?:boolean}){
+  return (await apiClient.post('/seasons/',payload)).data as CanonicalSeason;
+}
