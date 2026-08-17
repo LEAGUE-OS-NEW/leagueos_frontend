@@ -122,7 +122,7 @@ export function SportFilter({
 // ---------------------------------------------------------------------------
 export function StatCard({ label, value, sub, accent }: { label: string; value: React.ReactNode; sub?: string; accent?: string }) {
   return (
-    <div className="stat-card" style={accent ? { borderLeftColor: accent } : undefined}>
+    <div className="stat-card" style={accent ? { '--accent': accent } as React.CSSProperties : undefined}>
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
       {sub && <div className="stat-sub">{sub}</div>}

@@ -242,24 +242,81 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
           </div>
 
           <div className="league-card-list">
-            {listRows.map(row => (
-              <div className="league-card" key={row.id}>
-                <button className="btn-link" onClick={() => void open(row)}>
-                  <strong>{row.name}</strong>
-                  <span>{row.visibility} · {row.member_count} members</span>
-                </button>
-                {tab === 'public' && !mine.some(x => x.id === row.id) && (
-                  <button
-                    className="btn btn-secondary"
-                    disabled={!hasTeam}
-                    title={hasTeam ? undefined : 'Create a Fantasy squad first'}
-                    onClick={() => void joinPublic(row)}
-                  >
-                    Join
-                  </button>
-                )}
-              </div>
-            ))}
+            {listRows.map(row => {
+              const isMember = mine.some(x => x.id === row.id);
+              const canJoin = tab === 'public' && !isMember;
+              return (
+                <div className="league-card-v2" key={row.id}>
+                  {/* Left accent bar based on visibility */}
+                  <span className={`league-card-accent ${row.visibility === 'PRIVATE' ? 'accent-purple' : 'accent-blue'}`} />
+
+                  <div className="league-card-body" onClick={() => void open(row)}>
+                    <div className="league-card-top">
+                      <div className="league-card-title-group">
+                        <strong className="league-card-name">{row.name}</strong>
+                        <span className={`league-card-vis-badge ${row.visibility === 'PRIVATE' ? 'vis-private' : 'vis-public'}`}>
+                          {row.visibility === 'PRIVATE' ? '🔒 Private' : '🌐 Public'}
+                        </span>
+                        {isMember && (
+                          <span className="league-card-member-badge">✓ Joined</span>
+                        )}
+                      </div>
+                      <svg className="league-card-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+
+                    <div className="league-card-stats">
+                      <div className="league-card-stat">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                          <path d="M1 13c0-2.761 2.239-5 5-5h0a5 5 0 015 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          <circle cx="12" cy="5" r="2" stroke="currentColor" strokeWidth="1.4"/>
+                          <path d="M14 13a3 3 0 00-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                        </svg>
+                        <span>{row.member_count} {row.member_count === 1 ? 'member' : 'members'}</span>
+                      </div>
+                      {row.capacity != null && (
+                        <div className="league-card-stat">
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                            <path d="M5 8h6M8 5v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                          <span>{row.capacity - row.member_count} spots left</span>
+                        </div>
+                      )}
+                      <div className="league-card-stat">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <path d="M8 2l1.5 3.5L13 6l-2.5 2.5.5 3.5L8 10.5 5 12l.5-3.5L3 6l3.5-.5L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                        </svg>
+                        <span>View standings</span>
+                      </div>
+                    </div>
+
+                    {/* Capacity bar for leagues with a member cap */}
+                    {row.capacity != null && row.capacity > 0 && (
+                      <div className="league-capacity-bar">
+                        <div
+                          className="league-capacity-fill"
+                          style={{ width: `${Math.min(100, (row.member_count / row.capacity) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {canJoin && (
+                    <button
+                      className="league-card-join-btn"
+                      disabled={!hasTeam}
+                      title={hasTeam ? undefined : 'Create a Fantasy squad first'}
+                      onClick={e => { e.stopPropagation(); void joinPublic(row); }}
+                    >
+                      Join
+                    </button>
+                  )}
+                </div>
+              );
+            })}
             {!listRows.length && (
               <div className="empty-state">
                 <h3>No leagues found</h3>
@@ -355,7 +412,7 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
           onClose={() => { setCreateOpen(false); setName(''); }}
           footer={
             <button
-              className="btn btn-primary"
+              className="btn btn-primary modal-submit-btn"
               disabled={!name.trim()}
               onClick={() => void create()}
             >
@@ -363,25 +420,61 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
             </button>
           }
         >
-          <label>
-            League name
+          <div className="modal-field-group">
+            <label className="modal-field-label" htmlFor="league-name-input">
+              League name
+            </label>
             <input
+              id="league-name-input"
+              className="modal-field-input"
               value={name}
               autoFocus
               onChange={e => setName(e.target.value)}
               placeholder="e.g. The Invincibles"
             />
-          </label>
-          <label>
-            Visibility
-            <select
-              value={visibility}
-              onChange={e => setVisibility(e.target.value as 'PUBLIC' | 'PRIVATE')}
-            >
-              <option value="PRIVATE">Private — invite only</option>
-              <option value="PUBLIC">Public — anyone can join</option>
-            </select>
-          </label>
+          </div>
+
+          <div className="modal-field-group">
+            <span className="modal-field-label">Visibility</span>
+            <div className="modal-vis-picker">
+              <button
+                type="button"
+                className={`modal-vis-option ${visibility === 'PRIVATE' ? 'modal-vis-active' : ''}`}
+                onClick={() => setVisibility('PRIVATE')}
+              >
+                <span className="modal-vis-icon">🔒</span>
+                <span className="modal-vis-text">
+                  <strong>Private</strong>
+                  <span>Invite only — share a code</span>
+                </span>
+                {visibility === 'PRIVATE' && (
+                  <span className="modal-vis-check">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className={`modal-vis-option ${visibility === 'PUBLIC' ? 'modal-vis-active' : ''}`}
+                onClick={() => setVisibility('PUBLIC')}
+              >
+                <span className="modal-vis-icon">🌐</span>
+                <span className="modal-vis-text">
+                  <strong>Public</strong>
+                  <span>Anyone can join</span>
+                </span>
+                {visibility === 'PUBLIC' && (
+                  <span className="modal-vis-check">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 
@@ -392,7 +485,7 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
           onClose={() => { setJoinOpen(false); setCode(''); setJoinError(''); }}
           footer={
             <button
-              className="btn btn-primary"
+              className="btn btn-primary modal-submit-btn"
               disabled={!code.trim()}
               onClick={() => void joinByCode()}
             >
@@ -400,18 +493,27 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
             </button>
           }
         >
-          <label>
-            Invite code
+          <div className="modal-join-icon-row">
+            <span className="modal-join-icon">🏆</span>
+            <p className="modal-join-hint">Enter the invite code shared by the league owner.</p>
+          </div>
+
+          <div className="modal-field-group">
+            <label className="modal-field-label" htmlFor="league-code-input">
+              Invite code
+            </label>
             <input
+              id="league-code-input"
+              className="modal-field-input modal-code-input"
               value={code}
               autoFocus
               onChange={e => setCode(e.target.value.toUpperCase())}
               placeholder="e.g. ABC123"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}
             />
-          </label>
+          </div>
+
           {joinError && (
-            <p className="transfer-cost-warning" role="alert" style={{ marginTop: 8 }}>
+            <p className="modal-field-error" role="alert">
               {joinError}
             </p>
           )}
