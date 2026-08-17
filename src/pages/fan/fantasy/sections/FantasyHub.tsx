@@ -105,7 +105,7 @@ export default function FantasyHub({ teams, competitions, leagueCount, onOpenCom
                 <Badge tone={c.status === 'active' ? 'green' : c.status === 'upcoming' ? 'orange' : 'gray'}>
                   {c.status === 'active' ? 'Active' : c.status === 'upcoming' ? 'Upcoming' : 'Draft'}
                 </Badge>
-                <button className="btn btn-secondary" onClick={() => onOpenCompetition(c)}>
+                <button className="btn hub-view-btn" onClick={() => onOpenCompetition(c)}>
                   View
                 </button>
               </div>
