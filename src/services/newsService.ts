@@ -17,6 +17,7 @@ export interface Story {
   author: string;
   avatar: string;
   isFeatured: boolean;
+  isTrending: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,7 @@ interface BackendStory {
   avatar?: string | null;
   author?: string | null;
   is_featured?: boolean;
+  is_trending?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,7 +62,7 @@ const VALID_CATEGORIES = new Set<Story['category']>([
   'Football', 'Rugby', 'Basketball', 'Clubs', 'Markets', 'Fantasy',
 ]);
 
-function toCategory(raw: string): Story['category'] {
+export function toCategory(raw: string): Story['category'] {
   const normalised = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   // Handle common variations
   const map: Record<string, Story['category']> = {
@@ -111,6 +113,7 @@ function mapStory(raw: BackendStory): Story {
     author: raw.author || DEFAULT_AUTHOR,
     avatar: raw.avatar || PLACEHOLDER_AVATAR,
     isFeatured: raw.is_featured ?? false,
+    isTrending: raw.is_trending ?? false,
   };
 }
 
@@ -193,4 +196,185 @@ export async function fetchFullStory(id: string): Promise<FullStory | null> {
     if (status === 404) return null;
     throw err;
   }
+}
+
+// ---------------------------------------------------------------------------
+// News moderation — real submit -> review -> publish pipeline.
+// Club submissions hit clubs/urls.py (`/<club_pk>/news-submissions/`); the
+// review queue and every moderation action hit platform_admin/urls.py
+// (`/admin/news/...`), gated by the view_news / manage_news permissions.
+// ---------------------------------------------------------------------------
+
+export interface NewsCategoryOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+let cachedCategories: NewsCategoryOption[] | null = null;
+
+function unwrapList<T>(data: T[] | { results: T[] }): T[] {
+  return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+/** Active, selectable news categories — cached for the session. */
+export async function fetchNewsCategories(): Promise<NewsCategoryOption[]> {
+  if (cachedCategories) return cachedCategories;
+  const response = await apiClient.get<NewsCategoryOption[] | { results: NewsCategoryOption[] }>('/news-categories/');
+  cachedCategories = unwrapList(response.data);
+  return cachedCategories;
+}
+
+export type ModerationStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
+
+export interface ModerationArticle {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+  category: Story['category'];
+  club: string | null;
+  status: ModerationStatus;
+  isFeatured: boolean;
+  isTrending: boolean;
+  rejectionReason: string;
+  publishedAt: string | null;
+  createdAt: string;
+  createdByName: string | null;
+}
+
+interface BackendModerationArticle {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+  category: string;
+  club: string | null;
+  status: ModerationStatus;
+  is_featured: boolean;
+  is_trending: boolean;
+  rejection_reason: string;
+  published_at: string | null;
+  created_at: string;
+  created_by: { id: string; name: string } | null;
+}
+
+function mapModerationArticle(raw: BackendModerationArticle): ModerationArticle {
+  return {
+    id: String(raw.id),
+    title: raw.title,
+    summary: raw.summary,
+    body: raw.body ?? '',
+    category: toCategory(raw.category),
+    club: raw.club,
+    status: raw.status,
+    isFeatured: raw.is_featured,
+    isTrending: raw.is_trending,
+    rejectionReason: raw.rejection_reason ?? '',
+    publishedAt: raw.published_at,
+    createdAt: raw.created_at,
+    createdByName: raw.created_by?.name ?? null,
+  };
+}
+
+export interface NewsSubmissionInput {
+  title: string;
+  summary: string;
+  body: string;
+  categoryId: string;
+}
+
+/** Club staff submitting a story into the moderation queue. */
+export async function submitNewsForReview(clubId: string, input: NewsSubmissionInput): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>(`/${encodeURIComponent(clubId)}/news-submissions/`, {
+    title: input.title,
+    summary: input.summary,
+    body: input.body,
+    category: input.categoryId,
+  });
+  return mapModerationArticle(response.data);
+}
+
+/** A club's own submissions, any status — for the club news page's real list. */
+export async function fetchClubNewsSubmissions(clubId: string): Promise<ModerationArticle[]> {
+  const response = await apiClient.get<BackendModerationArticle[] | { results: BackendModerationArticle[] }>(
+    `/${encodeURIComponent(clubId)}/news-submissions/`,
+  );
+  return unwrapList(response.data).map(mapModerationArticle);
+}
+
+/** Staff (Sports Data / Super Admin) composing and publishing directly. */
+export async function composeAndPublishNews(input: NewsSubmissionInput): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>('/admin/news/', {
+    title: input.title,
+    summary: input.summary,
+    body: input.body,
+    category: input.categoryId,
+  });
+  return mapModerationArticle(response.data);
+}
+
+/** Articles awaiting review (Sports Data / Super Admin). */
+export async function fetchNewsQueue(): Promise<ModerationArticle[]> {
+  const response = await apiClient.get<BackendModerationArticle[] | { results: BackendModerationArticle[] }>('/admin/news/queue/');
+  return unwrapList(response.data).map(mapModerationArticle);
+}
+
+/** Live published articles, with full moderation detail (status/club/etc). */
+export async function fetchPublishedNewsAdmin(): Promise<ModerationArticle[]> {
+  const response = await apiClient.get<BackendModerationArticle[] | { results: BackendModerationArticle[] }>('/admin/news/published/');
+  return unwrapList(response.data).map(mapModerationArticle);
+}
+
+export interface NewsEditInput {
+  title?: string;
+  summary?: string;
+  body?: string;
+  categoryId?: string;
+}
+
+/** Edit Story — save changes before (or after) approval. */
+export async function updateNewsStory(id: string, input: NewsEditInput): Promise<ModerationArticle> {
+  const payload: Record<string, string> = {};
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.summary !== undefined) payload.summary = input.summary;
+  if (input.body !== undefined) payload.body = input.body;
+  if (input.categoryId !== undefined) payload.category = input.categoryId;
+
+  const response = await apiClient.patch<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/`, payload);
+  return mapModerationArticle(response.data);
+}
+
+/** Approve a pending article, optionally as Top Story and/or Trending. */
+export async function approveNewsStory(
+  id: string,
+  options?: { isTopStory?: boolean; isTrending?: boolean },
+): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/approve/`, {
+    is_top_story: options?.isTopStory ?? false,
+    is_trending: options?.isTrending ?? false,
+  });
+  return mapModerationArticle(response.data);
+}
+
+/** Reject a pending article — it never appears on the public feed. */
+export async function rejectNewsStory(id: string, reason: string): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/reject/`, { reason });
+  return mapModerationArticle(response.data);
+}
+
+/** Standalone Top Story toggle for an already-published article. */
+export async function setNewsFeatured(id: string, isFeatured: boolean): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/set-featured/`, {
+    is_featured: isFeatured,
+  });
+  return mapModerationArticle(response.data);
+}
+
+/** Standalone Trending toggle for an already-published article. */
+export async function setNewsTrending(id: string, isTrending: boolean): Promise<ModerationArticle> {
+  const response = await apiClient.post<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/set-trending/`, {
+    is_trending: isTrending,
+  });
+  return mapModerationArticle(response.data);
 }

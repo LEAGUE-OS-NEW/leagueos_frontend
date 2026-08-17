@@ -3,6 +3,9 @@
   flex-direction: column;
   gap: 24px;
   padding: clamp(20px, 3vw, 32px);
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .na-header h1 {

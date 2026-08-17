@@ -203,6 +203,14 @@ export async function revokeAdminInvitation(id: string): Promise<AdminInvitation
   return adaptInvitation(response.data);
 }
 
+// Platform-role invites (Compliance Admin, Finance Admin, etc.) assign a
+// role to an already-registered user rather than creating a new login —
+// unlike inviteClubAdmin/AcceptInvite, there's no password-setup step here.
+export async function acceptAdminInvitation(token: string): Promise<AdminInvitation> {
+  const response = await apiClient.post('/admin/invitations/accept/', { token });
+  return adaptInvitation(response.data);
+}
+
 export async function setAdminUserActive(userId: string, isActive: boolean): Promise<AdminUser> {
   const response = await apiClient.patch(`/admin/users/${encodeURIComponent(userId)}/`, { is_active: isActive });
   return adaptUser(response.data);
@@ -308,6 +316,24 @@ export async function createRealClub(input: { name: string; sportId: string }): 
   });
   const raw = response.data as Record<string, unknown>;
   return { id: String(raw.id), name: String(raw.name ?? ''), slug: String(raw.slug ?? '') };
+}
+
+// Real — POST /<club_pk>/logo/ (clubs app, IsClubAdmin — Super Admin can
+// set any club's logo, a Club Admin only their own). Usable right after
+// createRealClub (before any workspace exists) or later by the club's own
+// admin from ClubProfilePage.tsx.
+export async function uploadClubLogo(clubId: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const response = await apiClient.post(`/${encodeURIComponent(clubId)}/logo/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  const raw = response.data as Record<string, unknown>;
+  return String(raw.logo_url ?? '');
+}
+
+export async function deleteClubLogo(clubId: string): Promise<void> {
+  await apiClient.delete(`/${encodeURIComponent(clubId)}/logo/`);
 }
 
 export interface ClubAdminInvite {

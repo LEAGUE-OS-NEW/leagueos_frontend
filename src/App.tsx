@@ -51,6 +51,7 @@ import Login from "./pages/auth/login/Login";
 import ForgotPassword from "./pages/auth/forgotpassword/ForgotPassword";
 import VerifyEmail from "./pages/auth/emailVerification/VerifyEmail";
 import AcceptInvite from "./pages/auth/acceptinvite/AcceptInvite";
+import AcceptAdminInvite from "./pages/auth/acceptadmininvite/AcceptAdminInvite";
 import Tickets from "./pages/landing/tickets/TicketsLandingPage";
 import TicketCheckoutPage from "./pages/landing/tickets/TicketCheckoutPage";
 import Store from "./pages/landing/store/Store";
@@ -80,6 +81,7 @@ import PayoutsPage from "./pages/admin/finance/PayoutsPage";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
 import SportsDataAdmin from './pages/admin/sportsdata/SportsDataAdmin';
+import FixturesAdmin from './pages/admin/sportsdata/FixturesAdmin';
 import FantasyAdminPage from './pages/admin/fantasy/FantasyAdminPage';
 import NewsAdmin from './pages/admin/news/NewsAdmin';
 import CustomerSupportAdmin from './pages/admin/support/CustomerSupportAdmin';
@@ -209,6 +211,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/accept-admin-invite" element={<AcceptAdminInvite />} />
 
         {/* Shared admin shell — Super Admin + every specialist role */}
         <Route path="/dashboard/admin" element={admin(<AdminDashboard />)} />
@@ -226,6 +229,7 @@ function App() {
         <Route path="/dashboard/admin/reports" element={admin(<ReportsPage />)} />
         <Route path="/dashboard/admin/settings" element={admin(<SystemSettingsPage />)} />
         <Route path="/dashboard/admin/sports-data" element={admin(<SportsDataAdmin />)} />
+        <Route path="/dashboard/admin/fixtures" element={admin(<FixturesAdmin />)} />
         <Route path="/dashboard/admin/fantasy" element={admin(<FantasyAdminPage />)} />
         <Route path="/dashboard/admin/news" element={admin(<NewsAdmin />)} />
         <Route path="/dashboard/admin/compliance" element={admin(<ComplianceAdmin />)} />

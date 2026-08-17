@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiCheckCircle, FiClock, FiImage, FiSend, FiStar, FiTrendingUp, FiX } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiEdit2, FiImage, FiSend, FiStar, FiTrendingUp, FiX } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   approveStory,
@@ -9,9 +9,12 @@ import {
   rejectStory,
   setFeatured,
   toggleTrending,
+  updateStory,
   type AdminStory,
   type ComposeStoryPayload,
+  type EditStoryPayload,
 } from '../../../services/newsAdminService';
+import { extractApiError } from '../../../services/apiUtils';
 import type { Story } from '../../../services/newsService';
 import './NewsAdmin.css';
 
@@ -45,6 +48,11 @@ function NewsAdmin() {
   const [selected, setSelected] = useState<AdminStory | null>(null);
   const [rejecting, setRejecting] = useState<RejectState>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isSavingAction, setIsSavingAction] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<EditStoryPayload | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [compose, setCompose] = useState<ComposeStoryPayload>(BLANK_COMPOSE);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -94,29 +102,98 @@ function NewsAdmin() {
     });
   };
 
+  const openStory = (story: AdminStory) => {
+    setSelected(story);
+    setIsEditing(false);
+    setEditForm(null);
+    setActionError(null);
+  };
+
+  const closeDrawer = () => {
+    setSelected(null);
+    setIsEditing(false);
+    setEditForm(null);
+  };
+
+  const startEditing = () => {
+    if (!selected) return;
+    setEditForm({
+      title: selected.title,
+      description: selected.description,
+      body: selected.body ?? selected.description,
+      category: selected.category,
+    });
+    setIsEditing(true);
+    setActionError(null);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditForm(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selected || !editForm) return;
+    if (!editForm.title.trim() || !editForm.description.trim()) {
+      setActionError('Title and brief description are required.');
+      return;
+    }
+    setIsSavingEdit(true);
+    setActionError(null);
+    try {
+      const updated = await updateStory(selected.id, editForm);
+      setSelected(updated);
+      setIsEditing(false);
+      setEditForm(null);
+      refreshLists();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleApprove = async (story: AdminStory, options?: { isFeatured?: boolean; isTrending?: boolean }) => {
     setActionError(null);
-    await approveStory(story.id, options);
-    setSelected(null);
-    refreshLists();
+    setIsSavingAction(true);
+    try {
+      await approveStory(story.id, options);
+      closeDrawer();
+      refreshLists();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setIsSavingAction(false);
+    }
   };
 
   const handleConfirmReject = async () => {
     if (!rejecting || rejecting.reason.trim().length === 0) return;
     setActionError(null);
-    await rejectStory(rejecting.id, rejecting.reason.trim());
-    setRejecting(null);
-    setSelected(null);
-    refreshLists();
+    setIsSavingAction(true);
+    try {
+      await rejectStory(rejecting.id, rejecting.reason.trim());
+      setRejecting(null);
+      closeDrawer();
+      refreshLists();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setIsSavingAction(false);
+    }
   };
 
   const handleSetFeatured = async (id: string) => {
-    await setFeatured(id);
-    refreshLists();
+    try {
+      await setFeatured(id);
+      refreshLists();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    }
   };
 
-  const handleToggleTrending = async (id: string) => {
-    const result = await toggleTrending(id);
+  const handleToggleTrending = async (story: AdminStory) => {
+    const result = await toggleTrending(story.id, !story.isTrending);
     if (!result.ok) {
       setActionError(result.reason ?? 'Could not update trending.');
       return;
@@ -153,6 +230,8 @@ function NewsAdmin() {
       setCompose(BLANK_COMPOSE);
       setComposeMessage('Published.');
       refreshLists();
+    } catch (err) {
+      setComposeMessage(extractApiError(err).message);
     } finally {
       setIsPublishing(false);
     }
@@ -193,7 +272,7 @@ function NewsAdmin() {
               ) : (
                 <div className="na-queue-list">
                   {queue.map((story) => (
-                    <button type="button" key={story.id} className="na-queue-item" onClick={() => setSelected(story)}>
+                    <button type="button" key={story.id} className="na-queue-item" onClick={() => openStory(story)}>
                       <img src={story.image} alt="" className="na-queue-item__image" />
                       <div className="na-queue-item__body">
                         <p className="na-queue-item__title">{story.title}</p>
@@ -310,7 +389,7 @@ function NewsAdmin() {
                       <button
                         type="button"
                         className={`na-toggle-btn${story.isTrending ? ' active' : ''}`}
-                        onClick={() => void handleToggleTrending(story.id)}
+                        onClick={() => void handleToggleTrending(story)}
                       >
                         <FiTrendingUp aria-hidden="true" /> Trending
                       </button>
@@ -325,40 +404,111 @@ function NewsAdmin() {
 
       {/* ── Review detail drawer ── */}
       {selected && (
-        <div className="na-drawer-overlay" onClick={() => setSelected(null)}>
+        <div className="na-drawer-overlay" onClick={closeDrawer}>
           <div className="na-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="na-drawer__header">
-              <h2>{selected.title}</h2>
-              <button type="button" className="na-drawer__close" aria-label="Close" onClick={() => setSelected(null)}>
+              <h2>{isEditing ? 'Edit Story' : selected.title}</h2>
+              <button type="button" className="na-drawer__close" aria-label="Close" onClick={closeDrawer}>
                 <FiX />
               </button>
             </div>
             <div className="na-drawer__body">
-              <img src={selected.image} alt="" className="na-drawer__image" />
+              {!isEditing && <img src={selected.image} alt="" className="na-drawer__image" />}
               <p className="na-drawer__meta">
                 Submitted by <strong>{selected.submittedBy}</strong> · {selected.category} · {formatSubmittedAt(selected.submittedAt)}
               </p>
-              <p className="na-drawer__description">{selected.description}</p>
-              {selected.body && <p className="na-drawer__body-text">{selected.body}</p>}
+
+              {isEditing && editForm ? (
+                <div className="na-compose-grid">
+                  <label className="na-field na-field--full">
+                    Title
+                    <input
+                      value={editForm.title}
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, title: event.target.value } : current))}
+                    />
+                  </label>
+                  <label className="na-field">
+                    Category
+                    <select
+                      value={editForm.category}
+                      onChange={(event) =>
+                        setEditForm((current) => (current ? { ...current, category: event.target.value as Story['category'] } : current))
+                      }
+                    >
+                      {CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="na-field na-field--full">
+                    Brief description
+                    <textarea
+                      rows={2}
+                      value={editForm.description}
+                      onChange={(event) =>
+                        setEditForm((current) => (current ? { ...current, description: event.target.value } : current))
+                      }
+                    />
+                  </label>
+                  <label className="na-field na-field--full">
+                    Full story
+                    <textarea
+                      rows={6}
+                      value={editForm.body}
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, body: event.target.value } : current))}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <p className="na-drawer__description">{selected.description}</p>
+                  {selected.body && <p className="na-drawer__body-text">{selected.body}</p>}
+                </>
+              )}
             </div>
             <div className="na-drawer__footer">
-              <button
-                type="button"
-                className="na-btn na-btn--danger"
-                onClick={() => setRejecting({ id: selected.id, reason: '' })}
-              >
-                Reject
-              </button>
-              <button type="button" className="na-btn na-btn--ghost" onClick={() => void handleApprove(selected)}>
-                <FiCheckCircle aria-hidden="true" /> Approve
-              </button>
-              <button
-                type="button"
-                className="na-btn na-btn--primary"
-                onClick={() => void handleApprove(selected, { isFeatured: true, isTrending: true })}
-              >
-                Approve as Top Story
-              </button>
+              {isEditing ? (
+                <>
+                  <button type="button" className="na-btn na-btn--ghost" onClick={cancelEditing} disabled={isSavingEdit}>
+                    Cancel
+                  </button>
+                  <button type="button" className="na-btn na-btn--primary" disabled={isSavingEdit} onClick={() => void handleSaveEdit()}>
+                    {isSavingEdit ? 'Saving…' : 'Save changes'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="na-btn na-btn--danger"
+                    disabled={isSavingAction}
+                    onClick={() => setRejecting({ id: selected.id, reason: '' })}
+                  >
+                    Reject
+                  </button>
+                  <button type="button" className="na-btn na-btn--ghost" disabled={isSavingAction} onClick={startEditing}>
+                    <FiEdit2 aria-hidden="true" /> Edit Story
+                  </button>
+                  <button
+                    type="button"
+                    className="na-btn na-btn--ghost"
+                    disabled={isSavingAction}
+                    onClick={() => void handleApprove(selected)}
+                  >
+                    <FiCheckCircle aria-hidden="true" /> Approve
+                  </button>
+                  <button
+                    type="button"
+                    className="na-btn na-btn--primary"
+                    disabled={isSavingAction}
+                    onClick={() => void handleApprove(selected, { isFeatured: true, isTrending: true })}
+                  >
+                    Approve as Top Story
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -386,7 +536,7 @@ function NewsAdmin() {
               <button
                 type="button"
                 className="na-btn na-btn--danger"
-                disabled={rejecting.reason.trim().length === 0}
+                disabled={rejecting.reason.trim().length === 0 || isSavingAction}
                 onClick={() => void handleConfirmReject()}
               >
                 Reject story

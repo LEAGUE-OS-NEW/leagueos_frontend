@@ -1,29 +1,30 @@
 // News moderation & composing — service layer (Sports Data & Statistics Admin).
 //
-// newsService.ts is real but read-only (GET /news/, GET /news/:id/) — there
-// is no write/moderation endpoint on the backend yet, and club submission
-// (ClubNewsPage.tsx) was previously entirely disconnected local state. This
-// service is mock-backed (in-memory), following the same convention as
-// sportsDataService.ts / fantasyAdminService.ts before it went real: typed
-// functions, realistic shapes, ready for a real-backend swap later.
-//
-// It merges real backend stories with mock club-submitted/staff-composed
-// ones so admin actions (approve, feature, trend, compose) are visible
-// immediately on the public/fan News pages — the same pattern already used
-// for markets before its backend existed.
+// Adapts the real submit -> review -> publish pipeline in newsService.ts
+// (discovery.News, the same model the public/fan News pages read) into the
+// AdminStory shape NewsAdmin.tsx and ClubNewsPage.tsx already render.
 
-import { fetchNews, fetchFullStory } from './newsService';
-import type { Story, FullStory } from './newsService';
-
-function delay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
+import {
+  approveNewsStory,
+  composeAndPublishNews,
+  fetchClubNewsSubmissions,
+  fetchFullStory,
+  fetchNews,
+  fetchNewsCategories,
+  fetchNewsQueue as fetchQueueRaw,
+  rejectNewsStory,
+  setNewsFeatured,
+  setNewsTrending,
+  submitNewsForReview,
+  updateNewsStory,
+} from './newsService';
+import type { FullStory, ModerationArticle, NewsCategoryOption, Story } from './newsService';
+import { extractApiError } from './apiUtils';
 
 export type NewsStatus = 'pending' | 'approved' | 'rejected';
 export type NewsSource = 'club' | 'staff';
 
 export interface AdminStory extends Story {
-  isTrending: boolean;
   status: NewsStatus;
   source: NewsSource;
   submittedBy?: string;
@@ -40,206 +41,156 @@ export interface ComposeStoryPayload {
   category: Story['category'];
 }
 
-const PLACEHOLDER_IMAGE = '/images/stadium-bg.png';
-const PLACEHOLDER_AVATAR = '/logos/logo.png';
-const MAX_TRENDING = 5;
-
-function generateId(): string {
-  return `news-${Date.now().toString(36)}-${Math.floor(1000 + Math.random() * 9000)}`;
+export interface EditStoryPayload {
+  title: string;
+  description: string;
+  body: string;
+  category: Story['category'];
 }
 
-// In-memory mock store — club submissions + staff-composed stories.
-let mockStories: AdminStory[] = [
-  {
-    id: 'news-mock-1',
-    category: 'Football',
-    time: '5h ago',
-    image: '/clubs/vipers-sc.png',
-    title: "Vipers SC announce new signing ahead of derby",
-    description:
-      "Vipers SC have confirmed the signing of a new midfielder ahead of this weekend's crucial title-race fixture.",
-    body:
-      "Vipers SC have confirmed the signing of a new midfielder ahead of this weekend's crucial title-race fixture.\n\n" +
-      'The club says the player will be available for selection immediately, strengthening squad depth heading into a demanding run of matches.',
-    author: 'Vipers SC',
-    avatar: '/clubs/vipers-sc.png',
-    isFeatured: false,
-    isTrending: false,
-    status: 'pending',
-    source: 'club',
-    submittedBy: 'Vipers SC',
-    submittedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'news-mock-2',
-    category: 'Rugby',
-    time: '1d ago',
-    image: '/clubs/black-pirates.png',
-    title: 'Black Pirates open new training facility',
-    description:
-      "Black Pirates RFC have opened a new state-of-the-art training facility to support the club's growing youth programme.",
-    body:
-      "Black Pirates RFC have opened a new state-of-the-art training facility to support the club's growing youth programme.\n\n" +
-      'The facility includes a full-size pitch, gym, and recovery suite, and will be used by both the senior squad and academy sides.',
-    author: 'Black Pirates',
-    avatar: '/clubs/black-pirates.png',
-    isFeatured: false,
-    isTrending: false,
-    status: 'pending',
-    source: 'club',
-    submittedBy: 'Black Pirates',
-    submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+const PLACEHOLDER_IMAGE = '/images/stadium-bg.png';
+const PLACEHOLDER_AVATAR = '/logos/logo.png';
 
-// Overrides for real backend stories' isFeatured/isTrending — can't PATCH
-// the real backend yet, but toggles should still be visible in this session.
-const realStoryOverrides = new Map<string, { isFeatured?: boolean; isTrending?: boolean }>();
+const STATUS_MAP: Record<ModerationArticle['status'], NewsStatus> = {
+  DRAFT: 'pending',
+  PENDING_APPROVAL: 'pending',
+  APPROVED: 'pending',
+  PUBLISHED: 'approved',
+  REJECTED: 'rejected',
+  ARCHIVED: 'rejected',
+};
 
-function applyOverride(story: Story): AdminStory {
-  const override = realStoryOverrides.get(story.id);
+function formatRelativeTime(iso: string): string {
+  try {
+    const diffMins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000));
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  } catch {
+    return iso;
+  }
+}
+
+function toAdminStory(article: ModerationArticle): AdminStory {
   return {
-    ...story,
-    isFeatured: override?.isFeatured ?? story.isFeatured,
-    isTrending: override?.isTrending ?? false,
-    status: 'approved',
-    source: 'staff',
+    id: article.id,
+    category: article.category,
+    time: formatRelativeTime(article.publishedAt ?? article.createdAt),
+    image: PLACEHOLDER_IMAGE,
+    title: article.title,
+    description: article.summary,
+    body: article.body,
+    author: article.createdByName ?? (article.club ? 'Club Staff' : 'LeagueOS Staff'),
+    avatar: PLACEHOLDER_AVATAR,
+    isFeatured: article.isFeatured,
+    isTrending: article.isTrending,
+    status: STATUS_MAP[article.status],
+    source: article.club ? 'club' : 'staff',
+    submittedBy: article.createdByName ?? undefined,
+    submittedAt: article.createdAt,
+    rejectionReason: article.rejectionReason || undefined,
   };
 }
 
-function countTrending(): number {
-  const mockCount = mockStories.filter((s) => s.status === 'approved' && s.isTrending).length;
-  const overrideCount = [...realStoryOverrides.values()].filter((o) => o.isTrending).length;
-  return mockCount + overrideCount;
-}
-
-function clearFeaturedElsewhere(id: string) {
-  for (const story of mockStories) {
-    if (story.id !== id) story.isFeatured = false;
+// Resolve a friendly category label ('Football', 'Clubs', …) to a real
+// backend category id. Categories are seeded server-side, not owned by this
+// form, so an unmatched label (e.g. no dedicated 'Clubs' category exists
+// yet) falls back to the first active category rather than blocking the
+// submit/compose action outright.
+let categoriesCache: NewsCategoryOption[] | null = null;
+async function resolveCategoryId(label: Story['category']): Promise<string> {
+  if (!categoriesCache) categoriesCache = await fetchNewsCategories();
+  if (categoriesCache.length === 0) {
+    throw new Error('No news categories are configured yet — ask an admin to add one.');
   }
-  for (const [key, value] of realStoryOverrides) {
-    if (key !== id && value.isFeatured) realStoryOverrides.set(key, { ...value, isFeatured: false });
-  }
+  const match = categoriesCache.find(
+    (c) => c.name.toLowerCase() === label.toLowerCase() || c.code.toLowerCase() === label.toLowerCase(),
+  );
+  return (match ?? categoriesCache[0]).id;
 }
 
 export async function fetchNewsQueue(): Promise<AdminStory[]> {
-  return delay(mockStories.filter((s) => s.status === 'pending'));
+  const queue = await fetchQueueRaw();
+  return queue.map(toAdminStory);
 }
 
+// Public feed (GET /news/) — the same source public/fan pages render, so
+// "Published Stories" here is always exactly what's actually live.
 export async function fetchApprovedStories(): Promise<AdminStory[]> {
-  const real = await fetchNews();
-  const realMapped = real.map(applyOverride);
-  const mockApproved = mockStories.filter((s) => s.status === 'approved');
-  return delay([...mockApproved, ...realMapped]);
+  const stories = await fetchNews();
+  return stories.map((story) => ({
+    ...story,
+    status: 'approved' as const,
+    source: 'staff' as const,
+  }));
+}
+
+export async function fetchClubSubmissions(clubId: string): Promise<AdminStory[]> {
+  const submissions = await fetchClubNewsSubmissions(clubId);
+  return submissions.map(toAdminStory);
 }
 
 export async function fetchFullStoryMerged(id: string): Promise<(FullStory & { isTrending?: boolean }) | null> {
-  const mockStory = mockStories.find((s) => s.id === id && s.status === 'approved');
-  if (mockStory) {
-    return delay({
-      ...mockStory,
-      body: mockStory.body ?? mockStory.description,
-      publishedAt: mockStory.time,
-    });
-  }
   return fetchFullStory(id);
 }
 
-export async function submitClubStory(clubName: string, payload: ComposeStoryPayload): Promise<AdminStory> {
-  const story: AdminStory = {
-    id: generateId(),
-    category: payload.category,
-    time: 'Just now',
-    image: payload.image || PLACEHOLDER_IMAGE,
+export async function submitClubStory(clubId: string, clubName: string, payload: ComposeStoryPayload): Promise<AdminStory> {
+  const categoryId = await resolveCategoryId(payload.category);
+  const article = await submitNewsForReview(clubId, {
     title: payload.title,
-    description: payload.description,
+    summary: payload.description,
     body: payload.body,
-    author: clubName,
-    avatar: PLACEHOLDER_AVATAR,
-    isFeatured: false,
-    isTrending: false,
-    status: 'pending',
-    source: 'club',
-    submittedBy: clubName,
-    submittedAt: new Date().toISOString(),
-  };
-  mockStories = [story, ...mockStories];
-  return delay(story, 400);
+    categoryId,
+  });
+  return { ...toAdminStory(article), author: clubName, submittedBy: clubName };
 }
 
 export async function composeStory(payload: ComposeStoryPayload): Promise<AdminStory> {
-  const story: AdminStory = {
-    id: generateId(),
-    category: payload.category,
-    time: 'Just now',
-    image: payload.image || PLACEHOLDER_IMAGE,
+  const categoryId = await resolveCategoryId(payload.category);
+  const article = await composeAndPublishNews({
     title: payload.title,
-    description: payload.description,
+    summary: payload.description,
     body: payload.body,
-    author: 'LeagueOS Staff',
-    avatar: PLACEHOLDER_AVATAR,
-    isFeatured: false,
-    isTrending: false,
-    status: 'approved',
-    source: 'staff',
-    submittedAt: new Date().toISOString(),
-  };
-  mockStories = [story, ...mockStories];
-  return delay(story, 400);
+    categoryId,
+  });
+  return toAdminStory(article);
+}
+
+export async function updateStory(id: string, payload: EditStoryPayload): Promise<AdminStory> {
+  const categoryId = await resolveCategoryId(payload.category);
+  const article = await updateNewsStory(id, {
+    title: payload.title,
+    summary: payload.description,
+    body: payload.body,
+    categoryId,
+  });
+  return toAdminStory(article);
 }
 
 export async function approveStory(
   id: string,
   options?: { isFeatured?: boolean; isTrending?: boolean },
 ): Promise<AdminStory> {
-  const story = mockStories.find((s) => s.id === id);
-  if (!story) throw new Error('Story not found.');
-
-  story.status = 'approved';
-  if (options?.isFeatured) {
-    clearFeaturedElsewhere(id);
-    story.isFeatured = true;
-  }
-  if (options?.isTrending && countTrending() < MAX_TRENDING) {
-    story.isTrending = true;
-  }
-  return delay({ ...story }, 400);
+  const article = await approveNewsStory(id, { isTopStory: options?.isFeatured, isTrending: options?.isTrending });
+  return toAdminStory(article);
 }
 
 export async function rejectStory(id: string, reason: string): Promise<AdminStory> {
-  const story = mockStories.find((s) => s.id === id);
-  if (!story) throw new Error('Story not found.');
-
-  story.status = 'rejected';
-  story.rejectionReason = reason;
-  return delay({ ...story }, 400);
+  const article = await rejectNewsStory(id, reason);
+  return toAdminStory(article);
 }
 
 export async function setFeatured(id: string): Promise<void> {
-  clearFeaturedElsewhere(id);
-  const mockStory = mockStories.find((s) => s.id === id);
-  if (mockStory) {
-    mockStory.isFeatured = true;
-  } else {
-    const existing = realStoryOverrides.get(id) ?? {};
-    realStoryOverrides.set(id, { ...existing, isFeatured: true });
-  }
-  await delay(undefined, 300);
+  await setNewsFeatured(id, true);
 }
 
-export async function toggleTrending(id: string): Promise<{ ok: boolean; reason?: string }> {
-  const mockStory = mockStories.find((s) => s.id === id);
-  const isCurrentlyTrending = mockStory ? mockStory.isTrending : (realStoryOverrides.get(id)?.isTrending ?? false);
-
-  if (!isCurrentlyTrending && countTrending() >= MAX_TRENDING) {
-    return delay({ ok: false, reason: `Only ${MAX_TRENDING} stories can be marked Trending at once — untoggle one first.` }, 200);
+export async function toggleTrending(id: string, nextValue: boolean): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    await setNewsTrending(id, nextValue);
+    return { ok: true };
+  } catch (err: unknown) {
+    return { ok: false, reason: extractApiError(err).message };
   }
-
-  if (mockStory) {
-    mockStory.isTrending = !mockStory.isTrending;
-  } else {
-    const existing = realStoryOverrides.get(id) ?? {};
-    realStoryOverrides.set(id, { ...existing, isTrending: !isCurrentlyTrending });
-  }
-  return delay({ ok: true }, 200);
 }
