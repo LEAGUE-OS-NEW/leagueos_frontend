@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { acceptAdminInvitation } from '../../../services/adminUsersService.ts';
 import { fetchCurrentUser } from '../../../services/authServices.ts';
@@ -29,14 +29,21 @@ export default function AcceptAdminInvite() {
   const user = useAuthStore((state) => state.user);
   const setHydratedUser = useAuthStore((state) => state.setHydratedUser);
 
-  const [status, setStatus] = useState<'idle' | 'accepting' | 'done' | 'error'>('idle');
+  // 'idle' also covers "accepting" — the render below already falls
+  // through to the "Accepting your invitation…" message for any status
+  // that isn't 'error' or 'done'. hasStartedRef (not state) guards
+  // against firing the accept call twice — using setState synchronously
+  // in the effect body just to set a guard flag is what the
+  // react-hooks/set-state-in-effect rule flags.
+  const [status, setStatus] = useState<'idle' | 'done' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
-    if (!user || !token || status !== 'idle') return;
+    if (!user || !token || hasStartedRef.current) return;
+    hasStartedRef.current = true;
 
     let cancelled = false;
-    setStatus('accepting');
 
     acceptAdminInvitation(token)
       .then(async () => {
@@ -59,7 +66,7 @@ export default function AcceptAdminInvite() {
     return () => {
       cancelled = true;
     };
-  }, [user, token, status, navigate, setHydratedUser]);
+  }, [user, token, navigate, setHydratedUser]);
 
   return (
     <div className="ai-page">
