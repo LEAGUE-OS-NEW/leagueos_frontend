@@ -258,7 +258,9 @@ const [fmtRules, fmtErr] = safeJson<Record<string, { min: number; max: number }>
       registration_state: 'OPEN',
       vice_captain_fallback: true,
       tie_break_rules: ['total_points', 'fewer_transfer_penalties', 'earlier_registration'],
-      gameweek_rules: {},
+     gameweek_rules: {
+  deadline_hours_before_start: 1,
+},
     }), 'Fantasy competition created.');
     if (ok) setCompForm({ competition: '', season: '', name: '', description: '', squad_size: '', starting_lineup_size: '', bench_size: '', initial_budget: '100', max_players_per_team: '3', captain_multiplier: '2', free_transfers_per_gameweek: '1', transfer_penalty: '4', position_rules: '{}', formation_rules: '{}' });
   };
