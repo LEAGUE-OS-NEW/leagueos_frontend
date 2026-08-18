@@ -4,8 +4,7 @@ import { FiArrowLeft, FiClock, FiAlertTriangle, FiActivity, FiBookmark, FiShare2
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchApprovedStories, type AdminStory } from '../../../services/newsAdminService';
-import type { Story } from '../../../services/newsService';
+import { fetchNews, fetchFullStory, type FullStory, type Story } from '../../../services/newsService';
 import '../sections/FanDashboard.css';
 import './FanArticleDetailPage.css';
 
@@ -16,18 +15,17 @@ function categoryClass(cat: Story['category']): string {
 export default function FanArticleDetailPage() {
   const { storyId = '' } = useParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [story, setStory] = useState<AdminStory | null>(null);
-  const [related, setRelated] = useState<AdminStory[]>([]);
+  const [story, setStory] = useState<FullStory | null>(null);
+  const [related, setRelated] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    fetchApprovedStories()
-      .then((all) => {
+    Promise.all([fetchFullStory(storyId), fetchNews()])
+      .then(([found, all]) => {
         if (cancelled) return;
-        const found = all.find((s) => s.id === storyId) ?? null;
         setStory(found);
         if (!found) setLoadError('This story could not be found.');
         setRelated(all.filter((s) => s.id !== storyId).slice(0, 4));
@@ -91,16 +89,11 @@ export default function FanArticleDetailPage() {
 
                   <div className="fad-body">
                     <p>{story.description}</p>
-                    <p>
-                      The match drew thousands of fans to the stadium, with the atmosphere electric from kick-off.
-                      Both sides showed tremendous quality, creating a contest that will be remembered throughout the season.
-                      The result has significant implications for the league table as we enter the final stretch.
-                    </p>
-                    <p>
-                      Supporters and analysts alike were quick to praise the performances on show, with several
-                      players producing career-best displays. The coaching staff will be looking to build on this
-                      momentum heading into the crucial fixtures ahead.
-                    </p>
+                    {story.body
+                      ? story.body.split('\n').map((paragraph, i) =>
+                          paragraph.trim() ? <p key={i}>{paragraph.trim()}</p> : <br key={i} />,
+                        )
+                      : null}
                   </div>
                 </article>
 

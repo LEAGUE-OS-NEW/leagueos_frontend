@@ -69,11 +69,11 @@ export default function ClubNewsPage() {
         title: s.title,
         type: 'Club News',
         date: s.submittedAt ? s.submittedAt.slice(0, 10) : '',
-        author: s.submittedBy ?? clubName,
+        author: s.author ?? s.submittedBy ?? clubName,
         reads: '—',
         status: s.status === 'approved' ? 'published' : s.status,
         body: s.body ?? s.description,
-        coverImage: '',
+        coverImage: s.image ?? '',
         rejectionReason: s.rejectionReason,
       }));
       setArticles(mapped);
@@ -139,6 +139,7 @@ export default function ClubNewsPage() {
       description: article.body.slice(0, 200),
       body: article.body,
       image: article.coverImage,
+      author: article.author,
       category: 'Clubs',
     }).then((submitted) => {
       showToast('Submitted for review by League OS staff');
