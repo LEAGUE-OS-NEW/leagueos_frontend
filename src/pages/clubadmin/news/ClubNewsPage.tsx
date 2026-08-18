@@ -207,7 +207,12 @@ export default function ClubNewsPage() {
 
   const saveArticle = async (submitForReview = false) => {
     if (!form.title.trim()) return;
-    const nextArticle = submitForReview ? await submitArticleForReview(form) : form;
+
+    // When explicitly saving as a draft, force status here rather than
+    // relying on a prior setForm() call, which is async/batched and may
+    // not have flushed into `form` yet by the time this runs.
+    const baseArticle = submitForReview ? form : { ...form, status: 'draft' as const };
+    const nextArticle = submitForReview ? await submitArticleForReview(baseArticle) : baseArticle;
     if (!nextArticle) return;
 
     if (editIdx !== null) {
@@ -425,10 +430,10 @@ export default function ClubNewsPage() {
             </div>
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => { setForm(f => ({ ...f, status: 'draft' })); saveArticle(); }}>
+              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => saveArticle(false)}>
                 Save as Draft
               </button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={() => saveArticle()}>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={() => saveArticle(true)}>
                 {modal === 'create' ? 'Publish' : 'Save Changes'}
               </button>
             </div>
