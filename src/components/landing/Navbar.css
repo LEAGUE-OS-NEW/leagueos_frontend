@@ -399,3 +399,22 @@
     display: none;
   }
 }
+
+/* ── Cart icon button in navbar ── */
+.navbar-cart-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.12));
+  background: rgba(255,255,255,0.04);
+  color: var(--color-text-primary, #fff);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.navbar-cart-btn:hover {
+  background: rgba(255,255,255,0.09);
+}

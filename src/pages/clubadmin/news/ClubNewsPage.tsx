@@ -5,6 +5,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
 import { fetchClubSubmissions, submitClubStory } from '../../../services/newsAdminService';
+import { useClubNewsStore } from '../../../store/clubNewsStore';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubNewsPage.css';
 
@@ -12,7 +13,21 @@ const TABS = ['All', 'Published', 'Drafts', 'Scheduled', 'Archived', 'Media'];
 const TYPES = ['Match Report', 'Preview', 'Announcement', 'Club News', 'Transfer'];
 
 type Status = 'published' | 'pending' | 'rejected' | 'scheduled' | 'draft' | 'archived';
-type Article = { id?: string; title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string; rejectionReason?: string };
+type Article = {
+  id?: string;
+  title: string;
+  type: string;
+  date: string;
+  author: string;
+  reads: string;
+  status: Status;
+  body: string;
+  coverImage: string;
+  coverZoom: number;
+  coverX: number;
+  coverY: number;
+  rejectionReason?: string;
+};
 
 type MediaItem = { name: string; type: 'image' | 'video' | 'doc'; size: string; date: string; used: boolean };
 
@@ -21,11 +36,57 @@ const STATUS_CLASS: Record<string, string> = {
   published: 'ca-pill-green', pending: 'ca-pill-orange', rejected: 'ca-pill-red', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
 };
 
-const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '', coverImage: '' };
+const BLANK: Article = {
+  title: '',
+  type: 'Match Report',
+  date: '',
+  author: '',
+  reads: '—',
+  status: 'draft',
+  body: '',
+  coverImage: '',
+  coverZoom: 1,
+  coverX: 50,
+  coverY: 50,
+};
 
 type ModalKind = null | 'create' | 'edit' | 'schedule' | 'preview';
 
 const STAFF_ROLES = ['Club Admin', 'Communications', 'Content Creator'];
+
+const renderAdjustedCoverImage = (article: Article): Promise<string> => {
+  if (!article.coverImage || !article.coverImage.startsWith('data:image/')) {
+    return Promise.resolve(article.coverImage);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(article.coverImage);
+        return;
+      }
+
+      const zoom = Math.max(1, article.coverZoom || 1);
+      const scale = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight) * zoom;
+      const sourceWidth = canvas.width / scale;
+      const sourceHeight = canvas.height / scale;
+      const maxSourceX = Math.max(0, img.naturalWidth - sourceWidth);
+      const maxSourceY = Math.max(0, img.naturalHeight - sourceHeight);
+      const sourceX = maxSourceX * ((article.coverX ?? 50) / 100);
+      const sourceY = maxSourceY * ((article.coverY ?? 50) / 100);
+
+      ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = () => resolve(article.coverImage);
+    img.src = article.coverImage;
+  });
+};
 
 export default function ClubNewsPage() {
   const user = useAuthStore(s => s.user);
@@ -45,8 +106,29 @@ export default function ClubNewsPage() {
       : null;
   const clubName = realClub?.name ?? (CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}` }).name;
 
+  // ── Persisted news store (used when no real backend club is available) ──
+  const { addArticle, updateArticle, deleteArticle: deletePersistedArticle, getArticlesForClub } = useClubNewsStore();
+
   const [activeTab, setActiveTab] = useState('All');
-  const [articles, setArticles] = useState<Article[]>([]);
+  // Lazy initialiser: hydrates from the persisted store on first render
+  // (only in demo/dev mode — real clubs load via the API useEffect below).
+  const [articles, setArticlesLocal] = useState<Article[]>(() => {
+    if (realClub) return [];
+    return getArticlesForClub(scopeId).map(p => ({
+      id: p.id,
+      title: p.title,
+      type: p.type,
+      date: p.date,
+      author: p.author,
+      reads: p.reads,
+      status: p.status,
+      body: p.body,
+      coverImage: p.coverImage,
+      coverZoom: 1,
+      coverX: 50,
+      coverY: 50,
+    }));
+  });
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -55,6 +137,16 @@ export default function ClubNewsPage() {
   const [toast, setToast] = useState('');
   const [notifyFollowers, setNotifyFollowers] = useState(true);
   const [userRole] = useState('Communications');
+  const [scheduleArticleId, setScheduleArticleId] = useState('');
+  const [scheduleManualTitle, setScheduleManualTitle] = useState('');
+
+  // Keep a stable setter that also writes to the persist store
+  const setArticles = (updater: Article[] | ((prev: Article[]) => Article[])) => {
+    setArticlesLocal(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return next;
+    });
+  };
 
   // Real submissions (any status) for this club — replaces the always-empty
   // local state the page previously started with on every load.
@@ -69,11 +161,14 @@ export default function ClubNewsPage() {
         title: s.title,
         type: 'Club News',
         date: s.submittedAt ? s.submittedAt.slice(0, 10) : '',
-        author: s.submittedBy ?? clubName,
+        author: s.author ?? s.submittedBy ?? clubName,
         reads: '—',
         status: s.status === 'approved' ? 'published' : s.status,
         body: s.body ?? s.description,
-        coverImage: '',
+        coverImage: s.image ?? '',
+        coverZoom: 1,
+        coverX: 50,
+        coverY: 50,
         rejectionReason: s.rejectionReason,
       }));
       setArticles(mapped);
@@ -103,53 +198,122 @@ export default function ClubNewsPage() {
   const openEdit = (idx: number) => { setForm({ ...articles[idx] }); setEditIdx(idx); setModal('edit'); };
   const openPreview = (a: Article) => { setPreviewArticle(a); setModal('preview'); };
 
-  const saveArticle = () => {
+  const submitArticleForReview = async (article: Article) => {
+    if (!article.title.trim()) {
+      showToast('Title is required');
+      return null;
+    }
+
+    if (!realClub) {
+      showToast('Cannot submit — no club is linked to this account yet.');
+      return null;
+    }
+
+    try {
+      const adjustedImage = await renderAdjustedCoverImage(article);
+      const submitted = await submitClubStory(realClub.id, clubName, {
+        title: article.title,
+        description: (article.body || article.title).slice(0, 200),
+        body: article.body || article.title,
+        image: adjustedImage,
+        author: article.author || clubName,
+        category: 'Clubs',
+      });
+      showToast('Submitted for review by League OS staff');
+      return {
+        ...article,
+        id: submitted.id,
+        status: 'pending' as const,
+        coverImage: submitted.image || adjustedImage,
+        coverZoom: 1,
+        coverX: 50,
+        coverY: 50,
+      };
+    } catch {
+      showToast('Could not submit — please try again.');
+      return null;
+    }
+  };
+
+  const saveArticle = async (submitForReview = false) => {
     if (!form.title.trim()) return;
+
+    // When explicitly saving as a draft, force status here rather than
+    // relying on a prior setForm() call, which is async/batched and may
+    // not have flushed into `form` yet by the time this runs.
+    const baseArticle = submitForReview ? form : { ...form, status: 'draft' as const };
+    const nextArticle = submitForReview ? await submitArticleForReview(baseArticle) : baseArticle;
+    if (!nextArticle) return;
+
     if (editIdx !== null) {
-      setArticles(prev => prev.map((a, i) => i === editIdx ? form : a));
-      showToast('Article updated');
+      const existing = articles[editIdx];
+      setArticles(prev => prev.map((a, i) => i === editIdx ? nextArticle : a));
+      if (!realClub && existing?.id) {
+        updateArticle(existing.id, { ...nextArticle, clubScopeId: scopeId, createdAt: Date.now() });
+      }
+      if (!submitForReview) showToast('Article updated');
     } else {
-      setArticles(prev => [...prev, form]);
-      showToast('Article created');
+      const id = nextArticle.id ?? `article-${Date.now()}`;
+      const savedArticle = { ...nextArticle, id };
+      setArticles(prev => [savedArticle, ...prev]);
+      if (!realClub) {
+        addArticle({ ...savedArticle, clubScopeId: scopeId, createdAt: Date.now() });
+      }
+      if (!submitForReview) showToast('Article created');
     }
     setModal(null);
   };
 
   const deleteArticle = (idx: number) => {
+    const existing = articles[idx];
     setArticles(prev => prev.filter((_, i) => i !== idx));
+    if (!realClub && existing?.id) deletePersistedArticle(existing.id);
     showToast('Article deleted');
   };
 
   const archiveArticle = (idx: number) => {
+    const existing = articles[idx];
     setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'archived' } : a));
+    if (!realClub && existing?.id) updateArticle(existing.id, { status: 'archived' });
     showToast('Article archived');
   };
 
-  const publishNow = (idx: number) => {
+  const publishNow = async (idx: number) => {
     const article = articles[idx];
     if (!article) return;
+    const submitted = await submitArticleForReview(article);
+    if (submitted) setArticles(prev => prev.map((a, i) => i === idx ? submitted : a));
+  };
 
-    if (!realClub) {
-      showToast('Cannot submit — no club is linked to this account yet.');
-      return;
-    }
+  const scheduleDraftOptions = articles.filter(a => a.status === 'draft');
 
-    submitClubStory(realClub.id, clubName, {
-      title: article.title,
-      description: article.body.slice(0, 200),
-      body: article.body,
-      image: article.coverImage,
-      category: 'Clubs',
-    }).then((submitted) => {
-      showToast('Submitted for review by League OS staff');
-      setArticles(prev => prev.map((a, i) => i === idx ? { ...a, id: submitted.id, status: 'pending' } : a));
-    }).catch(() => {
-      showToast('Could not submit — please try again.');
-    });
+  const openSchedule = () => {
+    setScheduleArticleId('');
+    setScheduleManualTitle('');
+    setModal('schedule');
   };
 
   const schedulePost = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const usingManualTitle = scheduleDraftOptions.length === 0;
+    const title = usingManualTitle ? scheduleManualTitle.trim() : scheduleArticleId;
+    if (!title) {
+      showToast(usingManualTitle ? 'Enter an article title' : 'Select an article to schedule');
+      return;
+    }
+
+    if (usingManualTitle) {
+      // No existing draft to attach this to — create one directly in the
+      // scheduled state so it shows up in the Publishing Queue right away.
+      setArticles(prev => [{ ...BLANK, title, status: 'scheduled' }, ...prev]);
+    } else {
+      const idx = Number(scheduleArticleId);
+      if (!Number.isNaN(idx) && articles[idx]?.status === 'draft') {
+        setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'scheduled' } : a));
+      }
+    }
+
     const msg = notifyFollowers ? 'Post scheduled — followers will be notified' : 'Post scheduled';
     showToast(msg);
     setModal(null);
@@ -164,11 +328,17 @@ export default function ClubNewsPage() {
     if (!file.type.startsWith('image/')) { showToast('Please select an image file'); return; }
     if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB'); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, coverImage: ev.target?.result as string }));
+    reader.onload = (ev) => setForm(f => ({
+      ...f,
+      coverImage: ev.target?.result as string,
+      coverZoom: 1,
+      coverX: 50,
+      coverY: 50,
+    }));
     reader.readAsDataURL(file);
   };
 
-  const removeCoverImage = () => setForm(f => ({ ...f, coverImage: '' }));
+  const removeCoverImage = () => setForm(f => ({ ...f, coverImage: '', coverZoom: 1, coverX: 50, coverY: 50 }));
 
   const MEDIA_ICON: Record<string, string> = { image: '🖼', video: '🎬', doc: '📄' };
 
@@ -206,7 +376,6 @@ export default function ClubNewsPage() {
                   <select className="ca-select" value={form.status} onChange={set('status')}>
                     <option value="draft">Draft</option>
                     <option value="scheduled">Scheduled</option>
-                    <option value="published">Published</option>
                     <option value="archived">Archived</option>
                   </select>
                 </div>
@@ -221,16 +390,60 @@ export default function ClubNewsPage() {
                 <div className="ca-field ca-form-grid-full">
                   <label className="ca-label">Cover Image</label>
                   {form.coverImage ? (
-                    <div className="ca-cover-preview">
-                      <img src={form.coverImage} alt="Cover preview" className="ca-cover-preview-img" />
-                      <button
-                        type="button"
-                        className="ca-cover-remove"
-                        onClick={removeCoverImage}
-                        aria-label="Remove cover image"
-                      >
-                        <FiX />
-                      </button>
+                    <div className="ca-cover-editor">
+                      <div className="ca-cover-preview">
+                        <img
+                          src={form.coverImage}
+                          alt="Cover preview"
+                          className="ca-cover-preview-img"
+                          style={{
+                            objectPosition: `${form.coverX}% ${form.coverY}%`,
+                            transform: `scale(${form.coverZoom})`,
+                            transformOrigin: `${form.coverX}% ${form.coverY}%`,
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="ca-cover-remove"
+                          onClick={removeCoverImage}
+                          aria-label="Remove cover image"
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+                      <div className="ca-cover-controls">
+                        <label className="ca-cover-control">
+                          Zoom
+                          <input
+                            type="range"
+                            min="1"
+                            max="2"
+                            step="0.05"
+                            value={form.coverZoom}
+                            onChange={(e) => setForm(f => ({ ...f, coverZoom: Number(e.target.value) }))}
+                          />
+                        </label>
+                        <label className="ca-cover-control">
+                          Horizontal
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={form.coverX}
+                            onChange={(e) => setForm(f => ({ ...f, coverX: Number(e.target.value) }))}
+                          />
+                        </label>
+                        <label className="ca-cover-control">
+                          Vertical
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={form.coverY}
+                            onChange={(e) => setForm(f => ({ ...f, coverY: Number(e.target.value) }))}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <label className="ca-cover-upload">
@@ -260,10 +473,10 @@ export default function ClubNewsPage() {
             </div>
             <div className="ca-modal-footer">
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => { setForm(f => ({ ...f, status: 'draft' })); saveArticle(); }}>
+              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => saveArticle(false)}>
                 Save as Draft
               </button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={saveArticle}>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={() => saveArticle(true)}>
                 {modal === 'create' ? 'Publish' : 'Save Changes'}
               </button>
             </div>
@@ -316,9 +529,32 @@ export default function ClubNewsPage() {
                 <div className="ca-form-grid">
                   <div className="ca-field ca-form-grid-full">
                     <label className="ca-label">Article</label>
-                    <select className="ca-select">
-                      {articles.filter(a => a.status === 'draft').map((a, i) => <option key={i}>{a.title}</option>)}
-                    </select>
+                    {scheduleDraftOptions.length > 0 ? (
+                      <select
+                        className="ca-select"
+                        value={scheduleArticleId}
+                        onChange={(e) => setScheduleArticleId(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>Select a draft…</option>
+                        {articles.map((a, i) => a.status === 'draft' && (
+                          <option key={i} value={i}>{a.title || 'Untitled draft'}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          className="ca-input"
+                          value={scheduleManualTitle}
+                          onChange={(e) => setScheduleManualTitle(e.target.value)}
+                          placeholder="Enter article title…"
+                          required
+                        />
+                        <p style={{ margin: '6px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                          No drafts yet — this will create one and schedule it directly.
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="ca-field">
                     <label className="ca-label">Publish Date</label>
@@ -400,7 +636,7 @@ export default function ClubNewsPage() {
           <p className="ca-page-subtitle">Create, manage and distribute club news, announcements and media content.</p>
         </div>
         <div className="ca-page-actions">
-          <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal('schedule')}><FiSend /> Schedule Post</button>
+          <button type="button" className="ca-btn ca-btn-secondary" onClick={openSchedule}><FiSend /> Schedule Post</button>
           <button type="button" className="ca-btn ca-btn-primary" onClick={openCreate}><FiPlus /> Create Article</button>
         </div>
       </div>

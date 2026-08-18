@@ -3,8 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { FiActivity, FiAlertTriangle, FiArrowLeft, FiClock } from 'react-icons/fi';
 import Navbar from '../../../components/landing/Navbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchFullStoryMerged } from '../../../services/newsAdminService';
 import type { FullStory, Story } from '../../../services/newsService';
+import { fetchFullStory } from '../../../services/newsService';
 import './ArticleDetail.css';
 
 function badgeClass(category: Story['category']): string {
@@ -29,7 +29,7 @@ function ArticleDetail() {
   useEffect(() => {
   let cancelled = false;
 
-  fetchFullStoryMerged(storyId)
+  fetchFullStory(storyId)
       .then((found) => {
         if (cancelled) return;
         setStory(found);

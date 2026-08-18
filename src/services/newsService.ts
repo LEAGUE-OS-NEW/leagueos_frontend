@@ -16,6 +16,7 @@ export interface Story {
   description: string;
   author: string;
   avatar: string;
+  club?: string | null;
   isFeatured: boolean;
   isTrending: boolean;
 }
@@ -28,10 +29,13 @@ interface BackendStory {
   title: string;
   summary: string;
   category: string;
+  category_code?: string | null;
+  category_name?: string | null;
   published_at: string;
   image?: string | null;
   avatar?: string | null;
   author?: string | null;
+  club?: string | null;
   is_featured?: boolean;
   is_trending?: boolean;
 }
@@ -62,26 +66,31 @@ const VALID_CATEGORIES = new Set<Story['category']>([
   'Football', 'Rugby', 'Basketball', 'Clubs', 'Markets', 'Fantasy',
 ]);
 
-export function toCategory(raw: string): Story['category'] {
-  const normalised = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-  // Handle common variations
+type CategorySource = string | { category: string; category_code?: string | null; category_name?: string | null };
+
+export function toCategory(raw: CategorySource): Story['category'] {
+  const candidate = typeof raw === 'string'
+    ? raw
+    : raw.category_code ?? raw.category_name ?? raw.category;
+  const normalised = candidate.trim().toLowerCase().replace(/[_-]+/g, ' ');
   const map: Record<string, Story['category']> = {
-    // Label-based matches (backend may send string names)
-    Football: 'Football',
-    Rugby: 'Rugby',
-    Basketball: 'Basketball',
-    Clubs: 'Clubs',
-    Club: 'Clubs',
-    Markets: 'Markets',
-    Market: 'Markets',
-    Fantasy: 'Fantasy',
-    // UUID-based matches (current backend sends category IDs)
+    football: 'Football',
+    rugby: 'Rugby',
+    basketball: 'Basketball',
+    clubs: 'Clubs',
+    club: 'Clubs',
+    'club news': 'Clubs',
+    markets: 'Markets',
+    market: 'Markets',
+    fantasy: 'Fantasy',
+    // Legacy UUID-based matches.
     '7735c4d2-c3d6-47db-80ef-61ce47a9ea14': 'Football',
     'c6b4df47-2cc2-4c2f-a73a-a03979e1ba0e': 'Rugby',
     '4042ff60-b6b5-4d4a-8f58-84f41966b81c': 'Basketball',
   };
-  // Check raw first (covers UUIDs), then normalised (covers label strings).
-  return map[raw] ?? map[normalised] ?? (VALID_CATEGORIES.has(normalised as Story['category']) ? (normalised as Story['category']) : 'Clubs');
+  return map[normalised]
+    ?? map[candidate]
+    ?? (VALID_CATEGORIES.has(candidate as Story['category']) ? (candidate as Story['category']) : 'Clubs');
 }
 
 function formatTime(iso: string): string {
@@ -102,7 +111,7 @@ function formatTime(iso: string): string {
 }
 
 function mapStory(raw: BackendStory): Story {
-  const category = toCategory(raw.category);
+  const category = toCategory(raw);
   return {
     id: String(raw.id),
     title: raw.title,
@@ -112,6 +121,7 @@ function mapStory(raw: BackendStory): Story {
     image: raw.image || storyPlaceholder(category),
     author: raw.author || DEFAULT_AUTHOR,
     avatar: raw.avatar || PLACEHOLDER_AVATAR,
+    club: raw.club ?? null,
     isFeatured: raw.is_featured ?? false,
     isTrending: raw.is_trending ?? false,
   };
@@ -234,6 +244,9 @@ export interface ModerationArticle {
   body: string;
   category: Story['category'];
   club: string | null;
+  image: string | null;
+  author: string | null;
+  avatar: string | null;
   status: ModerationStatus;
   isFeatured: boolean;
   isTrending: boolean;
@@ -249,7 +262,12 @@ interface BackendModerationArticle {
   summary: string;
   body: string;
   category: string;
+  category_code?: string | null;
+  category_name?: string | null;
   club: string | null;
+  image?: string | null;
+  author?: string | null;
+  avatar?: string | null;
   status: ModerationStatus;
   is_featured: boolean;
   is_trending: boolean;
@@ -265,8 +283,11 @@ function mapModerationArticle(raw: BackendModerationArticle): ModerationArticle 
     title: raw.title,
     summary: raw.summary,
     body: raw.body ?? '',
-    category: toCategory(raw.category),
+    category: toCategory({ category: raw.category, category_code: raw.category_code ?? null, category_name: raw.category_name ?? null }),
     club: raw.club,
+    image: raw.image ?? null,
+    author: raw.author ?? null,
+    avatar: raw.avatar ?? null,
     status: raw.status,
     isFeatured: raw.is_featured,
     isTrending: raw.is_trending,
@@ -281,6 +302,9 @@ export interface NewsSubmissionInput {
   title: string;
   summary: string;
   body: string;
+  image?: string;
+  author?: string;
+  avatar?: string;
   categoryId: string;
 }
 
@@ -290,6 +314,9 @@ export async function submitNewsForReview(clubId: string, input: NewsSubmissionI
     title: input.title,
     summary: input.summary,
     body: input.body,
+    image: input.image ?? '',
+    author: input.author ?? '',
+    avatar: input.avatar ?? '',
     category: input.categoryId,
   });
   return mapModerationArticle(response.data);
@@ -309,6 +336,9 @@ export async function composeAndPublishNews(input: NewsSubmissionInput): Promise
     title: input.title,
     summary: input.summary,
     body: input.body,
+    image: input.image ?? '',
+    author: input.author ?? '',
+    avatar: input.avatar ?? '',
     category: input.categoryId,
   });
   return mapModerationArticle(response.data);
@@ -330,6 +360,9 @@ export interface NewsEditInput {
   title?: string;
   summary?: string;
   body?: string;
+  image?: string;
+  author?: string;
+  avatar?: string;
   categoryId?: string;
 }
 
@@ -339,6 +372,9 @@ export async function updateNewsStory(id: string, input: NewsEditInput): Promise
   if (input.title !== undefined) payload.title = input.title;
   if (input.summary !== undefined) payload.summary = input.summary;
   if (input.body !== undefined) payload.body = input.body;
+  if (input.image !== undefined) payload.image = input.image;
+  if (input.author !== undefined) payload.author = input.author;
+  if (input.avatar !== undefined) payload.avatar = input.avatar;
   if (input.categoryId !== undefined) payload.category = input.categoryId;
 
   const response = await apiClient.patch<BackendModerationArticle>(`/admin/news/${encodeURIComponent(id)}/`, payload);

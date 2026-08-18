@@ -1,0 +1,224 @@
+.ca-settings-panel {
+  max-width: 860px;
+}
+
+.ca-settings-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ca-settings-subtext {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.ca-settings-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ca-settings-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ca-settings-filter:hover {
+  background: var(--color-card-hover);
+  color: var(--color-text-primary);
+}
+
+.ca-settings-filter.active {
+  border-color: transparent;
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.ca-settings-filter-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 0.7rem;
+}
+
+.ca-notification-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ca-notification-item {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ca-notification-item.unread {
+  border-color: rgba(168, 85, 247, 0.45);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.ca-notification-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 10px;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ca-notification-button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ca-notification-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-primary-light);
+}
+
+.ca-notification-item.unread .ca-notification-icon {
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+.ca-notification-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ca-notification-title {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.ca-notification-message {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.ca-notification-time {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.ca-notification-dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.ca-settings-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 140px;
+  padding: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.ca-settings-state-error {
+  flex-direction: column;
+  color: #f87171;
+}
+
+.ca-settings-state-error p {
+  margin: 0;
+}
+
+.ca-settings-spinner {
+  animation: ca-settings-spin 1.2s linear infinite;
+}
+
+@keyframes ca-settings-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ca-settings-view-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ca-settings-view-more:hover {
+  background: var(--color-card-hover);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 640px) {
+  .ca-settings-panel-header .ca-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ca-notification-button {
+    grid-template-columns: 32px minmax(0, 1fr) 8px;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ca-settings-spinner {
+    animation: none;
+  }
+}

@@ -85,6 +85,7 @@ export interface FixtureAdminItem {
   name: string;
   status: FixtureAdminStatus;
   startsAt: string | null;
+  endsAt: string | null;
   venue: string;
   sportName: string;
   competitionName: string;
@@ -100,6 +101,7 @@ interface BackendFixtureAdmin {
   name: string;
   status: FixtureAdminStatus;
   starts_at: string | null;
+  ends_at: string | null;
   venue: string;
   sport_name: string | null;
   competition_name: string | null;
@@ -117,6 +119,7 @@ function mapFixture(raw: BackendFixtureAdmin): FixtureAdminItem {
     name: raw.name,
     status: raw.status,
     startsAt: raw.starts_at,
+    endsAt: raw.ends_at,
     venue: raw.venue,
     sportName: raw.sport_name ?? '',
     competitionName: raw.competition_name ?? '',
@@ -139,6 +142,7 @@ export interface CreateFixtureInput {
   homeParticipantId: string;
   awayParticipantId: string;
   startsAt: string;
+  endsAt?: string;
   venue?: string;
 }
 
@@ -149,6 +153,7 @@ export async function createFixture(input: CreateFixtureInput): Promise<FixtureA
     home_participant: input.homeParticipantId,
     away_participant: input.awayParticipantId,
     starts_at: input.startsAt,
+    ends_at: input.endsAt || undefined,
     venue: input.venue ?? '',
   });
   return mapFixture(response.data);
@@ -160,6 +165,21 @@ export async function setFixtureStatus(
 ): Promise<FixtureAdminItem> {
   const response = await apiClient.patch<BackendFixtureAdmin>(`/admin/fixtures/${encodeURIComponent(fixtureId)}/status/`, {
     status,
+  });
+  return mapFixture(response.data);
+}
+
+export interface RescheduleFixtureInput {
+  startsAt?: string;
+  venue?: string;
+  endsAt?: string;
+}
+
+export async function rescheduleFixture(fixtureId: string, input: RescheduleFixtureInput): Promise<FixtureAdminItem> {
+  const response = await apiClient.patch<BackendFixtureAdmin>(`/admin/fixtures/${encodeURIComponent(fixtureId)}/reschedule/`, {
+    ...(input.startsAt ? { starts_at: input.startsAt } : {}),
+    ...(input.venue !== undefined ? { venue: input.venue } : {}),
+    ...(input.endsAt ? { ends_at: input.endsAt } : {}),
   });
   return mapFixture(response.data);
 }

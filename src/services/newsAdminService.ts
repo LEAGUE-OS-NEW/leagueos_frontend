@@ -38,6 +38,8 @@ export interface ComposeStoryPayload {
   description: string;
   body: string;
   image: string;
+  author?: string;
+  avatar?: string;
   category: Story['category'];
 }
 
@@ -45,6 +47,9 @@ export interface EditStoryPayload {
   title: string;
   description: string;
   body: string;
+  image?: string;
+  author?: string;
+  avatar?: string;
   category: Story['category'];
 }
 
@@ -78,12 +83,12 @@ function toAdminStory(article: ModerationArticle): AdminStory {
     id: article.id,
     category: article.category,
     time: formatRelativeTime(article.publishedAt ?? article.createdAt),
-    image: PLACEHOLDER_IMAGE,
+    image: article.image || PLACEHOLDER_IMAGE,
     title: article.title,
     description: article.summary,
     body: article.body,
-    author: article.createdByName ?? (article.club ? 'Club Staff' : 'LeagueOS Staff'),
-    avatar: PLACEHOLDER_AVATAR,
+    author: article.author || (article.createdByName ?? (article.club ? 'Club Staff' : 'LeagueOS Staff')),
+    avatar: article.avatar || PLACEHOLDER_AVATAR,
     isFeatured: article.isFeatured,
     isTrending: article.isTrending,
     status: STATUS_MAP[article.status],
@@ -123,7 +128,8 @@ export async function fetchApprovedStories(): Promise<AdminStory[]> {
   return stories.map((story) => ({
     ...story,
     status: 'approved' as const,
-    source: 'staff' as const,
+    source: story.club ? 'club' as const : 'staff' as const,
+    submittedBy: story.author,
   }));
 }
 
@@ -142,9 +148,12 @@ export async function submitClubStory(clubId: string, clubName: string, payload:
     title: payload.title,
     summary: payload.description,
     body: payload.body,
+    image: payload.image,
+    author: payload.author ?? clubName,
+    avatar: payload.avatar ?? '',
     categoryId,
   });
-  return { ...toAdminStory(article), author: clubName, submittedBy: clubName };
+  return { ...toAdminStory(article), author: article.author || clubName, submittedBy: clubName };
 }
 
 export async function composeStory(payload: ComposeStoryPayload): Promise<AdminStory> {
@@ -153,6 +162,9 @@ export async function composeStory(payload: ComposeStoryPayload): Promise<AdminS
     title: payload.title,
     summary: payload.description,
     body: payload.body,
+    image: payload.image,
+    author: payload.author,
+    avatar: payload.avatar,
     categoryId,
   });
   return toAdminStory(article);
@@ -164,6 +176,9 @@ export async function updateStory(id: string, payload: EditStoryPayload): Promis
     title: payload.title,
     summary: payload.description,
     body: payload.body,
+    image: payload.image,
+    author: payload.author,
+    avatar: payload.avatar,
     categoryId,
   });
   return toAdminStory(article);
