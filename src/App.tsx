@@ -103,6 +103,7 @@ import ClubSquadPage from './pages/clubadmin/squad/ClubSquadPage';
 import ClubNewsPage from './pages/clubadmin/news/ClubNewsPage';
 import ClubTicketsAdminPage from './pages/clubadmin/tickets/ClubTicketsAdminPage';
 import ClubStorePage from './pages/clubadmin/store/ClubStorePage';
+import CartPage from './pages/cart/CartPage';
 import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
 import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
@@ -204,6 +205,9 @@ function App() {
 
         {/* Access denied */}
         <Route path="/unauthorized" element={<Unauthorized />} />
+
+        {/* Cart */}
+        <Route path="/cart" element={<CartPage />} />
 
        
 
