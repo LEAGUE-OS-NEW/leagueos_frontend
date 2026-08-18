@@ -4,7 +4,7 @@ import {
   FiGrid, FiShield, FiFileText, FiUsers, FiCalendar,
   FiTag, FiShoppingCart, FiPackage, FiTrendingUp,
   FiLock, FiChevronLeft, FiChevronRight, FiX, FiLogOut,
-  FiChevronDown, FiCheck, FiClipboard,
+  FiChevronDown, FiCheck, FiClipboard, FiSettings,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { label: 'Analytics',       route: '/club-admin/analytics',   icon: FiTrendingUp,   permission: 'club.reports.view' },
   { label: 'Compliance',      route: '/club-admin/compliance',  icon: FiClipboard,    permission: 'club.communications.manage' },
   { label: 'Staff & Perms',   route: '/club-admin/staff',       icon: FiLock,         permission: 'club.admin.manage' },
+  { label: 'Settings',        route: '/club-admin/settings',    icon: FiSettings,     permission: 'club.settings.manage' },
 ];
 
 interface Props { isOpen: boolean; onClose: () => void; }
