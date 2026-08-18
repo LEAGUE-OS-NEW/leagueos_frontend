@@ -115,6 +115,8 @@ export default function ClubNewsPage() {
   const [toast, setToast] = useState('');
   const [notifyFollowers, setNotifyFollowers] = useState(true);
   const [userRole] = useState('Communications');
+  const [scheduleArticleId, setScheduleArticleId] = useState('');
+  const [scheduleManualTitle, setScheduleManualTitle] = useState('');
 
   // Real submissions (any status) for this club — replaces the always-empty
   // local state the page previously started with on every load.
@@ -235,8 +237,35 @@ export default function ClubNewsPage() {
     if (submitted) setArticles(prev => prev.map((a, i) => i === idx ? submitted : a));
   };
 
+  const scheduleDraftOptions = articles.filter(a => a.status === 'draft');
+
+  const openSchedule = () => {
+    setScheduleArticleId('');
+    setScheduleManualTitle('');
+    setModal('schedule');
+  };
+
   const schedulePost = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const usingManualTitle = scheduleDraftOptions.length === 0;
+    const title = usingManualTitle ? scheduleManualTitle.trim() : scheduleArticleId;
+    if (!title) {
+      showToast(usingManualTitle ? 'Enter an article title' : 'Select an article to schedule');
+      return;
+    }
+
+    if (usingManualTitle) {
+      // No existing draft to attach this to — create one directly in the
+      // scheduled state so it shows up in the Publishing Queue right away.
+      setArticles(prev => [{ ...BLANK, title, status: 'scheduled' }, ...prev]);
+    } else {
+      const idx = Number(scheduleArticleId);
+      if (!Number.isNaN(idx) && articles[idx]?.status === 'draft') {
+        setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'scheduled' } : a));
+      }
+    }
+
     const msg = notifyFollowers ? 'Post scheduled — followers will be notified' : 'Post scheduled';
     showToast(msg);
     setModal(null);
@@ -452,9 +481,32 @@ export default function ClubNewsPage() {
                 <div className="ca-form-grid">
                   <div className="ca-field ca-form-grid-full">
                     <label className="ca-label">Article</label>
-                    <select className="ca-select">
-                      {articles.filter(a => a.status === 'draft').map((a, i) => <option key={i}>{a.title}</option>)}
-                    </select>
+                    {scheduleDraftOptions.length > 0 ? (
+                      <select
+                        className="ca-select"
+                        value={scheduleArticleId}
+                        onChange={(e) => setScheduleArticleId(e.target.value)}
+                        required
+                      >
+                        <option value="" disabled>Select a draft…</option>
+                        {articles.map((a, i) => a.status === 'draft' && (
+                          <option key={i} value={i}>{a.title || 'Untitled draft'}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          className="ca-input"
+                          value={scheduleManualTitle}
+                          onChange={(e) => setScheduleManualTitle(e.target.value)}
+                          placeholder="Enter article title…"
+                          required
+                        />
+                        <p style={{ margin: '6px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                          No drafts yet — this will create one and schedule it directly.
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="ca-field">
                     <label className="ca-label">Publish Date</label>
@@ -536,7 +588,7 @@ export default function ClubNewsPage() {
           <p className="ca-page-subtitle">Create, manage and distribute club news, announcements and media content.</p>
         </div>
         <div className="ca-page-actions">
-          <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal('schedule')}><FiSend /> Schedule Post</button>
+          <button type="button" className="ca-btn ca-btn-secondary" onClick={openSchedule}><FiSend /> Schedule Post</button>
           <button type="button" className="ca-btn ca-btn-primary" onClick={openCreate}><FiPlus /> Create Article</button>
         </div>
       </div>
