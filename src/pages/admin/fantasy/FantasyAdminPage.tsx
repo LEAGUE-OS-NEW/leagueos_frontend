@@ -642,27 +642,31 @@ export default function FantasyAdminPage() {
   }), [currentPlayers, playerSearch, playerPosFilter, playerAvailFilter, playerEligFilter]);
 
   // Candidates already in pool (prevent duplicates)
-  const pooledPlayerIds = new Set(currentPlayers.map(p => p.player));
+  const pooledPlayerIds = useMemo(() => new Set(currentPlayers.map(p => p.player)), [currentPlayers]);
+
+  // Stable reference to taken_pairs — memoized so downstream useMemos have a stable dep.
+  const takenPairs = useMemo(() => canonical.taken_pairs ?? [], [canonical.taken_pairs]);
 
   // Set of season IDs that are already covered by a FantasyCompetition for the
   // currently selected canonical competition. Used to annotate the Season dropdown.
   const takenSeasonIds = useMemo(
     () => new Set(
-      (canonical.taken_pairs ?? [])
+      takenPairs
         .filter(p => p.competition === compForm.competition)
         .map(p => p.season)
     ),
-    [canonical.taken_pairs, compForm.competition]
+    [takenPairs, compForm.competition]
   );
 
   // If both competition + season are selected and the pair is already taken,
   // this holds the existing FantasyCompetition details so we can offer Edit Existing.
-  const existingPair = useMemo(
-    () => (canonical.taken_pairs ?? []).find(
+  // No useMemo needed: takenPairs is already memoized, so the found item (a reference
+  // into that same array) is transitively stable. The React Compiler lint rule
+  // (preserve-manual-memoization) flags a manual useMemo here as unnecessary.
+  const existingPair =
+    takenPairs.find(
       p => p.competition === compForm.competition && p.season === compForm.season
-    ) ?? null,
-    [canonical.taken_pairs, compForm.competition, compForm.season]
-  );
+    ) ?? null;
 
   /* ══════════════════════════════════════════════════════
      RENDER

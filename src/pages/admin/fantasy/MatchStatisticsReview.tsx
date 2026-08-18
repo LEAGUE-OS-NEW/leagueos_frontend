@@ -130,7 +130,9 @@ export default function MatchStatisticsReview({ competitions, allGameweeks }: Pr
 
   /* ── fetch list ── */
   const loadReviews = useCallback(async (cId: string, force = false) => {
-    if (!cId) { setRows([]); return; }
+    if (!cId) { setRows([]); setSelectedRow(null); setDetail(null); return; }
+    setSelectedRow(null);
+    setDetail(null);
     setLoading(true);
     setError('');
     try {
@@ -155,12 +157,46 @@ export default function MatchStatisticsReview({ competitions, allGameweeks }: Pr
     void force; // suppress lint warning
   }, [gwFilter, fixtureFilter, playerSearch, statusFilter]);
 
-  /* Reload when competition or server-side filters change */
+  /* Reload when competition or server-side filters change.
+     All state updates happen inside the async .then/.catch/.finally callbacks
+     so no setState is called synchronously in the effect body. */
   useEffect(() => {
-    void loadReviews(compId);
-    setSelectedRow(null);
-    setDetail(null);
-  }, [compId, gwFilter, fixtureFilter, statusFilter]);
+    let cancelled = false;
+    if (!compId) {
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        setRows([]);
+        setSelectedRow(null);
+        setDetail(null);
+      });
+      return () => { cancelled = true; };
+    }
+    const params: Record<string, string> = { competition: compId };
+    if (gwFilter) params.gameweek = gwFilter;
+    if (fixtureFilter) params.fixture = fixtureFilter;
+    if (statusFilter) params.review_status = statusFilter;
+    fetchStatisticReviewList(params as Parameters<typeof fetchStatisticReviewList>[0])
+      .then(data => {
+        if (cancelled) return;
+        setSelectedRow(null);
+        setDetail(null);
+        const filtered = playerSearch.trim()
+          ? data.filter(r =>
+              r.participant_name.toLowerCase().includes(playerSearch.toLowerCase()) ||
+              (r.club ?? '').toLowerCase().includes(playerSearch.toLowerCase()),
+            )
+          : data;
+        setRows(filtered);
+        setLoading(false);
+        setError('');
+      })
+      .catch(e => {
+        if (cancelled) return;
+        setError(errMsg(e));
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [compId, gwFilter, fixtureFilter, statusFilter, playerSearch]);
 
   /* ── open detail ── */
   const openDetail = async (row: StatisticReviewRow) => {
