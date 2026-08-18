@@ -5,6 +5,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
 import { fetchClubSubmissions, submitClubStory } from '../../../services/newsAdminService';
+import { useClubNewsStore } from '../../../store/clubNewsStore';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubNewsPage.css';
 
@@ -105,8 +106,29 @@ export default function ClubNewsPage() {
       : null;
   const clubName = realClub?.name ?? (CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}` }).name;
 
+  // ── Persisted news store (used when no real backend club is available) ──
+  const { addArticle, updateArticle, deleteArticle: deletePersistedArticle, getArticlesForClub } = useClubNewsStore();
+
   const [activeTab, setActiveTab] = useState('All');
-  const [articles, setArticles] = useState<Article[]>([]);
+  // Lazy initialiser: hydrates from the persisted store on first render
+  // (only in demo/dev mode — real clubs load via the API useEffect below).
+  const [articles, setArticlesLocal] = useState<Article[]>(() => {
+    if (realClub) return [];
+    return getArticlesForClub(scopeId).map(p => ({
+      id: p.id,
+      title: p.title,
+      type: p.type,
+      date: p.date,
+      author: p.author,
+      reads: p.reads,
+      status: p.status,
+      body: p.body,
+      coverImage: p.coverImage,
+      coverZoom: 1,
+      coverX: 50,
+      coverY: 50,
+    }));
+  });
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -117,6 +139,14 @@ export default function ClubNewsPage() {
   const [userRole] = useState('Communications');
   const [scheduleArticleId, setScheduleArticleId] = useState('');
   const [scheduleManualTitle, setScheduleManualTitle] = useState('');
+
+  // Keep a stable setter that also writes to the persist store
+  const setArticles = (updater: Article[] | ((prev: Article[]) => Article[])) => {
+    setArticlesLocal(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return next;
+    });
+  };
 
   // Real submissions (any status) for this club — replaces the always-empty
   // local state the page previously started with on every load.
@@ -211,22 +241,35 @@ export default function ClubNewsPage() {
     if (!nextArticle) return;
 
     if (editIdx !== null) {
+      const existing = articles[editIdx];
       setArticles(prev => prev.map((a, i) => i === editIdx ? nextArticle : a));
+      if (!realClub && existing?.id) {
+        updateArticle(existing.id, { ...nextArticle, clubScopeId: scopeId, createdAt: Date.now() });
+      }
       if (!submitForReview) showToast('Article updated');
     } else {
-      setArticles(prev => [nextArticle, ...prev]);
-      if (!submitForReview) showToast('Draft saved for this session');
+      const id = nextArticle.id ?? `article-${Date.now()}`;
+      const savedArticle = { ...nextArticle, id };
+      setArticles(prev => [savedArticle, ...prev]);
+      if (!realClub) {
+        addArticle({ ...savedArticle, clubScopeId: scopeId, createdAt: Date.now() });
+      }
+      if (!submitForReview) showToast('Article created');
     }
     setModal(null);
   };
 
   const deleteArticle = (idx: number) => {
+    const existing = articles[idx];
     setArticles(prev => prev.filter((_, i) => i !== idx));
+    if (!realClub && existing?.id) deletePersistedArticle(existing.id);
     showToast('Article deleted');
   };
 
   const archiveArticle = (idx: number) => {
+    const existing = articles[idx];
     setArticles(prev => prev.map((a, i) => i === idx ? { ...a, status: 'archived' } : a));
+    if (!realClub && existing?.id) updateArticle(existing.id, { status: 'archived' });
     showToast('Article archived');
   };
 

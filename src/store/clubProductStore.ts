@@ -32,6 +32,7 @@ interface ClubProductStore {
   addProduct: (product: StoreProduct) => void;
   updateProduct: (id: string, updates: Partial<StoreProduct>) => void;
   removeProduct: (id: string) => void;
+  replaceAll: (products: StoreProduct[]) => void;
 }
 
 export const useClubProductStore = create<ClubProductStore>()(
@@ -51,6 +52,8 @@ export const useClubProductStore = create<ClubProductStore>()(
 
       removeProduct: (id) =>
         set((state) => ({ products: state.products.filter((p) => p.id !== id) })),
+
+      replaceAll: (products) => set(() => ({ products })),
     }),
     { name: 'leagueos-club-products' },
   ),
