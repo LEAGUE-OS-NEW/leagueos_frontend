@@ -399,7 +399,7 @@ export default function ClubNewsPage() {
               <button type="button" className="ca-btn ca-btn-secondary" onClick={() => { setForm(f => ({ ...f, status: 'draft' })); saveArticle(); }}>
                 Save as Draft
               </button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={saveArticle}>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={() => saveArticle()}>
                 {modal === 'create' ? 'Publish' : 'Save Changes'}
               </button>
             </div>
