@@ -174,13 +174,14 @@
 /* Content grid */
 .ca-content-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
-.ca-content-main { display: flex; flex-direction: column; gap: 18px; }
-.ca-content-aside { display: flex; flex-direction: column; gap: 18px; }
+.ca-content-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.ca-content-aside { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 
 /* Panel / Card */
 .ca-panel {
@@ -188,6 +189,7 @@
   border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 18px;
+  min-width: 0;
 }
 
 .ca-panel-header {
