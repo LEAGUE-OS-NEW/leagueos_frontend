@@ -107,6 +107,7 @@ import ClubAnalyticsPage from './pages/clubadmin/analytics/ClubAnalyticsPage';
 import ClubStaffPage from './pages/clubadmin/staff/ClubStaffPage';
 import ClubOrdersPage from './pages/clubadmin/ClubOrdersPage';
 import ClubCompliancePage from './pages/clubadmin/compliance/ClubCompliancePage';
+import ClubSettingsPage from './pages/clubadmin/settings/ClubSettingsPage';
 import ClubAdminRoute from './components/clubadmin/ClubAdminRoute';
 import FanRoute from './components/fan/FanRoute';
 import Unauthorized from './pages/auth/unauthorized/Unauthorized';
@@ -198,6 +199,8 @@ function App() {
         <Route path="/club-admin/analytics" element={<ClubAdminRoute><ClubAnalyticsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/staff" element={<ClubAdminRoute><ClubStaffPage /></ClubAdminRoute>} />
         <Route path="/club-admin/compliance" element={<ClubAdminRoute><ClubCompliancePage /></ClubAdminRoute>} />
+        <Route path="/club-admin/settings" element={<ClubAdminRoute><ClubSettingsPage /></ClubAdminRoute>} />
+        <Route path="/club-admin/notifications" element={<Navigate to="/club-admin/settings?tab=notifications" replace />} />
 
         {/* Access denied */}
         <Route path="/unauthorized" element={<Unauthorized />} />
