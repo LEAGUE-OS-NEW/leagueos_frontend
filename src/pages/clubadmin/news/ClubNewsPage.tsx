@@ -12,7 +12,21 @@ const TABS = ['All', 'Published', 'Drafts', 'Scheduled', 'Archived', 'Media'];
 const TYPES = ['Match Report', 'Preview', 'Announcement', 'Club News', 'Transfer'];
 
 type Status = 'published' | 'pending' | 'rejected' | 'scheduled' | 'draft' | 'archived';
-type Article = { id?: string; title: string; type: string; date: string; author: string; reads: string; status: Status; body: string; coverImage: string; rejectionReason?: string };
+type Article = {
+  id?: string;
+  title: string;
+  type: string;
+  date: string;
+  author: string;
+  reads: string;
+  status: Status;
+  body: string;
+  coverImage: string;
+  coverZoom: number;
+  coverX: number;
+  coverY: number;
+  rejectionReason?: string;
+};
 
 type MediaItem = { name: string; type: 'image' | 'video' | 'doc'; size: string; date: string; used: boolean };
 
@@ -21,11 +35,57 @@ const STATUS_CLASS: Record<string, string> = {
   published: 'ca-pill-green', pending: 'ca-pill-orange', rejected: 'ca-pill-red', scheduled: 'ca-pill-orange', draft: 'ca-pill-muted', archived: 'ca-pill-red',
 };
 
-const BLANK: Article = { title: '', type: 'Match Report', date: '', author: '', reads: '—', status: 'draft', body: '', coverImage: '' };
+const BLANK: Article = {
+  title: '',
+  type: 'Match Report',
+  date: '',
+  author: '',
+  reads: '—',
+  status: 'draft',
+  body: '',
+  coverImage: '',
+  coverZoom: 1,
+  coverX: 50,
+  coverY: 50,
+};
 
 type ModalKind = null | 'create' | 'edit' | 'schedule' | 'preview';
 
 const STAFF_ROLES = ['Club Admin', 'Communications', 'Content Creator'];
+
+const renderAdjustedCoverImage = (article: Article): Promise<string> => {
+  if (!article.coverImage || !article.coverImage.startsWith('data:image/')) {
+    return Promise.resolve(article.coverImage);
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(article.coverImage);
+        return;
+      }
+
+      const zoom = Math.max(1, article.coverZoom || 1);
+      const scale = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight) * zoom;
+      const sourceWidth = canvas.width / scale;
+      const sourceHeight = canvas.height / scale;
+      const maxSourceX = Math.max(0, img.naturalWidth - sourceWidth);
+      const maxSourceY = Math.max(0, img.naturalHeight - sourceHeight);
+      const sourceX = maxSourceX * ((article.coverX ?? 50) / 100);
+      const sourceY = maxSourceY * ((article.coverY ?? 50) / 100);
+
+      ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = () => resolve(article.coverImage);
+    img.src = article.coverImage;
+  });
+};
 
 export default function ClubNewsPage() {
   const user = useAuthStore(s => s.user);
@@ -74,6 +134,9 @@ export default function ClubNewsPage() {
         status: s.status === 'approved' ? 'published' : s.status,
         body: s.body ?? s.description,
         coverImage: s.image ?? '',
+        coverZoom: 1,
+        coverX: 50,
+        coverY: 50,
         rejectionReason: s.rejectionReason,
       }));
       setArticles(mapped);
@@ -103,14 +166,54 @@ export default function ClubNewsPage() {
   const openEdit = (idx: number) => { setForm({ ...articles[idx] }); setEditIdx(idx); setModal('edit'); };
   const openPreview = (a: Article) => { setPreviewArticle(a); setModal('preview'); };
 
-  const saveArticle = () => {
+  const submitArticleForReview = async (article: Article) => {
+    if (!article.title.trim()) {
+      showToast('Title is required');
+      return null;
+    }
+
+    if (!realClub) {
+      showToast('Cannot submit — no club is linked to this account yet.');
+      return null;
+    }
+
+    try {
+      const adjustedImage = await renderAdjustedCoverImage(article);
+      const submitted = await submitClubStory(realClub.id, clubName, {
+        title: article.title,
+        description: (article.body || article.title).slice(0, 200),
+        body: article.body || article.title,
+        image: adjustedImage,
+        author: article.author || clubName,
+        category: 'Clubs',
+      });
+      showToast('Submitted for review by League OS staff');
+      return {
+        ...article,
+        id: submitted.id,
+        status: 'pending' as const,
+        coverImage: submitted.image || adjustedImage,
+        coverZoom: 1,
+        coverX: 50,
+        coverY: 50,
+      };
+    } catch {
+      showToast('Could not submit — please try again.');
+      return null;
+    }
+  };
+
+  const saveArticle = async (submitForReview = false) => {
     if (!form.title.trim()) return;
+    const nextArticle = submitForReview ? await submitArticleForReview(form) : form;
+    if (!nextArticle) return;
+
     if (editIdx !== null) {
-      setArticles(prev => prev.map((a, i) => i === editIdx ? form : a));
-      showToast('Article updated');
+      setArticles(prev => prev.map((a, i) => i === editIdx ? nextArticle : a));
+      if (!submitForReview) showToast('Article updated');
     } else {
-      setArticles(prev => [...prev, form]);
-      showToast('Article created');
+      setArticles(prev => [nextArticle, ...prev]);
+      if (!submitForReview) showToast('Draft saved for this session');
     }
     setModal(null);
   };
@@ -125,28 +228,11 @@ export default function ClubNewsPage() {
     showToast('Article archived');
   };
 
-  const publishNow = (idx: number) => {
+  const publishNow = async (idx: number) => {
     const article = articles[idx];
     if (!article) return;
-
-    if (!realClub) {
-      showToast('Cannot submit — no club is linked to this account yet.');
-      return;
-    }
-
-    submitClubStory(realClub.id, clubName, {
-      title: article.title,
-      description: article.body.slice(0, 200),
-      body: article.body,
-      image: article.coverImage,
-      author: article.author,
-      category: 'Clubs',
-    }).then((submitted) => {
-      showToast('Submitted for review by League OS staff');
-      setArticles(prev => prev.map((a, i) => i === idx ? { ...a, id: submitted.id, status: 'pending' } : a));
-    }).catch(() => {
-      showToast('Could not submit — please try again.');
-    });
+    const submitted = await submitArticleForReview(article);
+    if (submitted) setArticles(prev => prev.map((a, i) => i === idx ? submitted : a));
   };
 
   const schedulePost = (e: React.FormEvent<HTMLFormElement>) => {
@@ -165,11 +251,17 @@ export default function ClubNewsPage() {
     if (!file.type.startsWith('image/')) { showToast('Please select an image file'); return; }
     if (file.size > 10 * 1024 * 1024) { showToast('Image must be under 10 MB'); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, coverImage: ev.target?.result as string }));
+    reader.onload = (ev) => setForm(f => ({
+      ...f,
+      coverImage: ev.target?.result as string,
+      coverZoom: 1,
+      coverX: 50,
+      coverY: 50,
+    }));
     reader.readAsDataURL(file);
   };
 
-  const removeCoverImage = () => setForm(f => ({ ...f, coverImage: '' }));
+  const removeCoverImage = () => setForm(f => ({ ...f, coverImage: '', coverZoom: 1, coverX: 50, coverY: 50 }));
 
   const MEDIA_ICON: Record<string, string> = { image: '🖼', video: '🎬', doc: '📄' };
 
@@ -207,7 +299,6 @@ export default function ClubNewsPage() {
                   <select className="ca-select" value={form.status} onChange={set('status')}>
                     <option value="draft">Draft</option>
                     <option value="scheduled">Scheduled</option>
-                    <option value="published">Published</option>
                     <option value="archived">Archived</option>
                   </select>
                 </div>
@@ -222,16 +313,60 @@ export default function ClubNewsPage() {
                 <div className="ca-field ca-form-grid-full">
                   <label className="ca-label">Cover Image</label>
                   {form.coverImage ? (
-                    <div className="ca-cover-preview">
-                      <img src={form.coverImage} alt="Cover preview" className="ca-cover-preview-img" />
-                      <button
-                        type="button"
-                        className="ca-cover-remove"
-                        onClick={removeCoverImage}
-                        aria-label="Remove cover image"
-                      >
-                        <FiX />
-                      </button>
+                    <div className="ca-cover-editor">
+                      <div className="ca-cover-preview">
+                        <img
+                          src={form.coverImage}
+                          alt="Cover preview"
+                          className="ca-cover-preview-img"
+                          style={{
+                            objectPosition: `${form.coverX}% ${form.coverY}%`,
+                            transform: `scale(${form.coverZoom})`,
+                            transformOrigin: `${form.coverX}% ${form.coverY}%`,
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="ca-cover-remove"
+                          onClick={removeCoverImage}
+                          aria-label="Remove cover image"
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+                      <div className="ca-cover-controls">
+                        <label className="ca-cover-control">
+                          Zoom
+                          <input
+                            type="range"
+                            min="1"
+                            max="2"
+                            step="0.05"
+                            value={form.coverZoom}
+                            onChange={(e) => setForm(f => ({ ...f, coverZoom: Number(e.target.value) }))}
+                          />
+                        </label>
+                        <label className="ca-cover-control">
+                          Horizontal
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={form.coverX}
+                            onChange={(e) => setForm(f => ({ ...f, coverX: Number(e.target.value) }))}
+                          />
+                        </label>
+                        <label className="ca-cover-control">
+                          Vertical
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={form.coverY}
+                            onChange={(e) => setForm(f => ({ ...f, coverY: Number(e.target.value) }))}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <label className="ca-cover-upload">
