@@ -1,7 +1,18 @@
-import { useEffect, useState } from 'react';
-import { FiCheckCircle, FiPlay, FiPlus, FiSlash, FiClock } from 'react-icons/fi';
+import { useEffect, useRef, useState } from 'react';
+import {
+  FiCalendar,
+  FiCheckCircle,
+  FiChevronDown,
+  FiPause,
+  FiPlay,
+  FiPlus,
+  FiRotateCcw,
+  FiSlash,
+  FiClock,
+} from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { extractApiError } from '../../../services/apiUtils';
+import { createRealClub, uploadClubLogo } from '../../../services/adminUsersService';
 import {
   completeFixture,
   createFixture,
@@ -10,6 +21,7 @@ import {
   fetchCompetitions,
   fetchParticipants,
   fetchSports,
+  rescheduleFixture,
   setFixtureStatus,
   updateFixtureScore,
   type CompetitionOption,
@@ -25,10 +37,15 @@ const BLANK_CREATE = {
   homeParticipantId: '',
   awayParticipantId: '',
   startsAt: '',
+  endsAt: '',
   venue: '',
 };
 
+const BLANK_CREATE_CLUB = { name: '', sportId: '' };
+
 type ScoreEditorState = { fixtureId: string; homeScore: string; awayScore: string; clockDisplay: string } | null;
+type RescheduleEditorState = { fixtureId: string; startsAt: string; venue: string; endsAt: string } | null;
+type StatusFilter = 'ALL' | 'LIVE' | 'POSTPONED' | 'CANCELLED' | 'COMPLETED';
 
 function statusPillClass(status: FixtureAdminItem['status']): string {
   switch (status) {
@@ -55,6 +72,14 @@ function formatKickoff(iso: string | null): string {
   }
 }
 
+// Local (not UTC) YYYY-MM-DDTHH:mm — the shape <input type="datetime-local">
+// needs for its `min`/`value` attributes. toISOString() would shift the
+// displayed time by the browser's UTC offset, which is wrong here.
+function toLocalDatetimeInputValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function FixturesAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,11 +94,21 @@ function FixturesAdmin() {
   const [isCreating, setIsCreating] = useState(false);
   const [createMessage, setCreateMessage] = useState('');
 
-  const [newParticipantName, setNewParticipantName] = useState('');
-  const [isAddingParticipant, setIsAddingParticipant] = useState(false);
+  const [showCreateClub, setShowCreateClub] = useState(false);
+  const [createClubForm, setCreateClubForm] = useState(BLANK_CREATE_CLUB);
+  const [createClubLogo, setCreateClubLogo] = useState<File | null>(null);
+  const [isCreatingClub, setIsCreatingClub] = useState(false);
+  const [createClubError, setCreateClubError] = useState('');
 
   const [scoreEditor, setScoreEditor] = useState<ScoreEditorState>(null);
   const [isSavingScore, setIsSavingScore] = useState(false);
+
+  const [rescheduleEditor, setRescheduleEditor] = useState<RescheduleEditorState>(null);
+  const [isSavingReschedule, setIsSavingReschedule] = useState(false);
+
+  const [openActionMenuFor, setOpenActionMenuFor] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const actionMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshFixtures = () => fetchAdminFixtures().then(setFixtures);
 
@@ -114,24 +149,33 @@ function FixturesAdmin() {
     };
   }, [createForm.sportId]);
 
-  const handleAddParticipant = async () => {
-    if (!newParticipantName.trim() || !createForm.sportId) return;
-    setIsAddingParticipant(true);
-    setActionError(null);
-    try {
-      const created = await createParticipant({ name: newParticipantName.trim(), sportId: createForm.sportId });
-      setParticipants((current) => [...current, created]);
-      setNewParticipantName('');
-    } catch (err) {
-      setActionError(extractApiError(err).message);
-    } finally {
-      setIsAddingParticipant(false);
+  useEffect(() => {
+    if (!openActionMenuFor) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target as Node)) {
+        setOpenActionMenuFor(null);
+      }
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openActionMenuFor]);
+
+  const openCreateClub = () => {
+    setCreateClubForm((current) => ({ ...current, sportId: current.sportId || sports[0]?.id || '' }));
+    setShowCreateClub(true);
   };
 
   const handleCreateFixture = async () => {
     if (!createForm.sportId || !createForm.homeParticipantId || !createForm.awayParticipantId || !createForm.startsAt) {
       setCreateMessage('Sport, both teams, and kickoff time are required.');
+      return;
+    }
+    if (new Date(createForm.startsAt) < new Date()) {
+      setCreateMessage('Kickoff time cannot be in the past.');
+      return;
+    }
+    if (createForm.endsAt && new Date(createForm.endsAt) < new Date(createForm.startsAt)) {
+      setCreateMessage('Anticipated end time cannot be earlier than kickoff.');
       return;
     }
     setIsCreating(true);
@@ -143,6 +187,7 @@ function FixturesAdmin() {
         homeParticipantId: createForm.homeParticipantId,
         awayParticipantId: createForm.awayParticipantId,
         startsAt: new Date(createForm.startsAt).toISOString(),
+        endsAt: createForm.endsAt ? new Date(createForm.endsAt).toISOString() : undefined,
         venue: createForm.venue,
       });
       setCreateForm((current) => ({ ...BLANK_CREATE, sportId: current.sportId }));
@@ -155,8 +200,40 @@ function FixturesAdmin() {
     }
   };
 
+  const handleCreateClub = async () => {
+    if (!createClubForm.name.trim() || !createClubForm.sportId) {
+      setCreateClubError('Club name and sport are required.');
+      return;
+    }
+    setIsCreatingClub(true);
+    setCreateClubError('');
+    try {
+      const club = await createRealClub({ name: createClubForm.name.trim(), sportId: createClubForm.sportId });
+      if (createClubLogo) {
+        try {
+          await uploadClubLogo(club.id, createClubLogo);
+        } catch {
+          // Best-effort — the logo can be added later from the club's own
+          // profile page once it has an admin, matching the existing
+          // Invite-Admin "New club" flow's convention.
+        }
+      }
+      const participant = await createParticipant({ name: club.name, sportId: createClubForm.sportId });
+      setParticipants((current) => [...current, participant]);
+      setShowCreateClub(false);
+      setCreateClubForm({ name: '', sportId: createClubForm.sportId });
+      setCreateClubLogo(null);
+      setCreateMessage(`"${club.name}" created and ready to use as a team below.`);
+    } catch (err) {
+      setCreateClubError(extractApiError(err).message);
+    } finally {
+      setIsCreatingClub(false);
+    }
+  };
+
   const handleGoLive = async (fixtureId: string) => {
     setActionError(null);
+    setOpenActionMenuFor(null);
     try {
       await setFixtureStatus(fixtureId, 'LIVE');
       refreshFixtures();
@@ -167,6 +244,7 @@ function FixturesAdmin() {
 
   const handlePostpone = async (fixtureId: string) => {
     setActionError(null);
+    setOpenActionMenuFor(null);
     try {
       await setFixtureStatus(fixtureId, 'POSTPONED');
       refreshFixtures();
@@ -177,6 +255,7 @@ function FixturesAdmin() {
 
   const handleCancel = async (fixtureId: string) => {
     setActionError(null);
+    setOpenActionMenuFor(null);
     try {
       await setFixtureStatus(fixtureId, 'CANCELLED');
       refreshFixtures();
@@ -185,8 +264,20 @@ function FixturesAdmin() {
     }
   };
 
+  const handleRestoreToScheduled = async (fixtureId: string) => {
+    setActionError(null);
+    setOpenActionMenuFor(null);
+    try {
+      await setFixtureStatus(fixtureId, 'SCHEDULED');
+      refreshFixtures();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    }
+  };
+
   const handleComplete = async (fixtureId: string) => {
     setActionError(null);
+    setOpenActionMenuFor(null);
     try {
       await completeFixture(fixtureId);
       refreshFixtures();
@@ -223,6 +314,54 @@ function FixturesAdmin() {
     }
   };
 
+  const openRescheduleEditor = (fixture: FixtureAdminItem) => {
+    setOpenActionMenuFor(null);
+    setRescheduleEditor({
+      fixtureId: fixture.id,
+      startsAt: fixture.startsAt ? toLocalDatetimeInputValue(new Date(fixture.startsAt)) : '',
+      venue: fixture.venue,
+      endsAt: fixture.endsAt ? toLocalDatetimeInputValue(new Date(fixture.endsAt)) : '',
+    });
+  };
+
+  const handleSaveReschedule = async () => {
+    if (!rescheduleEditor) return;
+    if (rescheduleEditor.startsAt && new Date(rescheduleEditor.startsAt) < new Date()) {
+      setActionError('Kickoff time cannot be in the past.');
+      return;
+    }
+    if (
+      rescheduleEditor.endsAt &&
+      rescheduleEditor.startsAt &&
+      new Date(rescheduleEditor.endsAt) < new Date(rescheduleEditor.startsAt)
+    ) {
+      setActionError('Anticipated end time cannot be earlier than kickoff.');
+      return;
+    }
+    setIsSavingReschedule(true);
+    setActionError(null);
+    try {
+      await rescheduleFixture(rescheduleEditor.fixtureId, {
+        startsAt: rescheduleEditor.startsAt ? new Date(rescheduleEditor.startsAt).toISOString() : undefined,
+        venue: rescheduleEditor.venue,
+        endsAt: rescheduleEditor.endsAt ? new Date(rescheduleEditor.endsAt).toISOString() : undefined,
+      });
+      setRescheduleEditor(null);
+      refreshFixtures();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setIsSavingReschedule(false);
+    }
+  };
+
+  const kickoffMin = toLocalDatetimeInputValue(new Date());
+  const endsAtMin = createForm.startsAt || kickoffMin;
+  const rescheduleEndsAtMin = rescheduleEditor?.startsAt || kickoffMin;
+
+  const visibleFixtures =
+    statusFilter === 'ALL' ? fixtures : fixtures.filter((fixture) => fixture.status === statusFilter);
+
   return (
     <AdminLayout>
       <div className="fxa-content">
@@ -231,6 +370,11 @@ function FixturesAdmin() {
             <p className="fxa-header__eyebrow">Sports Data &amp; Statistics</p>
             <h1>Fixtures</h1>
             <p>Create fixtures, go live, and keep the score and clock up to date for the public site.</p>
+          </div>
+          <div className="fxa-header__actions">
+            <button type="button" className="fxa-btn fxa-btn--primary" onClick={openCreateClub}>
+              <FiPlus aria-hidden="true" /> Create Club
+            </button>
           </div>
         </div>
 
@@ -245,7 +389,8 @@ function FixturesAdmin() {
               <div className="fxa-panel__header">
                 <h2>Create Fixture</h2>
               </div>
-              <div className="fxa-form-grid">
+
+              <div className="fxa-field-row">
                 <label className="fxa-field">
                   Sport
                   <select
@@ -281,6 +426,21 @@ function FixturesAdmin() {
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="fxa-field-row">
+                <label className="fxa-field">
+                  Venue
+                  <input
+                    type="text"
+                    value={createForm.venue}
+                    onChange={(event) => setCreateForm((current) => ({ ...current, venue: event.target.value }))}
+                    placeholder="St. Mary's Stadium"
+                  />
+                </label>
+              </div>
+
+              <div className="fxa-field-row">
                 <label className="fxa-field">
                   Home team
                   <select
@@ -309,41 +469,27 @@ function FixturesAdmin() {
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="fxa-field-row">
                 <label className="fxa-field">
                   Kickoff
                   <input
                     type="datetime-local"
+                    min={kickoffMin}
                     value={createForm.startsAt}
                     onChange={(event) => setCreateForm((current) => ({ ...current, startsAt: event.target.value }))}
                   />
                 </label>
                 <label className="fxa-field">
-                  Venue
+                  Anticipated End Time
                   <input
-                    type="text"
-                    value={createForm.venue}
-                    onChange={(event) => setCreateForm((current) => ({ ...current, venue: event.target.value }))}
-                    placeholder="St. Mary's Stadium"
+                    type="datetime-local"
+                    min={endsAtMin}
+                    value={createForm.endsAt}
+                    onChange={(event) => setCreateForm((current) => ({ ...current, endsAt: event.target.value }))}
                   />
                 </label>
-              </div>
-
-              <div className="fxa-add-participant">
-                <input
-                  type="text"
-                  value={newParticipantName}
-                  onChange={(event) => setNewParticipantName(event.target.value)}
-                  placeholder="Team not listed? Add it here…"
-                  disabled={!createForm.sportId}
-                />
-                <button
-                  type="button"
-                  className="fxa-btn fxa-btn--ghost"
-                  disabled={isAddingParticipant || !newParticipantName.trim() || !createForm.sportId}
-                  onClick={() => void handleAddParticipant()}
-                >
-                  <FiPlus aria-hidden="true" /> Add Team
-                </button>
               </div>
 
               {createMessage && <p className="fxa-compose-message">{createMessage}</p>}
@@ -358,13 +504,29 @@ function FixturesAdmin() {
             <section className="fxa-panel">
               <div className="fxa-panel__header">
                 <h2>All Fixtures</h2>
-                <span className="fxa-panel__count">{fixtures.length} total</span>
+                <div className="fxa-panel__header-right">
+                  <div className="fxa-status-tabs">
+                    {(['ALL', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED'] as StatusFilter[]).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={`fxa-status-tab${statusFilter === tab ? ' fxa-status-tab--active' : ''}`}
+                        onClick={() => setStatusFilter(tab)}
+                      >
+                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="fxa-panel__count">{visibleFixtures.length} shown</span>
+                </div>
               </div>
 
               {isLoading ? (
                 <p className="fxa-empty">Loading fixtures…</p>
-              ) : fixtures.length === 0 ? (
-                <p className="fxa-empty">No fixtures yet — create one above.</p>
+              ) : visibleFixtures.length === 0 ? (
+                <p className="fxa-empty">
+                  {fixtures.length === 0 ? 'No fixtures yet — create one above.' : 'No fixtures match this filter.'}
+                </p>
               ) : (
                 <div className="fxa-table-wrap">
                   <table className="fxa-table">
@@ -378,8 +540,8 @@ function FixturesAdmin() {
                       </tr>
                     </thead>
                     <tbody>
-                      {fixtures.map((fixture) => (
-                        <tr key={fixture.id}>
+                      {visibleFixtures.map((fixture) => (
+                        <tr key={fixture.id} title="Independently created fixture — not linked to an external data feed">
                           <td>
                             <p className="fxa-match-name">
                               {fixture.homeName} vs {fixture.awayName}
@@ -398,45 +560,79 @@ function FixturesAdmin() {
                           </td>
                           <td>
                             <div className="fxa-row-actions">
-                              {fixture.status === 'SCHEDULED' && (
-                                <button type="button" className="fxa-icon-btn" title="Go live" onClick={() => void handleGoLive(fixture.id)}>
-                                  <FiPlay />
-                                </button>
-                              )}
                               {(fixture.status === 'LIVE' || fixture.status === 'SCHEDULED') && (
-                                <button type="button" className="fxa-icon-btn" title="Update score" onClick={() => openScoreEditor(fixture)}>
-                                  <FiClock />
-                                </button>
-                              )}
-                              {fixture.status === 'LIVE' && (
                                 <button
                                   type="button"
-                                  className="fxa-icon-btn"
-                                  title="Mark completed"
-                                  onClick={() => void handleComplete(fixture.id)}
+                                  className="fxa-icon-btn fxa-icon-btn--primary"
+                                  title="Update score"
+                                  onClick={() => openScoreEditor(fixture)}
                                 >
-                                  <FiCheckCircle />
+                                  <FiClock /> <span>Update Score</span>
                                 </button>
                               )}
-                              {(fixture.status === 'SCHEDULED' || fixture.status === 'LIVE') && (
-                                <>
+
+                              {fixture.status !== 'COMPLETED' && (
+                                <div className="fxa-action-menu" ref={openActionMenuFor === fixture.id ? actionMenuRef : undefined}>
                                   <button
                                     type="button"
                                     className="fxa-icon-btn"
-                                    title="Postpone"
-                                    onClick={() => void handlePostpone(fixture.id)}
+                                    title="More actions"
+                                    onClick={() => setOpenActionMenuFor((current) => (current === fixture.id ? null : fixture.id))}
                                   >
-                                    <FiClock style={{ opacity: 0.6 }} />
+                                    Actions <FiChevronDown />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="fxa-icon-btn fxa-icon-btn--danger"
-                                    title="Cancel"
-                                    onClick={() => void handleCancel(fixture.id)}
-                                  >
-                                    <FiSlash />
-                                  </button>
-                                </>
+                                  {openActionMenuFor === fixture.id && (
+                                    <div className="fxa-action-menu__list">
+                                      {fixture.status === 'SCHEDULED' && (
+                                        <>
+                                          <button type="button" onClick={() => void handleGoLive(fixture.id)}>
+                                            <FiPlay /> Go live
+                                          </button>
+                                          <button type="button" onClick={() => void handlePostpone(fixture.id)}>
+                                            <FiPause /> Postpone
+                                          </button>
+                                          <button type="button" className="fxa-action-menu__item--danger" onClick={() => void handleCancel(fixture.id)}>
+                                            <FiSlash /> Cancel
+                                          </button>
+                                        </>
+                                      )}
+                                      {fixture.status === 'LIVE' && (
+                                        <>
+                                          <button type="button" onClick={() => void handleComplete(fixture.id)}>
+                                            <FiCheckCircle /> Mark completed
+                                          </button>
+                                          <button type="button" onClick={() => void handlePostpone(fixture.id)}>
+                                            <FiPause /> Postpone
+                                          </button>
+                                          <button type="button" className="fxa-action-menu__item--danger" onClick={() => void handleCancel(fixture.id)}>
+                                            <FiSlash /> Cancel
+                                          </button>
+                                        </>
+                                      )}
+                                      {fixture.status === 'POSTPONED' && (
+                                        <>
+                                          <button type="button" onClick={() => void handleRestoreToScheduled(fixture.id)}>
+                                            <FiRotateCcw /> Resume (Scheduled)
+                                          </button>
+                                          <button type="button" onClick={() => void handleGoLive(fixture.id)}>
+                                            <FiPlay /> Go live
+                                          </button>
+                                          <button type="button" onClick={() => openRescheduleEditor(fixture)}>
+                                            <FiCalendar /> Edit schedule
+                                          </button>
+                                          <button type="button" className="fxa-action-menu__item--danger" onClick={() => void handleCancel(fixture.id)}>
+                                            <FiSlash /> Cancel
+                                          </button>
+                                        </>
+                                      )}
+                                      {(fixture.status === 'CANCELLED' || fixture.status === 'ABANDONED') && (
+                                        <button type="button" onClick={() => void handleRestoreToScheduled(fixture.id)}>
+                                          <FiRotateCcw /> Restore (Scheduled)
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
@@ -450,6 +646,53 @@ function FixturesAdmin() {
           </>
         )}
       </div>
+
+      {showCreateClub && (
+        <div className="fxa-modal-overlay" role="dialog" aria-modal="true" onClick={() => setShowCreateClub(false)}>
+          <div className="fxa-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Create club</h3>
+            <label className="fxa-field">
+              Club name
+              <input
+                type="text"
+                value={createClubForm.name}
+                onChange={(event) => setCreateClubForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="e.g. Busoga United FC"
+              />
+            </label>
+            <label className="fxa-field">
+              Sport
+              <select
+                value={createClubForm.sportId}
+                onChange={(event) => setCreateClubForm((current) => ({ ...current, sportId: event.target.value }))}
+              >
+                {sports.map((sport) => (
+                  <option key={sport.id} value={sport.id}>
+                    {sport.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="fxa-field">
+              Logo (optional)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => setCreateClubLogo(event.target.files?.[0] ?? null)}
+              />
+            </label>
+            {createClubError && <p className="fxa-error-banner">{createClubError}</p>}
+            <div className="fxa-modal__footer">
+              <button type="button" className="fxa-btn fxa-btn--ghost" onClick={() => setShowCreateClub(false)}>
+                Cancel
+              </button>
+              <button type="button" className="fxa-btn fxa-btn--primary" disabled={isCreatingClub} onClick={() => void handleCreateClub()}>
+                {isCreatingClub ? 'Creating…' : 'Create club'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {scoreEditor && (
         <div className="fxa-modal-overlay" role="dialog" aria-modal="true" onClick={() => setScoreEditor(null)}>
@@ -490,6 +733,48 @@ function FixturesAdmin() {
               </button>
               <button type="button" className="fxa-btn fxa-btn--primary" disabled={isSavingScore} onClick={() => void handleSaveScore()}>
                 {isSavingScore ? 'Saving…' : 'Save score'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rescheduleEditor && (
+        <div className="fxa-modal-overlay" role="dialog" aria-modal="true" onClick={() => setRescheduleEditor(null)}>
+          <div className="fxa-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Edit schedule</h3>
+            <label className="fxa-field">
+              Venue
+              <input
+                type="text"
+                value={rescheduleEditor.venue}
+                onChange={(event) => setRescheduleEditor({ ...rescheduleEditor, venue: event.target.value })}
+              />
+            </label>
+            <label className="fxa-field">
+              Kickoff
+              <input
+                type="datetime-local"
+                min={kickoffMin}
+                value={rescheduleEditor.startsAt}
+                onChange={(event) => setRescheduleEditor({ ...rescheduleEditor, startsAt: event.target.value })}
+              />
+            </label>
+            <label className="fxa-field">
+              Anticipated End Time
+              <input
+                type="datetime-local"
+                min={rescheduleEndsAtMin}
+                value={rescheduleEditor.endsAt}
+                onChange={(event) => setRescheduleEditor({ ...rescheduleEditor, endsAt: event.target.value })}
+              />
+            </label>
+            <div className="fxa-modal__footer">
+              <button type="button" className="fxa-btn fxa-btn--ghost" onClick={() => setRescheduleEditor(null)}>
+                Cancel
+              </button>
+              <button type="button" className="fxa-btn fxa-btn--primary" disabled={isSavingReschedule} onClick={() => void handleSaveReschedule()}>
+                {isSavingReschedule ? 'Saving…' : 'Save schedule'}
               </button>
             </div>
           </div>

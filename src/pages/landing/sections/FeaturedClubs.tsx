@@ -52,7 +52,7 @@ function FeaturedClubs() {
   useEffect(() => {
     let cancelled = false;
 
-    fetchClubs({ ordering: '-created_at' }).then((result) => {
+    fetchClubs({ ordering: '-created_at', hasAdmin: true }).then((result) => {
       if (!cancelled) setClubs(result);
     });
     if (isLoggedIn) {

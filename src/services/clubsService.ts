@@ -187,12 +187,21 @@ const clubIdBySlug = new Map<string, string>();
 
 export interface FetchClubsOptions {
   ordering?: 'name' | '-name' | 'founded' | '-founded' | 'created_at' | '-created_at';
+  // When true, only returns clubs with an accepted Club Admin — used by the
+  // landing page's Featured Clubs section so a club created ahead of its
+  // admin invite (e.g. via Create Club on the Fixtures admin page) doesn't
+  // show there until someone has actually accepted responsibility for it.
+  hasAdmin?: boolean;
 }
 
 export async function fetchClubs(options?: FetchClubsOptions): Promise<ClubSummary[]> {
   try {
     const response = await apiClient.get<{ results: BackendClub[] } | BackendClub[]>('/clubs/', {
-      params: { page_size: 100, ordering: options?.ordering ?? 'name' },
+      params: {
+        page_size: 100,
+        ordering: options?.ordering ?? 'name',
+        ...(options?.hasAdmin ? { has_admin: true } : {}),
+      },
     });
     const raw = Array.isArray(response.data) ? response.data : (response.data.results ?? []);
     const mapped = raw.map(mapBackendClub);
