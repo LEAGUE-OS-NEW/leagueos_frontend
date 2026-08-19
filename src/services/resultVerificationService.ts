@@ -1,18 +1,16 @@
 // Referee / Resolution Officer — service layer (US-17.4, rebranded from
-// Result Verification Admin per the partners' meeting). No backend endpoint
-// exists for the verification workflow yet, so this reads through
-// marketAdminService's in-memory Market store (the single source of truth
-// every admin module shares) and layers a lightweight verification queue and
-// dispute log on top — every export is async and delay()-wrapped so a real
-// backend swap later only touches this file.
+// Result Verification Admin per the partners' meeting). Backs the admin
+// approval funnel for the market result lifecycle (close -> provisional
+// result -> dispute window -> resolve -> settle) plus the void/refund path,
+// against the real market-admin/result-verification queue endpoint and its
+// per-action endpoints — no in-memory store involved.
 //
 // Flow (per the reference diagram): Event Happens -> Referee Verifies
 // Result -> Market Resolved -> Payouts Sent. "Verify" records the proposed
 // outcome and evidence; "Finalise" is the separate confirming action that
-// actually resolves the market and settles its contracts (marketAdminService
-// computes each contract's payout there). Splitting verify/finalise keeps a
-// second look possible before money moves, mirroring the separation of
-// duties used elsewhere in the merged admin workflow.
+// actually resolves the market and settles its contracts. Splitting
+// verify/finalise keeps a second look possible before money moves, mirroring
+// the separation of duties used elsewhere in the merged admin workflow.
 
 import apiClient from './apiClient.ts';
 import { normalizeApiList } from './apiUtils.ts';
