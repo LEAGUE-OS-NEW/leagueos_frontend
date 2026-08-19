@@ -657,17 +657,12 @@ export interface SpendWalletResult {
 export async function spendWalletBalance(
   input: SpendWalletInput,
 ): Promise<SpendWalletResult> {
-  try {
-    await apiClient.post('/wallets/spend/', {
-      amount: input.amount,
-      currency: (input.currency ?? 'UGX').toUpperCase(),
-      description: input.description,
-      idempotency_key: input.idempotencyKey,
-    });
-  } catch {
-    // Backend may not yet have this endpoint — swallow and let the
-    // caller re-fetch the real balance.
-  }
+  await apiClient.post('/wallets/spend/', {
+    amount: input.amount,
+    currency: (input.currency ?? 'UGX').toUpperCase(),
+    description: input.description,
+    idempotency_key: input.idempotencyKey,
+  });
 
   // Re-fetch the authoritative balance after the spend attempt.
   const updated = await fetchFanWallet(input.currency ?? 'UGX');

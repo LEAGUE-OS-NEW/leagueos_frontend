@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FiHash } from 'react-icons/fi';
+import { FiHash, FiPackage } from 'react-icons/fi';
 import { GiTShirt, GiClothes, GiWaterBottle } from 'react-icons/gi';
 import { FaHatCowboy } from 'react-icons/fa';
 import type { CategorySlug } from './shopCategories';
@@ -16,6 +16,8 @@ const CATEGORIES: Category[] = [
   { label: 'Jerseys',       sublabel: 'Rep your team',       slug: 'jerseys',       icon: <GiTShirt /> },
   { label: 'Training Wear', sublabel: 'Train in style',      slug: 'training-wear', icon: <GiClothes /> },
   { label: 'Caps & Hats',   sublabel: 'Top off your look',   slug: 'caps',          icon: <FaHatCowboy /> },
+  { label: 'Scarves',       sublabel: 'Wear the colours',    slug: 'scarves',       icon: <GiClothes /> },
+  { label: 'Bundles',       sublabel: 'Matchday sets',       slug: 'bundles',       icon: <FiPackage /> },
   { label: 'Accessories',   sublabel: 'Essentials you need', slug: 'accessories',   icon: <GiWaterBottle /> },
   { label: 'Fan Gear',      sublabel: 'Show your pride',     slug: 'fan-gear',      icon: <FiHash /> },
 ];

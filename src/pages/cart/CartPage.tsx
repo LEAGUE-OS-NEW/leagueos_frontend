@@ -10,6 +10,7 @@ import Footer from '../../components/landing/Footer';
 import { useCartStore } from '../../store/cartStore';
 import { useFanWallet } from '../../hooks/useFanWallet';
 import { spendWalletBalance } from '../../services/fanWalletApiService';
+import { createPublicStoreOrder } from '../../services/clubStoreService';
 import '../fan/sections/FanDashboard.css';
 import './CartPage.css';
 
@@ -27,7 +28,7 @@ export default function CartPage() {
   const [placed, setPlaced] = useState(false);
   const [deductedAmount, setDeductedAmount] = useState(0);
   // Stable idempotency key per cart session — regenerated each time an order is placed
-  const idempotencyKeyRef = useRef(`cart-${crypto.randomUUID()}`);
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   const total = items.reduce((sum, i) => sum + i.priceValue * i.qty, 0);
   const availableBalance = wallet?.availableBalance ?? 0;
@@ -45,18 +46,39 @@ export default function CartPage() {
 
     setPlacing(true);
     try {
+      const itemsByClub = items.reduce<Record<string, typeof items>>((groups, item) => {
+        groups[item.clubSlug] = [...(groups[item.clubSlug] ?? []), item];
+        return groups;
+      }, {});
+
       await spendWalletBalance({
         amount: total,
         currency: 'UGX',
         description: `Store purchase — ${items.length} item${items.length !== 1 ? 's' : ''}`,
         idempotencyKey: idempotencyKeyRef.current,
       });
+      await Promise.all(
+        Object.entries(itemsByClub).map(([clubSlug, clubItems]) =>
+          createPublicStoreOrder({
+            items: clubItems.map((item) => ({
+              product: item.productId,
+              quantity: item.qty,
+              size: item.size,
+            })),
+            metadata: {
+              clubSlug,
+              cartLineIds: clubItems.map((item) => item.id),
+              walletIdempotencyKey: idempotencyKeyRef.current,
+            },
+          }),
+        ),
+      );
       await refreshWallet();
       setDeductedAmount(total);
       clearCart();
       setPlaced(true);
       // Rotate key so a retry after navigation gets a fresh key
-      idempotencyKeyRef.current = `cart-${crypto.randomUUID()}`;
+      idempotencyKeyRef.current = crypto.randomUUID();
     } catch {
       setOrderError('Something went wrong processing your order. Please try again.');
     } finally {
