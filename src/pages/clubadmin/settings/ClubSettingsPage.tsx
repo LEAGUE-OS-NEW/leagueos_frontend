@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiBell, FiCheckCircle, FiChevronDown, FiChevronUp, FiSettings } from 'react-icons/fi';
+import { FiBell, FiCheckCircle, FiChevronDown, FiChevronUp, FiEye, FiEyeOff, FiLock, FiSettings } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useNotificationsStore } from '../../../store/fanNotificationsStore';
 import type { NotificationItem } from '../../../services/fanNotificationsServices';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubSettingsPage.css';
 
-type TabId = 'notifications';
+type TabId = 'notifications' | 'security';
 type ReadFilter = 'all' | 'unread' | 'read';
 
 const TABS: { id: TabId; label: string; icon: typeof FiBell }[] = [
   { id: 'notifications', label: 'Notifications', icon: FiBell },
+  { id: 'security', label: 'Security', icon: FiLock },
 ];
 
 const FILTERS: { id: ReadFilter; label: string }[] = [
@@ -32,6 +33,167 @@ function timeAgo(iso: string): string {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+// TODO: point this at your real backend route for changing a club admin's
+// password (or replace the body of this function with a call to an
+// existing authStore/authService action if one already exists there).
+async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch('/api/clubadmin/change-password', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  if (!res.ok) {
+    let message = 'Could not change password. Please try again.';
+    try {
+      const data = await res.json();
+      if (data?.message) message = data.message;
+    } catch {
+      // response wasn't JSON — fall back to the generic message
+    }
+    throw new Error(message);
+  }
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="ca-field">
+      <label className="ca-label" htmlFor={id}>{label}</label>
+      <div className="ca-password-input-wrap">
+        <input
+          id={id}
+          className="ca-input"
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          required
+        />
+        <button
+          type="button"
+          className="ca-password-toggle"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+        >
+          {visible ? <FiEyeOff /> : <FiEye />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SecurityPanel() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const validationError = useMemo(() => {
+    if (!currentPassword || !newPassword || !confirmPassword) return '';
+    if (newPassword.length < 8) return 'New password must be at least 8 characters.';
+    if (newPassword === currentPassword) return 'New password must be different from your current password.';
+    if (newPassword !== confirmPassword) return 'New password and confirmation do not match.';
+    return '';
+  }, [currentPassword, newPassword, confirmPassword]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSuccess(false);
+    setError('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('Fill in all fields.');
+      return;
+    }
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change password. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="ca-panel ca-settings-panel">
+      <div className="ca-settings-panel-header">
+        <div>
+          <h2 className="ca-panel-title">Change Password</h2>
+          <p className="ca-settings-subtext">Update the password used to sign in to this club admin account.</p>
+        </div>
+      </div>
+
+      <form className="ca-security-form" onSubmit={handleSubmit}>
+        <PasswordField
+          id="current-password"
+          label="Current Password"
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          autoComplete="current-password"
+        />
+        <PasswordField
+          id="new-password"
+          label="New Password"
+          value={newPassword}
+          onChange={setNewPassword}
+          autoComplete="new-password"
+        />
+        <PasswordField
+          id="confirm-password"
+          label="Confirm New Password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+        />
+
+        <p className="ca-settings-subtext" style={{ margin: '-4px 0 4px' }}>
+          Use at least 8 characters. Avoid reusing your current password.
+        </p>
+
+        {validationError && !error && (
+          <p className="ca-security-hint-error">{validationError}</p>
+        )}
+        {error && <p className="ca-security-hint-error">{error}</p>}
+        {success && <p className="ca-security-hint-success"><FiCheckCircle /> Password updated successfully.</p>}
+
+        <button
+          type="submit"
+          className="ca-btn ca-btn-primary"
+          disabled={submitting || !!validationError}
+        >
+          {submitting ? 'Updating…' : 'Update Password'}
+        </button>
+      </form>
+    </div>
+  );
 }
 
 export default function ClubSettingsPage() {
@@ -186,6 +348,8 @@ export default function ClubSettingsPage() {
           )}
         </div>
       )}
+
+      {activeTab === 'security' && <SecurityPanel />}
     </ClubAdminLayout>
   );
 }
