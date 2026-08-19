@@ -150,6 +150,100 @@ describe(
 
 
     it(
+      'treats settlement payouts and void refunds as credits',
+      async () => {
+        vi.mocked(
+          apiClient.get,
+        ).mockResolvedValue({
+          data: {
+            count:
+              2,
+            next:
+              null,
+            previous:
+              null,
+            results: [
+              {
+                id:
+                  'tx-2',
+                reference:
+                  'SETTLE-1',
+                transaction_type:
+                  'SETTLEMENT_PAYOUT',
+                amount:
+                  '9600.0000',
+                currency:
+                  'UGX',
+                status:
+                  'COMPLETED',
+                provider_code:
+                  null,
+                provider_reference:
+                  '',
+                description:
+                  'Market settlement payout — Will KCCA win?',
+                completed_at:
+                  '2026-08-19T12:00:00Z',
+                created_at:
+                  '2026-08-19T12:00:00Z',
+                updated_at:
+                  '2026-08-19T12:00:00Z',
+              },
+              {
+                id:
+                  'tx-3',
+                reference:
+                  'REFUND-1',
+                transaction_type:
+                  'VOID_REFUND',
+                amount:
+                  '2000.0000',
+                currency:
+                  'UGX',
+                status:
+                  'COMPLETED',
+                provider_code:
+                  null,
+                provider_reference:
+                  '',
+                description:
+                  '',
+                completed_at:
+                  '2026-08-19T12:05:00Z',
+                created_at:
+                  '2026-08-19T12:05:00Z',
+                updated_at:
+                  '2026-08-19T12:05:00Z',
+              },
+            ],
+          },
+        });
+
+        await expect(
+          fetchFanWalletTransactions(),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            type:
+              'credit',
+            amount:
+              9_600,
+            label:
+              'Market settlement payout — Will KCCA win?',
+          }),
+          expect.objectContaining({
+            type:
+              'credit',
+            amount:
+              2_000,
+            label:
+              'Void refund',
+          }),
+        ]);
+      },
+    );
+
+
+    it(
       'creates a Pesapal Sandbox wallet deposit through the backend',
       async () => {
         vi.mocked(
