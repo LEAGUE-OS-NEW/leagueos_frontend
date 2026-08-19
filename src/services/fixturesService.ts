@@ -161,7 +161,26 @@ function unwrapFixtureList(data: BackendFixture[] | { results: BackendFixture[] 
   return Array.isArray(data) ? data : (data.results ?? []);
 }
 
+// Landing page's Live Scores section only — gated to fixtures an admin has
+// explicitly flagged "Live Score", newest kickoff first, so a capacity-9
+// slice up top naturally pushes out the longest-running live match first
+// (there's no "went live at" timestamp, so kickoff time is the practical
+// proxy for that).
 export async function fetchLiveFixtures(): Promise<RealFixture[]> {
+  try {
+    const response = await apiClient.get<BackendFixture[] | { results: BackendFixture[] }>('/fixtures/', {
+      params: { status: 'LIVE', ordering: '-starts_at', live_score_featured: true },
+    });
+    return unwrapFixtureList(response.data).map(mapFixture);
+  } catch {
+    return [];
+  }
+}
+
+// Every live fixture, unfiltered — used by the /fixtures Results tab, which
+// needs full administrative visibility, not just the landing page's curated
+// highlight set.
+export async function fetchAllLiveFixtures(): Promise<RealFixture[]> {
   try {
     const response = await apiClient.get<BackendFixture[] | { results: BackendFixture[] }>('/fixtures/', {
       params: { status: 'LIVE', ordering: 'starts_at' },
@@ -174,7 +193,7 @@ export async function fetchLiveFixtures(): Promise<RealFixture[]> {
 
 export async function fetchUpcomingFixtures(): Promise<RealFixture[]> {
   const response = await apiClient.get<BackendFixture[] | { results: BackendFixture[] }>('/fixtures/', {
-    params: { ordering: 'starts_at' },
+    params: { status: 'SCHEDULED', ordering: 'starts_at' },
   });
   return unwrapFixtureList(response.data).map(mapFixture);
 }
