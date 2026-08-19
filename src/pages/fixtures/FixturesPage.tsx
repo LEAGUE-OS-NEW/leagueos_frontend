@@ -7,6 +7,7 @@ import SafeImage from '../../components/SafeImage/SafeImage';
 import CrestFallback from '../../components/SafeImage/CrestFallback';
 import {
   deriveFixtureStatus,
+  fetchAllLiveFixtures,
   fetchResults,
   fetchUpcomingFixtures,
   fixtureHasScore,
@@ -73,8 +74,14 @@ function FixtureCard({ fixture }: { fixture: RealFixture }) {
   );
 }
 
+function mergeResults(live: RealFixture[], completed: RealFixture[]): RealFixture[] {
+  return [...live, ...completed].sort(
+    (left, right) => new Date(right.match_date).getTime() - new Date(left.match_date).getTime(),
+  );
+}
+
 function FixturesPage() {
-  const [tab, setTab] = useState<Tab>('Upcoming');
+  const [tab, setTab] = useState<Tab>('Results');
   const [sportFilter, setSportFilter] = useState<'All' | Sport>('All');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -82,16 +89,16 @@ function FixturesPage() {
   const [results, setResults] = useState<RealFixture[]>([]);
 
   // Pure fetch — no setState inside, safe to call from an effect.
-  const fetchAll = () => Promise.all([fetchUpcomingFixtures(), fetchResults()]);
+  const fetchAll = () => Promise.all([fetchUpcomingFixtures(), fetchAllLiveFixtures(), fetchResults()]);
 
   useEffect(() => {
     let cancelled = false;
 
     fetchAll()
-      .then(([upcoming, finished]) => {
+      .then(([upcoming, live, completed]) => {
         if (cancelled) return;
         setFixtures(upcoming);
-        setResults(finished);
+        setResults(mergeResults(live, completed));
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load fixtures. Please try again.');
@@ -110,9 +117,9 @@ function FixturesPage() {
     setLoadError(null);
 
     fetchAll()
-      .then(([upcoming, finished]) => {
+      .then(([upcoming, live, completed]) => {
         setFixtures(upcoming);
-        setResults(finished);
+        setResults(mergeResults(live, completed));
       })
       .catch(() => setLoadError('Could not load fixtures. Please try again.'))
       .finally(() => setIsLoading(false));

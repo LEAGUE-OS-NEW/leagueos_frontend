@@ -207,6 +207,7 @@ export async function fetchCanonicalSportingEvents(filters: { sportId?: string; 
       competition: filters.competitionId,
       status: 'SCHEDULED',
       starts_after: new Date(now).toISOString(),
+      show_in_markets: true,
     },
   });
   return normalizeApiList<SportingEvent>(response.data)
