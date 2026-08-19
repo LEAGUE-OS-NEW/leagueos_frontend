@@ -460,7 +460,7 @@ select { cursor: pointer; }
 
 /* ---------------------------------------------------------------- market */
 .market-table { margin-top: 8px; }
-.market-row { display: grid; grid-template-columns: 1.8fr 0.6fr 0.6fr 0.5fr 36px; gap: 6px; align-items: center; padding: 8px 4px; font-size: 12.5px; }
+.market-row { display: grid; grid-template-columns: 1.8fr 0.6fr 0.6fr 36px; gap: 6px; align-items: center; padding: 8px 4px; font-size: 12.5px; }
 .market-head { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
 .market-list { max-height: 420px; overflow-y: auto; }
 .market-list .market-row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -1154,7 +1154,6 @@ select { cursor: pointer; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
   .pitch-slot { width: 64px; }
   .market-row { grid-template-columns: 1.6fr 0.5fr 0.5fr 30px; }
-  .market-row span:nth-child(4) { display: none; }
 }
 
 /* --------------------------------------------------------- reduced motion */

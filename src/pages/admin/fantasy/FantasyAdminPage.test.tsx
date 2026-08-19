@@ -37,7 +37,7 @@ const scoringRule = { id:'sr1', fantasy_competition:'c1', statistic_type:'GOALS'
 const competitionWithRules = { ...competition, scoring_rules:[scoringRule] };
 const player = {
   id:'p1', fantasy_competition:'c1', player:'canonical-p1', player_name:'Safe Player',
-  club:'Real Club', position:'Forward', price:7, eligible:true,
+  club:'Real Club', position:'Forward', price:7, starting_points:0, eligible:true,
   availability:'AVAILABLE' as const, name:'Safe Player', status:'available' as const,
   ownership:null, total_points:null, current_gameweek_points:null, form:null,
 };
@@ -114,18 +114,35 @@ describe('FantasyAdminPage editing', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Fantasy competition updated.');
   });
 
-  it('edits only Fantasy-owned player settings', async () => {
-    const user = userEvent.setup(); render(<FantasyAdminPage/>);
-    await user.click(await screen.findByRole('button',{name:'Players'}));
-    await user.click((await screen.findAllByRole('button',{name:'Edit'}))[0]);
-    // Scope label queries to the modal dialog to avoid matching the add-player form fields
-    const dialog = within(screen.getByRole('dialog',{name:'Edit Fantasy player'}));
-    const price = dialog.getByLabelText('Price (M)'); await user.clear(price); await user.type(price,'8');
-    await user.click(dialog.getByLabelText('Eligible (can be selected by fans)'));
-    await user.selectOptions(dialog.getByLabelText('Availability'),'INJURED');
-    await user.click(dialog.getByRole('button',{name:'Save player'}));
-    await waitFor(()=>expect(api.adminUpdatePlayer).toHaveBeenCalledWith('p1',{position:'Forward',price:8,eligible:false,availability:'INJURED'}));
-  });
+ it('edits only Fantasy-owned player settings', async () => {
+  const user = userEvent.setup();
+  render(<FantasyAdminPage/>);
+
+  await user.click(await screen.findByRole('button',{name:'Players'}));
+  await user.click((await screen.findAllByRole('button',{name:'Edit'}))[0]);
+
+  // Scope label queries to the modal dialog to avoid matching the add-player form fields
+  const dialog = within(screen.getByRole('dialog',{name:'Edit Fantasy player'}));
+
+  const price = dialog.getByLabelText('Price (M)');
+  await user.clear(price);
+  await user.type(price,'8');
+
+  await user.click(dialog.getByLabelText('Eligible (can be selected by fans)'));
+  await user.selectOptions(dialog.getByLabelText('Availability'),'INJURED');
+
+  await user.click(dialog.getByRole('button',{name:'Save player'}));
+
+  await waitFor(() =>
+    expect(api.adminUpdatePlayer).toHaveBeenCalledWith('p1', {
+      position: 'Forward',
+      price: 8,
+      eligible: false,
+      availability: 'INJURED',
+      starting_points: 0,
+    })
+  );
+});
 
   it('renders an API error visibly', async () => {
     vi.mocked(api.adminUpdatePlayer).mockRejectedValueOnce(new Error('Unable to update player'));

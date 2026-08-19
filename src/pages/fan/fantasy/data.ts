@@ -10,7 +10,7 @@ export function competitionFromApi(row:FantasyCompetition):Competition {
 
 export function playerFromApi(row:FantasyPlayer,sport:Competition['sport']):Player {
   const status=row.status==='available'?'ready':row.status;
-  return {id:row.id,name:row.name,club:row.club||'Unattached',clubShort:(row.club||'—').slice(0,4).toUpperCase(),clubColor:'#6c5ce7',photo:row.image??undefined,sport,position:row.position as PositionGroup,positionLabel:labels[row.position]??row.position,price:Number(row.price),form:row.form,totalPoints:row.total_points,gwPoints:row.current_gameweek_points,ownership:row.ownership,status:status as Player['status']};
+  return {id:row.id,name:row.name,club:row.club||'Unattached',clubShort:(row.club||'—').slice(0,4).toUpperCase(),clubColor:'#6c5ce7',photo:row.image??undefined,sport,position:row.position as PositionGroup,positionLabel:labels[row.position]??row.position,price:Number(row.price),form:row.form,totalPoints:row.total_points,gwPoints:row.current_gameweek_points,ownership:row.ownership,status:status as Player['status'],eligible:row.eligible};
 }
 
 export function rulesFor(competition:Competition):SportRules {

@@ -56,6 +56,15 @@ export default function SquadBuilder({ competition, players: pool, teamName: ini
     return true;
   }
 
+  // Availability controls whether the + selection button is active.
+  // AVAILABLE + Eligible → active; INJURED / SUSPENDED / UNAVAILABLE / Ineligible → inactive;
+  // DOUBTFUL → follows the existing Fantasy selection rules (canAdd).
+  function canSelect(p: Player): boolean {
+    if (p.eligible === false) return false;
+    if (p.status === 'injured' || p.status === 'suspended' || p.status === 'unavailable') return false;
+    return canAdd(p);
+  }
+
   function addPlayer(p: Player) {
     if (!canAdd(p)) {
       const group = rules.positionGroups.find((g) => g.group === p.position)!;
@@ -245,9 +254,8 @@ export default function SquadBuilder({ competition, players: pool, teamName: ini
               <div className="market-row market-head">
                 <span>Player</span>
                 <span>Price</span>
-                <span>Form</span>
-                <span>Pts</span>
-                <span />
+                <span>Form Pts</span>
+                <span>Action</span>
               </div>
               <div className="market-list">
                 {filteredMarket.map((p) => (
@@ -262,9 +270,8 @@ export default function SquadBuilder({ competition, players: pool, teamName: ini
                       </span>
                     </button>
                     <span>{p.price.toFixed(1)}</span>
-                    <span className={p.form !== null && p.form >= 6 ? 'good' : ''}>{p.form === null ? 'Unavailable' : p.form.toFixed(1)}</span>
-                    <span>{p.totalPoints ?? 'Awaiting statistics'}</span>
-                    <button className="btn btn-add" disabled={!canAdd(p)} onClick={() => addPlayer(p)}>
+                    <span className={p.form !== null && p.form >= 6 ? 'good' : ''}>{p.form === null ? 'No data' : p.form.toFixed(1)}</span>
+                    <button className="btn btn-add" disabled={!canSelect(p)} onClick={() => addPlayer(p)}>
                       +
                     </button>
                   </div>
