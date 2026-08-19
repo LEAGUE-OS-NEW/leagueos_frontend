@@ -666,6 +666,68 @@ export async function fetchFanPositions(): Promise<Position[]> {
   }
 }
 
+// GET /markets/portfolio/activity/ — a permanent per-settlement history, unlike
+// /markets/portfolio/positions/ (quantity__gt=0 only): once a position actually
+// settles, its quantity is zeroed and it disappears from the positions endpoint
+// entirely, so this is the only place a fan can see a past win/loss/void outcome.
+interface SettledActivityApi {
+  id: string;
+  event_type: 'BUY_FILL' | 'SELL_FILL' | 'ORDER_CANCELLED' | 'SETTLEMENT_WIN' | 'SETTLEMENT_LOSS' | 'VOID_REFUND';
+  occurred_at: string;
+  currency: string;
+  market_id: string;
+  outcome_id: string;
+  market_question: string;
+  outcome_label: string;
+  quantity: string | null;
+  wallet_amount: string | null;
+}
+
+export interface SettledPositionActivity {
+  id: string;
+  marketId: string;
+  marketQuestion: string;
+  outcomeId: OutcomeId;
+  outcomeLabel: string;
+  outcome: 'WON' | 'LOST' | 'VOIDED';
+  quantity: number;
+  payoutUgx: number;
+  occurredAt: string;
+}
+
+const SETTLEMENT_EVENT_TYPES = new Set(['SETTLEMENT_WIN', 'SETTLEMENT_LOSS', 'VOID_REFUND']);
+
+function settlementOutcome(eventType: SettledActivityApi['event_type']): 'WON' | 'LOST' | 'VOIDED' {
+  if (eventType === 'SETTLEMENT_WIN') return 'WON';
+  if (eventType === 'VOID_REFUND') return 'VOIDED';
+  return 'LOST';
+}
+
+export async function fetchSettledActivity(): Promise<SettledPositionActivity[]> {
+  try {
+    const response = await apiClient.get('/markets/portfolio/activity/', { params: { page_size: 100 } });
+    const rows = normalizeApiList<SettledActivityApi>(response.data);
+    return rows
+      .filter((row) => SETTLEMENT_EVENT_TYPES.has(row.event_type))
+      .map((row) => ({
+        id: row.id,
+        marketId: row.market_id,
+        marketQuestion: row.market_question,
+        outcomeId: row.outcome_label.toLowerCase().includes('no') ? 'NO' : 'YES',
+        outcomeLabel: row.outcome_label,
+        outcome: settlementOutcome(row.event_type),
+        quantity: Number(row.quantity ?? 0),
+        // wallet_amount is already the net UGX amount actually credited to the
+        // wallet (confirmed against wallets.WalletTransaction.amount) — no
+        // share/face-value conversion needed, unlike quantityUgx elsewhere.
+        payoutUgx: Number(row.wallet_amount ?? 0),
+        occurredAt: row.occurred_at,
+      }));
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
 export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
   try {
     const market = await fetchMarket(input.marketId);

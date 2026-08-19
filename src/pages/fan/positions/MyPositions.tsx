@@ -5,7 +5,12 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
-import { fetchFanPositions, type Position } from '../../../services/fanMarketsServices';
+import {
+  fetchFanPositions,
+  fetchSettledActivity,
+  type Position,
+  type SettledPositionActivity,
+} from '../../../services/fanMarketsServices';
 import '../sections/FanDashboard.css';
 import './MyPositions.css';
 
@@ -26,17 +31,38 @@ function isSettled(position: Position): boolean {
   return position.market.status === 'Resolved' || position.contract.status.toUpperCase() === 'SETTLED';
 }
 
+function outcomeLabel(outcome: SettledPositionActivity['outcome']): string {
+  if (outcome === 'WON') return 'Won';
+  if (outcome === 'VOIDED') return 'Voided';
+  return 'Lost';
+}
+
 function MyPositions() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [settledActivity, setSettledActivity] = useState<SettledPositionActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  function loadPositions() {
+    setIsLoading(true);
+    setError('');
+    Promise.all([fetchFanPositions(), fetchSettledActivity()])
+      .then(([openResult, settledResult]) => {
+        setPositions(openResult);
+        setSettledActivity(settledResult);
+      })
+      .catch(() => setError("Couldn't load your positions."))
+      .finally(() => setIsLoading(false));
+  }
+
   useEffect(() => {
     let cancelled = false;
-    fetchFanPositions()
-      .then((result) => {
-        if (!cancelled) setPositions(result);
+    Promise.all([fetchFanPositions(), fetchSettledActivity()])
+      .then(([openResult, settledResult]) => {
+        if (cancelled) return;
+        setPositions(openResult);
+        setSettledActivity(settledResult);
       })
       .catch(() => {
         if (!cancelled) setError("Couldn't load your positions.");
@@ -56,17 +82,8 @@ function MyPositions() {
     };
   }, [isSidebarOpen]);
 
-  function refreshPositions() {
-    setIsLoading(true);
-    setError('');
-    fetchFanPositions()
-      .then(setPositions)
-      .catch(() => setError("Couldn't load your positions."))
-      .finally(() => setIsLoading(false));
-  }
-
   const openPositions = positions.filter((position) => !isSettled(position));
-  const settledPositions = positions.filter(isSettled);
+  const hasAnyPositions = openPositions.length > 0 || settledActivity.length > 0;
 
   return (
     <div className="my-positions-shell">
@@ -85,8 +102,8 @@ function MyPositions() {
             {isLoading ? (
               <DashboardSkeleton rows={4} />
             ) : error ? (
-              <DashboardNotice tone="error" title="Couldn't load your positions" message={error} onRetry={refreshPositions} />
-            ) : positions.length === 0 ? (
+              <DashboardNotice tone="error" title="Couldn't load your positions" message={error} onRetry={loadPositions} />
+            ) : !hasAnyPositions ? (
               <DashboardNotice
                 tone="empty"
                 title="No positions yet"
@@ -118,21 +135,23 @@ function MyPositions() {
                   </section>
                 )}
 
-                {settledPositions.length > 0 && (
+                {settledActivity.length > 0 && (
                   <section className="my-positions-section">
                     <h2>Settled</h2>
                     <ul className="my-positions-list">
-                      {settledPositions.map((position) => (
-                        <li className="my-positions-row" key={position.contract.id}>
-                          <Link to={`/fan/markets/${position.market.id}`} className="my-positions-market">
-                            <strong>{position.market.eventLabel}</strong>
-                            <span>{position.market.question}</span>
+                      {settledActivity.map((activity) => (
+                        <li className="my-positions-row" key={activity.id}>
+                          <Link to={`/fan/markets/${activity.marketId}`} className="my-positions-market">
+                            <strong>{activity.marketQuestion}</strong>
                           </Link>
-                          <span className={`my-positions-outcome my-positions-outcome--${position.contract.outcomeId.toLowerCase()}`}>
-                            {position.contract.outcomeId}
+                          <span className={`my-positions-outcome my-positions-outcome--${activity.outcomeId.toLowerCase()}`}>
+                            {activity.outcomeId}
                           </span>
-                          <span className="my-positions-stake">{formatUgx(position.contract.quantityUgx)}</span>
-                          <span className="my-positions-payout">{formatUgx(position.contract.payoutUgx ?? 0)}</span>
+                          <span className={`my-positions-result my-positions-result--${activity.outcome.toLowerCase()}`}>
+                            {outcomeLabel(activity.outcome)}
+                          </span>
+                          <span className="my-positions-time">{formatDateTime(activity.occurredAt)}</span>
+                          <span className="my-positions-payout">{formatUgx(activity.payoutUgx)}</span>
                         </li>
                       ))}
                     </ul>

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyPositions from './MyPositions';
-import { fetchFanPositions } from '../../../services/fanMarketsServices';
+import { fetchFanPositions, fetchSettledActivity } from '../../../services/fanMarketsServices';
 
 vi.mock('../../../components/fan/Sidebar', () => ({
   default: () => null,
@@ -26,6 +26,7 @@ vi.mock('../../../services/fanMarketsServices', async (importOriginal) => {
   return {
     ...actual,
     fetchFanPositions: vi.fn(),
+    fetchSettledActivity: vi.fn(),
   };
 });
 
@@ -33,6 +34,7 @@ describe('MyPositions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fetchFanPositions).mockResolvedValue([]);
+    vi.mocked(fetchSettledActivity).mockResolvedValue([]);
   });
 
   it('loads authenticated positions without a market eligibility gate', async () => {

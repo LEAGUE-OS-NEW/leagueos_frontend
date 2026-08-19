@@ -137,6 +137,31 @@
   color: var(--color-accent-light);
 }
 
+.my-positions-result {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  min-width: 60px;
+  text-align: center;
+}
+
+.my-positions-result--won {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--color-open);
+}
+
+.my-positions-result--lost {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ef4444;
+}
+
+.my-positions-result--voided {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--color-text-muted);
+}
+
 .my-positions-stake,
 .my-positions-payout {
   font-size: 0.88rem;
