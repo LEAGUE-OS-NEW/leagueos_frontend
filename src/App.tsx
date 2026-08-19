@@ -219,7 +219,7 @@ function App() {
           {/* Access denied */}
           <Route path="/unauthorized" element={<Unauthorized />} />
         {/* Cart */}
-        <Route path="/cart" element={<CartPage />} />
+        <Route path="/cart" element={authenticated(<CartPage />)} />
 
        
 
