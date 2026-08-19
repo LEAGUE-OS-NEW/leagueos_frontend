@@ -65,12 +65,13 @@ export default function CartPage() {
   };
 
   return (
-    <div className="fan-dashboard">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="fan-dashboard-main">
-        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <div className="fan-dashboard-content">
-          <div className="cart-page-inner">
+    <div className="cart-shell">
+      <div className="cart-layout">
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="cart-main-col">
+          <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
+          <div className="cart-content">
+            <div className="cart-page-inner">
 
             {placed ? (
               <div className="cart-confirm">
@@ -233,9 +234,10 @@ export default function CartPage() {
               </>
             )}
 
+            </div>
           </div>
+          <Footer />
         </div>
-        <Footer />
       </div>
     </div>
   );
