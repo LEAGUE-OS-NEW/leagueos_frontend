@@ -8,6 +8,7 @@ import {
 
 import apiClient from './apiClient.ts';
 import {
+  createPublicStoreOrder,
   createClubProduct,
   fetchClubProducts,
   fetchClubStoreOrders,
@@ -135,5 +136,35 @@ describe('clubStoreService', () => {
     );
 
     expect(orders).toHaveLength(1);
+  });
+
+  it('creates a public fan store order', async () => {
+    const payload = {
+      items: [
+        {
+          product: '22222222-2222-2222-2222-222222222222',
+          quantity: 2,
+          size: 'M',
+        },
+      ],
+      metadata: {
+        walletIdempotencyKey: 'cart-key',
+      },
+    };
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        id: 'order-1',
+        status: 'PAID',
+      },
+    });
+
+    const order = await createPublicStoreOrder(payload);
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/store/orders/',
+      payload,
+    );
+    expect(order.id).toBe('order-1');
   });
 });

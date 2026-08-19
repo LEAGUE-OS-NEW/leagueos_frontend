@@ -96,6 +96,11 @@ function fromApiOrder(o: ClubStoreOrder): Order {
   const addr = o.shipping_address && typeof o.shipping_address === 'object'
     ? Object.values(o.shipping_address).filter(Boolean).join(', ')
     : '—';
+  const firstItem = o.items?.[0];
+  const itemCount = o.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 1;
+  const itemLabel = o.items?.length
+    ? `${firstItem?.product_name ?? 'Product'}${o.items.length > 1 ? ` + ${o.items.length - 1} more` : ''}`
+    : '—';
   const date = o.fulfilled_at
     ? new Date(o.fulfilled_at).toLocaleDateString()
     : o.cancelled_at
@@ -103,12 +108,12 @@ function fromApiOrder(o: ClubStoreOrder): Order {
       : 'Pending';
   return {
     id: o.id.slice(0, 8).toUpperCase(),
-    item: '—',
+    item: itemLabel,
     buyer: o.user,
     email: '',
     amt: `${o.currency} ${Number(o.total_amount).toLocaleString('en-US')}`,
     date,
-    qty: 1,
+    qty: itemCount,
     address: addr,
     notes: '',
     status: (BACKEND_TO_LOCAL_ORDER[o.status] as OrderStatus) ?? 'pending',
