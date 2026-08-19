@@ -1,7 +1,33 @@
-/* ── Cart page wrapper — sits inside .fan-dashboard-content ── */
+/* ── Cart page shell — mirrors FanWallet layout (no stadium background) ── */
+.cart-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+.cart-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: clip;
+}
+
+.cart-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-content {
+  flex: 1;
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px);
+  background-color: var(--color-bg);
+}
+
+/* ── Cart page inner wrapper ── */
 .cart-page-inner {
-  position: relative;
-  z-index: 1;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
