@@ -35,7 +35,7 @@ export default function CartPage() {
               Your order has been sent to the club for fulfilment. You'll receive an update once it's processed.
             </p>
             <div className="cart-confirm-actions">
-              <Link to="/store" className="cart-btn cart-btn-primary">Continue Shopping</Link>
+              <Link to="/fan/store" className="cart-btn cart-btn-primary">Continue Shopping</Link>
               <Link to="/fan/store" className="cart-btn cart-btn-secondary">Your Club Store</Link>
             </div>
           </div>
@@ -67,7 +67,7 @@ export default function CartPage() {
               <FiShoppingBag className="cart-page-empty-icon" />
               <h2>Your cart is empty</h2>
               <p>Browse the store and add products to get started.</p>
-              <Link to="/store" className="cart-btn cart-btn-primary">Browse Store</Link>
+              <Link to="/fan/store" className="cart-btn cart-btn-primary">Browse Store</Link>
             </div>
           ) : (
             <div className="cart-page-layout">
