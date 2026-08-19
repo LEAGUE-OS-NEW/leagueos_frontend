@@ -17,8 +17,6 @@ import HomeLogo from './HomeLogo';
 import { useAuthStore } from '../../store/authStore.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { getDefaultDashboardRoute } from '../../utils/roleRoutes.ts';
-import { useCartStore } from '../../store/cartStore';
-import CartDrawer from '../cart/CartDrawer';
 import './Navbar.css';
 
 export type NavbarLink = {
@@ -54,7 +52,6 @@ const LINK_ICONS: Record<string, ReactNode> = {
 
 function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const hamburgerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +60,6 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   const dashboardRoute = getDefaultDashboardRoute(user);
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const totalItems = useCartStore((s) => s.totalItems());
 
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -136,20 +132,6 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         </form>
 
         <div className="navbar-actions">
-          {/* Cart icon */}
-          <button
-            type="button"
-            className="navbar-cart-btn"
-            aria-label={`Cart (${totalItems} items)`}
-            onClick={() => setIsCartOpen(true)}
-          >
-            <span className="cart-icon-wrap">
-              <FiShoppingCart />
-              {totalItems > 0 && (
-                <span className="cart-icon-badge">{totalItems > 99 ? '99+' : totalItems}</span>
-              )}
-            </span>
-          </button>
           {isSignedIn ? (
             <>
               {dashboardRoute ? (
@@ -290,8 +272,6 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
         </div>
       </div>
       </header>
-
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 }
