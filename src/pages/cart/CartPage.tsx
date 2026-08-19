@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiArrowLeft, FiCheck } from 'react-icons/fi';
+import {
+  FiMinus, FiPlus, FiTrash2, FiShoppingBag,
+  FiArrowLeft, FiCheck, FiCreditCard, FiAlertTriangle,
+} from 'react-icons/fi';
 import Sidebar from '../../components/fan/Sidebar';
 import Topbar from '../fan/sections/Topbar';
 import Footer from '../../components/landing/Footer';
 import { useCartStore } from '../../store/cartStore';
+import { useFanWallet } from '../../hooks/useFanWallet';
+import { spendWalletBalance } from '../../services/fanWalletApiService';
 import '../fan/sections/FanDashboard.css';
 import './CartPage.css';
 
@@ -15,13 +20,48 @@ export default function CartPage() {
   const updateQty = useCartStore((s) => s.updateQty);
   const clearCart = useCartStore((s) => s.clearCart);
   const navigate = useNavigate();
+
+  const { wallet, isLoading: walletLoading, refresh: refreshWallet } = useFanWallet('UGX');
+  const [placing, setPlacing] = useState(false);
+  const [orderError, setOrderError] = useState('');
   const [placed, setPlaced] = useState(false);
+  const [deductedAmount, setDeductedAmount] = useState(0);
+  // Stable idempotency key per cart session — regenerated each time an order is placed
+  const idempotencyKeyRef = useRef(`cart-${crypto.randomUUID()}`);
 
   const total = items.reduce((sum, i) => sum + i.priceValue * i.qty, 0);
+  const availableBalance = wallet?.availableBalance ?? 0;
+  const insufficientFunds = !walletLoading && total > availableBalance;
 
-  const handlePlaceOrder = () => {
-    clearCart();
-    setPlaced(true);
+  const handlePlaceOrder = async () => {
+    if (total <= 0) return;
+    setOrderError('');
+
+    // Re-check funds against latest balance
+    if (insufficientFunds) {
+      setOrderError('Insufficient wallet balance. Please top up your wallet.');
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      await spendWalletBalance({
+        amount: total,
+        currency: 'UGX',
+        description: `Store purchase — ${items.length} item${items.length !== 1 ? 's' : ''}`,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
+      await refreshWallet();
+      setDeductedAmount(total);
+      clearCart();
+      setPlaced(true);
+      // Rotate key so a retry after navigation gets a fresh key
+      idempotencyKeyRef.current = `cart-${crypto.randomUUID()}`;
+    } catch {
+      setOrderError('Something went wrong processing your order. Please try again.');
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (
@@ -37,10 +77,17 @@ export default function CartPage() {
                 <div className="cart-confirm-icon"><FiCheck /></div>
                 <h1 className="cart-confirm-title">Order Placed!</h1>
                 <p className="cart-confirm-body">
-                  Your order has been sent to the club for fulfilment. You'll receive an update once it's processed.
+                  UGX {deductedAmount.toLocaleString('en-UG')} has been deducted from your wallet.
+                  Your order has been sent to the club for fulfilment.
                 </p>
+                {wallet && (
+                  <p className="cart-confirm-balance">
+                    Wallet balance: <strong>UGX {wallet.availableBalance.toLocaleString('en-UG')}</strong>
+                  </p>
+                )}
                 <div className="cart-confirm-actions">
                   <Link to="/fan/store" className="cart-btn cart-btn-primary">Continue Shopping</Link>
+                  <Link to="/wallet" className="cart-btn cart-btn-secondary">View Wallet</Link>
                 </div>
               </div>
             ) : (
@@ -120,6 +167,7 @@ export default function CartPage() {
                     {/* Order summary */}
                     <aside className="cart-page-summary">
                       <h2 className="cart-summary-title">Order Summary</h2>
+
                       <div className="cart-summary-rows">
                         {items.map((item) => (
                           <div key={item.id} className="cart-summary-row">
@@ -132,20 +180,50 @@ export default function CartPage() {
                           </div>
                         ))}
                       </div>
+
                       <div className="cart-summary-divider" />
+
                       <div className="cart-summary-total">
                         <span>Total</span>
                         <span className="cart-summary-total-val">
                           UGX {total.toLocaleString('en-UG')}
                         </span>
                       </div>
+
+                      {/* Wallet balance row */}
+                      <div className={`cart-wallet-row${insufficientFunds ? ' cart-wallet-row--low' : ''}`}>
+                        <span className="cart-wallet-label">
+                          <FiCreditCard /> Wallet balance
+                        </span>
+                        <span className="cart-wallet-val">
+                          {walletLoading
+                            ? '—'
+                            : `UGX ${availableBalance.toLocaleString('en-UG')}`}
+                        </span>
+                      </div>
+
+                      {insufficientFunds && (
+                        <div className="cart-insufficient">
+                          <FiAlertTriangle />
+                          <span>Insufficient balance.{' '}
+                            <Link to="/wallet" className="cart-topup-link">Top up wallet</Link>
+                          </span>
+                        </div>
+                      )}
+
+                      {orderError && (
+                        <p className="cart-order-error">{orderError}</p>
+                      )}
+
                       <button
                         type="button"
                         className="cart-btn cart-btn-primary cart-place-btn"
                         onClick={handlePlaceOrder}
+                        disabled={placing || walletLoading || insufficientFunds}
                       >
-                        <FiCheck /> Place Order
+                        {placing ? 'Processing…' : <><FiCheck /> Place Order</>}
                       </button>
+
                       <button type="button" className="cart-clear-btn" onClick={clearCart}>
                         Clear cart
                       </button>
