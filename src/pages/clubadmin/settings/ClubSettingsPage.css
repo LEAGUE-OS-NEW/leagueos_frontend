@@ -205,6 +205,62 @@
   color: var(--color-text-primary);
 }
 
+/* Security tab — change password form */
+
+.ca-security-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.ca-password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ca-password-input-wrap .ca-input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.ca-password-toggle {
+  position: absolute;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.ca-password-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.ca-security-hint-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #f87171;
+}
+
+.ca-security-hint-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #4ade80;
+}
+
+.ca-security-form .ca-btn {
+  align-self: flex-start;
+}
+
 @media (max-width: 640px) {
   .ca-settings-panel-header .ca-btn {
     width: 100%;
@@ -214,6 +270,15 @@
   .ca-notification-button {
     grid-template-columns: 32px minmax(0, 1fr) 8px;
     padding: 12px;
+  }
+
+  .ca-security-form {
+    max-width: 100%;
+  }
+
+  .ca-security-form .ca-btn {
+    align-self: stretch;
+    justify-content: center;
   }
 }
 
