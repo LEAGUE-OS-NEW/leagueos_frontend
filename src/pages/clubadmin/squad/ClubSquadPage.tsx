@@ -6,7 +6,9 @@ import {
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useAuthStore } from '../../../store/authStore';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
-import { DEMO_ENTITLEMENTS } from '../../../components/clubadmin/clubAdminData';
+import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
+import { useClubSquadStore, type SquadPlayer } from '../../../store/clubSquadStore';
+import { nameToSlug } from '../../../store/clubProductStore';
 import {
   fetchClubPlayers,
   createClubPlayer,
@@ -83,8 +85,15 @@ type ModalKind = null | 'add' | 'edit' | 'revise';
 
 let subCounter = 10;
 
+function fromSquadStorePlayer(p: SquadPlayer): Player {
+  return {
+    id: p.id, name: p.name, pos: p.position, nat: p.nationality,
+    status: p.status, contract: p.contract, value: p.value,
+    dataSource: 'club_submitted',
+  };
+}
+
 export default function ClubSquadPage() {
-  const [players, setPlayers] = useState<Player[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -102,6 +111,20 @@ export default function ClubSquadPage() {
   const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
 
   const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
+  const scopeId = current?.scope_id ?? 1;
+  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
+  const clubSlug = nameToSlug(clubInfo.name);
+
+  const { players: storePlayers, addPlayer: addStorePlayer, updatePlayer: updateStorePlayer } = useClubSquadStore();
+
+  // No real club UUID (demo/mock session) — seed from the persisted local
+  // store instead of an empty array, mirroring ClubStorePage's fix for the
+  // same refresh-loses-data issue. Lazy-initialized, not an effect, since
+  // this is a pure sync read.
+  const [players, setPlayers] = useState<Player[]>(() =>
+    clubId ? [] : storePlayers.filter(p => p.clubSlug === clubSlug).map(fromSquadStorePlayer),
+  );
+
   const isLoadingData = !!clubId && !hasFetched;
 
   const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -141,9 +164,15 @@ export default function ClubSquadPage() {
     try {
       if (modal === 'add') {
         if (asDraft || !clubId) {
-          // Save draft locally only
-          const draftPlayer: Player = { ...form, dataSource: 'club_submitted' };
+          // Save draft locally only — persisted so it survives a refresh.
+          const id = `local-${Date.now()}-${subCounter++}`;
+          const draftPlayer: Player = { ...form, id, dataSource: 'club_submitted' };
           setPlayers(prev => [...prev, draftPlayer]);
+          addStorePlayer({
+            id, clubSlug, name: form.name, position: form.pos, nationality: form.nat,
+            status: form.status, contract: form.contract, value: form.value,
+            createdAt: Date.now(),
+          });
           notify(`${form.name} saved as draft`);
         } else {
           // Submit to backend
@@ -178,6 +207,11 @@ export default function ClubSquadPage() {
             status: toApiStatus(form.status),
             contract_end: form.contract,
             market_value: form.value,
+          });
+        } else if (player.id) {
+          updateStorePlayer(player.id, {
+            name: form.name, position: form.pos, nationality: form.nat,
+            status: form.status, contract: form.contract, value: form.value,
           });
         }
         const newId = `sub-${String(subCounter++).padStart(3, '0')}`;
