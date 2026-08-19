@@ -8,7 +8,7 @@ import FeaturedClubStores from '../../landing/store/sections/FeaturedClubStores'
 import ProductShowcase from '../../landing/store/sections/ProductShowcase';
 import CommunityBanner from '../../landing/store/sections/CommunityBanner';
 import { fetchFollowedClubSlugs, fetchClubs, type ClubSummary } from '../../../services/clubsService';
-import { fetchClubProducts, type ClubMerchandiseProduct } from '../../../services/clubStoreService';
+import { fetchPublicStoreProducts, type ClubMerchandiseProduct } from '../../../services/clubStoreService';
 import { useClubProductStore, toCategorySlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
 import type { StoreProduct } from '../../../store/clubProductStore';
 import type { ClubProduct, ProductCategory } from '../../../services/storeService';
@@ -26,6 +26,17 @@ const CAT_TO_PRODUCT_CATEGORY: Record<string, ProductCategory> = {
   Other: 'Fan Gear',
 };
 
+const STORE_CATEGORY_TO_PRODUCT_CATEGORY: Record<StoreProduct['category'], ProductCategory> = {
+  all: 'Fan Gear',
+  jerseys: 'Jersey',
+  'training-wear': 'Training Wear',
+  caps: 'Cap',
+  scarves: 'Scarf',
+  bundles: 'Bundle',
+  accessories: 'Accessory',
+  'fan-gear': 'Fan Gear',
+};
+
 function priceFromApi(apiPrice: string, currency = 'UGX'): string {
   const num = Math.round(Number(apiPrice));
   return num > 0 ? `${currency} ${num.toLocaleString('en-US')}` : apiPrice;
@@ -33,25 +44,32 @@ function priceFromApi(apiPrice: string, currency = 'UGX'): string {
 
 function toClubProduct(p: ClubMerchandiseProduct, clubSlug: string): ClubProduct {
   const catName = (p.metadata?.cat as string) ?? 'Fan Gear';
+  const category = CAT_TO_PRODUCT_CATEGORY[catName] ?? 'Fan Gear';
+  const image = (p.metadata?.image as string) || undefined;
+  const price = priceFromApi(p.price, p.currency);
   return {
     id: p.id,
     clubSlug,
     name: p.name,
-    category: CAT_TO_PRODUCT_CATEGORY[catName] ?? 'Fan Gear',
-    price: priceFromApi(p.price, p.currency),
-    accentColor: '#7c3aed',
+    category,
+    price,
+    originalPrice: (p.metadata?.originalPrice as string) || undefined,
+    accentColor: CATEGORY_COLORS[toCategorySlug(catName)] ?? '#7c3aed',
+    badge: (p.metadata?.badge as string) || undefined,
+    sizes: Array.isArray(p.metadata?.sizes) ? p.metadata.sizes.filter((s): s is string => typeof s === 'string') : undefined,
+    image,
   };
 }
 
-function toStoreProduct(p: ClubMerchandiseProduct, club: ClubSummary): StoreProduct {
+function toStoreProduct(p: ClubMerchandiseProduct): StoreProduct {
   const catName = (p.metadata?.cat as string) ?? 'Other';
   const category = toCategorySlug(catName);
   const priceNum = Math.round(Number(p.price));
   const image = (p.metadata?.image as string) || undefined;
   return {
     id: p.id,
-    clubSlug: club.slug,
-    clubName: club.name,
+    clubSlug: p.club_slug ?? p.club,
+    clubName: p.club_name ?? 'Club Store',
     name: p.name,
     category,
     price: priceFromApi(p.price, p.currency),
@@ -60,8 +78,26 @@ function toStoreProduct(p: ClubMerchandiseProduct, club: ClubSummary): StoreProd
     sku: p.sku || undefined,
     stock: p.available_stock ?? p.stock,
     image,
+    originalPrice: (p.metadata?.originalPrice as string) || undefined,
+    badge: (p.metadata?.badge as string) || undefined,
+    sizes: Array.isArray(p.metadata?.sizes) ? p.metadata.sizes.filter((s): s is string => typeof s === 'string') : undefined,
     accentColor: CATEGORY_COLORS[category] ?? '#7c3aed',
     createdAt: p.published_at ? new Date(p.published_at).getTime() : Date.now(),
+  };
+}
+
+function cachedToClubProduct(product: StoreProduct): ClubProduct {
+  return {
+    id: product.id,
+    clubSlug: product.clubSlug,
+    name: product.name,
+    category: STORE_CATEGORY_TO_PRODUCT_CATEGORY[product.category] ?? 'Fan Gear',
+    price: product.price,
+    originalPrice: product.originalPrice,
+    accentColor: product.accentColor,
+    badge: product.badge,
+    sizes: product.sizes,
+    image: product.image,
   };
 }
 
@@ -90,38 +126,35 @@ function FanStorePage() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([fetchFollowedClubSlugs(), fetchClubs()])
-      .then(([slugs, allClubs]) => {
-        if (cancelled) return Promise.resolve([]);
+    Promise.allSettled([fetchFollowedClubSlugs(), fetchClubs(), fetchPublicStoreProducts()])
+      .then(([slugsResult, clubsResult, productsResult]) => {
+        if (cancelled) return;
+        const slugs = slugsResult.status === 'fulfilled' ? slugsResult.value : [];
+        const allClubs = clubsResult.status === 'fulfilled' ? clubsResult.value : [];
+        const publicProducts = productsResult.status === 'fulfilled' ? productsResult.value : [];
         const clubs = allClubs.filter(c => slugs.includes(c.slug));
         setFollowedClubs(clubs);
-        const clubsWithIds = clubs.filter(c => !!c.id);
-        return Promise.all(
-          clubsWithIds.map(c =>
-            fetchClubProducts(c.id!)
-              .then(prods => ({ club: c, prods }))
-              .catch(() => ({ club: c, prods: [] as ClubMerchandiseProduct[] })),
-          ),
-        );
-      })
-      .then(clubProductSets => {
-        if (cancelled) return;
         const fanProducts: ClubProduct[] = [];
         const storeProducts: StoreProduct[] = [];
-        for (const { club, prods } of clubProductSets) {
-          for (const p of prods) {
-            if (p.available_stock > 0 || p.stock > 0) {
-              fanProducts.push(toClubProduct(p, club.slug));
-              storeProducts.push(toStoreProduct(p, club));
-            }
+
+        for (const product of publicProducts) {
+          const slug = product.club_slug ?? product.club;
+
+          storeProducts.push(toStoreProduct(product));
+          if (slugs.includes(slug)) {
+            fanProducts.push(toClubProduct(product, slug));
           }
         }
-        setProducts(fanProducts);
-        if (storeProducts.length > 0) replaceAll(storeProducts);
+
+        if (productsResult.status === 'fulfilled') replaceAll(storeProducts);
+        setProducts(
+          productsResult.status === 'fulfilled' && fanProducts.length > 0
+            ? fanProducts
+            : useClubProductStore.getState().products
+                .filter(p => slugs.includes(p.clubSlug))
+                .map(cachedToClubProduct),
+        );
         setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };

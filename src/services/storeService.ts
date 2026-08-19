@@ -1,3 +1,6 @@
+import { fetchPublicStoreProducts, type ClubMerchandiseProduct } from './clubStoreService';
+import { useClubProductStore, type StoreProduct } from '../store/clubProductStore';
+
 function delay<T>(value: T, ms = 280): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
@@ -14,6 +17,7 @@ export interface ClubProduct {
   accentColor: string;
   badge?: string;
   sizes?: string[];
+  image?: string;
 }
 
 const CLUB_PRODUCTS: Record<string, ClubProduct[]> = {
@@ -116,17 +120,106 @@ const CLUB_PRODUCTS: Record<string, ClubProduct[]> = {
   ],
 };
 
+const CATEGORY_TO_PUBLIC_CATEGORY: Record<string, ProductCategory> = {
+  Apparel: 'Jersey',
+  Training: 'Training Wear',
+  'Fan Gear': 'Fan Gear',
+  Accessories: 'Accessory',
+  Other: 'Fan Gear',
+};
+
+const CATEGORY_COLORS: Record<ProductCategory, string> = {
+  Jersey: '#dc2626',
+  'Training Wear': '#1e3a8a',
+  Cap: '#18181b',
+  Scarf: '#7f1d1d',
+  Bundle: '#7c3aed',
+  'Fan Gear': '#7f1d1d',
+  Accessory: '#ca8a04',
+};
+
+const STORE_CATEGORY_TO_PRODUCT_CATEGORY: Record<StoreProduct['category'], ProductCategory> = {
+  all: 'Fan Gear',
+  jerseys: 'Jersey',
+  'training-wear': 'Training Wear',
+  caps: 'Cap',
+  scarves: 'Scarf',
+  bundles: 'Bundle',
+  accessories: 'Accessory',
+  'fan-gear': 'Fan Gear',
+};
+
+function priceFromApi(apiPrice: string, currency = 'UGX'): string {
+  const num = Math.round(Number(apiPrice));
+  return num > 0 ? `${currency} ${num.toLocaleString('en-US')}` : apiPrice;
+}
+
+function toClubProduct(product: ClubMerchandiseProduct): ClubProduct {
+  const catName = (product.metadata?.cat as string) ?? 'Other';
+  const category = CATEGORY_TO_PUBLIC_CATEGORY[catName] ?? 'Fan Gear';
+  const createdAt = product.published_at ?? '';
+  const isNew = createdAt ? Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000 : false;
+
+  return {
+    id: product.id,
+    clubSlug: product.club_slug ?? product.club,
+    name: product.name,
+    category,
+    price: priceFromApi(product.price, product.currency),
+    accentColor: CATEGORY_COLORS[category],
+    badge: (product.metadata?.badge as string) || (isNew ? 'NEW' : undefined),
+    originalPrice: (product.metadata?.originalPrice as string) || undefined,
+    sizes: Array.isArray(product.metadata?.sizes) ? product.metadata.sizes.filter((size): size is string => typeof size === 'string') : undefined,
+    image: (product.metadata?.image as string) || undefined,
+  };
+}
+
+function cachedToClubProduct(product: StoreProduct): ClubProduct {
+  return {
+    id: product.id,
+    clubSlug: product.clubSlug,
+    name: product.name,
+    category: STORE_CATEGORY_TO_PRODUCT_CATEGORY[product.category] ?? 'Fan Gear',
+    price: product.price,
+    originalPrice: product.originalPrice,
+    accentColor: product.accentColor,
+    badge: product.badge,
+    sizes: product.sizes,
+    image: product.image,
+  };
+}
+
+async function fetchPublicProductsFallback(): Promise<ClubProduct[] | null> {
+  try {
+    const products = await fetchPublicStoreProducts();
+    if (products.length > 0) return products.map(toClubProduct);
+    return useClubProductStore.getState().products.map(cachedToClubProduct);
+  } catch {
+    const cachedProducts = useClubProductStore.getState().products;
+    return cachedProducts.length > 0 ? cachedProducts.map(cachedToClubProduct) : null;
+  }
+}
+
 export async function fetchProductsForClubs(slugs: string[]): Promise<ClubProduct[]> {
+  const publicProducts = await fetchPublicProductsFallback();
+  if (publicProducts) return publicProducts.filter((product) => slugs.includes(product.clubSlug));
+
   const products = slugs.flatMap((slug) => CLUB_PRODUCTS[slug] ?? []);
   return delay(products);
 }
 
 export async function fetchAllProducts(): Promise<ClubProduct[]> {
+  const publicProducts = await fetchPublicProductsFallback();
+  if (publicProducts) return publicProducts;
+
   const products = Object.values(CLUB_PRODUCTS).flat();
   return delay(products);
 }
 
 export async function fetchProductsByCategory(category: ProductCategory): Promise<ClubProduct[]> {
+  const publicProducts = await fetchPublicProductsFallback();
+  if (publicProducts) return publicProducts.filter((product) => product.category === category);
+
   const products = Object.values(CLUB_PRODUCTS).flat().filter((p) => p.category === category);
   return delay(products);
 }

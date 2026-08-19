@@ -9,8 +9,8 @@ import Topbar from '../fan/sections/Topbar';
 import Footer from '../../components/landing/Footer';
 import { useCartStore } from '../../store/cartStore';
 import { useFanWallet } from '../../hooks/useFanWallet';
-import { placeStoreOrder } from '../../services/clubStoreService';
-import { resolveClubId } from '../../services/clubsService';
+import { spendWalletBalance } from '../../services/fanWalletApiService';
+import { createPublicStoreOrder } from '../../services/clubStoreService';
 import '../fan/sections/FanDashboard.css';
 import './CartPage.css';
 
@@ -27,6 +27,7 @@ export default function CartPage() {
   const [orderError, setOrderError] = useState('');
   const [placed, setPlaced] = useState(false);
   const [deductedAmount, setDeductedAmount] = useState(0);
+  // Stable idempotency key per cart session — rotated after each successful order
   const idempotencyKeyRef = useRef(`cart-${crypto.randomUUID()}`);
 
   const total = items.reduce((sum, i) => sum + i.priceValue * i.qty, 0);
@@ -44,49 +45,43 @@ export default function CartPage() {
 
     setPlacing(true);
     try {
-      // Group items by clubSlug — one order per club
-      const byClub = items.reduce<Record<string, typeof items>>((acc, item) => {
-        (acc[item.clubSlug] ??= []).push(item);
-        return acc;
+      // Group items by club for the order payload
+      const itemsByClub = items.reduce<Record<string, typeof items>>((groups, item) => {
+        groups[item.clubSlug] = [...(groups[item.clubSlug] ?? []), item];
+        return groups;
       }, {});
 
-      const baseKey = idempotencyKeyRef.current;
-      const clubSlugs = Object.keys(byClub);
+      // Deduct wallet first
+      await spendWalletBalance({
+        amount: total,
+        currency: 'UGX',
+        description: `Store purchase — ${items.length} item${items.length !== 1 ? 's' : ''}`,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
 
-      // Resolve all club slugs → backend UUIDs in parallel
-      const clubIdEntries = await Promise.all(
-        clubSlugs.map(async (slug) => {
-          const id = await resolveClubId(slug);
-          if (!id) throw new Error(`Club "${slug}" could not be resolved. Please try again.`);
-          return [slug, id] as const;
-        }),
-      );
-      const clubIdMap = Object.fromEntries(clubIdEntries);
-
-      // Place one order per club
+      // Place one order per club via the public store endpoint
       await Promise.all(
-        clubSlugs.map(async (slug, idx) => {
-          const clubItems = byClub[slug];
-          const lineItems = clubItems.map((item) => ({
-            product_id: item.productId,
-            quantity: item.qty,
-            unit_price: item.priceValue,
-          }));
-          await placeStoreOrder({
-            club_id: clubIdMap[slug],
-            items: lineItems,
-            currency: 'UGX',
-            payment_method: 'WALLET',
-            idempotency_key: `${baseKey}-${idx}`,
-          });
-        }),
+        Object.entries(itemsByClub).map(([clubSlug, clubItems]) =>
+          createPublicStoreOrder({
+            items: clubItems.map((item) => ({
+              product: item.productId,
+              quantity: item.qty,
+              size: item.size,
+            })),
+            metadata: {
+              clubSlug,
+              cartLineIds: clubItems.map((item) => item.id),
+              walletIdempotencyKey: idempotencyKeyRef.current,
+            },
+          }),
+        ),
       );
 
-      // Refresh wallet to show updated balance
       await refreshWallet();
       setDeductedAmount(total);
       clearCart();
       setPlaced(true);
+      // Rotate key so a retry after navigation gets a fresh key
       idempotencyKeyRef.current = `cart-${crypto.randomUUID()}`;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not place your order.';

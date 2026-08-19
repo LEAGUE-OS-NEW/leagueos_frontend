@@ -66,6 +66,9 @@ export function toCategorySlug(cat: string): CategorySlug {
     'Fan Gear':  'fan-gear',
     Training:    'training-wear',
     Accessories: 'accessories',
+    Cap:         'caps',
+    Scarf:       'scarves',
+    Bundle:      'bundles',
     Other:       'fan-gear',
   };
   return map[cat] ?? 'fan-gear';
@@ -82,6 +85,8 @@ export const CATEGORY_COLORS: Record<CategorySlug, string> = {
   jerseys:       '#dc2626',
   'training-wear': '#1e3a8a',
   caps:          '#18181b',
+  scarves:       '#7f1d1d',
+  bundles:       '#7c3aed',
   accessories:   '#ca8a04',
   'fan-gear':    '#7f1d1d',
 };

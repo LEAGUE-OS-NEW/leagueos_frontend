@@ -26,6 +26,12 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.fan-product-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .fan-product-badge {
   position: absolute;
   top: 10px;

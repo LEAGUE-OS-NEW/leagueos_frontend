@@ -21,6 +21,8 @@ export interface ClubProductCategory {
 export interface ClubMerchandiseProduct {
   id: string;
   club: string;
+  club_slug?: string;
+  club_name?: string;
   category: string | null;
   name: string;
   slug: string;
@@ -57,8 +59,29 @@ export interface ClubStoreOrder {
   currency: string;
   shipping_address: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  items?: ClubStoreOrderItem[];
   fulfilled_at: string | null;
   cancelled_at: string | null;
+}
+
+export interface ClubStoreOrderItem {
+  id: string;
+  product: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: string;
+  total_price: string;
+}
+
+export interface CreatePublicStoreOrderInput {
+  items: Array<{
+    product: string;
+    quantity: number;
+    size?: string;
+  }>;
+  shipping_address?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SaveClubProductInput {
@@ -82,6 +105,17 @@ export async function fetchClubProducts(
   const response = await apiClient.get(
     `/${encodeURIComponent(clubId)}/merchandise/`,
   );
+
+  return normalizeApiList<ClubMerchandiseProduct>(
+    response.data,
+  );
+}
+
+export async function fetchPublicStoreProducts(params?: {
+  club?: string;
+  category?: string;
+}): Promise<ClubMerchandiseProduct[]> {
+  const response = await apiClient.get('/store/products/', { params });
 
   return normalizeApiList<ClubMerchandiseProduct>(
     response.data,
@@ -120,6 +154,14 @@ export async function deleteClubProduct(
   await apiClient.delete(
     `/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
   );
+}
+
+export async function createPublicStoreOrder(
+  payload: CreatePublicStoreOrderInput,
+): Promise<ClubStoreOrder> {
+  const response = await apiClient.post('/store/orders/', payload);
+
+  return response.data as ClubStoreOrder;
 }
 
 export async function fetchClubProductCategories(
@@ -163,32 +205,3 @@ export async function fetchClubStoreOrders(
   );
 }
 
-export interface PlaceOrderLineItem {
-  product_id: string;
-  quantity: number;
-  unit_price: number;
-}
-
-export interface PlaceOrderInput {
-  club_id: string;
-  items: PlaceOrderLineItem[];
-  currency?: string;
-  shipping_address?: Record<string, string>;
-  payment_method?: 'WALLET';
-  idempotency_key: string;
-}
-
-export async function placeStoreOrder(
-  input: PlaceOrderInput,
-): Promise<ClubStoreOrder> {
-  const { club_id, ...body } = input;
-  const response = await apiClient.post(
-    `/${encodeURIComponent(club_id)}/orders/`,
-    {
-      ...body,
-      currency: (input.currency ?? 'UGX').toUpperCase(),
-      payment_method: input.payment_method ?? 'WALLET',
-    },
-  );
-  return response.data as ClubStoreOrder;
-}
