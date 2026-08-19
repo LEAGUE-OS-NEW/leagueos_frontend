@@ -1,10 +1,10 @@
 import apiClient from './apiClient.ts';
-import { extractApiError, unwrapApiData } from './apiUtils.ts';
+import { extractApiError, normalizeApiList, unwrapApiData } from './apiUtils.ts';
 
-// NOTE: adjust these to match your backend's actual routes if different.
-const NOTIFICATIONS_SUMMARY_PATH = '/notifications/summary/';
+const NOTIFICATIONS_LIST_PATH = '/notifications/';
+const NOTIFICATIONS_UNREAD_COUNT_PATH = '/notifications/unread-count/';
 const NOTIFICATION_READ_PATH = (id: string) => `/notifications/${encodeURIComponent(id)}/read/`;
-const NOTIFICATIONS_READ_ALL_PATH = '/notifications/read-all/';
+const NOTIFICATIONS_MARK_ALL_READ_PATH = '/notifications/mark-all-read/';
 
 export interface NotificationItem {
   id: string;
@@ -21,19 +21,18 @@ export interface NotificationSummary {
   unreadCount: number;
 }
 
-// Backend (snake_case) shapes — adjust field names here if they differ.
+// Backend (snake_case) shape — matches notifications.serializers.NotificationSerializer.
 interface NotificationApi {
   id: string;
   title: string;
   message: string;
-  is_read: boolean;
+  read_at: string | null;
   created_at: string;
-  link?: string | null;
+  deep_link_path?: string | null;
   event_type?: string;
 }
 
-interface NotificationSummaryApi {
-  notifications: NotificationApi[];
+interface UnreadCountApi {
   unread_count: number;
 }
 
@@ -47,21 +46,24 @@ function adaptNotification(notification: NotificationApi): NotificationItem {
     id: notification.id,
     title: notification.title,
     message: notification.message,
-    isRead: notification.is_read,
+    isRead: notification.read_at !== null,
     createdAt: notification.created_at,
-    link: notification.link ?? undefined,
+    link: notification.deep_link_path ?? undefined,
     eventType: notification.event_type,
   };
 }
 
+// GET /notifications/ (paginated list) + GET /notifications/unread-count/ —
+// there is no combined "summary" endpoint on the backend.
 export async function fetchFanNotificationSummary(): Promise<NotificationSummary> {
   try {
-    const response = await apiClient.get(NOTIFICATIONS_SUMMARY_PATH);
-    const data = unwrapApiData<NotificationSummaryApi>(response.data);
-    return {
-      notifications: data.notifications.map(adaptNotification),
-      unreadCount: data.unread_count,
-    };
+    const [listResponse, unreadResponse] = await Promise.all([
+      apiClient.get(NOTIFICATIONS_LIST_PATH),
+      apiClient.get(NOTIFICATIONS_UNREAD_COUNT_PATH),
+    ]);
+    const notifications = normalizeApiList<NotificationApi>(listResponse.data).map(adaptNotification);
+    const unreadCount = unwrapApiData<UnreadCountApi>(unreadResponse.data).unread_count;
+    return { notifications, unreadCount };
   } catch (error) {
     throw apiError(error);
   }
@@ -69,7 +71,7 @@ export async function fetchFanNotificationSummary(): Promise<NotificationSummary
 
 export async function markFanNotificationRead(id: string): Promise<NotificationItem> {
   try {
-    const response = await apiClient.patch(NOTIFICATION_READ_PATH(id), { is_read: true });
+    const response = await apiClient.post(NOTIFICATION_READ_PATH(id));
     const data = unwrapApiData<NotificationApi>(response.data);
     return adaptNotification(data);
   } catch (error) {
@@ -77,11 +79,9 @@ export async function markFanNotificationRead(id: string): Promise<NotificationI
   }
 }
 
-export async function markAllFanNotificationsRead(): Promise<NotificationItem[]> {
+export async function markAllFanNotificationsRead(): Promise<void> {
   try {
-    const response = await apiClient.post(NOTIFICATIONS_READ_ALL_PATH);
-    const data = unwrapApiData<NotificationApi[]>(response.data);
-    return data.map(adaptNotification);
+    await apiClient.post(NOTIFICATIONS_MARK_ALL_READ_PATH);
   } catch (error) {
     throw apiError(error);
   }
