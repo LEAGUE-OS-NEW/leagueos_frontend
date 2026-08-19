@@ -28,7 +28,7 @@ export interface SavePlayerInput {
 
 export async function fetchClubPlayers(clubId: string): Promise<ClubPlayer[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/players/`,
+    `/${encodeURIComponent(clubId)}/players/`,
   );
   return normalizeApiList<ClubPlayer>(response.data);
 }
@@ -38,7 +38,7 @@ export async function createClubPlayer(
   payload: SavePlayerInput,
 ): Promise<ClubPlayer> {
   const response = await apiClient.post(
-    `/clubs/${encodeURIComponent(clubId)}/players/`,
+    `/${encodeURIComponent(clubId)}/players/`,
     payload,
   );
   return response.data as ClubPlayer;
@@ -50,7 +50,7 @@ export async function updateClubPlayer(
   payload: Partial<SavePlayerInput>,
 ): Promise<ClubPlayer> {
   const response = await apiClient.patch(
-    `/clubs/${encodeURIComponent(clubId)}/players/${encodeURIComponent(playerId)}/`,
+    `/${encodeURIComponent(clubId)}/players/${encodeURIComponent(playerId)}/`,
     payload,
   );
   return response.data as ClubPlayer;
@@ -61,6 +61,6 @@ export async function deleteClubPlayer(
   playerId: string,
 ): Promise<void> {
   await apiClient.delete(
-    `/clubs/${encodeURIComponent(clubId)}/players/${encodeURIComponent(playerId)}/`,
+    `/${encodeURIComponent(clubId)}/players/${encodeURIComponent(playerId)}/`,
   );
 }

@@ -80,7 +80,7 @@ export async function fetchClubProducts(
   clubId: string,
 ): Promise<ClubMerchandiseProduct[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+    `/${encodeURIComponent(clubId)}/merchandise/`,
   );
 
   return normalizeApiList<ClubMerchandiseProduct>(
@@ -93,7 +93,7 @@ export async function createClubProduct(
   payload: SaveClubProductInput,
 ): Promise<ClubMerchandiseProduct> {
   const response = await apiClient.post(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+    `/${encodeURIComponent(clubId)}/merchandise/`,
     payload,
   );
 
@@ -106,7 +106,7 @@ export async function updateClubProduct(
   payload: Partial<SaveClubProductInput>,
 ): Promise<ClubMerchandiseProduct> {
   const response = await apiClient.patch(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+    `/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
     payload,
   );
 
@@ -118,7 +118,7 @@ export async function deleteClubProduct(
   productId: string,
 ): Promise<void> {
   await apiClient.delete(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+    `/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
   );
 }
 
@@ -126,7 +126,7 @@ export async function fetchClubProductCategories(
   clubId: string,
 ): Promise<ClubProductCategory[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+    `/${encodeURIComponent(clubId)}/categories/`,
   );
 
   return normalizeApiList<ClubProductCategory>(
@@ -139,7 +139,7 @@ export async function createClubProductCategory(
   name: string,
 ): Promise<ClubProductCategory> {
   const response = await apiClient.post(
-    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+    `/${encodeURIComponent(clubId)}/categories/`,
     {
       name,
       description: '',
@@ -155,7 +155,7 @@ export async function fetchClubStoreOrders(
   clubId: string,
 ): Promise<ClubStoreOrder[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/orders/`,
+    `/${encodeURIComponent(clubId)}/orders/`,
   );
 
   return normalizeApiList<ClubStoreOrder>(
