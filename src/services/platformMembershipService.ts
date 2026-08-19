@@ -1,19 +1,42 @@
-// LeagueOS platform membership — service layer.
-//
-// No real backend endpoint exists for this yet (no Subscription/
-// PlatformMembership model, no payment routing, no gating logic — confirmed
-// against leagueos_backend), so this is mock-backed, following the same
-// convention as FinanceService.ts / sportsDataService.ts: typed interfaces,
-// in-memory data, delay()-wrapped async functions, shaped so a real backend
-// swap later only touches this file.
-//
-// Distinct from clubs.MembershipPlan (per-club, real, unrelated) — this is
-// a platform-wide subscription created and priced by the Super Admin, paid
-// by fans, with revenue routed to LeagueOS rather than any club.
+import apiClient from './apiClient';
+import { extractApiError, normalizeApiList, unwrapApiData } from './apiUtils';
+import type { ApiEnvelope, PaginatedResponse } from '../types/api';
 
 export type BillingPeriod = 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type PlanStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 export type SubscriberStatus = 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PAST_DUE';
+
+interface BackendPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: string | number;
+  currency: string;
+  billing_period: BillingPeriod;
+  benefits: string[];
+  status: PlanStatus;
+  subscriber_count?: number;
+  published_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+interface BackendSubscription {
+  id: string;
+  fan_name: string;
+  fan_email: string;
+  plan: string;
+  plan_name: string;
+  plan_description?: string;
+  plan_benefits?: string[];
+  billing_period: BillingPeriod;
+  status: SubscriberStatus;
+  subscribed_at: string;
+  renews_at: string;
+  amount_paid: string | number;
+  currency: string;
+}
 
 export interface PlatformMembershipPlan {
   id: string;
@@ -25,6 +48,7 @@ export interface PlatformMembershipPlan {
   benefits: string[];
   status: PlanStatus;
   createdAt: string;
+  subscriberCount?: number;
 }
 
 export interface PlatformSubscriber {
@@ -33,114 +57,15 @@ export interface PlatformSubscriber {
   fanEmail: string;
   planId: string;
   planName: string;
+  planDescription?: string;
+  planBenefits: string[];
+  billingPeriod: BillingPeriod;
   status: SubscriberStatus;
   subscribedAt: string;
   renewsAt: string;
   amountPaid: number;
   currency: string;
 }
-
-function delay<T>(value: T, ms = 300): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
-function fail(message: string): never {
-  throw new Error(message);
-}
-
-let idCounter = 0;
-function genId(prefix: string): string {
-  idCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}${idCounter.toString(36)}`;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-function daysFromNow(days: number): string {
-  return new Date(Date.now() + days * 24 * 60 * 60_000).toISOString();
-}
-
-function daysAgo(days: number): string {
-  return new Date(Date.now() - days * 24 * 60 * 60_000).toISOString();
-}
-
-const plans: PlatformMembershipPlan[] = [
-  {
-    id: genId('plan'),
-    name: 'LeagueOS Plus',
-    description: 'Follow unlimited clubs, join fantasy leagues, and unlock priority ticket access — all in one platform subscription.',
-    price: 15_000,
-    currency: 'UGX',
-    billingPeriod: 'MONTHLY',
-    benefits: ['Follow unlimited clubs', 'Create and join fantasy leagues', 'Priority ticket access', 'Ad-free browsing'],
-    status: 'ACTIVE',
-    createdAt: daysAgo(60),
-  },
-  {
-    id: genId('plan'),
-    name: 'LeagueOS Plus — Annual',
-    description: 'Same benefits as LeagueOS Plus, billed once a year at a discount.',
-    price: 150_000,
-    currency: 'UGX',
-    billingPeriod: 'ANNUAL',
-    benefits: ['Follow unlimited clubs', 'Create and join fantasy leagues', 'Priority ticket access', 'Ad-free browsing', '2 months free vs. monthly'],
-    status: 'ACTIVE',
-    createdAt: daysAgo(45),
-  },
-];
-
-const subscribers: PlatformSubscriber[] = [
-  {
-    id: genId('sub'),
-    fanName: 'Grace Nabirye',
-    fanEmail: 'grace.nabirye@example.com',
-    planId: plans[0].id,
-    planName: plans[0].name,
-    status: 'ACTIVE',
-    subscribedAt: daysAgo(20),
-    renewsAt: daysFromNow(10),
-    amountPaid: plans[0].price,
-    currency: plans[0].currency,
-  },
-  {
-    id: genId('sub'),
-    fanName: 'Dennis Kato',
-    fanEmail: 'dennis.kato@example.com',
-    planId: plans[1].id,
-    planName: plans[1].name,
-    status: 'ACTIVE',
-    subscribedAt: daysAgo(40),
-    renewsAt: daysFromNow(325),
-    amountPaid: plans[1].price,
-    currency: plans[1].currency,
-  },
-  {
-    id: genId('sub'),
-    fanName: 'Dawa Nakato',
-    fanEmail: 'dawa.nakato@example.com',
-    planId: plans[0].id,
-    planName: plans[0].name,
-    status: 'PAST_DUE',
-    subscribedAt: daysAgo(65),
-    renewsAt: daysAgo(5),
-    amountPaid: plans[0].price,
-    currency: plans[0].currency,
-  },
-  {
-    id: genId('sub'),
-    fanName: 'Merab Aceng',
-    fanEmail: 'merab.aceng@example.com',
-    planId: plans[0].id,
-    planName: plans[0].name,
-    status: 'CANCELLED',
-    subscribedAt: daysAgo(90),
-    renewsAt: daysAgo(30),
-    amountPaid: plans[0].price,
-    currency: plans[0].currency,
-  },
-];
 
 export interface CreatePlanInput {
   name: string;
@@ -151,59 +76,173 @@ export interface CreatePlanInput {
   benefits: string[];
 }
 
+function numberValue(value: string | number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mapPlan(plan: BackendPlan): PlatformMembershipPlan {
+  return {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description,
+    price: numberValue(plan.price),
+    currency: plan.currency,
+    billingPeriod: plan.billing_period,
+    benefits: plan.benefits ?? [],
+    status: plan.status,
+    createdAt: plan.created_at,
+    subscriberCount: plan.subscriber_count,
+  };
+}
+
+function mapSubscriber(subscription: BackendSubscription): PlatformSubscriber {
+  return {
+    id: subscription.id,
+    fanName: subscription.fan_name,
+    fanEmail: subscription.fan_email,
+    planId: subscription.plan,
+    planName: subscription.plan_name,
+    planDescription: subscription.plan_description,
+    planBenefits: subscription.plan_benefits ?? [],
+    billingPeriod: subscription.billing_period,
+    status: subscription.status,
+    subscribedAt: subscription.subscribed_at,
+    renewsAt: subscription.renews_at,
+    amountPaid: numberValue(subscription.amount_paid),
+    currency: subscription.currency,
+  };
+}
+
+function planPayload(input: CreatePlanInput) {
+  return {
+    name: input.name,
+    description: input.description,
+    price: input.price,
+    currency: input.currency,
+    billing_period: input.billingPeriod,
+    benefits: input.benefits,
+  };
+}
+
+function throwApiError(error: unknown): never {
+  throw new Error(extractApiError(error).message);
+}
+
 export async function fetchMembershipPlans(): Promise<PlatformMembershipPlan[]> {
-  return delay([...plans]);
+  try {
+    const response = await apiClient.get<
+      ApiEnvelope<BackendPlan[] | PaginatedResponse<BackendPlan>> | BackendPlan[] | PaginatedResponse<BackendPlan>
+    >('/admin/membership/plans/');
+    return normalizeApiList(response.data).map(mapPlan);
+  } catch (error) {
+    throwApiError(error);
+  }
+}
+
+export async function fetchActiveMembershipPlans(): Promise<PlatformMembershipPlan[]> {
+  try {
+    const response = await apiClient.get<
+      ApiEnvelope<BackendPlan[] | PaginatedResponse<BackendPlan>> | BackendPlan[] | PaginatedResponse<BackendPlan>
+    >('/membership/plans/');
+    return normalizeApiList(response.data).map(mapPlan);
+  } catch (error) {
+    throwApiError(error);
+  }
 }
 
 export async function createMembershipPlan(input: CreatePlanInput): Promise<PlatformMembershipPlan> {
-  if (!input.name.trim()) fail('Enter a plan name.');
-  if (!(input.price > 0)) fail('Enter a fee greater than zero.');
-  const plan: PlatformMembershipPlan = {
-    id: genId('plan'),
-    name: input.name.trim(),
-    description: input.description.trim(),
-    price: input.price,
-    currency: input.currency,
-    billingPeriod: input.billingPeriod,
-    benefits: input.benefits.filter((benefit) => benefit.trim().length > 0),
-    status: 'DRAFT',
-    createdAt: nowIso(),
-  };
-  plans.unshift(plan);
-  return delay(plan);
+  try {
+    const response = await apiClient.post<ApiEnvelope<BackendPlan> | BackendPlan>(
+      '/admin/membership/plans/',
+      planPayload(input),
+    );
+    return mapPlan(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
 }
 
 export async function updateMembershipPlan(id: string, input: CreatePlanInput): Promise<PlatformMembershipPlan> {
-  const plan = plans.find((item) => item.id === id);
-  if (!plan) fail('Plan not found.');
-  if (!input.name.trim()) fail('Enter a plan name.');
-  if (!(input.price > 0)) fail('Enter a fee greater than zero.');
-  // Changing price only affects future subscribers, matching real billing
-  // convention (clubs.MembershipPlan) — existing subscribers keep what they
-  // already agreed to pay; amountPaid on existing rows is left untouched.
-  plan.name = input.name.trim();
-  plan.description = input.description.trim();
-  plan.price = input.price;
-  plan.currency = input.currency;
-  plan.billingPeriod = input.billingPeriod;
-  plan.benefits = input.benefits.filter((benefit) => benefit.trim().length > 0);
-  return delay({ ...plan });
+  try {
+    const response = await apiClient.patch<ApiEnvelope<BackendPlan> | BackendPlan>(
+      `/admin/membership/plans/${encodeURIComponent(id)}/`,
+      planPayload(input),
+    );
+    return mapPlan(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
 }
 
 export async function setPlanStatus(id: string, status: PlanStatus): Promise<PlatformMembershipPlan> {
-  const plan = plans.find((item) => item.id === id);
-  if (!plan) fail('Plan not found.');
-  plan.status = status;
-  return delay({ ...plan });
+  try {
+    const response = await apiClient.patch<ApiEnvelope<BackendPlan> | BackendPlan>(
+      `/admin/membership/plans/${encodeURIComponent(id)}/status/`,
+      { status },
+    );
+    return mapPlan(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
 }
 
 export async function fetchSubscribers(): Promise<PlatformSubscriber[]> {
-  return delay([...subscribers]);
+  try {
+    const response = await apiClient.get<
+      | ApiEnvelope<BackendSubscription[] | PaginatedResponse<BackendSubscription>>
+      | BackendSubscription[]
+      | PaginatedResponse<BackendSubscription>
+    >('/admin/membership/subscribers/');
+    return normalizeApiList(response.data).map(mapSubscriber);
+  } catch (error) {
+    throwApiError(error);
+  }
+}
+
+export async function fetchMyMemberships(): Promise<PlatformSubscriber[]> {
+  try {
+    const response = await apiClient.get<
+      | ApiEnvelope<BackendSubscription[] | PaginatedResponse<BackendSubscription>>
+      | BackendSubscription[]
+      | PaginatedResponse<BackendSubscription>
+    >('/membership/me/');
+    return normalizeApiList(response.data).map(mapSubscriber);
+  } catch (error) {
+    throwApiError(error);
+  }
+}
+
+export async function subscribeToMembershipPlan(planId: string): Promise<PlatformSubscriber> {
+  try {
+    const response = await apiClient.post<ApiEnvelope<BackendSubscription> | BackendSubscription>(
+      '/membership/subscribe/',
+      { plan_id: planId },
+    );
+    return mapSubscriber(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
 }
 
 export async function cancelSubscriberPlan(id: string): Promise<PlatformSubscriber> {
-  const subscriber = subscribers.find((item) => item.id === id);
-  if (!subscriber) fail('Subscriber not found.');
-  subscriber.status = 'CANCELLED';
-  return delay({ ...subscriber });
+  try {
+    const response = await apiClient.post<ApiEnvelope<BackendSubscription> | BackendSubscription>(
+      `/admin/membership/subscribers/${encodeURIComponent(id)}/cancel/`,
+    );
+    return mapSubscriber(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
+}
+
+export async function cancelMyMembership(id: string): Promise<PlatformSubscriber> {
+  try {
+    const response = await apiClient.post<ApiEnvelope<BackendSubscription> | BackendSubscription>(
+      `/membership/subscriptions/${encodeURIComponent(id)}/cancel/`,
+    );
+    return mapSubscriber(unwrapApiData(response.data));
+  } catch (error) {
+    throwApiError(error);
+  }
 }
