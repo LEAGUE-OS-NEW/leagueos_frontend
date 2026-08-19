@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from './apiClient';
-import { fetchAwaitingResult, settleResult, verifyResult } from './resultVerificationService';
+import { closeMarket, fetchAwaitingResult, refundResult, settleResult, verifyResult, voidMarket } from './resultVerificationService';
 vi.mock('./apiClient', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('./marketAdminService', () => ({ fetchMarket: vi.fn(), fetchMarkets: vi.fn(), resolveMarket: vi.fn() }));
 import { fetchMarket } from './marketAdminService';
@@ -8,9 +8,9 @@ import { fetchMarket } from './marketAdminService';
 describe('result verification aggregation', () => {
   beforeEach(() => vi.clearAllMocks());
   it.each([
-    ['AWAITING_RESULT', 'Awaiting Result'], ['DISPUTE_WINDOW', 'Dispute Window'], ['DISPUTED', 'Disputed'],
+    ['READY_TO_CLOSE', 'Ready to Close'], ['AWAITING_RESULT', 'Awaiting Result'], ['DISPUTE_WINDOW', 'Dispute Window'], ['DISPUTED', 'Disputed'],
     ['READY_TO_RESOLVE', 'Ready to Resolve'], ['READY_TO_SETTLE', 'Ready to Settle'], ['SETTLED', 'Settled'],
-    ['VOIDED_REFUNDED', 'Voided / Refunded'],
+    ['VOIDED', 'Ready to Refund'], ['REFUNDED', 'Refunded'],
   ])('maps %s without disguising backend lifecycle state', async (workflow_state, expected) => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', status: 'CLOSED', workflow_state, outcomes: [], sporting_event: { starts_at: '2025-12-31T18:00:00Z' }, closes_at: '2026-01-01T00:00:00Z', settles_by: '2026-01-02T00:00:00Z', can_resolve: workflow_state === 'READY_TO_RESOLVE', can_settle: workflow_state === 'READY_TO_SETTLE' }] });
     await expect(fetchAwaitingResult()).resolves.toEqual([expect.objectContaining({ stage: expected })]);
@@ -36,5 +36,32 @@ describe('result verification aggregation', () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'settlement-1', total_position_count: 3 } });
     await expect(settleResult('m1')).resolves.toEqual(expect.objectContaining({ reference: 'settlement-1', totalPositionCount: 3 }));
     expect(apiClient.post).toHaveBeenCalledWith('/markets/m1/settle/');
+  });
+
+  it('closes a market only when the backend marks it ready to close', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'READY_TO_CLOSE', outcomes: [], can_close: true }] });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
+    await closeMarket('m1', 'Past closing time.');
+    expect(apiClient.post).toHaveBeenCalledWith('/market-admin/markets/m1/close/', { notes: 'Past closing time.' });
+  });
+
+  it('rejects closing a market the backend has not marked ready', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'AWAITING_RESULT', outcomes: [], can_close: false }] });
+    await expect(closeMarket('m1', 'notes')).rejects.toThrow('not made this market available to close');
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('voids a market with both notes and evidence', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'READY_TO_CLOSE', outcomes: [], can_void: true }] });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
+    await voidMarket('m1', { notes: 'Event cancelled.', evidence: 'League statement.' });
+    expect(apiClient.post).toHaveBeenCalledWith('/market-admin/markets/m1/void/', { notes: 'Event cancelled.', evidence: 'League statement.' });
+  });
+
+  it('refunds only through the distinct refund action when can_refund is authoritative', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'VOIDED', outcomes: [], can_refund: true }] });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'refund-1', executed_at: '2026-01-01T00:00:00Z' } });
+    await expect(refundResult('m1')).resolves.toEqual({ reference: 'refund-1', status: 'REFUNDED', executedAt: '2026-01-01T00:00:00Z' });
+    expect(apiClient.post).toHaveBeenCalledWith('/markets/m1/void-refund/');
   });
 });
