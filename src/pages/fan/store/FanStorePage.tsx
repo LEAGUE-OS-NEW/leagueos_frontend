@@ -8,12 +8,62 @@ import FeaturedClubStores from '../../landing/store/sections/FeaturedClubStores'
 import ProductShowcase from '../../landing/store/sections/ProductShowcase';
 import CommunityBanner from '../../landing/store/sections/CommunityBanner';
 import { fetchFollowedClubSlugs, fetchClubs, type ClubSummary } from '../../../services/clubsService';
-import { fetchProductsForClubs, type ClubProduct } from '../../../services/storeService';
+import { fetchClubProducts, type ClubMerchandiseProduct } from '../../../services/clubStoreService';
+import { useClubProductStore, toCategorySlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
+import type { StoreProduct } from '../../../store/clubProductStore';
+import type { ClubProduct, ProductCategory } from '../../../services/storeService';
 import { FanProductCard } from './FanProductCard';
 import '../sections/FanDashboard.css';
 import '../../landing/store/Store.css';
 import './FanProductCard.css';
 import './FanStorePage.css';
+
+const CAT_TO_PRODUCT_CATEGORY: Record<string, ProductCategory> = {
+  Apparel: 'Jersey',
+  Training: 'Training Wear',
+  'Fan Gear': 'Fan Gear',
+  Accessories: 'Accessory',
+  Other: 'Fan Gear',
+};
+
+function priceFromApi(apiPrice: string, currency = 'UGX'): string {
+  const num = Math.round(Number(apiPrice));
+  return num > 0 ? `${currency} ${num.toLocaleString('en-US')}` : apiPrice;
+}
+
+function toClubProduct(p: ClubMerchandiseProduct, clubSlug: string): ClubProduct {
+  const catName = (p.metadata?.cat as string) ?? 'Fan Gear';
+  return {
+    id: p.id,
+    clubSlug,
+    name: p.name,
+    category: CAT_TO_PRODUCT_CATEGORY[catName] ?? 'Fan Gear',
+    price: priceFromApi(p.price, p.currency),
+    accentColor: '#7c3aed',
+  };
+}
+
+function toStoreProduct(p: ClubMerchandiseProduct, club: ClubSummary): StoreProduct {
+  const catName = (p.metadata?.cat as string) ?? 'Other';
+  const category = toCategorySlug(catName);
+  const priceNum = Math.round(Number(p.price));
+  const image = (p.metadata?.image as string) || undefined;
+  return {
+    id: p.id,
+    clubSlug: club.slug,
+    clubName: club.name,
+    name: p.name,
+    category,
+    price: priceFromApi(p.price, p.currency),
+    priceValue: priceNum,
+    description: p.description || undefined,
+    sku: p.sku || undefined,
+    stock: p.available_stock ?? p.stock,
+    image,
+    accentColor: CATEGORY_COLORS[category] ?? '#7c3aed',
+    createdAt: p.published_at ? new Date(p.published_at).getTime() : Date.now(),
+  };
+}
 
 function SportBadge({ sport }: { sport: string }) {
   return <span className={`fsp-sport-badge fsp-sport-badge--${sport.toLowerCase()}`}>{sport}</span>;
@@ -35,19 +85,49 @@ function FanStorePage() {
   const [products, setProducts] = useState<ClubProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<CategorySlug>('all');
+  const replaceAll = useClubProductStore(s => s.replaceAll);
 
   useEffect(() => {
-    Promise.all([fetchFollowedClubSlugs(), fetchClubs()]).then(([slugs, allClubs]) => {
-      const clubs = allClubs.filter((c) => slugs.includes(c.slug));
-      setFollowedClubs(clubs);
-      return fetchProductsForClubs(slugs);
-    }).then((prods) => {
-      setProducts(prods);
-      setLoading(false);
-    });
-  }, []);
+    let cancelled = false;
 
-  const clubProducts = (slug: string) => products.filter((p) => p.clubSlug === slug);
+    Promise.all([fetchFollowedClubSlugs(), fetchClubs()])
+      .then(([slugs, allClubs]) => {
+        if (cancelled) return Promise.resolve([]);
+        const clubs = allClubs.filter(c => slugs.includes(c.slug));
+        setFollowedClubs(clubs);
+        const clubsWithIds = clubs.filter(c => !!c.id);
+        return Promise.all(
+          clubsWithIds.map(c =>
+            fetchClubProducts(c.id!)
+              .then(prods => ({ club: c, prods }))
+              .catch(() => ({ club: c, prods: [] as ClubMerchandiseProduct[] })),
+          ),
+        );
+      })
+      .then(clubProductSets => {
+        if (cancelled) return;
+        const fanProducts: ClubProduct[] = [];
+        const storeProducts: StoreProduct[] = [];
+        for (const { club, prods } of clubProductSets) {
+          for (const p of prods) {
+            if (p.available_stock > 0 || p.stock > 0) {
+              fanProducts.push(toClubProduct(p, club.slug));
+              storeProducts.push(toStoreProduct(p, club));
+            }
+          }
+        }
+        setProducts(fanProducts);
+        if (storeProducts.length > 0) replaceAll(storeProducts);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [replaceAll]);
+
+  const clubProducts = (slug: string) => products.filter(p => p.clubSlug === slug);
 
   return (
     <div className="fan-dashboard">
@@ -75,7 +155,7 @@ function FanStorePage() {
                 </div>
               ) : (
                 <div className="fsp-club-list">
-                  {followedClubs.map((club) => (
+                  {followedClubs.map(club => (
                     <div key={club.slug} className="fsp-club-section">
                       <div className="fsp-club-header">
                         {club.crest ? (
@@ -91,7 +171,7 @@ function FanStorePage() {
                         <p className="fsp-no-products">No products listed yet for this club.</p>
                       ) : (
                         <div className="fsp-products-grid">
-                          {clubProducts(club.slug).slice(0, 3).map((product) => (
+                          {clubProducts(club.slug).slice(0, 3).map(product => (
                             <FanProductCard key={product.id} product={product} />
                           ))}
                         </div>

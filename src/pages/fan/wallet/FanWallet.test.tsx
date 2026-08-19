@@ -270,7 +270,7 @@ describe('FanWallet', () => {
       ).toBeInTheDocument();
 
       expect(
-        screen.getByText(
+        await screen.findByText(
           'UGX 25,000',
         ),
       ).toBeInTheDocument();

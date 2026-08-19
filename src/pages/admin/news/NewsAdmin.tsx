@@ -121,6 +121,9 @@ function NewsAdmin() {
       title: selected.title,
       description: selected.description,
       body: selected.body ?? selected.description,
+      image: selected.image,
+      author: selected.author,
+      avatar: selected.avatar,
       category: selected.category,
     });
     setIsEditing(true);
@@ -215,6 +218,23 @@ function NewsAdmin() {
     }
     const reader = new FileReader();
     reader.onload = (event_) => setCompose((current) => ({ ...current, image: event_.target?.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditCoverImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setActionError('Please select an image file.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setActionError('Image must be under 10 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event_) =>
+      setEditForm((current) => (current ? { ...current, image: event_.target?.result as string } : current));
     reader.readAsDataURL(file);
   };
 
@@ -442,6 +462,28 @@ function NewsAdmin() {
                       ))}
                     </select>
                   </label>
+                  <div className="na-field na-field--full">
+                    <span>Photo</span>
+                    {editForm.image ? (
+                      <div className="na-cover-preview">
+                        <img src={editForm.image} alt="Cover preview" />
+                        <button
+                          type="button"
+                          className="na-cover-remove"
+                          aria-label="Remove photo"
+                          onClick={() => setEditForm((current) => (current ? { ...current, image: '' } : current))}
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="na-cover-upload">
+                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleEditCoverImage} />
+                        <FiImage />
+                        <span>Click to upload a photo</span>
+                      </label>
+                    )}
+                  </div>
                   <label className="na-field na-field--full">
                     Brief description
                     <textarea

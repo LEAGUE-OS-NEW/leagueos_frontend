@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FiHome, FiTrendingUp, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings, FiX } from 'react-icons/fi';
 import { GiTrophyCup } from 'react-icons/gi';
 import HomeLogo from '../landing/HomeLogo';
+import { useCartStore } from '../../store/cartStore';
+import CartDrawer from '../cart/CartDrawer';
 import './Sidebar.css';
 
 type SidebarLink = {
@@ -34,6 +37,8 @@ const SECONDARY_LINKS: SidebarLink[] = [
 ];
 
 function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const totalItems = useCartStore((s) => s.totalItems());
   return (
     <>
       <div className={`fan-sidebar-backdrop${isOpen ? ' open' : ''}`} onClick={onClose} aria-hidden="true" />
@@ -88,7 +93,25 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           </p>
           <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-promo-logo" />
         </div>
+
+        {/* Cart button at the bottom of the sidebar */}
+        <button
+          type="button"
+          className="fan-sidebar-cart-btn"
+          onClick={() => { onClose(); setIsCartOpen(true); }}
+          aria-label={`Cart (${totalItems} items)`}
+        >
+          <span className="cart-icon-wrap">
+            <FiShoppingCart />
+            {totalItems > 0 && (
+              <span className="cart-icon-badge">{totalItems > 99 ? '99+' : totalItems}</span>
+            )}
+          </span>
+          <span>Cart{totalItems > 0 ? ` · ${totalItems}` : ''}</span>
+        </button>
       </aside>
+
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 }
