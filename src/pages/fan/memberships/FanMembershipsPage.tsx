@@ -146,20 +146,14 @@ function FanMembershipsPage() {
     [subscriptions],
   );
 
-  const loadMembershipData = async () => {
-    setError(null);
-    const [planResult, subscriptionResult] = await Promise.all([
-      fetchActiveMembershipPlans(),
-      fetchMyMemberships(),
-    ]);
-    setPlans(planResult);
-    setSubscriptions(subscriptionResult);
-  };
-
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    loadMembershipData()
+    Promise.all([fetchActiveMembershipPlans(), fetchMyMemberships()])
+      .then(([planResult, subscriptionResult]) => {
+        if (cancelled) return;
+        setPlans(planResult);
+        setSubscriptions(subscriptionResult);
+      })
       .catch((loadError) => {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Could not load memberships.');
       })
