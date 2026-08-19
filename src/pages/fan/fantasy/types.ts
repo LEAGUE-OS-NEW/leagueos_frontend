@@ -12,7 +12,7 @@ export type PositionGroup =
   // rugby (15s)
   | 'FR' | 'LK' | 'BR' | 'HB' | 'CT' | 'B3';
 
-export type PlayerStatus = 'ready' | 'doubtful' | 'injured' | 'suspended';
+export type PlayerStatus = 'ready' | 'doubtful' | 'injured' | 'suspended' | 'unavailable';
 
 export interface Player {
   id: string;
@@ -31,6 +31,8 @@ export interface Player {
   ownership: number | null;
   status: PlayerStatus;
   statusNote?: string;
+  /** Whether the player is eligible for selection (from Admin Player Pool). */
+  eligible?: boolean;
 }
 
 export interface SportRules {

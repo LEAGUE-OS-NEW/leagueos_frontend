@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
+import apiClient from '../../../services/apiClient';
 import {
   adminCreateCompetition, adminCreateCorrection, adminCreateGameweek, adminCreatePlayer,
   adminCreateScoringRule, adminDeleteCompetition, adminDeletePlayer, adminDeleteScoringRule,
@@ -11,12 +12,14 @@ import {
   fetchFantasyFixtureCandidates, fetchFantasyGameweeks, fetchFantasyPlayerCandidates,
   fetchFantasyPlayers, fetchFantasyStatisticTypes, fetchGameweekLeaderboard, fetchGameweekPoints,
   fetchLeagueMembers, createMatchPlayerStatistic, fetchMatchPlayerStatistics,
+  adminCreateFullPlayer,
  type CanonicalCompetition, type CanonicalSport,
   type FantasyAvailability, type FantasyCompetition, type FantasyPlayer, type FantasyScoringRule, type FantasyStatisticType,
   type CanonicalFantasyOptions, type FantasyFixture, type FantasyGameweek,
   type FantasyLeagueOverview, type FantasyLeagueMember, type FantasyPlayerCandidate,
   type FantasyStanding, type FantasyTeamScore,
   type CreatedMatchStatistic,
+  type AdminCreateFullPlayerPayload,
 } from '../../../services/fantasyAdminService';
 import { extractApiError } from '../../../services/apiUtils';
 import MatchStatisticsReview from './MatchStatisticsReview';
@@ -116,6 +119,26 @@ export default function FantasyAdminPage() {
   const [playerAvailability, setPlayerAvailability] = useState<FantasyAvailability>('AVAILABLE');
   const [playerEligible, setPlayerEligible] = useState(true);
 
+  // "Add Player" full-create modal state
+  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  type AddPlayerForm = {
+    first_name: string; last_name: string; sport: string; club: string;
+    profile_position: string; shirt_number: string; nationality: string;
+    fantasy_position: string; price: string; starting_points: string;
+    eligible: boolean; availability: FantasyAvailability;
+  };
+  const emptyAddPlayerForm: AddPlayerForm = {
+    first_name: '', last_name: '', sport: '', club: '',
+    profile_position: '', shirt_number: '', nationality: '',
+    fantasy_position: '', price: '', starting_points: '0',
+    eligible: true, availability: 'AVAILABLE',
+  };
+  const [addPlayerForm, setAddPlayerForm] = useState<AddPlayerForm>(emptyAddPlayerForm);
+  const [addPlayerErrors, setAddPlayerErrors] = useState<Record<string, string>>({});
+  // Clubs + sports for the Add Player modal dropdowns
+  const [allClubs, setAllClubs] = useState<Array<{id: string; name: string; sport_id: string | null}>>([]);
+  const [allCountries, setAllCountries] = useState<Array<{id: string; name: string}>>([]);
+
   // Gameweeks tab
   const [allGameweeks, setAllGameweeks] = useState<FantasyGameweek[]>([]);
   const [fixtures, setFixtures] = useState<FantasyFixture[]>([]);
@@ -196,7 +219,7 @@ export default function FantasyAdminPage() {
   const [competitionEdit, setCompetitionEdit] = useState<ReturnType<typeof editableCompetition>|null>(null);
   const [compEditErrors, setCompEditErrors] = useState<Record<string, string>>({});
   const [editingPlayerId, setEditingPlayerId] = useState('');
-  const [playerEdit, setPlayerEdit] = useState<{position:string;price:string;eligible:boolean;availability:FantasyAvailability}|null>(null);
+  const [playerEdit, setPlayerEdit] = useState<{position:string;price:string;starting_points:string;eligible:boolean;availability:FantasyAvailability}|null>(null);
 
   // Scoring rule edit state
   const [editingScoringRuleId, setEditingScoringRuleId] = useState('');
@@ -454,11 +477,46 @@ export default function FantasyAdminPage() {
     setEditingPlayerId(''); setPlayerEdit(null);
     void runAndRefreshPlayers(() => adminUpdatePlayer(snapId, {
       position: snapshot.position, price: Number(snapshot.price),
+      starting_points: Number(snapshot.starting_points ?? 0),
       eligible: snapshot.eligible, availability: snapshot.availability,
     }), 'Fantasy player updated.');
   };
 
   /* ── scoring rule edit ────────────────────────── */
+
+  const submitAddPlayer = async () => {
+    if (!competition) return;
+    const e: Record<string, string> = {};
+    if (!addPlayerForm.first_name.trim()) e.first_name = 'Required';
+    if (!addPlayerForm.last_name.trim())  e.last_name  = 'Required';
+    if (!addPlayerForm.sport)             e.sport      = 'Required';
+    if (!addPlayerForm.club)              e.club       = 'Required';
+    if (!addPlayerForm.profile_position.trim()) e.profile_position = 'Required';
+    if (!addPlayerForm.fantasy_position)  e.fantasy_position = 'Required';
+    if (!addPlayerForm.price || Number(addPlayerForm.price) <= 0) e.price = 'Must be > 0';
+    if (addPlayerForm.starting_points !== '' && Number(addPlayerForm.starting_points) < 0)
+      e.starting_points = 'Cannot be negative';
+    if (Object.keys(e).length) { setAddPlayerErrors(e); return; }
+    setAddPlayerErrors({});
+    const payload: AdminCreateFullPlayerPayload = {
+      first_name: addPlayerForm.first_name.trim(),
+      last_name:  addPlayerForm.last_name.trim(),
+      // Resolve the Sport UUID from the loaded sports catalog using the competition's sport slug
+      sport: canonicalSports.find(s => s.slug === competition.sport || s.name.toLowerCase() === competition.sport.toLowerCase())?.id ?? addPlayerForm.sport,
+      club:       addPlayerForm.club,
+      profile_position: addPlayerForm.profile_position.trim(),
+      shirt_number: addPlayerForm.shirt_number ? Number(addPlayerForm.shirt_number) : null,
+      nationality:  addPlayerForm.nationality || null,
+      fantasy_competition: competitionId,
+      fantasy_position:   addPlayerForm.fantasy_position,
+      price:          Number(addPlayerForm.price),
+      starting_points: Number(addPlayerForm.starting_points || 0),
+      eligible:     addPlayerForm.eligible,
+      availability: addPlayerForm.availability,
+    };
+    const ok = await runAndRefreshPlayers(() => adminCreateFullPlayer(payload), 'Player created and added to pool.');
+    if (ok) { setShowAddPlayerModal(false); setAddPlayerForm(emptyAddPlayerForm); }
+  };
 
   const saveScoringRule = async () => {
     if (!scoringRuleEdit || !editingScoringRuleId) return;
@@ -1059,7 +1117,34 @@ export default function FantasyAdminPage() {
                 </div>
                 {competition && (
                   <>
-                    <h2>Add Player to Pool</h2>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:4 }}>
+                      <h2 style={{ margin: 0 }}>Add Player to Pool</h2>
+                      <button
+                        className="fa-btn fa-btn--sm"
+                        onClick={() => {
+                        setAddPlayerForm({ ...emptyAddPlayerForm, sport: competition.competition, fantasy_position: Object.keys(competition.position_rules)[0] ?? '' });
+                        setAddPlayerErrors({});
+                        // Fetch clubs and countries for the modal dropdowns
+                        void fetchCanonicalSports().then(setCanonicalSports).catch(() => {});
+                        void apiClient.get('/admin/clubs/', { params: { sport: competition.competition } })
+                          .then(r => {
+                            const rows = Array.isArray(r.data) ? r.data : (r.data?.results ?? []);
+                            setAllClubs(rows.map((c: {id:string; name:string; sport:string|null}) => ({ id: c.id, name: c.name, sport_id: c.sport ?? null })));
+                          }).catch(() => {});
+                        void apiClient.get('/profiles/countries/')
+                          .then(r => {
+                            const rows = Array.isArray(r.data) ? r.data : (r.data?.results ?? []);
+                            setAllCountries(rows.map((c: {id:string; name:string}) => ({ id: c.id, name: c.name })));
+                          }).catch(() => {});
+                        setShowAddPlayerModal(true);
+                      }}
+                      >
+                        + Add New Player
+                      </button>
+                    </div>
+                    <p style={{ margin: '0 0 8px', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                      Add an existing athlete from the canonical roster, or + Add New Player to create a new player from scratch (Super Admin override).
+                    </p>
                     <div className="fa-form-grid">
                       <label className="fa-field">
                         <span>Athlete</span>
@@ -1146,20 +1231,21 @@ export default function FantasyAdminPage() {
                     <h2>Player Pool</h2>
                     <div className="fa-table-wrap">
                       <table className="fa-table">
-                        <thead><tr><th>Player</th><th>Club</th><th>Position</th><th>Price</th><th>Eligible</th><th>Availability</th><th></th></tr></thead>
+                        <thead><tr><th>Player</th><th>Club</th><th>Position</th><th>Price</th><th>Start Pts</th><th>Eligible</th><th>Availability</th><th></th></tr></thead>
                         <tbody>
-                          {!filteredPlayers.length && <tr className="fa-table__empty"><td colSpan={7}>{currentPlayers.length ? 'No players match filters.' : 'No players in this competition pool yet.'}</td></tr>}
+                          {!filteredPlayers.length && <tr className="fa-table__empty"><td colSpan={8}>{currentPlayers.length ? 'No players match filters.' : 'No players in this competition pool yet.'}</td></tr>}
                           {filteredPlayers.map(r => (
                             <tr key={r.id}>
                               <td><strong>{r.player_name}</strong></td>
-                              <td>{r.club || '—'}</td>
+                              <td>{typeof r.club === 'object' && r.club !== null ? (r.club as {name:string}).name : r.club || '—'}</td>
                               <td>{r.position}</td>
                               <td>{r.price}</td>
+                              <td>{r.starting_points ?? '0'}</td>
                               <td>{r.eligible ? '✓' : '✗'}</td>
                               <td><span className={`fa-status-pill fa-status-pill--${r.availability.toLowerCase()}`}>{r.availability}</span></td>
                               <td>
                                 <div style={{ display: 'flex', gap: 6 }}>
-                                  <button className="fa-btn fa-btn--sm" onClick={() => { setEditingPlayerId(r.id); setPlayerEdit({ position: r.position, price: String(r.price), eligible: r.eligible, availability: r.availability }); }}>Edit</button>
+                                  <button className="fa-btn fa-btn--sm" onClick={() => { setEditingPlayerId(r.id); setPlayerEdit({ position: r.position, price: String(r.price), starting_points: String(r.starting_points ?? 0), eligible: r.eligible, availability: r.availability }); }}>Edit</button>
                                   <button className="fa-btn fa-btn--sm fa-btn--danger" onClick={() => setDeleteTarget({ kind: 'player', id: r.id, name: r.player_name })}>Delete</button>
                                 </div>
                               </td>
@@ -2014,6 +2100,10 @@ export default function FantasyAdminPage() {
                   <span>Price (M)</span>
                   <input type="number" min="0.1" step="0.1" value={playerEdit.price} onChange={e => setPlayerEdit({ ...playerEdit, price: e.target.value })} />
                 </label>
+                <label className="fa-field">
+                  <span>Starting Points</span>
+                  <input type="number" min="0" step="0.5" value={playerEdit.starting_points} onChange={e => setPlayerEdit({ ...playerEdit, starting_points: e.target.value })} placeholder="0" />
+                </label>
                 <label className="fa-checkbox-row">
                   <input type="checkbox" checked={playerEdit.eligible} onChange={e => setPlayerEdit({ ...playerEdit, eligible: e.target.checked })} />
                   Eligible (can be selected by fans)
@@ -2126,6 +2216,132 @@ export default function FantasyAdminPage() {
               <div className="fa-modal__footer">
                 <button className="fa-btn" onClick={() => setShowCorrectionConfirm(false)}>Cancel</button>
                 <button className="fa-btn fa-btn--gradient" disabled={saving} onClick={() => void submitCorrection()}>Submit correction</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════ ADD NEW PLAYER MODAL ════ */}
+        {showAddPlayerModal && competition && (
+          <div className="fa-modal-overlay" onClick={() => { setShowAddPlayerModal(false); setAddPlayerForm(emptyAddPlayerForm); setAddPlayerErrors({}); }}>
+            <div className="fa-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Add new player" style={{ maxWidth: 620 }}>
+              <h2>Add New Player</h2>
+              <p style={{ margin: '-6px 0 12px', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                Creates a new athlete record and adds them directly to the <strong>{competition.name}</strong> player pool.
+                Use this when a club failed to submit a player who should be available in Fantasy.
+              </p>
+              <div className="fa-modal-form">
+                <div className="fa-form-grid">
+
+                  <div className="fa-form-section-label fa-form-grid-fullwidth">Player Information</div>
+
+                  <label className={`fa-field${addPlayerErrors.first_name ? ' fa-field--error' : ''}`}>
+                    <span>First Name *</span>
+                    <input type="text" value={addPlayerForm.first_name} onChange={e => setAddPlayerForm({ ...addPlayerForm, first_name: e.target.value })} placeholder="e.g. John" />
+                    {addPlayerErrors.first_name && <span className="fa-field-error">{addPlayerErrors.first_name}</span>}
+                  </label>
+
+                  <label className={`fa-field${addPlayerErrors.last_name ? ' fa-field--error' : ''}`}>
+                    <span>Last Name *</span>
+                    <input type="text" value={addPlayerForm.last_name} onChange={e => setAddPlayerForm({ ...addPlayerForm, last_name: e.target.value })} placeholder="e.g. Doe" />
+                    {addPlayerErrors.last_name && <span className="fa-field-error">{addPlayerErrors.last_name}</span>}
+                  </label>
+
+                  <label className="fa-field">
+                    <span>Jersey Number</span>
+                    <input type="number" min="1" max="99" value={addPlayerForm.shirt_number} onChange={e => setAddPlayerForm({ ...addPlayerForm, shirt_number: e.target.value })} placeholder="Optional" />
+                  </label>
+
+                  <label className="fa-form-grid-fullwidth" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--color-text-muted)', padding: '2px 0 4px' }}>
+                    Photo URL and Date of Birth can be updated later via the athlete profile editor.
+                  </label>
+
+                  <div className="fa-form-section-label fa-form-grid-fullwidth">Sporting Information</div>
+
+                  <label className={`fa-field${addPlayerErrors.sport ? ' fa-field--error' : ''}`}>
+                    <span>Sport *</span>
+                    <input type="text" value={competition.sport} readOnly style={{ opacity: 0.7 }} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Fixed to the selected competition's sport.</span>
+                    {addPlayerErrors.sport && <span className="fa-field-error">{addPlayerErrors.sport}</span>}
+                  </label>
+
+                  <label className={`fa-field${addPlayerErrors.club ? ' fa-field--error' : ''}`}>
+                    <span>Club / Team *</span>
+                    <select value={addPlayerForm.club} onChange={e => setAddPlayerForm({ ...addPlayerForm, club: e.target.value })}>
+                      <option value="">— Select club —</option>
+                      {allClubs.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    {addPlayerErrors.club && <span className="fa-field-error">{addPlayerErrors.club}</span>}
+                  </label>
+
+                  <label className={`fa-field${addPlayerErrors.profile_position ? ' fa-field--error' : ''}`}>
+                    <span>Position (profile) *</span>
+                    <select value={addPlayerForm.profile_position} onChange={e => setAddPlayerForm({ ...addPlayerForm, profile_position: e.target.value })}>
+                      <option value="">— Select —</option>
+                      {Object.keys(competition.position_rules).map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    {addPlayerErrors.profile_position && <span className="fa-field-error">{addPlayerErrors.profile_position}</span>}
+                  </label>
+
+                  <label className="fa-field">
+  <span>Nationality</span>
+  <select
+    value={addPlayerForm.nationality}
+    onChange={e => setAddPlayerForm({ ...addPlayerForm, nationality: e.target.value })}
+  >
+    <option value="">— Select nationality —</option>
+    {allCountries.map(country => (
+      <option key={country.id} value={country.id}>
+        {country.name}
+      </option>
+    ))}
+  </select>
+</label>
+
+                  <div className="fa-form-section-label fa-form-grid-fullwidth">Fantasy Information</div>
+
+                  <label className={`fa-field${addPlayerErrors.fantasy_position ? ' fa-field--error' : ''}`}>
+                    <span>Fantasy Position *</span>
+                    <select value={addPlayerForm.fantasy_position} onChange={e => setAddPlayerForm({ ...addPlayerForm, fantasy_position: e.target.value })}>
+                      <option value="">— Select —</option>
+                      {Object.keys(competition.position_rules).map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    {addPlayerErrors.fantasy_position && <span className="fa-field-error">{addPlayerErrors.fantasy_position}</span>}
+                  </label>
+
+                  <label className={`fa-field${addPlayerErrors.price ? ' fa-field--error' : ''}`}>
+                    <span>Fantasy Price (M) *</span>
+                    <input type="number" min="0.1" step="0.1" value={addPlayerForm.price} onChange={e => setAddPlayerForm({ ...addPlayerForm, price: e.target.value })} placeholder="e.g. 6.5" />
+                    {addPlayerErrors.price && <span className="fa-field-error">{addPlayerErrors.price}</span>}
+                  </label>
+
+                  <label className={`fa-field${addPlayerErrors.starting_points ? ' fa-field--error' : ''}`}>
+                    <span>Starting Points</span>
+                    <input type="number" min="0" step="0.5" value={addPlayerForm.starting_points} onChange={e => setAddPlayerForm({ ...addPlayerForm, starting_points: e.target.value })} placeholder="0" />
+                    {addPlayerErrors.starting_points && <span className="fa-field-error">{addPlayerErrors.starting_points}</span>}
+                  </label>
+
+                  <label className="fa-field">
+                    <span>Availability</span>
+                    <select value={addPlayerForm.availability} onChange={e => setAddPlayerForm({ ...addPlayerForm, availability: e.target.value as FantasyAvailability })}>
+                      {AVAILABILITY.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </label>
+
+                  <label className="fa-checkbox-row fa-form-grid-fullwidth">
+                    <input type="checkbox" checked={addPlayerForm.eligible} onChange={e => setAddPlayerForm({ ...addPlayerForm, eligible: e.target.checked })} />
+                    Eligible — player can be selected in Fantasy squads
+                  </label>
+
+                </div>
+              </div>
+              <div className="fa-modal__footer">
+                <button className="fa-btn" onClick={() => { setShowAddPlayerModal(false); setAddPlayerForm(emptyAddPlayerForm); setAddPlayerErrors({}); }}>Cancel</button>
+                <button className="fa-btn fa-btn--gradient" disabled={saving} onClick={() => void submitAddPlayer()}>
+                  {saving ? 'Creating…' : 'Create Player & Add to Pool'}
+                </button>
               </div>
             </div>
           </div>

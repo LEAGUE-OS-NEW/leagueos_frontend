@@ -20,7 +20,8 @@ export interface FantasyPlayer {
   id: string; fantasy_competition: string; player: string; player_name: string;
   club: string; club_detail?: {id: string; name: string}|null; position: string; price: number; eligible: boolean;
   availability: FantasyAvailability; name: string; status: Lowercase<FantasyAvailability>; image?: string;
-  ownership: number|null; total_points: number|null; current_gameweek_points: number|null; form: null;
+  starting_points: number;
+  ownership: number|null; total_points: number|null; current_gameweek_points: number|null; form: number|null;
 }
 export interface FantasyTeamSelection { id?: string; fantasy_player: string; fantasy_player_detail?: FantasyPlayer; is_starter: boolean; bench_order?: number|null; is_captain: boolean; is_vice_captain: boolean }
 export interface FantasyTeam { id: string; name: string; fantasy_competition: string; budget_remaining: string; free_transfers: number; selections: FantasyTeamSelection[] }
@@ -44,7 +45,7 @@ export async function fetchFantasyGameweeks(competition?:string) { return list<F
 export async function fetchCompetitionLeaderboard(value:string) { return (await apiClient.get(`/fantasy/competitions/${id(value)}/leaderboard/`)).data as FantasyStanding[]; }
 export async function fetchFantasyPlayers(competition?:string):Promise<FantasyPlayer[]> {
   const rows=list<Record<string,unknown>>((await apiClient.get('/fantasy/players/',{params:competition?{competition}:{}})).data);
-  return rows.map(row=>{const club=row.club as {id:string;name:string}|null;return {...row,club_detail:club,club:club?.name??'',name:String(row.player_name),price:Number(row.price),status:String(row.availability).toLowerCase()} as FantasyPlayer;});
+  return rows.map(row=>{const club=row.club as {id:string;name:string}|null;return {...row,club_detail:club,club:club?.name??'',name:String(row.player_name),price:Number(row.price),starting_points:Number(row.starting_points??0),status:String(row.availability).toLowerCase()} as FantasyPlayer;});
 }
 export async function fetchMyTeams() { return list<FantasyTeam>((await apiClient.get('/fantasy/teams/')).data); }
 export async function createFantasyTeam(payload:{name:string;fantasy_competition:string;selections:FantasyTeamSelection[]}) { return (await apiClient.post('/fantasy/teams/',payload)).data as FantasyTeam; }
