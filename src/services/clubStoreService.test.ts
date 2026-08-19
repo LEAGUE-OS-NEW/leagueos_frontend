@@ -49,7 +49,7 @@ describe('clubStoreService', () => {
       );
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/`,
+      `/${clubId}/merchandise/`,
     );
 
     expect(products).toHaveLength(1);
@@ -84,7 +84,7 @@ describe('clubStoreService', () => {
     );
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/`,
+      `/${clubId}/merchandise/`,
       payload,
     );
   });
@@ -106,7 +106,7 @@ describe('clubStoreService', () => {
     );
 
     expect(apiClient.patch).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/product-1/`,
+      `/${clubId}/merchandise/product-1/`,
       {
         stock: 70,
       },
@@ -131,7 +131,7 @@ describe('clubStoreService', () => {
       );
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `/clubs/${clubId}/orders/`,
+      `/${clubId}/orders/`,
     );
 
     expect(orders).toHaveLength(1);
