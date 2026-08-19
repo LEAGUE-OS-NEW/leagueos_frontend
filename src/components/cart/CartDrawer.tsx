@@ -53,7 +53,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               <FiShoppingBag className="cart-empty-icon" />
               <p className="cart-empty-title">Your cart is empty</p>
               <p className="cart-empty-sub">Add products from the store to get started.</p>
-              <Link to="/store" className="cart-empty-link" onClick={onClose}>Browse Store</Link>
+              <Link to="/fan/store" className="cart-empty-link" onClick={onClose}>Browse Store</Link>
             </div>
           ) : (
             <ul className="cart-item-list">

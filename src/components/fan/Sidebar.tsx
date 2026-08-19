@@ -30,9 +30,12 @@ const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'News', route: '/fan/news', icon: <FiFileText /> },
 ];
 
-const SECONDARY_LINKS: SidebarLink[] = [
+const SECONDARY_LINKS_BEFORE_CART: SidebarLink[] = [
   { label: 'Wallet', route: '/wallet', icon: <FiCreditCard /> },
   { label: 'Profile', route: '/profile', icon: <FiUser /> },
+];
+
+const SECONDARY_LINKS_AFTER_CART: SidebarLink[] = [
   { label: 'Settings', route: '/settings', icon: <FiSettings /> },
 ];
 
@@ -68,7 +71,32 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="fan-sidebar-divider" />
 
         <nav className="fan-sidebar-nav" aria-label="Account">
-          {SECONDARY_LINKS.map((link) => (
+          {SECONDARY_LINKS_BEFORE_CART.map((link) => (
+            <NavLink
+              key={link.route}
+              to={link.route}
+              onClick={onClose}
+              className={({ isActive }) => `fan-sidebar-link${isActive ? ' active' : ''}`}
+            >
+              <span className="fan-sidebar-link-icon">{link.icon}</span>
+              {link.label}
+            </NavLink>
+          ))}
+          <button
+            type="button"
+            className="fan-sidebar-link fan-sidebar-cart-btn"
+            onClick={() => { onClose(); setIsCartOpen(true); }}
+            aria-label={`Cart (${totalItems} items)`}
+          >
+            <span className="fan-sidebar-link-icon cart-icon-wrap">
+              <FiShoppingCart />
+              {totalItems > 0 && (
+                <span className="cart-icon-badge">{totalItems > 99 ? '99+' : totalItems}</span>
+              )}
+            </span>
+            Cart{totalItems > 0 ? ` · ${totalItems}` : ''}
+          </button>
+          {SECONDARY_LINKS_AFTER_CART.map((link) => (
             <NavLink
               key={link.route}
               to={link.route}
@@ -94,21 +122,7 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           <img src="/logos/logo.png" alt="League OS" className="fan-sidebar-promo-logo" />
         </div>
 
-        {/* Cart button at the bottom of the sidebar */}
-        <button
-          type="button"
-          className="fan-sidebar-cart-btn"
-          onClick={() => { onClose(); setIsCartOpen(true); }}
-          aria-label={`Cart (${totalItems} items)`}
-        >
-          <span className="cart-icon-wrap">
-            <FiShoppingCart />
-            {totalItems > 0 && (
-              <span className="cart-icon-badge">{totalItems > 99 ? '99+' : totalItems}</span>
-            )}
-          </span>
-          <span>Cart{totalItems > 0 ? ` · ${totalItems}` : ''}</span>
-        </button>
+
       </aside>
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
