@@ -163,6 +163,28 @@
   background: rgba(109, 94, 252, 0.1);
 }
 
+/* Ticket status badge on stub */
+.ftp-stub-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  border-radius: 0 10px 10px 0;
+  background: rgba(255,255,255,0.04);
+  color: var(--color-text-muted);
+}
+.ftp-stub-status--issued { color: #22c55e; background: rgba(34,197,94,0.1); }
+.ftp-stub-status--used   { color: var(--color-text-muted); background: rgba(255,255,255,0.04); }
+.ftp-stub-status--cancelled,
+.ftp-stub-status--refunded { color: #ef4444; background: rgba(239,68,68,0.08); }
+.ftp-stub-status--expired { color: #f97316; background: rgba(249,115,22,0.08); }
+
 /* ── Browse filters ── */
 .ftp-filters {
   display: flex;

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCalendar, FiMapPin, FiTag, FiSearch } from 'react-icons/fi';
-import { GiTicket } from 'react-icons/gi';
 import SafeImage from '../../../components/SafeImage/SafeImage';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchTickets, type Ticket } from '../../../services/fanDashboardService';
+import { getMyTickets, type TicketApi } from '../../../services/ticketingService';
 import {
   getPublicFixtures,
   type PublicFixtureApi,
@@ -77,28 +76,33 @@ function TeamBadge({ name, logo }: { name: string; logo?: string | null }) {
 /* My Ticket stub                                                      */
 /* ------------------------------------------------------------------ */
 
-function MyTicketCard({ ticket }: { ticket: Ticket }) {
+function MyTicketCard({ ticket }: { ticket: TicketApi }) {
+  const matchDate = ticket.match_date ? new Date(ticket.match_date) : null;
+  const month = matchDate
+    ? matchDate.toLocaleDateString('en-UG', { month: 'short' }).toUpperCase()
+    : '—';
+  const day = matchDate ? String(matchDate.getDate()).padStart(2, '0') : '—';
+
   return (
     <article className="ftp-stub">
       <div className="ftp-stub-date">
-        <span className="ftp-stub-month">{ticket.month}</span>
-        <span className="ftp-stub-day">{ticket.day}</span>
+        <span className="ftp-stub-month">{month}</span>
+        <span className="ftp-stub-day">{day}</span>
       </div>
       <div className="ftp-stub-divider" aria-hidden="true" />
       <div className="ftp-stub-info">
-        <p className="ftp-stub-competition">{ticket.competition}</p>
-        <p className="ftp-stub-match">{ticket.match}</p>
+        <p className="ftp-stub-competition">{ticket.competition_name ?? ticket.match_label}</p>
+        <p className="ftp-stub-match">{ticket.match_label}</p>
         <p className="ftp-stub-meta">
-          <FiCalendar /> {ticket.time}
+          <FiTag /> {ticket.ticket_type_name}
         </p>
         <p className="ftp-stub-meta">
-          <FiTag /> {ticket.seat}
+          <FiCalendar /> Code: {ticket.ticket_code}
         </p>
       </div>
-      <button type="button" className="ftp-stub-view">
-        <GiTicket />
-        View
-      </button>
+      <span className={`ftp-stub-status ftp-stub-status--${ticket.status.toLowerCase()}`}>
+        {ticket.status}
+      </span>
     </article>
   );
 }
@@ -182,8 +186,9 @@ export default function FanTicketsPage() {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // My tickets (mock)
-  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  // My tickets (real from backend)
+  const [myTickets, setMyTickets] = useState<TicketApi[]>([]);
+  const [myTicketsLoading, setMyTicketsLoading] = useState(true);
 
   // Browse (backend)
   const [ticketableMatches, setTicketableMatches] = useState<TicketableMatch[]>([]);
@@ -193,7 +198,20 @@ export default function FanTicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchTickets().then(setMyTickets);
+    let cancelled = false;
+    const load = async () => {
+      setMyTicketsLoading(true);
+      try {
+        const tickets = await getMyTickets();
+        if (!cancelled) setMyTickets(tickets);
+      } catch {
+        if (!cancelled) setMyTickets([]);
+      } finally {
+        if (!cancelled) setMyTicketsLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -252,18 +270,20 @@ export default function FanTicketsPage() {
             <section className="ftp-section">
               <div className="ftp-section-head">
                 <h2>My Tickets</h2>
-                <span className="ftp-section-count">{myTickets.length} upcoming</span>
+                <span className="ftp-section-count">{myTickets.length} ticket{myTickets.length !== 1 ? 's' : ''}</span>
               </div>
 
-              {myTickets.length === 0 ? (
+              {myTicketsLoading ? (
+                <div className="ftp-loading">Loading your tickets…</div>
+              ) : myTickets.length === 0 ? (
                 <div className="ftp-empty">
-                  <p className="ftp-empty-title">No upcoming tickets</p>
+                  <p className="ftp-empty-title">No tickets yet</p>
                   <p>Browse matches below and grab your seat.</p>
                 </div>
               ) : (
                 <div className="ftp-stubs-row">
-                  {myTickets.map((t, i) => (
-                    <MyTicketCard key={i} ticket={t} />
+                  {myTickets.map((t) => (
+                    <MyTicketCard key={t.id} ticket={t} />
                   ))}
                 </div>
               )}
