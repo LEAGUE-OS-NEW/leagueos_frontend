@@ -1,7 +1,6 @@
 import apiClient from './apiClient.ts';
 export * from './fantasyService';
-import type { FantasyCompetition, FantasyFixture, FantasyGameweek, FantasyPlayer, FantasyScoringRule } from './fantasyService';
-
+import type { FantasyAvailability, FantasyCompetition, FantasyFixture, FantasyGameweek, FantasyPlayer, FantasyScoringRule } from './fantasyService';
 export interface FantasyPlayerCandidate { id:string; name:string; club:string|null; profile_position:string }
 // Represents a Competition + Season pair that is already covered by a FantasyCompetition.
 // Returned by canonical-options so the admin UI can warn before attempting a duplicate POST.
@@ -27,7 +26,34 @@ export async function adminDeleteCompetition(value:string){await apiClient.delet
 // Uses list<>() — handles both plain array and paginated {results:[]} shapes
 export async function fetchFantasyPlayerCandidates(competition:string){return list<FantasyPlayerCandidate>((await apiClient.get('/fantasy/players/candidates/',{params:{competition}})).data);}
 export async function adminCreatePlayer(payload:Pick<FantasyPlayer,'fantasy_competition'|'player'|'position'|'price'|'eligible'|'availability'>){return (await apiClient.post('/fantasy/players/',payload)).data as FantasyPlayer;}
-export async function adminUpdatePlayer(value:string,payload:Partial<Pick<FantasyPlayer,'position'|'price'|'eligible'|'availability'>>){return (await apiClient.patch(`/fantasy/players/${id(value)}/`,payload)).data as FantasyPlayer;}
+export async function adminUpdatePlayer(value:string,payload:Partial<Pick<FantasyPlayer,'position'|'price'|'eligible'|'availability'|'starting_points'>>){return (await apiClient.patch(`/fantasy/players/${id(value)}/`,payload)).data as FantasyPlayer;}
+
+/** Payload for creating a brand-new player (Participant + PlayerProfile + FantasyPlayer) in one admin action. */
+export interface AdminCreateFullPlayerPayload {
+  first_name: string;
+  last_name: string;
+  sport: string;          // Sport UUID
+  club: string;           // profiles.Club UUID
+  profile_position: string;
+  shirt_number?: number | null;
+  nationality?: string | null;  // profiles.Country UUID
+  date_of_birth?: string | null;
+  photo_url?: string;
+  fantasy_competition: string;
+  fantasy_position: string;
+  price: number | string;
+  starting_points?: number | string;
+  eligible?: boolean;
+  availability?: FantasyAvailability;
+}
+
+/**
+ * Admin override: create a new player from scratch and add them to the Fantasy pool.
+ * POST /api/v1/fantasy/players/create-full/
+ */
+export async function adminCreateFullPlayer(payload: AdminCreateFullPlayerPayload): Promise<FantasyPlayer> {
+  return (await apiClient.post('/fantasy/players/create-full/', payload)).data as FantasyPlayer;
+}
 export async function adminDeletePlayer(value:string){await apiClient.delete(`/fantasy/players/${id(value)}/`);}
 export async function adminCreateGameweek(payload:Partial<FantasyGameweek>){return (await apiClient.post('/fantasy/gameweeks/',payload)).data as FantasyGameweek;}
 export async function adminUpdateGameweek(value:string,payload:Partial<FantasyGameweek>){return (await apiClient.patch(`/fantasy/gameweeks/${id(value)}/`,payload)).data as FantasyGameweek;}
