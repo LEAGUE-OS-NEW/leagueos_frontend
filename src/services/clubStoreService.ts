@@ -162,3 +162,33 @@ export async function fetchClubStoreOrders(
     response.data,
   );
 }
+
+export interface PlaceOrderLineItem {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface PlaceOrderInput {
+  club_id: string;
+  items: PlaceOrderLineItem[];
+  currency?: string;
+  shipping_address?: Record<string, string>;
+  payment_method?: 'WALLET';
+  idempotency_key: string;
+}
+
+export async function placeStoreOrder(
+  input: PlaceOrderInput,
+): Promise<ClubStoreOrder> {
+  const { club_id, ...body } = input;
+  const response = await apiClient.post(
+    `/${encodeURIComponent(club_id)}/orders/`,
+    {
+      ...body,
+      currency: (input.currency ?? 'UGX').toUpperCase(),
+      payment_method: input.payment_method ?? 'WALLET',
+    },
+  );
+  return response.data as ClubStoreOrder;
+}
