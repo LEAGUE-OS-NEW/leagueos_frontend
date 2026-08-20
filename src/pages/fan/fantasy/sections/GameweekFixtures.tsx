@@ -98,7 +98,8 @@ export default function GameweekFixtures({ competition, team, onManageTeam }: Pr
   }, [competition.id]);
 
   useEffect(() => {
-    void load();
+    const timer = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   // ── Derived ─────────────────────────────────────────────────────────────────

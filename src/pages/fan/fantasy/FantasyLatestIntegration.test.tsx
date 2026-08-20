@@ -108,6 +108,7 @@ describe('latest Fantasy sections', () => {
 
   it('shows Awaiting statistics instead of invented player points', () => {
     render(
+   
       <MyTeam
         competition={competition} team={team}
         players={[{
@@ -115,7 +116,9 @@ describe('latest Fantasy sections', () => {
           sport: 'football', position: 'GK', positionLabel: 'Goalkeeper',
           price: 5, form: 0, totalPoints: 0, gwPoints: 0, ownership: 0, status: 'ready',
         }]}
-        onGoTransfers={() => {}} onSwapLineup={() => {}}
+        onGoTransfers={() => {}} onSwapLineup={() => {}}onEditLineup={() => {}}
+  onChangeCaptain={() => {}}
+  onViewFixtures={() => {}}
       />,
     );
     expect(screen.getAllByText('Awaiting statistics').length).toBeGreaterThan(0);
