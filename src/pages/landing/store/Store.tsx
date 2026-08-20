@@ -39,6 +39,18 @@ function toStoreProduct(p: ClubMerchandiseProduct): StoreProduct {
   };
 }
 
+// The public products endpoint currently returns one row per product per
+// size/variant (a backend join issue), so the same product id can appear
+// several times in a row. Collapse to one entry per id here as a stop-gap
+// until the API is fixed, so the storefront doesn't show visible dupes.
+function dedupeById(products: StoreProduct[]): StoreProduct[] {
+  const seen = new Map<string, StoreProduct>();
+  for (const product of products) {
+    if (!seen.has(product.id)) seen.set(product.id, product);
+  }
+  return Array.from(seen.values());
+}
+
 function Store() {
   const [activeCategory, setActiveCategory] = useState<CategorySlug>('all');
   const replaceAll = useClubProductStore(s => s.replaceAll);
@@ -49,7 +61,7 @@ function Store() {
     fetchPublicStoreProducts()
       .then(products => {
         if (cancelled) return;
-        replaceAll(products.map(toStoreProduct));
+        replaceAll(dedupeById(products.map(toStoreProduct)));
       })
       .catch(() => {/* silently fall back to cached store */});
     return () => { cancelled = true; };
