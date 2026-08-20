@@ -215,7 +215,7 @@ describe('GameweekFixtures', () => {
     ]);
     render(<GameweekFixtures competition={competition} onManageTeam={() => {}} />);
     await userEvent.click(await screen.findByText(/show all 6 fixtures/i));
-    expect(screen.getByText('Team 5')).toBeInTheDocument();
+    expect(screen.getAllByText('Team 5')).toHaveLength(2);
     expect(screen.getByText(/show fewer/i)).toBeInTheDocument();
   });
 
