@@ -92,6 +92,8 @@ export interface Market {
   parameters: MarketParameters;
   liquidity?: MarketLiquidity;
   status: MarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   createdBy: string;
   createdAt: string;
   publishedAt?: string;
@@ -444,6 +446,8 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
       providerDisplayName: market.liquidity.provider,
     } : undefined,
     status,
+    isSettled: market.is_settled === true,
+    isRefunded: market.is_refunded === true,
     createdBy,
     createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
     publishedAt: market.opens_at,

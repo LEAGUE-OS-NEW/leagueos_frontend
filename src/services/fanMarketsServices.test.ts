@@ -48,6 +48,20 @@ describe('genuine market order integration', () => {
     });
   });
 
+  it('maps settlement and refund visibility from the backend booleans', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { ...market, status: 'RESOLVED', is_settled: true, is_refunded: false } });
+    const result = await fetchMarket('market-1');
+    expect(result.isSettled).toBe(true);
+    expect(result.isRefunded).toBe(false);
+  });
+
+  it('defaults settlement/refund visibility to false when the backend omits them', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { ...market, status: 'VOIDED' } });
+    const result = await fetchMarket('market-1');
+    expect(result.isSettled).toBe(false);
+    expect(result.isRefunded).toBe(false);
+  });
+
   it('returns the backend best ask without inventing a price', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: { market_id:'market-1', outcome:{id:'outcome-1',side:'YES',label:'Yes'}, best_bid:null, best_ask:'0.62000', spread:null, total_bid_quantity:'0', total_ask_quantity:'1000', bids:[], asks:[], recent_trades:[] } });
     expect((await fetchMarketOrderBook('market-1','outcome-1')).best_ask).toBe('0.62000');

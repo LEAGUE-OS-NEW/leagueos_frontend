@@ -14,6 +14,7 @@ import {
   type MarketStatus,
   type OrderBook,
 } from '../../../services/marketAdminService';
+import { payoutPill } from '../../../utils/payoutStatus.ts';
 import './MarketDetailPage.css';
 
 type Tab = 'Overview' | 'Outcomes' | 'Contracts' | 'Trading' | 'Audit Log';
@@ -256,6 +257,7 @@ function MarketDetailPage() {
   const canReopen = market.status === 'Suspended';
   const yesOutcome = market.outcomes.find((outcome) => outcome.id === 'YES')!;
   const noOutcome = market.outcomes.find((outcome) => outcome.id === 'NO')!;
+  const payout = payoutPill(market.status, market.isSettled, market.isRefunded);
 
   return (
     <AdminLayout>
@@ -267,6 +269,11 @@ function MarketDetailPage() {
         <div className="mdp-head">
           <div>
             <span className={statusPillClass(market.status)}>{market.status}</span>
+            {payout && (
+              <span className={`mdp-status-pill mdp-status-pill--${payout.variant}`}>
+                {payout.label}
+              </span>
+            )}
             <h1>{market.eventLabel}</h1>
             <p>{market.question}</p>
           </div>

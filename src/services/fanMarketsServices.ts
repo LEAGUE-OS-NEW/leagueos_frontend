@@ -27,6 +27,8 @@ export interface MarketListItem {
   crestB?: string;
   league: string;
   status: MarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   isTrending: boolean;
   liveMinute?: string;
   scheduleLabel?: string;
@@ -100,6 +102,8 @@ export interface Market {
   faceValueUgx: number;
   parameters: MarketParameters;
   status: AdminMarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   createdBy: string;
   createdAt: string;
   publishedAt?: string;
@@ -447,6 +451,8 @@ function adaptMarket(market: ApiMarket): Market {
       inPlayTrading: status === 'Live',
     },
     status,
+    isSettled: market.is_settled === true,
+    isRefunded: market.is_refunded === true,
     createdBy: 'Market Admin',
     createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
     publishedAt: market.opens_at,
@@ -465,6 +471,8 @@ function adaptListItem(market: Market): MarketListItem {
     teamB: teamB || market.category,
     league: market.competition,
     status: listStatusFromMarket(market),
+    isSettled: market.isSettled,
+    isRefunded: market.isRefunded,
     isTrending: market.parameters.trending,
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
     marketType: market.category,
