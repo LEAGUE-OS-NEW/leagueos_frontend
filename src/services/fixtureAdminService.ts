@@ -79,6 +79,7 @@ export async function createParticipant(input: { name: string; shortName?: strin
 // ---------------------------------------------------------------------------
 
 export type FixtureAdminStatus = 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED' | 'ABANDONED';
+export type FixtureVerificationStatus = 'NONE' | 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface FixtureAdminItem {
   id: string;
@@ -87,6 +88,10 @@ export interface FixtureAdminItem {
   startsAt: string | null;
   endsAt: string | null;
   venue: string;
+  matchType: string;
+  showInMarkets: boolean;
+  isLiveScoreFeatured: boolean;
+  verificationStatus: FixtureVerificationStatus;
   sportName: string;
   competitionName: string;
   homeName: string;
@@ -103,6 +108,10 @@ interface BackendFixtureAdmin {
   starts_at: string | null;
   ends_at: string | null;
   venue: string;
+  match_type: string;
+  show_in_markets: boolean;
+  is_live_score_featured: boolean;
+  verification_status: FixtureVerificationStatus;
   sport_name: string | null;
   competition_name: string | null;
   participants: { role: string; position: number; participant: { id: string; name: string } }[];
@@ -121,6 +130,10 @@ function mapFixture(raw: BackendFixtureAdmin): FixtureAdminItem {
     startsAt: raw.starts_at,
     endsAt: raw.ends_at,
     venue: raw.venue,
+    matchType: raw.match_type ?? '',
+    showInMarkets: raw.show_in_markets ?? false,
+    isLiveScoreFeatured: raw.is_live_score_featured ?? false,
+    verificationStatus: raw.verification_status ?? 'NONE',
     sportName: raw.sport_name ?? '',
     competitionName: raw.competition_name ?? '',
     homeName: home?.name ?? 'TBD',
@@ -144,6 +157,9 @@ export interface CreateFixtureInput {
   startsAt: string;
   endsAt?: string;
   venue?: string;
+  matchType?: string;
+  showInMarkets?: boolean;
+  isLiveScoreFeatured?: boolean;
 }
 
 export async function createFixture(input: CreateFixtureInput): Promise<FixtureAdminItem> {
@@ -155,6 +171,9 @@ export async function createFixture(input: CreateFixtureInput): Promise<FixtureA
     starts_at: input.startsAt,
     ends_at: input.endsAt || undefined,
     venue: input.venue ?? '',
+    match_type: input.matchType ?? '',
+    show_in_markets: input.showInMarkets ?? false,
+    is_live_score_featured: input.isLiveScoreFeatured ?? false,
   });
   return mapFixture(response.data);
 }
@@ -198,5 +217,13 @@ export async function updateFixtureScore(
 
 export async function completeFixture(fixtureId: string): Promise<FixtureAdminItem> {
   const response = await apiClient.post<BackendFixtureAdmin>(`/admin/fixtures/${encodeURIComponent(fixtureId)}/complete/`, {});
+  return mapFixture(response.data);
+}
+
+export async function submitFixtureVerification(fixtureId: string): Promise<FixtureAdminItem> {
+  const response = await apiClient.post<BackendFixtureAdmin>(
+    `/admin/fixtures/${encodeURIComponent(fixtureId)}/submit-verification/`,
+    {},
+  );
   return mapFixture(response.data);
 }

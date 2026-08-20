@@ -7,6 +7,7 @@ import {
   FiPlay,
   FiPlus,
   FiRotateCcw,
+  FiShield,
   FiSlash,
   FiClock,
 } from 'react-icons/fi';
@@ -23,6 +24,7 @@ import {
   fetchSports,
   rescheduleFixture,
   setFixtureStatus,
+  submitFixtureVerification,
   updateFixtureScore,
   type CompetitionOption,
   type FixtureAdminItem,
@@ -30,6 +32,8 @@ import {
   type SportOption,
 } from '../../../services/fixtureAdminService';
 import './FixturesAdmin.css';
+
+const MATCH_TYPE_PRESETS = ['Derby', 'Final', 'Cup Final', 'Rivalry', 'Friendly', 'Other'];
 
 const BLANK_CREATE = {
   sportId: '',
@@ -39,6 +43,10 @@ const BLANK_CREATE = {
   startsAt: '',
   endsAt: '',
   venue: '',
+  matchType: '',
+  matchTypeOther: '',
+  showInMarkets: false,
+  isLiveScoreFeatured: false,
 };
 
 const BLANK_CREATE_CLUB = { name: '', sportId: '' };
@@ -108,6 +116,8 @@ function FixturesAdmin() {
 
   const [openActionMenuFor, setOpenActionMenuFor] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [sportFilter, setSportFilter] = useState('ALL');
+  const [submittingVerificationFor, setSubmittingVerificationFor] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshFixtures = () => fetchAdminFixtures().then(setFixtures);
@@ -189,6 +199,9 @@ function FixturesAdmin() {
         startsAt: new Date(createForm.startsAt).toISOString(),
         endsAt: createForm.endsAt ? new Date(createForm.endsAt).toISOString() : undefined,
         venue: createForm.venue,
+        matchType: createForm.matchType === 'Other' ? createForm.matchTypeOther : createForm.matchType,
+        showInMarkets: createForm.showInMarkets,
+        isLiveScoreFeatured: createForm.isLiveScoreFeatured,
       });
       setCreateForm((current) => ({ ...BLANK_CREATE, sportId: current.sportId }));
       setCreateMessage('Fixture created.');
@@ -286,6 +299,19 @@ function FixturesAdmin() {
     }
   };
 
+  const handleSubmitVerification = async (fixtureId: string) => {
+    setActionError(null);
+    setSubmittingVerificationFor(fixtureId);
+    try {
+      await submitFixtureVerification(fixtureId);
+      refreshFixtures();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setSubmittingVerificationFor(null);
+    }
+  };
+
   const openScoreEditor = (fixture: FixtureAdminItem) => {
     setScoreEditor({
       fixtureId: fixture.id,
@@ -359,8 +385,12 @@ function FixturesAdmin() {
   const endsAtMin = createForm.startsAt || kickoffMin;
   const rescheduleEndsAtMin = rescheduleEditor?.startsAt || kickoffMin;
 
-  const visibleFixtures =
-    statusFilter === 'ALL' ? fixtures : fixtures.filter((fixture) => fixture.status === statusFilter);
+  const selectedSportName = sports.find((sport) => sport.id === sportFilter)?.name;
+  const visibleFixtures = fixtures.filter(
+    (fixture) =>
+      (statusFilter === 'ALL' || fixture.status === statusFilter) &&
+      (sportFilter === 'ALL' || fixture.sportName === selectedSportName),
+  );
 
   return (
     <AdminLayout>
@@ -430,6 +460,28 @@ function FixturesAdmin() {
 
               <div className="fxa-field-row">
                 <label className="fxa-field">
+                  Match Type
+                  <select
+                    value={createForm.matchType}
+                    onChange={(event) => setCreateForm((current) => ({ ...current, matchType: event.target.value }))}
+                  >
+                    <option value="">Select…</option>
+                    {MATCH_TYPE_PRESETS.map((preset) => (
+                      <option key={preset} value={preset}>
+                        {preset}
+                      </option>
+                    ))}
+                  </select>
+                  {createForm.matchType === 'Other' && (
+                    <input
+                      type="text"
+                      value={createForm.matchTypeOther}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, matchTypeOther: event.target.value }))}
+                      placeholder="Describe the match type"
+                    />
+                  )}
+                </label>
+                <label className="fxa-field">
                   Venue
                   <input
                     type="text"
@@ -494,6 +546,24 @@ function FixturesAdmin() {
 
               {createMessage && <p className="fxa-compose-message">{createMessage}</p>}
               <div className="fxa-panel__footer">
+                <div className="fxa-footer-checks">
+                  <label className="fxa-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={createForm.showInMarkets}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, showInMarkets: event.target.checked }))}
+                    />
+                    Add to Markets
+                  </label>
+                  <label className="fxa-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={createForm.isLiveScoreFeatured}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, isLiveScoreFeatured: event.target.checked }))}
+                    />
+                    Live Score
+                  </label>
+                </div>
                 <button type="button" className="fxa-btn fxa-btn--primary" disabled={isCreating} onClick={() => void handleCreateFixture()}>
                   {isCreating ? 'Creating…' : 'Create Fixture'}
                 </button>
@@ -502,8 +572,27 @@ function FixturesAdmin() {
 
             {/* ── Fixtures table ── */}
             <section className="fxa-panel">
-              <div className="fxa-panel__header">
+              <div className="fxa-panel__header fxa-panel__header--fixtures">
                 <h2>All Fixtures</h2>
+                <div className="fxa-sport-filter">
+                  <button
+                    type="button"
+                    className={`fxa-sport-chip${sportFilter === 'ALL' ? ' fxa-sport-chip--active' : ''}`}
+                    onClick={() => setSportFilter('ALL')}
+                  >
+                    All Sports
+                  </button>
+                  {sports.map((sport) => (
+                    <button
+                      key={sport.id}
+                      type="button"
+                      className={`fxa-sport-chip${sportFilter === sport.id ? ' fxa-sport-chip--active' : ''}`}
+                      onClick={() => setSportFilter(sport.id)}
+                    >
+                      {sport.name}
+                    </button>
+                  ))}
+                </div>
                 <div className="fxa-panel__header-right">
                   <div className="fxa-status-tabs">
                     {(['ALL', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED'] as StatusFilter[]).map((tab) => (
@@ -560,6 +649,31 @@ function FixturesAdmin() {
                           </td>
                           <td>
                             <div className="fxa-row-actions">
+                              {fixture.status === 'COMPLETED' && fixture.verificationStatus === 'PENDING' && (
+                                <span className="fxa-verification-badge">Pending Verification</span>
+                              )}
+                              {fixture.status === 'COMPLETED' && fixture.verificationStatus === 'VERIFIED' && (
+                                <span className="fxa-verification-badge fxa-verification-badge--verified">Verified</span>
+                              )}
+                              {fixture.status === 'COMPLETED' &&
+                                (fixture.verificationStatus === 'NONE' || fixture.verificationStatus === 'REJECTED') && (
+                                  <button
+                                    type="button"
+                                    className="fxa-icon-btn fxa-icon-btn--primary"
+                                    title="Submit for result verification"
+                                    disabled={submittingVerificationFor === fixture.id}
+                                    onClick={() => void handleSubmitVerification(fixture.id)}
+                                  >
+                                    <FiShield />{' '}
+                                    <span>
+                                      {submittingVerificationFor === fixture.id
+                                        ? 'Submitting…'
+                                        : fixture.verificationStatus === 'REJECTED'
+                                          ? 'Resubmit Verification'
+                                          : 'Submit Verification'}
+                                    </span>
+                                  </button>
+                                )}
                               {(fixture.status === 'LIVE' || fixture.status === 'SCHEDULED') && (
                                 <button
                                   type="button"

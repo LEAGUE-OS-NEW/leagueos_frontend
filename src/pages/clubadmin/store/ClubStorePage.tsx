@@ -25,6 +25,13 @@ import './ClubStorePage.css';
 const TABS = ['Products', 'Orders', 'Inventory'];
 const CATEGORIES = ['Apparel', 'Fan Gear', 'Training', 'Accessories', 'Other'];
 
+// Reverse of clubProductStore's toCategorySlug — for displaying a locally
+// persisted product's category back in this page's own category labels.
+const CATEGORY_TO_LABEL: Record<string, string> = {
+  jerseys: 'Apparel', 'fan-gear': 'Fan Gear', 'training-wear': 'Training',
+  accessories: 'Accessories', caps: 'Other', all: 'Other',
+};
+
 type ProductStatus = 'active' | 'low stock' | 'out of stock';
 type Product = { id: string; name: string; cat: string; price: string; stock: number; status: ProductStatus; sku?: string; description?: string; image?: string };
 type OrderStatus = 'pending' | 'processing' | 'shipped' | 'fulfilled' | 'cancelled';
@@ -89,6 +96,11 @@ function fromApiOrder(o: ClubStoreOrder): Order {
   const addr = o.shipping_address && typeof o.shipping_address === 'object'
     ? Object.values(o.shipping_address).filter(Boolean).join(', ')
     : '—';
+  const firstItem = o.items?.[0];
+  const itemCount = o.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 1;
+  const itemLabel = o.items?.length
+    ? `${firstItem?.product_name ?? 'Product'}${o.items.length > 1 ? ` + ${o.items.length - 1} more` : ''}`
+    : '—';
   const date = o.fulfilled_at
     ? new Date(o.fulfilled_at).toLocaleDateString()
     : o.cancelled_at
@@ -96,12 +108,12 @@ function fromApiOrder(o: ClubStoreOrder): Order {
       : 'Pending';
   return {
     id: o.id.slice(0, 8).toUpperCase(),
-    item: '—',
+    item: itemLabel,
     buyer: o.user,
     email: '',
     amt: `${o.currency} ${Number(o.total_amount).toLocaleString('en-US')}`,
     date,
-    qty: 1,
+    qty: itemCount,
     address: addr,
     notes: '',
     status: (BACKEND_TO_LOCAL_ORDER[o.status] as OrderStatus) ?? 'pending',
@@ -114,7 +126,6 @@ let prodIdCounter = Date.now();
 
 export default function ClubStorePage() {
   const [activeTab, setActiveTab] = useState('Products');
-  const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editProductId, setEditProductId] = useState<string | null>(null);
@@ -136,13 +147,29 @@ export default function ClubStorePage() {
   const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
   const canManage = current?.permissions.includes('club.admin.manage') ?? true;
 
-  const { addProduct, updateProduct, removeProduct } = useClubProductStore();
+  const { products: storeProducts, addProduct, updateProduct, removeProduct } = useClubProductStore();
 
   const scopeId = current?.scope_id ?? 1;
   const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
 
   // Real club UUID — only available when the backend issued a real entitlement
   const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
+
+  // No real club UUID (demo/mock session) — seed straight from the persisted
+  // local store instead of an empty array, so products added here survive a
+  // refresh the same way they would via a real backend fetch. Lazy-initialized
+  // (not an effect) since this is a pure sync read, no fetch involved.
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (clubId) return [];
+    const clubSlug = nameToSlug(clubInfo.name);
+    return storeProducts
+      .filter(p => p.clubSlug === clubSlug)
+      .map(p => ({
+        id: p.id, name: p.name, cat: CATEGORY_TO_LABEL[p.category] ?? 'Other',
+        price: p.price, stock: p.stock, status: getStatus(p.stock),
+        sku: p.sku, description: p.description, image: p.image,
+      }));
+  });
 
   // Derived: show loading only while the real club fetch is in flight
   const isLoadingData = !!clubId && !hasFetched;

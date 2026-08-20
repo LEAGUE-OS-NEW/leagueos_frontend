@@ -8,6 +8,7 @@ import {
 
 import apiClient from './apiClient.ts';
 import {
+  createPublicStoreOrder,
   createClubProduct,
   fetchClubProducts,
   fetchClubStoreOrders,
@@ -49,7 +50,7 @@ describe('clubStoreService', () => {
       );
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/`,
+      `/${clubId}/merchandise/`,
     );
 
     expect(products).toHaveLength(1);
@@ -84,7 +85,7 @@ describe('clubStoreService', () => {
     );
 
     expect(apiClient.post).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/`,
+      `/${clubId}/merchandise/`,
       payload,
     );
   });
@@ -106,7 +107,7 @@ describe('clubStoreService', () => {
     );
 
     expect(apiClient.patch).toHaveBeenCalledWith(
-      `/clubs/${clubId}/merchandise/product-1/`,
+      `/${clubId}/merchandise/product-1/`,
       {
         stock: 70,
       },
@@ -131,9 +132,39 @@ describe('clubStoreService', () => {
       );
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `/clubs/${clubId}/orders/`,
+      `/${clubId}/orders/`,
     );
 
     expect(orders).toHaveLength(1);
+  });
+
+  it('creates a public fan store order', async () => {
+    const payload = {
+      items: [
+        {
+          product: '22222222-2222-2222-2222-222222222222',
+          quantity: 2,
+          size: 'M',
+        },
+      ],
+      metadata: {
+        walletIdempotencyKey: 'cart-key',
+      },
+    };
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        id: 'order-1',
+        status: 'PAID',
+      },
+    });
+
+    const order = await createPublicStoreOrder(payload);
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/store/orders/',
+      payload,
+    );
+    expect(order.id).toBe('order-1');
   });
 });

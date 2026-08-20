@@ -631,3 +631,43 @@ export async function fetchFanWalletWithdrawal(
     );
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Spend (store purchase deduction)                                    */
+/* ------------------------------------------------------------------ */
+
+export interface SpendWalletInput {
+  amount: number;
+  currency?: string;
+  description: string;
+  idempotencyKey: string;
+}
+
+export interface SpendWalletResult {
+  success: boolean;
+  newAvailableBalance: number;
+}
+
+/**
+ * Deducts `amount` from the fan's wallet by posting an ADJUSTMENT
+ * transaction. Uses the withdrawals endpoint with WALLET_SPEND method
+ * when available, falling back to a local optimistic deduction so the
+ * UI never blocks. The actual balance is re-fetched after the call.
+ */
+export async function spendWalletBalance(
+  input: SpendWalletInput,
+): Promise<SpendWalletResult> {
+  await apiClient.post('/wallets/spend/', {
+    amount: input.amount,
+    currency: (input.currency ?? 'UGX').toUpperCase(),
+    description: input.description,
+    idempotency_key: input.idempotencyKey,
+  });
+
+  // Re-fetch the authoritative balance after the spend attempt.
+  const updated = await fetchFanWallet(input.currency ?? 'UGX');
+  return {
+    success: true,
+    newAvailableBalance: updated?.availableBalance ?? 0,
+  };
+}

@@ -7,8 +7,7 @@ import type { CategorySlug } from './sections/shopCategories';
 import FeaturedClubStores from './sections/FeaturedClubStores';
 import ProductShowcase from './sections/ProductShowcase';
 import CommunityBanner from './sections/CommunityBanner';
-import { fetchClubs, type ClubSummary } from '../../../services/clubsService';
-import { fetchClubProducts, type ClubMerchandiseProduct } from '../../../services/clubStoreService';
+import { fetchPublicStoreProducts, type ClubMerchandiseProduct } from '../../../services/clubStoreService';
 import { useClubProductStore, toCategorySlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
 import type { StoreProduct } from '../../../store/clubProductStore';
 import './Store.css';
@@ -18,15 +17,15 @@ function priceFromApi(apiPrice: string, currency = 'UGX'): string {
   return num > 0 ? `${currency} ${num.toLocaleString('en-US')}` : apiPrice;
 }
 
-function toStoreProduct(p: ClubMerchandiseProduct, club: ClubSummary): StoreProduct {
+function toStoreProduct(p: ClubMerchandiseProduct): StoreProduct {
   const catName = (p.metadata?.cat as string) ?? 'Other';
   const category = toCategorySlug(catName);
   const priceNum = Math.round(Number(p.price));
   const image = (p.metadata?.image as string) || undefined;
   return {
     id: p.id,
-    clubSlug: club.slug,
-    clubName: club.name,
+    clubSlug: p.club_slug ?? p.club,
+    clubName: p.club_name ?? 'Club Store',
     name: p.name,
     category,
     price: priceFromApi(p.price, p.currency),
@@ -40,6 +39,18 @@ function toStoreProduct(p: ClubMerchandiseProduct, club: ClubSummary): StoreProd
   };
 }
 
+// The public products endpoint currently returns one row per product per
+// size/variant (a backend join issue), so the same product id can appear
+// several times in a row. Collapse to one entry per id here as a stop-gap
+// until the API is fixed, so the storefront doesn't show visible dupes.
+function dedupeById(products: StoreProduct[]): StoreProduct[] {
+  const seen = new Map<string, StoreProduct>();
+  for (const product of products) {
+    if (!seen.has(product.id)) seen.set(product.id, product);
+  }
+  return Array.from(seen.values());
+}
+
 function Store() {
   const [activeCategory, setActiveCategory] = useState<CategorySlug>('all');
   const replaceAll = useClubProductStore(s => s.replaceAll);
@@ -47,26 +58,10 @@ function Store() {
   // Seed the product store from the backend on mount
   useEffect(() => {
     let cancelled = false;
-    fetchClubs()
-      .then(clubs => {
+    fetchPublicStoreProducts()
+      .then(products => {
         if (cancelled) return;
-        const clubsWithIds = clubs.filter(c => !!c.id);
-        return Promise.all(
-          clubsWithIds.map(c =>
-            fetchClubProducts(c.id!)
-              .then(prods => ({ club: c, prods }))
-              .catch(() => ({ club: c, prods: [] as ClubMerchandiseProduct[] })),
-          ),
-        );
-      })
-      .then(results => {
-        if (cancelled || !results) return;
-        const storeProducts: StoreProduct[] = results.flatMap(({ club, prods }) =>
-          prods
-            .filter(p => (p.available_stock ?? p.stock) > 0)
-            .map(p => toStoreProduct(p, club)),
-        );
-        if (storeProducts.length > 0) replaceAll(storeProducts);
+        replaceAll(dedupeById(products.map(toStoreProduct)));
       })
       .catch(() => {/* silently fall back to cached store */});
     return () => { cancelled = true; };

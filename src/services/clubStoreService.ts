@@ -21,6 +21,8 @@ export interface ClubProductCategory {
 export interface ClubMerchandiseProduct {
   id: string;
   club: string;
+  club_slug?: string;
+  club_name?: string;
   category: string | null;
   name: string;
   slug: string;
@@ -57,8 +59,29 @@ export interface ClubStoreOrder {
   currency: string;
   shipping_address: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  items?: ClubStoreOrderItem[];
   fulfilled_at: string | null;
   cancelled_at: string | null;
+}
+
+export interface ClubStoreOrderItem {
+  id: string;
+  product: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: string;
+  total_price: string;
+}
+
+export interface CreatePublicStoreOrderInput {
+  items: Array<{
+    product: string;
+    quantity: number;
+    size?: string;
+  }>;
+  shipping_address?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SaveClubProductInput {
@@ -80,8 +103,19 @@ export async function fetchClubProducts(
   clubId: string,
 ): Promise<ClubMerchandiseProduct[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+    `/${encodeURIComponent(clubId)}/merchandise/`,
   );
+
+  return normalizeApiList<ClubMerchandiseProduct>(
+    response.data,
+  );
+}
+
+export async function fetchPublicStoreProducts(params?: {
+  club?: string;
+  category?: string;
+}): Promise<ClubMerchandiseProduct[]> {
+  const response = await apiClient.get('/store/products/', { params });
 
   return normalizeApiList<ClubMerchandiseProduct>(
     response.data,
@@ -93,7 +127,7 @@ export async function createClubProduct(
   payload: SaveClubProductInput,
 ): Promise<ClubMerchandiseProduct> {
   const response = await apiClient.post(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/`,
+    `/${encodeURIComponent(clubId)}/merchandise/`,
     payload,
   );
 
@@ -106,7 +140,7 @@ export async function updateClubProduct(
   payload: Partial<SaveClubProductInput>,
 ): Promise<ClubMerchandiseProduct> {
   const response = await apiClient.patch(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+    `/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
     payload,
   );
 
@@ -118,15 +152,23 @@ export async function deleteClubProduct(
   productId: string,
 ): Promise<void> {
   await apiClient.delete(
-    `/clubs/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
+    `/${encodeURIComponent(clubId)}/merchandise/${encodeURIComponent(productId)}/`,
   );
+}
+
+export async function createPublicStoreOrder(
+  payload: CreatePublicStoreOrderInput,
+): Promise<ClubStoreOrder> {
+  const response = await apiClient.post('/store/orders/', payload);
+
+  return response.data as ClubStoreOrder;
 }
 
 export async function fetchClubProductCategories(
   clubId: string,
 ): Promise<ClubProductCategory[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+    `/${encodeURIComponent(clubId)}/categories/`,
   );
 
   return normalizeApiList<ClubProductCategory>(
@@ -139,7 +181,7 @@ export async function createClubProductCategory(
   name: string,
 ): Promise<ClubProductCategory> {
   const response = await apiClient.post(
-    `/clubs/${encodeURIComponent(clubId)}/categories/`,
+    `/${encodeURIComponent(clubId)}/categories/`,
     {
       name,
       description: '',
@@ -155,10 +197,11 @@ export async function fetchClubStoreOrders(
   clubId: string,
 ): Promise<ClubStoreOrder[]> {
   const response = await apiClient.get(
-    `/clubs/${encodeURIComponent(clubId)}/orders/`,
+    `/${encodeURIComponent(clubId)}/orders/`,
   );
 
   return normalizeApiList<ClubStoreOrder>(
     response.data,
   );
 }
+
