@@ -212,14 +212,23 @@ describe(
           ),
         ).toBeInTheDocument();
 
-        fireEvent.click(
+        const approveButton =
           screen.getByRole(
             'button',
             {
               name:
                 'Approve Withdrawal',
             },
-          ),
+          );
+
+        await waitFor(() =>
+          expect(
+            approveButton,
+          ).toBeEnabled(),
+        );
+
+        fireEvent.click(
+          approveButton,
         );
 
         fireEvent.click(
@@ -301,14 +310,23 @@ describe(
           ),
         );
 
-        fireEvent.click(
+        const completeButton =
           await screen.findByRole(
             'button',
             {
               name:
                 'Complete Payout',
             },
-          ),
+          );
+
+        await waitFor(() =>
+          expect(
+            completeButton,
+          ).toBeEnabled(),
+        );
+
+        fireEvent.click(
+          completeButton,
         );
 
         fireEvent.change(
