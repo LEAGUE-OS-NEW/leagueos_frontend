@@ -27,8 +27,8 @@ export default function CartPage() {
   const [orderError, setOrderError] = useState('');
   const [placed, setPlaced] = useState(false);
   const [deductedAmount, setDeductedAmount] = useState(0);
-  // Stable idempotency key per cart session — rotated after each successful order
-  const idempotencyKeyRef = useRef(`cart-${crypto.randomUUID()}`);
+  // Stable idempotency key per cart session, rotated after each successful order.
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   const total = items.reduce((sum, i) => sum + i.priceValue * i.qty, 0);
   const availableBalance = wallet?.availableBalance ?? 0;
@@ -82,7 +82,7 @@ export default function CartPage() {
       clearCart();
       setPlaced(true);
       // Rotate key so a retry after navigation gets a fresh key
-      idempotencyKeyRef.current = `cart-${crypto.randomUUID()}`;
+      idempotencyKeyRef.current = crypto.randomUUID();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not place your order.';
       setOrderError(`Order failed: ${message}. Please try again.`);
