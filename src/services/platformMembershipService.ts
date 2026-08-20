@@ -213,11 +213,17 @@ export async function fetchMyMemberships(): Promise<PlatformSubscriber[]> {
   }
 }
 
-export async function subscribeToMembershipPlan(planId: string): Promise<PlatformSubscriber> {
+export async function subscribeToMembershipPlan(
+  planId: string,
+  idempotencyKey?: string,
+): Promise<PlatformSubscriber> {
   try {
     const response = await apiClient.post<ApiEnvelope<BackendSubscription> | BackendSubscription>(
       '/membership/subscribe/',
-      { plan_id: planId },
+      {
+        plan_id: planId,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+      },
     );
     return mapSubscriber(unwrapApiData(response.data));
   } catch (error) {

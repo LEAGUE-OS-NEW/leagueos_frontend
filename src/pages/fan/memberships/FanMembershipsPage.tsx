@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FiAlertTriangle, FiCalendar, FiCheck, FiCreditCard, FiStar, FiZap } from 'react-icons/fi';
 import { GiShield } from 'react-icons/gi';
 import Sidebar from '../../../components/fan/Sidebar';
@@ -12,6 +12,7 @@ import {
   type PlatformMembershipPlan,
   type PlatformSubscriber,
 } from '../../../services/platformMembershipService';
+import { useFanWallet } from '../../../hooks/useFanWallet';
 import '../sections/FanDashboard.css';
 import './FanMembershipsPage.css';
 
@@ -107,14 +108,17 @@ function PlanCard({
   plan,
   currentPlanId,
   isBusy,
+  canAfford,
   onSubscribe,
 }: {
   plan: PlatformMembershipPlan;
   currentPlanId: string | null;
   isBusy: boolean;
+  canAfford: boolean;
   onSubscribe: (planId: string) => Promise<void>;
 }) {
   const isCurrent = currentPlanId === plan.id;
+  const isDisabled = isCurrent || isBusy || !canAfford;
 
   return (
     <article className={`fmp-tier-card${isCurrent ? ' fmp-tier-card--current' : ''}`}>
@@ -143,9 +147,9 @@ function PlanCard({
         type="button"
         className={`fmp-join-btn${isCurrent ? ' fmp-join-btn--joined' : ''}`}
         onClick={() => onSubscribe(plan.id)}
-        disabled={isCurrent || isBusy}
+        disabled={isDisabled}
       >
-        {isCurrent ? 'Current plan' : isBusy ? 'Joining...' : 'Choose plan'}
+        {isCurrent ? 'Current plan' : isBusy ? 'Joining...' : !canAfford ? 'Top up wallet' : 'Choose plan'}
       </button>
     </article>
   );
@@ -158,6 +162,8 @@ function FanMembershipsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const membershipPaymentKeys = useRef<Record<string, string>>({});
+  const { wallet, isLoading: walletLoading, refresh: refreshWallet } = useFanWallet('UGX');
 
   const activeSubscription = useMemo(
     () => subscriptions.find((subscription) => subscription.status === 'ACTIVE') ?? null,
@@ -188,14 +194,30 @@ function FanMembershipsPage() {
   }, []);
 
   const handleSubscribe = async (planId: string) => {
+    const plan = plans.find((item) => item.id === planId);
+    if (!plan) return;
+
+    if (!walletLoading && wallet === null) {
+      setError('No wallet found. Please top up your wallet to continue.');
+      return;
+    }
+
+    if (!walletLoading && wallet !== null && wallet.availableBalance < plan.price) {
+      setError('Insufficient wallet balance. Please top up your wallet to continue.');
+      return;
+    }
+
     setBusyId(planId);
     setError(null);
     try {
-      const subscription = await subscribeToMembershipPlan(planId);
+      membershipPaymentKeys.current[planId] ??= crypto.randomUUID();
+      const subscription = await subscribeToMembershipPlan(planId, membershipPaymentKeys.current[planId]);
       setSubscriptions((current) => [
         subscription,
         ...current.map((item) => (item.status === 'ACTIVE' ? { ...item, status: 'CANCELLED' as const } : item)),
       ]);
+      delete membershipPaymentKeys.current[planId];
+      await refreshWallet();
     } catch (subscribeError) {
       setError(subscribeError instanceof Error ? subscribeError.message : 'Could not join this membership.');
     } finally {
@@ -283,6 +305,14 @@ function FanMembershipsPage() {
                 <h2 className="fmp-section-heading">Explore Membership Plans</h2>
                 <p className="fmp-section-sub">Plans are created by the LeagueOS Super Admin and update here automatically.</p>
               </div>
+              <span className="fmp-wallet-chip">
+                <FiCreditCard />
+                {walletLoading
+                  ? 'Wallet loading'
+                  : wallet
+                  ? `Wallet: ${formatMoney(wallet.availableBalance, wallet.currency)}`
+                  : 'No wallet'}
+              </span>
             </div>
             {isLoading ? (
               <div className="fmp-loading">Loading plans...</div>
@@ -296,6 +326,7 @@ function FanMembershipsPage() {
                     plan={plan}
                     currentPlanId={activeSubscription?.planId ?? null}
                     isBusy={busyId === plan.id}
+                    canAfford={!walletLoading && wallet !== null && wallet.availableBalance >= plan.price}
                     onSubscribe={handleSubscribe}
                   />
                 ))}
