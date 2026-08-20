@@ -12,7 +12,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY as FULL_REGISTRY, ROLE_LABELS } from './clubAdminData';
 import type { DashboardEntitlement } from '../../types/dashboardAccess';
 import {
-  canAccessClubSection,
   getClubAdminEntitlements,
   getSelectedClubAdminEntitlement,
   getUserClub,
@@ -79,10 +78,6 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
   const clubInfo = current ? getClubInfo(current, realClub) : null;
   const normalizedRole = normalizeWorkspaceRole(current?.workspace_role);
   const roleLabel = normalizedRole ? (ROLE_LABELS[normalizedRole] ?? current?.workspace_role ?? normalizedRole) : '—';
-
-  const canAccess = (permission: string | null) => {
-    return canAccessClubSection(current, permission);
-  };
 
   const handleSwitch = (id: string) => {
     selectEntitlement(id);
@@ -159,24 +154,6 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
         {/* ── Nav ── */}
         <nav className="ca-sidebar-nav" aria-label="Club Admin">
           {NAV_ITEMS.map((item) => {
-            const allowed = canAccess(item.permission);
-            if (!allowed) {
-              return (
-                <div
-                  key={item.route}
-                  className="ca-sidebar-link ca-sidebar-link-locked"
-                  title={`${item.label} — access restricted`}
-                >
-                  <span className="ca-sidebar-link-icon"><item.icon /></span>
-                  {!collapsed && (
-                    <>
-                      <span>{item.label}</span>
-                      <FiLock className="ca-sidebar-lock-icon" />
-                    </>
-                  )}
-                </div>
-              );
-            }
             return (
               <NavLink
                 key={item.route}
