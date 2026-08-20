@@ -114,6 +114,29 @@
   gap: 14px;
 }
 
+.fan-store-inner .product-column-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.fan-store-inner .product-card-image {
+  height: 112px;
+  aspect-ratio: auto;
+}
+
+.fan-store-inner .product-card-photo {
+  border-radius: 8px;
+}
+
 @media (max-width: 640px) {
   .fsp-products-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .fan-store-inner .product-column-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fan-store-inner .product-card-image {
+    height: 96px;
+  }
 }
