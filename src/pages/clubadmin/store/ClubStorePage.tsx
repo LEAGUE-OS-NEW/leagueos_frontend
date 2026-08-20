@@ -7,6 +7,11 @@ import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../../store/authStore';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
+import {
+  canAccessClubSection,
+  getClubAdminEntitlements,
+  getSelectedClubAdminEntitlement,
+} from '../../../utils/clubAdminAccess';
 import { useClubProductStore, toCategorySlug, nameToSlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
 import { parseUGX } from '../../../store/cartStore';
 import {
@@ -142,10 +147,10 @@ export default function ClubStorePage() {
 
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
-  const rawEnt = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const rawEnt = getClubAdminEntitlements(user);
   const ents = rawEnt.length > 0 ? rawEnt : DEMO_ENTITLEMENTS;
-  const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
-  const canManage = current?.permissions.includes('club.admin.manage') ?? true;
+  const current = getSelectedClubAdminEntitlement(ents, selectedEntitlementId);
+  const canManage = canAccessClubSection(current, 'club.admin.manage');
 
   const { products: storeProducts, addProduct, updateProduct, removeProduct } = useClubProductStore();
 
