@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiAlertTriangle, FiCheck, FiClock, FiStar } from 'react-icons/fi';
+import { FiAlertTriangle, FiCalendar, FiCheck, FiCreditCard, FiStar, FiZap } from 'react-icons/fi';
 import { GiShield } from 'react-icons/gi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
@@ -35,6 +35,18 @@ function periodLabel(period: PlatformMembershipPlan['billingPeriod']): string {
   }
 }
 
+function billingLabel(period: PlatformMembershipPlan['billingPeriod']): string {
+  switch (period) {
+    case 'ANNUAL':
+      return 'Annual';
+    case 'QUARTERLY':
+      return 'Quarterly';
+    case 'MONTHLY':
+    default:
+      return 'Monthly';
+  }
+}
+
 function statusLabel(status: PlatformSubscriber['status']): string {
   return status.replace('_', ' ');
 }
@@ -49,9 +61,10 @@ function CurrentMembershipCard({
   isBusy: boolean;
 }) {
   const isActive = subscription.status === 'ACTIVE';
+  const renewalLabel = isActive ? `Renews ${formatDate(subscription.renewsAt)}` : `Ends ${formatDate(subscription.renewsAt)}`;
 
   return (
-    <div className="fmp-current-card">
+    <article className="fmp-current-card">
       <div className="fmp-current-icon">
         <GiShield />
       </div>
@@ -67,12 +80,12 @@ function CurrentMembershipCard({
         </div>
         <p className="fmp-current-copy">{subscription.planDescription || 'Your platform membership is active across LeagueOS.'}</p>
         <div className="fmp-current-meta">
-          <span><FiClock /> Renews {formatDate(subscription.renewsAt)}</span>
-          <span>{formatMoney(subscription.amountPaid, subscription.currency)} / {subscription.billingPeriod.toLowerCase()}</span>
+          <span><FiCalendar /> {renewalLabel}</span>
+          <span><FiCreditCard /> {formatMoney(subscription.amountPaid, subscription.currency)} / {subscription.billingPeriod.toLowerCase()}</span>
         </div>
         {subscription.planBenefits.length > 0 && (
           <ul className="fmp-tier-features">
-            {subscription.planBenefits.map((benefit) => (
+            {subscription.planBenefits.slice(0, 6).map((benefit) => (
               <li key={benefit}>
                 <FiCheck className="fmp-feature-check" />
                 {benefit}
@@ -86,7 +99,7 @@ function CurrentMembershipCard({
           </button>
         )}
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -104,17 +117,22 @@ function PlanCard({
   const isCurrent = currentPlanId === plan.id;
 
   return (
-    <div className={`fmp-tier-card${isCurrent ? ' fmp-tier-card--popular' : ''}`}>
+    <article className={`fmp-tier-card${isCurrent ? ' fmp-tier-card--current' : ''}`}>
       {isCurrent && <span className="fmp-popular-badge"><FiStar /> Current Plan</span>}
-      <div className="fmp-tier-icon">
-        <GiShield />
+      <div className="fmp-tier-topline">
+        <div className="fmp-tier-icon">
+          <GiShield />
+        </div>
+        <span className="fmp-period-pill">{billingLabel(plan.billingPeriod)}</span>
       </div>
       <h3 className="fmp-tier-name">{plan.name}</h3>
-      <p className="fmp-tier-price">{formatMoney(plan.price, plan.currency)}</p>
-      <p className="fmp-tier-price-note">{periodLabel(plan.billingPeriod)}</p>
+      <div className="fmp-tier-price-row">
+        <p className="fmp-tier-price">{formatMoney(plan.price, plan.currency)}</p>
+        <p className="fmp-tier-price-note">{periodLabel(plan.billingPeriod)}</p>
+      </div>
       <p className="fmp-plan-description">{plan.description}</p>
       <ul className="fmp-tier-features">
-        {plan.benefits.map((benefit) => (
+        {plan.benefits.slice(0, 6).map((benefit) => (
           <li key={benefit}>
             <FiCheck className="fmp-feature-check" />
             {benefit}
@@ -127,9 +145,9 @@ function PlanCard({
         onClick={() => onSubscribe(plan.id)}
         disabled={isCurrent || isBusy}
       >
-        {isCurrent ? 'Active' : isBusy ? 'Joining...' : 'Join Now'}
+        {isCurrent ? 'Current plan' : isBusy ? 'Joining...' : 'Choose plan'}
       </button>
-    </div>
+    </article>
   );
 }
 
@@ -144,6 +162,10 @@ function FanMembershipsPage() {
   const activeSubscription = useMemo(
     () => subscriptions.find((subscription) => subscription.status === 'ACTIVE') ?? null,
     [subscriptions],
+  );
+  const featuredPlans = useMemo(
+    () => [...plans].sort((first, second) => first.price - second.price),
+    [plans],
   );
 
   useEffect(() => {
@@ -200,10 +222,27 @@ function FanMembershipsPage() {
       <div className="fan-dashboard-main">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-dashboard-content fmp-content">
-          <div className="fmp-header">
-            <h1 className="fmp-title">Memberships</h1>
-            <p className="fmp-sub">Manage your LeagueOS membership and unlock platform-wide fan benefits.</p>
-          </div>
+          <section className="fmp-hero">
+            <div className="fmp-hero-copy">
+              <p className="fmp-eyebrow">Fan Membership</p>
+              <h1 className="fmp-title">Unlock the best of LeagueOS.</h1>
+              <p className="fmp-sub">Manage your active membership, compare available plans, and keep your fan benefits in one place.</p>
+            </div>
+            <div className="fmp-hero-stats" aria-label="Membership summary">
+              <div>
+                <span>{activeSubscription ? activeSubscription.planName : 'No active plan'}</span>
+                <b>Current</b>
+              </div>
+              <div>
+                <span>{plans.length}</span>
+                <b>Plans</b>
+              </div>
+              <div>
+                <span>{activeSubscription ? formatDate(activeSubscription.renewsAt) : 'Pending'}</span>
+                <b>Renewal</b>
+              </div>
+            </div>
+          </section>
 
           {error && (
             <div className="fmp-error">
@@ -212,8 +251,18 @@ function FanMembershipsPage() {
             </div>
           )}
 
-          <section className="fmp-section">
-            <h2 className="fmp-section-heading">Your Active Membership</h2>
+          <section className="fmp-section fmp-section--active">
+            <div className="fmp-section-header">
+              <div>
+                <p className="fmp-section-kicker">Account status</p>
+                <h2 className="fmp-section-heading">Your Active Membership</h2>
+              </div>
+              {activeSubscription && (
+                <span className="fmp-renewal-chip">
+                  <FiZap /> {billingLabel(activeSubscription.billingPeriod)}
+                </span>
+              )}
+            </div>
             {isLoading ? (
               <div className="fmp-loading">Loading memberships...</div>
             ) : activeSubscription ? (
@@ -228,15 +277,20 @@ function FanMembershipsPage() {
           </section>
 
           <section className="fmp-section">
-            <h2 className="fmp-section-heading">Explore Membership Plans</h2>
-            <p className="fmp-section-sub">Plans are created by the LeagueOS Super Admin and update here automatically.</p>
+            <div className="fmp-section-header">
+              <div>
+                <p className="fmp-section-kicker">Available plans</p>
+                <h2 className="fmp-section-heading">Explore Membership Plans</h2>
+                <p className="fmp-section-sub">Plans are created by the LeagueOS Super Admin and update here automatically.</p>
+              </div>
+            </div>
             {isLoading ? (
               <div className="fmp-loading">Loading plans...</div>
             ) : plans.length === 0 ? (
               <div className="fmp-empty">No active membership plans are available right now.</div>
             ) : (
               <div className="fmp-tiers-grid">
-                {plans.map((plan) => (
+                {featuredPlans.map((plan) => (
                   <PlanCard
                     key={plan.id}
                     plan={plan}
