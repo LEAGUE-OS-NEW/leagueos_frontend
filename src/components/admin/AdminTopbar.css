@@ -36,6 +36,7 @@
 }
 
 .admin-topbar__icon-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,6 +52,25 @@
 .admin-topbar__icon-btn:hover {
   background-color: var(--color-card-hover);
   color: var(--color-text-primary);
+}
+
+.admin-topbar__badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-live);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--color-bg-elevated);
 }
 
 .admin-topbar__identity {
