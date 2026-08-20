@@ -329,7 +329,7 @@
 
 .fmp-tiers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -489,6 +489,10 @@
   .fmp-hero-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .fmp-tiers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 680px) {
@@ -522,5 +526,9 @@
     position: static;
     align-self: flex-start;
     order: -1;
+  }
+
+  .fmp-tiers-grid {
+    grid-template-columns: 1fr;
   }
 }
