@@ -1191,3 +1191,664 @@ select { cursor: pointer; }
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── League invite enhancements ──────────────────────────────── */
+.league-invite-url-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  word-break: break-all;
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  user-select: all;
+}
+
+/* ── Modal field helpers ──────────────────────────────────────── */
+.modal-field-optional {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ── Invites tab badge ────────────────────────────────────────── */
+.leagues-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: var(--purple, #6c5ce7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* ── Invites tab layout ───────────────────────────────────────── */
+.leagues-invites { display: flex; flex-direction: column; gap: 0; }
+
+.league-invite-card-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface-2, #13102a);
+  border: 1px solid rgba(108,92,231,0.22);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.league-invite-card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  flex-wrap: wrap;
+}
+
+.league-invite-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.league-invite-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.league-invite-card-title strong {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.league-invite-resolving {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.league-invite-needs-team-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: rgba(253,203,110,0.15);
+  color: #fdcb6e;
+  border: 1px solid rgba(253,203,110,0.3);
+}
+
+.invite-code-inline {
+  font-size: 12px;
+  font-family: monospace;
+  letter-spacing: 0.08em;
+  color: var(--purple, #6c5ce7);
+  background: rgba(108,92,231,0.1);
+  padding: 2px 8px;
+  border-radius: 5px;
+  align-self: flex-start;
+}
+
+.league-invite-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Invalid invites section */
+.leagues-invalid-invites {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.07));
+}
+
+.league-invite-invalid-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 0.85rem;
+}
+
+.league-invite-invalid-msg {
+  color: #e17055;
+  font-size: 12px;
+}
+
+/* ── Share grid ───────────────────────────────────────────────── */
+.league-share-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.league-share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* WhatsApp button */
+.league-share-whatsapp {
+  background: #25d366;
+  border-color: #25d366;
+  color: #fff;
+}
+.league-share-whatsapp:hover {
+  background: #1ebe5d;
+  border-color: #1ebe5d;
+}
+
+/* Small button variant */
+.btn-sm {
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+/* Ghost button variant */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-dim);
+}
+.btn-ghost:hover {
+  border-color: rgba(255,255,255,0.2);
+  color: var(--text);
+}
+
+/* ── Action list interactive items ───────────────────────────── */
+.action-list-item-interactive {
+  cursor: pointer;
+}
+.action-list-item-interactive:hover {
+  background: rgba(108, 92, 231, 0.1);
+  border-color: rgba(108, 92, 231, 0.35);
+}
+.action-list-item-interactive:focus-visible {
+  outline: 2px solid var(--purple, #6c5ce7);
+  outline-offset: 2px;
+}
+
+/* ── Captain picker drawer ────────────────────────────────────── */
+.captain-picker-hint {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.captain-picker-section {
+  margin-bottom: 24px;
+}
+
+.captain-picker-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.captain-picker-sublabel {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.captain-picker-current {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--purple, #6c5ce7);
+  font-weight: 600;
+}
+
+.captain-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.captain-picker-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  background: var(--surface-2, #13102a);
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+.captain-picker-player:hover:not(:disabled) {
+  border-color: rgba(108, 92, 231, 0.5);
+  background: rgba(108, 92, 231, 0.08);
+}
+.captain-picker-player:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.captain-picker-player.captain-pick {
+  border-color: var(--purple, #6c5ce7);
+  background: rgba(108, 92, 231, 0.14);
+}
+.captain-picker-player.vice-pick {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.captain-picker-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.captain-picker-club {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.captain-badge-sm {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--purple, #6c5ce7);
+  color: #fff;
+}
+
+.vice-badge-sm {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #38bdf8;
+  color: #0c1220;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GAMEWEEK FIXTURES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Hub team card wrapper ──────────────────────────────────────── */
+.hub-team-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.hub-team-card-wrapper .hub-team-card {
+  border-radius: 16px 16px 0 0;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* Fixtures toggle button below the card */
+.hub-fixtures-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+}
+.hub-fixtures-toggle:hover,
+.hub-fixtures-toggle-open {
+  background: rgba(108,92,231,0.1);
+  color: var(--text);
+  border-color: rgba(108,92,231,0.3);
+}
+.hub-fixtures-chevron {
+  transition: transform 0.2s;
+}
+.hub-fixtures-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+/* Fixtures panel container */
+.hub-fixtures-panel {
+  background: var(--surface-2, #13102a);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.hub-fixtures-panel-comp {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0 0 12px 12px;
+  margin-top: -4px;
+}
+
+/* ── Gameweek selector ──────────────────────────────────────────── */
+.gw-fixtures {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gw-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gw-nav-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.gw-nav-btn:hover:not(:disabled) {
+  background: rgba(108,92,231,0.18);
+  border-color: rgba(108,92,231,0.5);
+}
+.gw-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.gw-selector-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: center;
+}
+
+.gw-selector-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gw-selector-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.gw-selector-dates {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.gw-deadline-label {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+.gw-deadline-label strong {
+  color: #fdcb6e;
+}
+
+/* GW status badges */
+.gw-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.gw-status-open     { background: rgba(34,197,94,0.15);   color: #22c55e; }
+.gw-status-live     { background: rgba(239,68,68,0.18);   color: #ef4444; animation: gw-pulse 1.4s infinite; }
+.gw-status-locked   { background: rgba(248,113,113,0.15); color: #f87171; }
+.gw-status-scoring  { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+.gw-status-finalized{ background: rgba(99,102,241,0.15);  color: #818cf8; }
+.gw-status-draft    { background: rgba(255,255,255,0.07); color: var(--text-dim); }
+@keyframes gw-pulse { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+
+/* ── Points bar ─────────────────────────────────────────────────── */
+.gw-points-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: rgba(108,92,231,0.08);
+  border: 1px solid rgba(108,92,231,0.2);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.gw-points-bar-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.gw-points-bar-stat strong {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.gw-points-value {
+  font-size: 1.1rem !important;
+  color: var(--purple, #6c5ce7) !important;
+}
+.gw-points-bar .btn-sm {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Fixture cards ──────────────────────────────────────────────── */
+.gw-fixture-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gw-fixture-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 12px 16px;
+  transition: border-color 0.15s;
+}
+.gw-fixture-card:hover {
+  border-color: rgba(108,92,231,0.3);
+}
+
+.gw-fixture-teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.gw-fixture-team {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gw-team-home { text-align: right; }
+.gw-team-away { text-align: left; }
+
+.gw-fixture-centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.gw-fixture-vs {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gw-fixture-score {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.06em;
+}
+
+.gw-fixture-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.gw-fixture-time,
+.gw-fixture-venue {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.73rem;
+  color: var(--text-dim);
+}
+
+/* Show more / fewer */
+.gw-show-more-btn {
+  margin-top: 4px;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--purple, #6c5ce7);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.gw-show-more-btn:hover { opacity: 1; }
+
+/* Empty state */
+.gw-fixtures-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+/* Error */
+.gw-fixtures-error {
+  color: #e17055;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+/* Loading skeleton */
+.gw-fixtures-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gw-fixture-skeleton-row {
+  height: 62px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Progress dots ──────────────────────────────────────────────── */
+.gw-progress-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+.gw-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+.gw-dot:hover { background: rgba(255,255,255,0.3); }
+.gw-dot-active {
+  background: var(--purple, #6c5ce7);
+  transform: scale(1.35);
+}
+.gw-dot-current:not(.gw-dot-active) {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.25);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .gw-fixture-team { font-size: 0.78rem; }
+  .hub-fixtures-panel { padding: 14px; }
+  .gw-points-bar { gap: 10px; }
+}

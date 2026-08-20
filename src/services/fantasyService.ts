@@ -4,7 +4,7 @@ export type FantasySport = 'football' | 'rugby' | 'basketball';
 export type FantasyAvailability = 'AVAILABLE' | 'DOUBTFUL' | 'INJURED' | 'SUSPENDED' | 'UNAVAILABLE';
 
 export interface FantasyScoringRule { id: string; fantasy_competition: string; statistic_type: string; points: string; conditions: Record<string, never>; enabled: boolean }
-export interface FantasyFixture { id: string; name: string; starts_at: string; status: string }
+export interface FantasyFixture { id: string; name: string; home_team?: string | null; away_team?: string | null; starts_at: string; status: string; venue?: string | null; home_score?: number | null; away_score?: number | null }
 export interface FantasyGameweek { id: string; fantasy_competition: string; number: number; name: string; starts_at: string; deadline_at: string; ends_at: string; status: 'DRAFT'|'OPEN'|'LOCKED'|'LIVE'|'SCORING'|'FINALIZED'; fixtures: string[]; fixture_details: FantasyFixture[] }
 export interface FantasyCompetition {
   id: string; competition: string; season: string; season_name: string; sport: FantasySport; name: string; description: string;

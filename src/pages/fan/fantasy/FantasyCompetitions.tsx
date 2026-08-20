@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { Competition, FantasyTeam, Player, SquadSlot, Toast } from './types';
 import { competitionFromApi, playerFromApi, teamFromApi } from './data';
 import {
@@ -40,6 +40,7 @@ function selections(
 
 export default function FantasyCompetitions() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ── Core state ──────────────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('hub');
@@ -390,6 +391,12 @@ export default function FantasyCompetitions() {
                 void saveSquad(active, squad, activeTeam.captainId, activeTeam.viceCaptainId)
                   .catch(e => toast(extractApiError(e).message, 'warning'));
               }}
+              onEditLineup={() => setScreen('build')}
+              onChangeCaptain={(captainId, viceId) => {
+                void saveSquad(active, activeTeam.squad, captainId, viceId)
+                  .catch(e => toast(extractApiError(e).message, 'warning'));
+              }}
+              onViewFixtures={() => navigate('/fixtures')}
             />
           )}
 

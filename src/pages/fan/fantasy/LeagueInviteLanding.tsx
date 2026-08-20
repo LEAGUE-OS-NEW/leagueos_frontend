@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { joinFantasyLeagueByCode } from '../../../services/fantasyService';
 import { extractApiError } from '../../../services/apiUtils';
+import './FantasyCompetitions.css';
 
 type Phase = 'joining' | 'no-team' | 'error' | 'done';
 
