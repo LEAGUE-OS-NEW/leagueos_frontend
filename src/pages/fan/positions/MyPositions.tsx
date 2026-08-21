@@ -326,7 +326,7 @@ function MyPositions() {
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage] = useState(1);
+  const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
 
   useEffect(() => {
     let cancelled = false;
@@ -351,10 +351,6 @@ function MyPositions() {
       document.body.style.overflow = '';
     };
   }, [isSidebarOpen]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [activeTab, search, sideFilter, sportFilter, leagueFilter, clubFilter, marketTypeFilter, sortKey]);
 
   function refreshPositions() {
     setIsLoading(true);
@@ -463,13 +459,32 @@ function MyPositions() {
   }, [positions, activeTab, sideFilter, sportFilter, leagueFilter, clubFilter, marketTypeFilter, search, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPositions.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
+  const paginationFilterKey = [
+    activeTab,
+    search,
+    sideFilter,
+    sportFilter,
+    leagueFilter,
+    clubFilter,
+    marketTypeFilter,
+    sortKey,
+  ].join('\u001f');
+  const requestedPage = pageState.filterKey === paginationFilterKey ? pageState.page : 1;
+  const currentPage = Math.min(requestedPage, totalPages);
   const pagedPositions = useMemo(
     () => filteredPositions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [filteredPositions, currentPage],
   );
   const rangeStart = filteredPositions.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, filteredPositions.length);
+
+  function setPageForCurrentFilters(nextPage: number | ((page: number) => number)) {
+    setPageState((previous) => {
+      const basePage = previous.filterKey === paginationFilterKey ? previous.page : 1;
+      const page = typeof nextPage === 'function' ? nextPage(basePage) : nextPage;
+      return { filterKey: paginationFilterKey, page };
+    });
+  }
 
   const selectedPosition = useMemo(
     () => positions.find((p) => p.contract.id === selectedId) ?? null,
@@ -511,11 +526,10 @@ function MyPositions() {
     const chronological = [...settledPositions].sort(
       (a, b) => new Date(a.contract.matchedAt).getTime() - new Date(b.contract.matchedAt).getTime(),
     );
-    let running = 0;
-    return chronological.map((p) => {
-      running += getRealizedPnl(p);
-      return { date: p.contract.matchedAt, value: running };
-    });
+    return chronological.reduce<{ date: string; value: number }[]>((points, p) => {
+      const previousValue = points.at(-1)?.value ?? 0;
+      return [...points, { date: p.contract.matchedAt, value: previousValue + getRealizedPnl(p) }];
+    }, []);
   }, [settledPositions]);
 
   return (
@@ -816,7 +830,7 @@ function MyPositions() {
                                   type="button"
                                   className="mp-page-btn"
                                   disabled={currentPage === 1}
-                                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                  onClick={() => setPageForCurrentFilters((p) => Math.max(1, p - 1))}
                                   aria-label="Previous page"
                                 >
                                   <IconChevronLeft />
@@ -826,7 +840,7 @@ function MyPositions() {
                                     key={pageNumber}
                                     type="button"
                                     className={`mp-page-btn${pageNumber === currentPage ? ' mp-page-btn--active' : ''}`}
-                                    onClick={() => setPage(pageNumber)}
+                                    onClick={() => setPageForCurrentFilters(pageNumber)}
                                   >
                                     {pageNumber}
                                   </button>
@@ -835,7 +849,7 @@ function MyPositions() {
                                   type="button"
                                   className="mp-page-btn"
                                   disabled={currentPage === totalPages}
-                                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                  onClick={() => setPageForCurrentFilters((p) => Math.min(totalPages, p + 1))}
                                   aria-label="Next page"
                                 >
                                   <IconChevronRight />
