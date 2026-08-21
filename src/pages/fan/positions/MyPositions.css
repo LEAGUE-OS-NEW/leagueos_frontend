@@ -1152,7 +1152,7 @@
 /* Responsive                                                              */
 /* ---------------------------------------------------------------------- */
 
-@media (max-width: 1280px) {
+@media (max-width: 1600px) {
   .mp-stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1161,12 +1161,29 @@
     grid-template-columns: 1fr;
   }
 
-  .mp-side-col {
-    order: -1;
-  }
-
   .mp-bottom-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .mp-row--open-cols {
+    --mp-table-min-width: 840px;
+    grid-template-columns:
+      minmax(210px, 2fr)
+      minmax(76px, 0.75fr)
+      minmax(86px, 0.85fr)
+      minmax(94px, 0.9fr)
+      minmax(104px, 1fr)
+      minmax(82px, 0.8fr)
+      minmax(92px, 0.9fr)
+      minmax(76px, 0.75fr)
+      28px;
+  }
+
+  .mp-row--open-cols > :nth-child(4),
+  .mp-row--open-cols > :nth-child(6) {
+    display: none;
   }
 }
 
