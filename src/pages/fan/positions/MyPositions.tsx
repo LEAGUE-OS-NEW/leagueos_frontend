@@ -66,6 +66,15 @@ function getEntryPrice(position: Position): number {
   return position.portfolio.averageEntryPrice;
 }
 
+function getNormalizedPrice(position: Position, price: number): number {
+  const faceValue = position.market.faceValueUgx;
+  return faceValue > 0 && price > 1 ? price / faceValue : price;
+}
+
+function formatPositionPrice(position: Position, price: number): string {
+  return getNormalizedPrice(position, price).toFixed(2);
+}
+
 function getCurrentPrice(position: Position): number {
   return position.portfolio.markPrice ?? getEntryPrice(position);
 }
@@ -293,12 +302,12 @@ function Pnl({ amount }: { amount: number }) {
   return <span className={`mp-pnl mp-pnl--${tone}`}>{formatSignedUgx(amount)}</span>;
 }
 
-function PriceChange({ from, to }: { from: number; to: number }) {
+function PriceChange({ position, from, to }: { position: Position; from: number; to: number }) {
   const diffPct = from > 0 ? ((to - from) / from) * 100 : 0;
   const tone = diffPct > 0 ? 'positive' : diffPct < 0 ? 'negative' : 'neutral';
   return (
     <span className="mp-price-cell">
-      {to.toFixed(2)}
+      {formatPositionPrice(position, to)}
       {diffPct !== 0 && (
         <span className={`mp-price-change mp-price-change--${tone}`}>
           {diffPct > 0 ? '↑' : '↓'} {Math.abs(diffPct).toFixed(2)}%
@@ -323,9 +332,12 @@ function MyPositions() {
   const [leagueFilter, setLeagueFilter] = useState('all');
   const [clubFilter, setClubFilter] = useState('all');
   const [marketTypeFilter, setMarketTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<TabKey>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
 
   useEffect(() => {
@@ -435,6 +447,15 @@ function MyPositions() {
     if (leagueFilter !== 'all') result = result.filter((p) => getLeague(p) === leagueFilter);
     if (clubFilter !== 'all') result = result.filter((p) => getClub(p) === clubFilter);
     if (marketTypeFilter !== 'all') result = result.filter((p) => getMarketType(p) === marketTypeFilter);
+    if (statusFilter !== 'all') result = result.filter((p) => classify(p) === statusFilter);
+    if (dateFrom) {
+      const fromTime = new Date(dateFrom).getTime();
+      result = result.filter((p) => new Date(p.contract.matchedAt).getTime() >= fromTime);
+    }
+    if (dateTo) {
+      const toTime = new Date(`${dateTo}T23:59:59`).getTime();
+      result = result.filter((p) => new Date(p.contract.matchedAt).getTime() <= toTime);
+    }
     if (query) {
       result = result.filter(
         (p) =>
@@ -456,7 +477,20 @@ function MyPositions() {
       }
     });
     return sorted;
-  }, [positions, activeTab, sideFilter, sportFilter, leagueFilter, clubFilter, marketTypeFilter, search, sortKey]);
+  }, [
+    positions,
+    activeTab,
+    sideFilter,
+    sportFilter,
+    leagueFilter,
+    clubFilter,
+    marketTypeFilter,
+    statusFilter,
+    dateFrom,
+    dateTo,
+    search,
+    sortKey,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPositions.length / PAGE_SIZE));
   const paginationFilterKey = [
@@ -467,6 +501,9 @@ function MyPositions() {
     leagueFilter,
     clubFilter,
     marketTypeFilter,
+    statusFilter,
+    dateFrom,
+    dateTo,
     sortKey,
   ].join('\u001f');
   const requestedPage = pageState.filterKey === paginationFilterKey ? pageState.page : 1;
@@ -618,40 +655,6 @@ function MyPositions() {
                     ))}
                   </div>
 
-                  <div className="mp-toolbar">
-                    <div className="mp-search">
-                      <IconSearch />
-                      <input
-                        type="text"
-                        placeholder="Search positions..."
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                      />
-                    </div>
-                    <label className="mp-select">
-                      <span>Sort by</span>
-                      <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="stake_desc">Highest Stake</option>
-                        <option value="stake_asc">Lowest Stake</option>
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      className={`mp-filters-toggle${showFilters ? ' mp-filters-toggle--active' : ''}`}
-                      onClick={() => setShowFilters((value) => !value)}
-                      aria-expanded={showFilters}
-                    >
-                      <IconFilter />
-                      Filters
-                    </button>
-                    <button type="button" className="mp-export-btn" onClick={exportCsv}>
-                      <IconDownload />
-                      Export
-                    </button>
-                  </div>
-
                   {showFilters && (
                     <div className="mp-filters-panel">
                       <label className="mp-select">
@@ -706,8 +709,72 @@ function MyPositions() {
                           <option value="no">No</option>
                         </select>
                       </label>
+                      <label className="mp-select">
+                        <span>Status</span>
+                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TabKey)}>
+                          <option value="all">All Status</option>
+                          {TABS.filter((tab) => tab.key !== 'all').map((tab) => (
+                            <option key={tab.key} value={tab.key}>
+                              {tab.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="mp-select mp-select--daterange">
+                        <span>Date Range</span>
+                        <span className="mp-date-range">
+                          <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={(event) => setDateFrom(event.target.value)}
+                            aria-label="From date"
+                          />
+                          <span className="mp-date-range-sep">–</span>
+                          <input
+                            type="date"
+                            value={dateTo}
+                            onChange={(event) => setDateTo(event.target.value)}
+                            aria-label="To date"
+                          />
+                        </span>
+                      </label>
+                      <div className="mp-search mp-search--inline">
+                        <IconSearch />
+                        <input
+                          type="text"
+                          placeholder="Search positions..."
+                          value={search}
+                          onChange={(event) => setSearch(event.target.value)}
+                        />
+                      </div>
                     </div>
                   )}
+
+                  <div className="mp-toolbar">
+                    <label className="mp-select">
+                      <span>Sort by</span>
+                      <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="stake_desc">Highest Stake</option>
+                        <option value="stake_asc">Lowest Stake</option>
+                      </select>
+                    </label>
+                    <div className="mp-toolbar-spacer" />
+                    <button type="button" className="mp-export-btn" onClick={exportCsv}>
+                      <IconDownload />
+                      Export
+                    </button>
+                    <button
+                      type="button"
+                      className={`mp-filters-toggle${showFilters ? ' mp-filters-toggle--active' : ''}`}
+                      onClick={() => setShowFilters((value) => !value)}
+                      aria-expanded={showFilters}
+                    >
+                      <IconFilter />
+                      Filters
+                    </button>
+                  </div>
 
                   <div className="mp-layout">
                     <div className="mp-main-col">
@@ -719,7 +786,7 @@ function MyPositions() {
                         <section className="my-positions-section mp-table-section">
                           <div className="mp-table-header-row">
                             <h2>
-                              {TABS.find((t) => t.key === activeTab)?.label} ({filteredPositions.length})
+                              {TABS.find((t) => t.key === activeTab)?.label} Positions ({filteredPositions.length})
                             </h2>
                           </div>
 
@@ -776,7 +843,7 @@ function MyPositions() {
 
                                     <span className="mp-cell mp-cell--num mp-col-current-price">
                                       <span className="mp-cell-label">Current Price</span>
-                                      {settled ? '—' : <PriceChange from={getEntryPrice(position)} to={getCurrentPrice(position)} />}
+                                      {settled ? '—' : <PriceChange position={position} from={getEntryPrice(position)} to={getCurrentPrice(position)} />}
                                     </span>
 
                                     <span className="mp-cell mp-cell--num mp-col-potential">
@@ -828,6 +895,7 @@ function MyPositions() {
                           <div className="mp-pagination">
                             <p className="mp-pagination-summary">
                               Showing {rangeStart} to {rangeEnd} of {filteredPositions.length}{' '}
+                              {activeTab !== 'all' ? `${TABS.find((t) => t.key === activeTab)?.label.toLowerCase()} ` : ''}
                               {filteredPositions.length === 1 ? 'position' : 'positions'}
                             </p>
                             {totalPages > 1 && (
@@ -960,7 +1028,7 @@ function MyPositions() {
                                 <div>
                                   <dt>Current Price</dt>
                                   <dd>
-                                    <PriceChange from={getEntryPrice(selectedPosition)} to={getCurrentPrice(selectedPosition)} />
+                                    <PriceChange position={selectedPosition} from={getEntryPrice(selectedPosition)} to={getCurrentPrice(selectedPosition)} />
                                   </dd>
                                 </div>
                                 <div>

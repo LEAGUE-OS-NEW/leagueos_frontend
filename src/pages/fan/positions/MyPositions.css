@@ -439,7 +439,7 @@
 
 .mp-filters-panel {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 10px;
   padding: 14px;
   background: var(--color-card-bg);
@@ -463,6 +463,43 @@
 
 .mp-filters-panel .mp-select select {
   width: 100%;
+}
+
+.mp-filters-panel .mp-select--daterange {
+  min-width: 190px;
+}
+
+.mp-date-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.mp-date-range input[type='date'] {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  color-scheme: dark;
+}
+
+.mp-date-range-sep {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.mp-filters-panel .mp-search--inline {
+  flex: none;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.mp-toolbar-spacer {
+  flex: 1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -509,6 +546,9 @@
 
 .mp-table-header-row h2 {
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.95rem;
 }
 
 .mp-view-all-btn {
@@ -1217,7 +1257,7 @@
   }
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   .mp-row--open-cols {
     --mp-table-min-width: 960px;
     grid-template-columns:
