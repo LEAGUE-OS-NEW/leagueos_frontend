@@ -532,38 +532,36 @@
 .mp-row {
   display: grid;
   align-items: center;
-  gap: 10px;
+  column-gap: 14px;
+  row-gap: 6px;
   padding: 12px 10px;
-  width: 100%;
+  width: max(100%, var(--mp-table-min-width, 100%));
   box-sizing: border-box;
 }
 
-/* Consolidated to 8 tracks (Market, Side, Stake, Price, Payout/Value, P&L,
-   Status incl. placed-at sub-line, row actions). minmax(0, Nfr) lets the
-   columns stretch to fill the full row width on normal screens instead of
-   sitting at a fixed min-width and forcing a horizontal scrollbar; the px
-   floors only kick in once the container genuinely can't fit them. */
 .mp-row--open-cols {
+  --mp-table-min-width: 960px;
   grid-template-columns:
-    minmax(160px, 1.9fr)
-    minmax(56px, 0.7fr)
-    minmax(76px, 0.9fr)
-    minmax(84px, 1fr)
-    minmax(84px, 1fr)
-    minmax(76px, 0.9fr)
-    minmax(84px, 1fr)
+    minmax(210px, 2.2fr)
+    minmax(86px, 0.85fr)
+    minmax(100px, 1fr)
+    minmax(92px, 0.9fr)
+    minmax(118px, 1.15fr)
+    minmax(116px, 1.1fr)
+    minmax(96px, 0.95fr)
+    minmax(104px, 0.95fr)
+    minmax(100px, 0.95fr)
     32px;
-  width: 100%;
 }
 
 .mp-row--settled-cols {
+  --mp-table-min-width: 680px;
   grid-template-columns:
-    minmax(160px, 1.6fr)
-    minmax(64px, 0.8fr)
-    minmax(76px, 0.9fr)
-    minmax(76px, 0.9fr)
-    minmax(76px, 0.9fr);
-  width: 100%;
+    minmax(220px, 2fr)
+    minmax(92px, 0.85fr)
+    minmax(110px, 1fr)
+    minmax(100px, 0.9fr)
+    minmax(116px, 1fr);
 }
 
 .mp-row--head {
