@@ -725,17 +725,17 @@ function MyPositions() {
 
                           <div className="mp-table-scroll">
                             <div className="mp-row mp-row--head mp-row--open-cols">
-                              <span>Market</span>
-                              <span>Your Position</span>
-                              <span>Stake</span>
-                              <span>Entry Price</span>
-                              <span>Current Price</span>
-                              <span>Potential Payout</span>
-                              <span>Current Value</span>
-                              <span>P&amp;L</span>
-                              <span>Placed</span>
-                              <span>Status</span>
-                              <span aria-hidden="true" />
+                              <span className="mp-col-market">Market</span>
+                              <span className="mp-col-side">Your Position</span>
+                              <span className="mp-col-stake">Stake</span>
+                              <span className="mp-col-entry">Entry Price</span>
+                              <span className="mp-col-current-price">Current Price</span>
+                              <span className="mp-col-potential">Potential Payout</span>
+                              <span className="mp-col-current-value">Current Value</span>
+                              <span className="mp-col-pnl">P&amp;L</span>
+                              <span className="mp-col-placed">Placed</span>
+                              <span className="mp-col-status">Status</span>
+                              <span className="mp-col-action" aria-hidden="true" />
                             </div>
 
                             <ul className="my-positions-list">
@@ -752,61 +752,61 @@ function MyPositions() {
                                   >
                                     <Link
                                       to={`/fan/markets/${position.market.id}`}
-                                      className="my-positions-market"
+                                      className="my-positions-market mp-col-market"
                                       onClick={(event) => event.stopPropagation()}
                                     >
                                       <strong>{position.market.eventLabel}</strong>
                                       <span>{position.market.question}</span>
                                     </Link>
 
-                                    <span className="mp-cell">
+                                    <span className="mp-cell mp-col-side">
                                       <span className="mp-cell-label">Side</span>
                                       <OutcomeBadge outcomeId={position.contract.outcomeId} />
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-stake">
                                       <span className="mp-cell-label">Stake</span>
                                       <span className="my-positions-stake">{formatUgx(getStake(position))}</span>
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-entry">
                                       <span className="mp-cell-label">Entry Price</span>
                                       {settled ? '-' : getEntryPrice(position).toFixed(2)}
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-current-price">
                                       <span className="mp-cell-label">Current Price</span>
                                       {settled ? '—' : <PriceChange from={getEntryPrice(position)} to={getCurrentPrice(position)} />}
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-potential">
                                       <span className="mp-cell-label">Potential Payout</span>
                                       {settled ? '-' : formatUgx(getPotentialPayout(position))}
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-current-value">
                                       <span className="mp-cell-label">Current Value</span>
                                       <span className="my-positions-payout">
                                         {formatUgx(settled ? getSettledPayout(position) : getCurrentValue(position))}
                                       </span>
                                     </span>
 
-                                    <span className="mp-cell mp-cell--num">
+                                    <span className="mp-cell mp-cell--num mp-col-pnl">
                                       <span className="mp-cell-label">P&amp;L</span>
                                       <Pnl amount={settled ? getRealizedPnl(position) : getUnrealizedPnl(position)} />
                                     </span>
 
-                                    <span className="mp-cell">
+                                    <span className="mp-cell mp-col-placed">
                                       <span className="mp-cell-label">Placed</span>
                                       <span className="my-positions-time">{formatDateTime(position.contract.matchedAt)}</span>
                                     </span>
 
-                                    <span className="mp-cell">
+                                    <span className="mp-cell mp-col-status">
                                       <span className="mp-cell-label">Status</span>
                                       <ResultBadge bucket={bucket} />
                                     </span>
 
-                                    <span className="mp-cell mp-cell--action">
+                                    <span className="mp-cell mp-cell--action mp-col-action">
                                       <button
                                         type="button"
                                         className="mp-row-action-btn"

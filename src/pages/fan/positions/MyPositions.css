@@ -553,6 +553,51 @@
     minmax(92px, 0.85fr)
     minmax(76px, 0.7fr)
     28px;
+  grid-template-areas: 'market side stake entry currentPrice potential currentValue pnl placed status action';
+}
+
+.mp-col-market {
+  grid-area: market;
+}
+
+.mp-col-side {
+  grid-area: side;
+}
+
+.mp-col-stake {
+  grid-area: stake;
+}
+
+.mp-col-entry {
+  grid-area: entry;
+}
+
+.mp-col-current-price {
+  grid-area: currentPrice;
+}
+
+.mp-col-potential {
+  grid-area: potential;
+}
+
+.mp-col-current-value {
+  grid-area: currentValue;
+}
+
+.mp-col-pnl {
+  grid-area: pnl;
+}
+
+.mp-col-placed {
+  grid-area: placed;
+}
+
+.mp-col-status {
+  grid-area: status;
+}
+
+.mp-col-action {
+  grid-area: action;
 }
 
 .mp-row--settled-cols {
@@ -1179,10 +1224,11 @@
       minmax(92px, 0.9fr)
       minmax(76px, 0.75fr)
       28px;
+    grid-template-areas: 'market side stake currentPrice currentValue pnl placed status action';
   }
 
-  .mp-row--open-cols > :nth-child(4),
-  .mp-row--open-cols > :nth-child(6) {
+  .mp-row--open-cols > .mp-col-entry,
+  .mp-row--open-cols > .mp-col-potential {
     display: none;
   }
 }
@@ -1207,6 +1253,7 @@
   .mp-row--open-cols,
   .mp-row--settled-cols {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
     min-width: 0;
     row-gap: 6px;
     padding: 14px 4px;
