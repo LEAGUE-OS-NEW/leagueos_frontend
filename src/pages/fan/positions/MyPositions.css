@@ -532,7 +532,7 @@
 .mp-row {
   display: grid;
   align-items: center;
-  column-gap: 10px;
+  column-gap: 16px;
   row-gap: 0;
   padding: 10px 10px;
   width: max(100%, var(--mp-table-min-width, 100%));
@@ -540,18 +540,18 @@
 }
 
 .mp-row--open-cols {
-  --mp-table-min-width: 1100px;
+  --mp-table-min-width: 1040px;
   grid-template-columns:
-    minmax(210px, 2fr)
-    minmax(76px, 0.7fr)
-    minmax(84px, 0.8fr)
-    minmax(78px, 0.7fr)
-    minmax(90px, 0.85fr)
-    minmax(104px, 1fr)
-    minmax(100px, 0.95fr)
-    minmax(84px, 0.8fr)
-    minmax(92px, 0.85fr)
-    minmax(76px, 0.7fr)
+    minmax(220px, 2.1fr)
+    minmax(120px, 1fr)
+    minmax(96px, 0.85fr)
+    minmax(86px, 0.75fr)
+    minmax(104px, 0.9fr)
+    minmax(118px, 1fr)
+    minmax(118px, 1fr)
+    minmax(86px, 0.75fr)
+    minmax(110px, 0.9fr)
+    minmax(84px, 0.75fr)
     28px;
   grid-template-areas: 'market side stake entry currentPrice potential currentValue pnl placed status action';
 }
@@ -562,6 +562,12 @@
 
 .mp-col-side {
   grid-area: side;
+  justify-self: center;
+  width: 100%;
+}
+
+.mp-cell.mp-col-side {
+  align-items: center;
 }
 
 .mp-col-stake {
@@ -1211,18 +1217,18 @@
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .mp-row--open-cols {
-    --mp-table-min-width: 840px;
+    --mp-table-min-width: 960px;
     grid-template-columns:
-      minmax(210px, 2fr)
-      minmax(76px, 0.75fr)
-      minmax(86px, 0.85fr)
-      minmax(94px, 0.9fr)
-      minmax(104px, 1fr)
-      minmax(82px, 0.8fr)
-      minmax(92px, 0.9fr)
-      minmax(76px, 0.75fr)
+      minmax(230px, 2.2fr)
+      minmax(120px, 1fr)
+      minmax(104px, 0.95fr)
+      minmax(116px, 1fr)
+      minmax(116px, 1fr)
+      minmax(88px, 0.8fr)
+      minmax(116px, 1fr)
+      minmax(84px, 0.75fr)
       28px;
     grid-template-areas: 'market side stake currentPrice currentValue pnl placed status action';
   }
