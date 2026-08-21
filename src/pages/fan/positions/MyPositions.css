@@ -532,24 +532,27 @@
 .mp-row {
   display: grid;
   align-items: center;
-  column-gap: 14px;
-  row-gap: 6px;
-  padding: 12px 10px;
+  column-gap: 10px;
+  row-gap: 0;
+  padding: 10px 10px;
   width: max(100%, var(--mp-table-min-width, 100%));
   box-sizing: border-box;
 }
 
 .mp-row--open-cols {
-  --mp-table-min-width: 760px;
+  --mp-table-min-width: 1100px;
   grid-template-columns:
-    minmax(220px, 2.2fr)
-    minmax(72px, 0.7fr)
+    minmax(210px, 2fr)
+    minmax(76px, 0.7fr)
+    minmax(84px, 0.8fr)
+    minmax(78px, 0.7fr)
+    minmax(90px, 0.85fr)
     minmax(104px, 1fr)
-    minmax(104px, 1fr)
-    minmax(112px, 1.05fr)
-    minmax(92px, 0.9fr)
-    minmax(112px, 1fr)
-    32px;
+    minmax(100px, 0.95fr)
+    minmax(84px, 0.8fr)
+    minmax(92px, 0.85fr)
+    minmax(76px, 0.7fr)
+    28px;
 }
 
 .mp-row--settled-cols {
@@ -585,11 +588,12 @@
   gap: 2px;
   font-size: 0.85rem;
   color: var(--color-text-primary);
+  min-width: 0;
 }
 
 .mp-cell--num {
-  align-items: flex-end;
-  text-align: right;
+  align-items: flex-start;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
