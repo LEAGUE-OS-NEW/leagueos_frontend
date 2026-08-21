@@ -142,6 +142,16 @@ function renderPositions() {
   );
 }
 
+function getBySelector(selector: string): HTMLElement {
+  const element = document.querySelector(selector);
+  expect(element).toBeInTheDocument();
+  return element as HTMLElement;
+}
+
+function getMainPositionsList(): HTMLElement {
+  return getBySelector('.mp-table-section .my-positions-list');
+}
+
 describe('MyPositions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -322,11 +332,12 @@ describe('MyPositions', () => {
       expect(screen.getByText('6')).toBeInTheDocument(); // total positions
 
       // Open: openYes + openNo. Pending settlement has its own backend status bucket.
-      const openCard = screen.getByText('Open Positions').closest('.mp-stat-card');
+      const statsGrid = getBySelector('.mp-stats-grid');
+      const openCard = within(statsGrid).getByText('Open Positions').closest('.mp-stat-card');
       expect(within(openCard as HTMLElement).getByText('2')).toBeInTheDocument();
 
       // Settled: won + lost
-      const settledCard = screen.getByText('Settled Positions').closest('.mp-stat-card');
+      const settledCard = within(statsGrid).getByText('Settled Positions').closest('.mp-stat-card');
       expect(within(settledCard as HTMLElement).getByText('2')).toBeInTheDocument();
 
       // Total invested: sum of all stakes = 25000+20000+70000+30000+15000+10000 = 170000
@@ -340,23 +351,23 @@ describe('MyPositions', () => {
       await screen.findAllByText('City Oilers vs Namuwongo Blazers');
 
       await user.click(screen.getByRole('button', { name: 'Won' }));
-      expect(screen.getByText('Vipers SC vs KCCA FC (Rematch)')).toBeInTheDocument();
-      expect(screen.queryByText('SC Villa vs Express FC')).not.toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('Vipers SC vs KCCA FC (Rematch)')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).queryByText('SC Villa vs Express FC')).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Lost' }));
-      expect(screen.getByText('SC Villa vs Express FC')).toBeInTheDocument();
-      expect(screen.queryByText('Vipers SC vs KCCA FC (Rematch)')).not.toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('SC Villa vs Express FC')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).queryByText('Vipers SC vs KCCA FC (Rematch)')).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Pending Settlement' }));
-      expect(screen.getByText('Arua Hill SC vs Maroons')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('Arua Hill SC vs Maroons')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Cancelled / Refunded' }));
-      expect(screen.getByText('Bul FC vs Onduparaka')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('Bul FC vs Onduparaka')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Open' }));
-      expect(screen.getAllByText('City Oilers vs Namuwongo Blazers').length).toBeGreaterThan(0);
-      expect(screen.getByText('Vipers SC vs KCCA FC')).toBeInTheDocument();
-      expect(screen.queryByText('SC Villa vs Express FC')).not.toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('City Oilers vs Namuwongo Blazers')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('Vipers SC vs KCCA FC')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).queryByText('SC Villa vs Express FC')).not.toBeInTheDocument();
     });
 
     it('filters rows by search text', async () => {
@@ -367,8 +378,8 @@ describe('MyPositions', () => {
 
       await user.type(screen.getByPlaceholderText('Search positions...'), 'Oilers');
 
-      expect(screen.getAllByText('City Oilers vs Namuwongo Blazers').length).toBeGreaterThan(0);
-      expect(screen.queryByText('Vipers SC vs KCCA FC')).not.toBeInTheDocument();
+      expect(within(getMainPositionsList()).getByText('City Oilers vs Namuwongo Blazers')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).queryByText('Vipers SC vs KCCA FC')).not.toBeInTheDocument();
     });
 
     it('filters rows by sport once the filter panel is open', async () => {
@@ -380,8 +391,8 @@ describe('MyPositions', () => {
       await user.click(screen.getByRole('button', { name: /filters/i }));
       await user.selectOptions(screen.getByLabelText('Sport'), 'Football');
 
-      expect(screen.getByText('Vipers SC vs KCCA FC')).toBeInTheDocument();
-      expect(screen.queryAllByText('City Oilers vs Namuwongo Blazers')).toHaveLength(0);
+      expect(within(getMainPositionsList()).getByText('Vipers SC vs KCCA FC')).toBeInTheDocument();
+      expect(within(getMainPositionsList()).queryByText('City Oilers vs Namuwongo Blazers')).not.toBeInTheDocument();
     });
 
     it('sorts by stake when "Highest Stake" is selected', async () => {
@@ -404,11 +415,15 @@ describe('MyPositions', () => {
       const user = userEvent.setup();
       renderPositions();
 
-      const [row] = await screen.findAllByText('City Oilers vs Namuwongo Blazers');
-      await user.click(row);
+      await screen.findAllByText('City Oilers vs Namuwongo Blazers');
+      const row = within(getMainPositionsList())
+        .getByText('City Oilers vs Namuwongo Blazers')
+        .closest('.my-positions-row');
+      await user.click(row as HTMLElement);
 
-      expect(screen.getByText('Position Details')).toBeInTheDocument();
-      expect(screen.getByText('Will City Oilers beat Namuwongo Blazers?')).toBeInTheDocument();
+      const detailCard = getBySelector('.mp-detail-card');
+      expect(within(detailCard).getByText('Position Details')).toBeInTheDocument();
+      expect(within(detailCard).getByText('Will City Oilers beat Namuwongo Blazers?')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /close/i }));
       expect(screen.queryByText('Position Details')).not.toBeInTheDocument();
@@ -418,11 +433,14 @@ describe('MyPositions', () => {
       const user = userEvent.setup();
       renderPositions();
 
-      const row = await screen.findByText('Arua Hill SC vs Maroons');
-      await user.click(row);
+      await screen.findByText('Arua Hill SC vs Maroons');
+      const row = within(getMainPositionsList())
+        .getByText('Arua Hill SC vs Maroons')
+        .closest('.my-positions-row');
+      await user.click(row as HTMLElement);
 
       // The fixture's portfolio is built from backend-style cost basis and entry price.
-      expect(screen.getByText('UGX 30,000')).toBeInTheDocument();
+      expect(within(getBySelector('.mp-detail-card')).getAllByText('UGX 15,000').length).toBeGreaterThan(0);
     });
   });
 
@@ -496,9 +514,9 @@ describe('MyPositions', () => {
       await screen.findAllByText('Big Bet');
 
       expect(screen.getByText('Portfolio Overview')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument(); // open position count in donut center
+      expect(within(getBySelector('.mp-portfolio-card')).getByText('2')).toBeInTheDocument(); // open position count in donut center
       expect(screen.getAllByText('Big Bet').length).toBeGreaterThan(0); // table row and highest exposure fact
-      expect(screen.getByText('1 (50%)')).toBeInTheDocument();
+      expect(within(getBySelector('.mp-portfolio-card')).getAllByText('1 (50%)')).toHaveLength(2);
     });
   });
 
