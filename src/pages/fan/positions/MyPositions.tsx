@@ -726,11 +726,14 @@ function MyPositions() {
                           <div className="mp-table-scroll">
                             <div className="mp-row mp-row--head mp-row--open-cols">
                               <span>Market</span>
-                              <span>Side</span>
+                              <span>Your Position</span>
                               <span>Stake</span>
-                              <span>Price</span>
-                              <span>Payout</span>
+                              <span>Entry Price</span>
+                              <span>Current Price</span>
+                              <span>Potential Payout</span>
+                              <span>Current Value</span>
                               <span>P&amp;L</span>
+                              <span>Placed</span>
                               <span>Status</span>
                               <span aria-hidden="true" />
                             </div>
@@ -767,12 +770,22 @@ function MyPositions() {
                                     </span>
 
                                     <span className="mp-cell mp-cell--num">
-                                      <span className="mp-cell-label">Price</span>
+                                      <span className="mp-cell-label">Entry Price</span>
+                                      {settled ? '-' : getEntryPrice(position).toFixed(2)}
+                                    </span>
+
+                                    <span className="mp-cell mp-cell--num">
+                                      <span className="mp-cell-label">Current Price</span>
                                       {settled ? '—' : <PriceChange from={getEntryPrice(position)} to={getCurrentPrice(position)} />}
                                     </span>
 
                                     <span className="mp-cell mp-cell--num">
-                                      <span className="mp-cell-label">{settled ? 'Payout' : 'Value'}</span>
+                                      <span className="mp-cell-label">Potential Payout</span>
+                                      {settled ? '-' : formatUgx(getPotentialPayout(position))}
+                                    </span>
+
+                                    <span className="mp-cell mp-cell--num">
+                                      <span className="mp-cell-label">Current Value</span>
                                       <span className="my-positions-payout">
                                         {formatUgx(settled ? getSettledPayout(position) : getCurrentValue(position))}
                                       </span>
@@ -784,9 +797,13 @@ function MyPositions() {
                                     </span>
 
                                     <span className="mp-cell">
+                                      <span className="mp-cell-label">Placed</span>
+                                      <span className="my-positions-time">{formatDateTime(position.contract.matchedAt)}</span>
+                                    </span>
+
+                                    <span className="mp-cell">
                                       <span className="mp-cell-label">Status</span>
                                       <ResultBadge bucket={bucket} />
-                                      <span className="mp-cell-sub">{formatDateTime(position.contract.matchedAt)}</span>
                                     </span>
 
                                     <span className="mp-cell mp-cell--action">
