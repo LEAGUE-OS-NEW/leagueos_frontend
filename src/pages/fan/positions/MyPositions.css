@@ -535,9 +535,12 @@
   padding: 12px 10px;
 }
 
+/* Consolidated to 8 tracks (Market, Side, Stake, Price, Payout/Value, P&L,
+   Status incl. placed-at sub-line, row actions) so the table fits within
+   the main column at common desktop widths without horizontal scrolling. */
 .mp-row--open-cols {
-  grid-template-columns: 1.8fr 0.8fr 0.9fr 0.9fr 1fr 1fr 0.9fr 1fr 0.8fr 32px;
-  min-width: 1040px;
+  grid-template-columns: 1.9fr 0.7fr 0.9fr 1fr 1fr 0.9fr 1fr 32px;
+  min-width: 760px;
 }
 
 .mp-row--settled-cols {
@@ -582,6 +585,14 @@
 
 .mp-cell-label {
   display: none;
+}
+
+/* Secondary line under the Status badge (used to fold "Placed" into the
+   Status cell now that the table has fewer columns). */
+.mp-cell-sub {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
 .mp-row-action-btn {
