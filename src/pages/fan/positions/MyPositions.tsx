@@ -337,7 +337,7 @@ function MyPositions() {
   const [dateTo, setDateTo] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
 
   useEffect(() => {
@@ -738,19 +738,19 @@ function MyPositions() {
                           />
                         </span>
                       </label>
-                      <div className="mp-search mp-search--inline">
-                        <IconSearch />
-                        <input
-                          type="text"
-                          placeholder="Search positions..."
-                          value={search}
-                          onChange={(event) => setSearch(event.target.value)}
-                        />
-                      </div>
                     </div>
                   )}
 
                   <div className="mp-toolbar">
+                    <div className="mp-search">
+                      <IconSearch />
+                      <input
+                        type="text"
+                        placeholder="Search positions..."
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                      />
+                    </div>
                     <label className="mp-select">
                       <span>Sort by</span>
                       <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
