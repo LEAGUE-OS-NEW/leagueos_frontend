@@ -814,7 +814,7 @@ function MyPositions() {
                           <div className="mp-table-scroll">
                             <div className="mp-row mp-row--head mp-row--open-cols">
                               <span className="mp-col-market">Market</span>
-                              <span className="mp-col-side">Your Position</span>
+                              <span className="mp-col-side">My Position</span>
                               <span className="mp-col-stake">Stake</span>
                               <span className="mp-col-entry">Entry Price</span>
                               <span className="mp-col-current-price">Current Price</span>
@@ -855,7 +855,7 @@ function MyPositions() {
                                     </Link>
 
                                     <span className="mp-cell mp-col-side">
-                                      <span className="mp-cell-label">Side</span>
+                                      <span className="mp-cell-label">My Position</span>
                                       <OutcomeBadge outcomeId={position.contract.outcomeId} />
                                     </span>
 
