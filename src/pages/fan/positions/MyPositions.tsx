@@ -407,7 +407,7 @@ function MyPositions() {
     [openPositions],
   );
   const avgEntryPrice = openPositions.length
-    ? openPositions.reduce((sum, p) => sum + getEntryPrice(p), 0) / openPositions.length
+    ? openPositions.reduce((sum, p) => sum + getNormalizedPrice(p, getEntryPrice(p)), 0) / openPositions.length
     : 0;
   const longestOpenDays = openPositions.length
     ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt)))
@@ -802,7 +802,7 @@ function MyPositions() {
                               <span className="mp-col-pnl">P&amp;L</span>
                               <span className="mp-col-placed">Placed</span>
                               <span className="mp-col-status">Status</span>
-                              <span className="mp-col-action" aria-hidden="true" />
+                              <span className="mp-col-action">Action</span>
                             </div>
 
                             <ul className="my-positions-list">
@@ -838,7 +838,7 @@ function MyPositions() {
 
                                     <span className="mp-cell mp-cell--num mp-col-entry">
                                       <span className="mp-cell-label">Entry Price</span>
-                                      {settled ? '-' : getEntryPrice(position).toFixed(2)}
+                                      {settled ? '-' : formatPositionPrice(position, getEntryPrice(position))}
                                     </span>
 
                                     <span className="mp-cell mp-cell--num mp-col-current-price">
@@ -1021,7 +1021,7 @@ function MyPositions() {
                             </div>
                             <div>
                               <dt>Entry Price</dt>
-                              <dd>{getEntryPrice(selectedPosition).toFixed(2)}</dd>
+                              <dd>{formatPositionPrice(selectedPosition, getEntryPrice(selectedPosition))}</dd>
                             </div>
                             {classify(selectedPosition) === 'open' ? (
                               <>
