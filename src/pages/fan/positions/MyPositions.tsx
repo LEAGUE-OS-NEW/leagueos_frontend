@@ -141,6 +141,24 @@ function uniqueValues(positions: Position[], getter: (p: Position) => string): s
   return Array.from(new Set(positions.map(getter))).sort((a, b) => a.localeCompare(b));
 }
 
+function splitMarketLabel(label: string): [string, string] {
+  const separators = [' vs ', ' v ', ' - '];
+  for (const separator of separators) {
+    const parts = label.split(separator);
+    if (parts.length >= 2) return [parts[0].trim(), parts.slice(1).join(separator).trim()];
+  }
+  return [label, ''];
+}
+
+function getInitials(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 // --- tiny dependency-free icons ---------------------------------------------
 
 function IconLayers() {
@@ -344,7 +362,10 @@ function MyPositions() {
     let cancelled = false;
     fetchFanPositions()
       .then((result) => {
-        if (!cancelled) setPositions(result);
+        if (!cancelled) {
+          setPositions(result);
+          setSelectedId((current) => current ?? result[0]?.contract.id ?? null);
+        }
       })
       .catch(() => {
         if (!cancelled) setError("Couldn't load your positions.");
@@ -382,8 +403,8 @@ function MyPositions() {
   const lostPositions = useMemo(() => settledPositions.filter((p) => classify(p) === 'lost'), [settledPositions]);
 
   const totalInvested = useMemo(() => positions.reduce((sum, p) => sum + getStake(p), 0), [positions]);
-  const currentPortfolioValue = useMemo(
-    () => openPositions.reduce((sum, p) => sum + getCurrentValue(p), 0),
+  const potentialReturn = useMemo(
+    () => openPositions.reduce((sum, p) => sum + getPotentialPayout(p), 0),
     [openPositions],
   );
   const netPnl = useMemo(() => {
@@ -629,9 +650,9 @@ function MyPositions() {
                     <StatCard
                       icon={<IconTarget />}
                       tone="primary"
-                      label="Current Value"
-                      value={formatUgx(currentPortfolioValue)}
-                      sublabel="Backend mark valuation"
+                      label="Potential Return"
+                      value={formatUgx(potentialReturn)}
+                      sublabel="Open positions"
                     />
                     <StatCard
                       icon={<IconTrendingUp />}
@@ -809,6 +830,7 @@ function MyPositions() {
                               {pagedPositions.map((position) => {
                                 const bucket = classify(position);
                                 const settled = bucket === 'won' || bucket === 'lost';
+                                const [homeTeam, awayTeam] = splitMarketLabel(position.market.eventLabel);
                                 return (
                                   <li
                                     className={`my-positions-row mp-row mp-row--open-cols${
@@ -822,8 +844,14 @@ function MyPositions() {
                                       className="my-positions-market mp-col-market"
                                       onClick={(event) => event.stopPropagation()}
                                     >
-                                      <strong>{position.market.eventLabel}</strong>
-                                      <span>{position.market.question}</span>
+                                      <span className="mp-market-crests" aria-hidden="true">
+                                        <span className="mp-market-crest mp-market-crest--home">{getInitials(homeTeam)}</span>
+                                        {awayTeam && <span className="mp-market-crest mp-market-crest--away">{getInitials(awayTeam)}</span>}
+                                      </span>
+                                      <span className="mp-market-copy">
+                                        <strong>{position.market.eventLabel}</strong>
+                                        <span>{position.market.question}</span>
+                                      </span>
                                     </Link>
 
                                     <span className="mp-cell mp-col-side">
