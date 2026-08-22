@@ -580,7 +580,7 @@
 }
 
 .mp-row--open-cols {
-  --mp-table-min-width: 1040px;
+  --mp-table-min-width: 1320px;
   grid-template-columns:
     minmax(220px, 2.1fr)
     minmax(120px, 1fr)
@@ -592,7 +592,7 @@
     minmax(86px, 0.75fr)
     minmax(110px, 0.9fr)
     minmax(84px, 0.75fr)
-    28px;
+    minmax(56px, 0.45fr);
   grid-template-areas: 'market side stake entry currentPrice potential currentValue pnl placed status action';
 }
 
@@ -644,6 +644,12 @@
 
 .mp-col-action {
   grid-area: action;
+  justify-self: center;
+}
+
+.mp-row--head .mp-col-action {
+  text-align: center;
+  white-space: nowrap;
 }
 
 .mp-row--settled-cols {
@@ -683,8 +689,8 @@
 }
 
 .mp-cell--num {
-  align-items: flex-start;
-  text-align: left;
+  align-items: center;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1259,7 +1265,7 @@
 
 @media (max-width: 1200px) {
   .mp-row--open-cols {
-    --mp-table-min-width: 960px;
+    --mp-table-min-width: 1080px;
     grid-template-columns:
       minmax(230px, 2.2fr)
       minmax(120px, 1fr)
@@ -1269,7 +1275,7 @@
       minmax(88px, 0.8fr)
       minmax(116px, 1fr)
       minmax(84px, 0.75fr)
-      28px;
+      minmax(56px, 0.45fr);
     grid-template-areas: 'market side stake currentPrice currentValue pnl placed status action';
   }
 
