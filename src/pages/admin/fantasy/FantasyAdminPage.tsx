@@ -14,7 +14,7 @@ import {
   fetchLeagueMembers, createMatchPlayerStatistic, fetchMatchPlayerStatistics,
   adminCreateFullPlayer,
  type CanonicalCompetition, type CanonicalSport,
-  type FantasyAvailability, type FantasyCompetition, type FantasyPlayer, type FantasyScoringRule, type FantasyStatisticType,
+  type FantasyAvailability, type FantasyCompetition, type FantasyPlayer, type FantasyScoringRule, type FantasyStatisticType, type ScoringRuleType,
   type CanonicalFantasyOptions, type FantasyFixture, type FantasyGameweek,
   type FantasyLeagueOverview, type FantasyLeagueMember, type FantasyPlayerCandidate,
   type FantasyStanding, type FantasyTeamScore,
@@ -94,6 +94,95 @@ const editableCompetition = (row: FantasyCompetition) => ({
   gameweek_rules: stripJsonObjectBraces(JSON.stringify(row.gameweek_rules ?? {}, null, 2)),
 });
 
+/* ── scoring rule helpers ─────────────────────────────── */
+
+/** Build the conditions object for a scoring rule from form state. */
+function buildConditions(
+  rt: ScoringRuleType,
+  bracketMin: string,
+  bracketMax: string,
+  perN: string,
+  positionPts: Record<string, string>,
+): Record<string, unknown> {
+  if (rt === 'BRACKET') {
+    return {
+      min: Number(bracketMin),
+      max: bracketMax.trim() === '' ? null : Number(bracketMax),
+    };
+  }
+  if (rt === 'PER_N') {
+    return { per_n: Number(perN) };
+  }
+  if (rt === 'POSITION') {
+    const positions: Record<string, number> = {};
+    for (const [pos, pts] of Object.entries(positionPts)) {
+      positions[pos] = Number(pts);
+    }
+    return { positions };
+  }
+  // PER_UNIT and FLAT: empty conditions
+  return {};
+}
+
+/** Validate create/edit form conditions before submitting. Returns error string or null. */
+function validateConditions(
+  rt: ScoringRuleType,
+  bracketMin: string,
+  bracketMax: string,
+  perN: string,
+  positionPts: Record<string, string>,
+): string | null {
+  if (rt === 'BRACKET') {
+    const min = Number(bracketMin);
+    if (bracketMin.trim() === '' || isNaN(min) || min < 0)
+      return 'Minimum is required and must be ≥ 0.';
+    if (bracketMax.trim() !== '') {
+      const max = Number(bracketMax);
+      if (isNaN(max)) return 'Maximum must be a number or left empty for no upper bound.';
+      if (max <= min) return 'Maximum must be greater than minimum.';
+    }
+  }
+  if (rt === 'PER_N') {
+    const n = Number(perN);
+    if (perN.trim() === '' || isNaN(n) || n < 1) return 'N must be a positive integer (≥ 1).';
+  }
+  if (rt === 'POSITION') {
+    const keys = Object.keys(positionPts);
+    if (!keys.length) return 'At least one position must have a points value.';
+    for (const [pos, pts] of Object.entries(positionPts)) {
+      if (pts.trim() === '' || isNaN(Number(pts)))
+        return `Points for position "${pos}" must be a number.`;
+    }
+  }
+  return null;
+}
+
+/** Produce a human-readable summary of a scoring rule for the table. */
+function describeRule(rule: FantasyScoringRule): string {
+  const rt = rule.rule_type ?? 'PER_UNIT';
+  const pts = rule.points;
+  const stat = rule.statistic_type.replace(/_/g, ' ').toLowerCase();
+  if (rt === 'FLAT') return `${pts} pts (flat)`;
+  if (rt === 'BRACKET') {
+    const c = rule.conditions as { min?: number; max?: number | null };
+    const min = c.min ?? 0;
+    const max = c.max;
+    const range = max != null ? `${min}–${max}` : `${min}+`;
+    return `${range} → ${pts} pt${Number(pts) !== 1 ? 's' : ''}`;
+  }
+  if (rt === 'PER_N') {
+    const c = rule.conditions as { per_n?: number };
+    return `${pts} pt per ${c.per_n ?? '?'} ${stat}`;
+  }
+  if (rt === 'POSITION') {
+    const c = rule.conditions as { positions?: Record<string, number> };
+    const pos = c.positions ?? {};
+    return Object.entries(pos).map(([p, v]) => `${p} ${v}`).join(' • ') || `${pts} pts`;
+  }
+  // PER_UNIT
+  return `${pts} pts per ${stat}`;
+}
+
 /* ── component ────────────────────────────────────────────── */
 
 export default function FantasyAdminPage() {
@@ -151,6 +240,12 @@ export default function FantasyAdminPage() {
   // Scoring tab
   const [statistic, setStatistic] = useState('');
   const [points, setPoints] = useState('');
+  const [ruleType, setRuleType] = useState<ScoringRuleType>('PER_UNIT');
+  const [newRuleEnabled, setNewRuleEnabled] = useState(true);
+  const [bracketMin, setBracketMin] = useState('');
+  const [bracketMax, setBracketMax] = useState(''); // empty string = no upper bound (null)
+  const [perN, setPerN] = useState('');
+  const [positionPts, setPositionPts] = useState<Record<string, string>>({});
   const [statisticTypes, setStatisticTypes] = useState<FantasyStatisticType[]>([]);
 
   // Corrections tab
@@ -223,7 +318,15 @@ export default function FantasyAdminPage() {
 
   // Scoring rule edit state
   const [editingScoringRuleId, setEditingScoringRuleId] = useState('');
-  const [scoringRuleEdit, setScoringRuleEdit] = useState<{points:string;enabled:boolean}|null>(null);
+  const [scoringRuleEdit, setScoringRuleEdit] = useState<{
+    points: string;
+    enabled: boolean;
+    ruleType: ScoringRuleType;
+    bracketMin: string;
+    bracketMax: string; // '' = no upper bound
+    perN: string;
+    positionPts: Record<string, string>;
+  } | null>(null);
 
   // UI state
   const [error, setError] = useState('');
@@ -524,12 +627,29 @@ export default function FantasyAdminPage() {
       setError('Points must be a valid number.');
       return;
     }
+    const condErr = validateConditions(
+      scoringRuleEdit.ruleType,
+      scoringRuleEdit.bracketMin,
+      scoringRuleEdit.bracketMax,
+      scoringRuleEdit.perN,
+      scoringRuleEdit.positionPts,
+    );
+    if (condErr) { setError(condErr); return; }
+    const conditions = buildConditions(
+      scoringRuleEdit.ruleType,
+      scoringRuleEdit.bracketMin,
+      scoringRuleEdit.bracketMax,
+      scoringRuleEdit.perN,
+      scoringRuleEdit.positionPts,
+    );
     const snapshot = { ...scoringRuleEdit };
     const snapId = editingScoringRuleId;
     setEditingScoringRuleId(''); setScoringRuleEdit(null);
     await run(() => adminUpdateScoringRule(snapId, {
       points: snapshot.points,
       enabled: snapshot.enabled,
+      rule_type: snapshot.ruleType,
+      conditions,
     }), 'Scoring rule updated.');
   };
 
@@ -1405,29 +1525,179 @@ export default function FantasyAdminPage() {
                   <>
                     <h2>Add Scoring Rule</h2>
                     <p style={{ margin:'-10px 0 0', fontSize:'0.83rem', color:'var(--color-text-secondary)' }}>
-                      Only statistic types found in authoritative match data are available.
+                      Configure how statistics translate to fantasy points. Select a rule type to see the required fields.
                     </p>
                     {!statisticTypes.length
                       ? <div className="fa-empty" style={{ padding:'20px 0' }}>No statistic types available for this competition yet.</div>
                       : (
                         <div className="fa-form-grid">
-                          <label className="fa-field">
+                          {/* ── Statistic ── */}
+                          <label className="fa-field" aria-label="statistic type label">
                             <span>Statistic type</span>
-                            <select value={statistic} onChange={e => setStatistic(e.target.value)}>
+                            <select
+                              aria-label="statistic type"
+                              value={statistic}
+                              onChange={e => setStatistic(e.target.value)}
+                            >
                               <option value="">— Select —</option>
                               {statisticTypes.map(r => (
                                 <option key={r.code} value={r.code}>{r.label}{!r.observed ? ' (no data yet)' : ''}</option>
                               ))}
                             </select>
                           </label>
+
+                          {/* ── Rule Type ── */}
                           <label className="fa-field">
-                            <span>Points per unit</span>
-                            <input type="number" value={points} onChange={e => setPoints(e.target.value)} placeholder="e.g. 3 or -1" />
+                            <span>Rule type</span>
+                            <select
+                              aria-label="rule type"
+                              value={ruleType}
+                              onChange={e => {
+                                const rt = e.target.value as ScoringRuleType;
+                                setRuleType(rt);
+                                // Clear conditions from incompatible previous type
+                                setBracketMin(''); setBracketMax('');
+                                setPerN('');
+                                // Seed position inputs from competition's position_rules
+                                if (rt === 'POSITION') {
+                                  const seed: Record<string, string> = {};
+                                  for (const pos of Object.keys(competition.position_rules)) seed[pos] = '0';
+                                  setPositionPts(seed);
+                                } else {
+                                  setPositionPts({});
+                                }
+                              }}
+                            >
+                              <option value="PER_UNIT">Per unit — value × points</option>
+                              <option value="FLAT">Flat — fixed points when stat &gt; 0</option>
+                              <option value="BRACKET">Bracket — points when value in range</option>
+                              <option value="PER_N">Per N — floor(value ÷ N) × points</option>
+                              <option value="POSITION">Position-based — points by position</option>
+                            </select>
                           </label>
+
+                          {/* ── BRACKET fields ── */}
+                          {ruleType === 'BRACKET' && (
+                            <>
+                              <label className="fa-field">
+                                <span>Minimum value (inclusive) *</span>
+                                <input
+                                  aria-label="bracket minimum"
+                                  type="number" min="0" step="1"
+                                  value={bracketMin}
+                                  onChange={e => setBracketMin(e.target.value)}
+                                  placeholder="e.g. 1"
+                                />
+                              </label>
+                              <label className="fa-field">
+                                <span>Maximum value (inclusive) — leave empty for no upper bound</span>
+                                <input
+                                  aria-label="bracket maximum"
+                                  type="number" min="1" step="1"
+                                  value={bracketMax}
+                                  onChange={e => setBracketMax(e.target.value)}
+                                  placeholder="e.g. 59 — or leave empty for 60+"
+                                />
+                              </label>
+                            </>
+                          )}
+
+                          {/* ── PER_N field ── */}
+                          {ruleType === 'PER_N' && (
+                            <label className="fa-field">
+                              <span>Every N units *</span>
+                              <input
+                                aria-label="per n value"
+                                type="number" min="1" step="1"
+                                value={perN}
+                                onChange={e => setPerN(e.target.value)}
+                                placeholder="e.g. 3"
+                              />
+                            </label>
+                          )}
+
+                          {/* ── POSITION fields ── */}
+                          {ruleType === 'POSITION' && (
+                            <div className="fa-form-grid-fullwidth" style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                              <span style={{ fontSize:'0.82rem', fontWeight:600 }}>Points per position</span>
+                              <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
+                                {Object.keys(competition.position_rules).map(pos => (
+                                  <label key={pos} className="fa-field" style={{ minWidth:80 }}>
+                                    <span>{pos}</span>
+                                    <input
+                                      aria-label={`position points ${pos}`}
+                                      type="number" step="1"
+                                      value={positionPts[pos] ?? '0'}
+                                      onChange={e => setPositionPts(prev => ({ ...prev, [pos]: e.target.value }))}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ── Points ── */}
+                          {ruleType !== 'POSITION' && (
+                            <label className="fa-field">
+                              <span>
+                                {ruleType === 'FLAT' ? 'Points (flat)' :
+                                 ruleType === 'BRACKET' ? 'Points awarded when in range' :
+                                 ruleType === 'PER_N' ? 'Points per N' :
+                                 'Points per unit'}
+                              </span>
+                              <input
+                                aria-label="points per unit"
+                                type="number" step="any"
+                                value={points}
+                                onChange={e => setPoints(e.target.value)}
+                                placeholder="e.g. 3 or -1"
+                              />
+                            </label>
+                          )}
+
+                          <label className="fa-checkbox-row">
+                            <input
+                              type="checkbox"
+                              aria-label="rule enabled"
+                              checked={newRuleEnabled}
+                              onChange={e => setNewRuleEnabled(e.target.checked)}
+                            />
+                            Active (rule will participate in scoring immediately)
+                          </label>
+
                           <button
                             className="fa-btn fa-btn--gradient"
-                            disabled={saving || !statistic || !points || isNaN(Number(points))}
-                            onClick={() => void run(() => adminCreateScoringRule({ fantasy_competition: competition.id, statistic_type: statistic, points, conditions: {}, enabled: true }), 'Scoring rule added.').then(ok => { if (ok) { setStatistic(''); setPoints(''); } })}
+                            disabled={
+                              saving || !statistic ||
+                              (ruleType !== 'POSITION' && (!points || isNaN(Number(points)))) ||
+                              (ruleType === 'BRACKET' && bracketMin.trim() === '') ||
+                              (ruleType === 'PER_N' && (perN.trim() === '' || Number(perN) < 1)) ||
+                              (ruleType === 'POSITION' && Object.keys(positionPts).length === 0)
+                            }
+                            onClick={() => {
+                              const condErr = validateConditions(ruleType, bracketMin, bracketMax, perN, positionPts);
+                              if (condErr) { setError(condErr); return; }
+                              const conditions = buildConditions(ruleType, bracketMin, bracketMax, perN, positionPts);
+                              const effectivePoints = ruleType === 'POSITION' ? '0' : points;
+                              void run(
+                                () => adminCreateScoringRule({
+                                  fantasy_competition: competition.id,
+                                  statistic_type: statistic,
+                                  rule_type: ruleType,
+                                  points: effectivePoints,
+                                  conditions,
+                                  enabled: newRuleEnabled,
+                                }),
+                                'Scoring rule added.',
+                              ).then(ok => {
+                                if (ok) {
+                                  setStatistic(''); setPoints(''); setRuleType('PER_UNIT');
+                                  setBracketMin(''); setBracketMax('');
+                                  setPerN(''); setPositionPts({});
+                                  setNewRuleEnabled(true);
+                                }
+                              });
+                            }}
                           >
                             Add rule
                           </button>
@@ -1437,35 +1707,79 @@ export default function FantasyAdminPage() {
                     <h2>Current Scoring Rules</h2>
                     <div className="fa-table-wrap">
                       <table className="fa-table">
-                        <thead><tr><th>Statistic</th><th>Points per unit</th><th>Enabled</th><th>Conditions</th><th></th></tr></thead>
+                        <thead>
+                          <tr>
+                            <th>Statistic</th>
+                            <th>Rule type</th>
+                            <th>Rule</th>
+                            <th>Enabled</th>
+                            <th></th>
+                          </tr>
+                        </thead>
                         <tbody>
-                          {!competition.scoring_rules.length && <tr className="fa-table__empty"><td colSpan={5}>No scoring rules defined yet.</td></tr>}
-                          {competition.scoring_rules.map((r: FantasyScoringRule) => (
-                            <tr key={r.id}>
-                              <td>{r.statistic_type}</td>
-                              <td><strong>{r.points}</strong></td>
-                              <td>{r.enabled ? <span className="fa-status-pill fa-status-pill--open">Yes</span> : <span className="fa-status-pill fa-status-pill--unavailable">No</span>}</td>
-                              <td style={{ fontSize:'0.76rem', color:'var(--color-text-muted)' }}>{Object.keys(r.conditions).length ? JSON.stringify(r.conditions) : '—'}</td>
-                              <td>
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                  <button
-                                    className="fa-btn fa-btn--sm"
-                                    aria-label={`Edit scoring rule ${r.statistic_type}`}
-                                    onClick={() => { setEditingScoringRuleId(r.id); setScoringRuleEdit({ points: String(r.points), enabled: r.enabled }); }}
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    className="fa-btn fa-btn--sm fa-btn--danger"
-                                    aria-label={`Delete scoring rule ${r.statistic_type}`}
-                                    onClick={() => setDeleteTarget({ kind: 'scoring_rule', id: r.id, name: r.statistic_type })}
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {!competition.scoring_rules.length && (
+                            <tr className="fa-table__empty"><td colSpan={5}>No scoring rules defined yet.</td></tr>
+                          )}
+                          {competition.scoring_rules.map((r: FantasyScoringRule) => {
+                            const rt = r.rule_type ?? 'PER_UNIT';
+                            return (
+                              <tr key={r.id}>
+                                <td>{r.statistic_type}</td>
+                                <td style={{ fontSize:'0.76rem', color:'var(--color-text-muted)' }}>{rt}</td>
+                                <td style={{ fontSize:'0.84rem' }}><strong>{describeRule(r)}</strong></td>
+                                <td>{r.enabled ? <span className="fa-status-pill fa-status-pill--open">Yes</span> : <span className="fa-status-pill fa-status-pill--unavailable">No</span>}</td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    <button
+                                      className="fa-btn fa-btn--sm"
+                                      aria-label={`Edit scoring rule ${r.statistic_type}`}
+                                      onClick={() => {
+                                        const editRt: ScoringRuleType = (r.rule_type as ScoringRuleType) ?? 'PER_UNIT';
+                                        const editConditions = r.conditions ?? {};
+                                        // Decode conditions back into form fields
+                                        let eMin = '', eMax = '', ePerN = '';
+                                        let ePosPts: Record<string, string> = {};
+                                        if (editRt === 'BRACKET') {
+                                          const bc = editConditions as { min?: number; max?: number | null };
+                                          eMin = bc.min != null ? String(bc.min) : '';
+                                          eMax = bc.max != null ? String(bc.max) : '';
+                                        }
+                                        if (editRt === 'PER_N') {
+                                          const nc = editConditions as { per_n?: number };
+                                          ePerN = nc.per_n != null ? String(nc.per_n) : '';
+                                        }
+                                        if (editRt === 'POSITION') {
+                                          const pc = editConditions as { positions?: Record<string, number> };
+                                          ePosPts = Object.fromEntries(
+                                            Object.entries(pc.positions ?? {}).map(([k, v]) => [k, String(v)])
+                                          );
+                                        }
+                                        setEditingScoringRuleId(r.id);
+                                        setScoringRuleEdit({
+                                          points: String(r.points),
+                                          enabled: r.enabled,
+                                          ruleType: editRt,
+                                          bracketMin: eMin,
+                                          bracketMax: eMax,
+                                          perN: ePerN,
+                                          positionPts: ePosPts,
+                                        });
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      className="fa-btn fa-btn--sm fa-btn--danger"
+                                      aria-label={`Delete scoring rule ${r.statistic_type}`}
+                                      onClick={() => setDeleteTarget({ kind: 'scoring_rule', id: r.id, name: r.statistic_type })}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -2170,25 +2484,125 @@ export default function FantasyAdminPage() {
         {/* ════ EDIT SCORING RULE MODAL ════ */}
         {scoringRuleEdit && editingScoringRuleId && (
           <div className="fa-modal-overlay" onClick={() => { setEditingScoringRuleId(''); setScoringRuleEdit(null); }}>
-            <div className="fa-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Edit scoring rule" style={{ maxWidth: 400 }}>
+            <div className="fa-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Edit scoring rule" style={{ maxWidth: 480 }}>
               <h2>Edit Scoring Rule</h2>
-              <p>Statistic type is read-only. Only points per unit and enabled state can be changed.</p>
+              <p>Statistic type is read-only. Update the rule type, conditions and points below.</p>
               <div className="fa-modal-form">
+                {/* ── Rule Type ── */}
                 <label className="fa-field">
-                  <span>Points per unit</span>
-                  <input
-                    aria-label="points per unit"
-                    type="number"
-                    value={scoringRuleEdit.points}
-                    onChange={e => setScoringRuleEdit({ ...scoringRuleEdit, points: e.target.value })}
-                  />
+                  <span>Rule type</span>
+                  <select
+                    aria-label="rule type"
+                    value={scoringRuleEdit.ruleType}
+                    onChange={e => {
+                      const rt = e.target.value as ScoringRuleType;
+                      setScoringRuleEdit(prev => prev ? {
+                        ...prev,
+                        ruleType: rt,
+                        bracketMin: '',
+                        bracketMax: '',
+                        perN: '',
+                        positionPts: rt === 'POSITION'
+                          ? Object.fromEntries(Object.keys(competition?.position_rules ?? {}).map(p => [p, '0']))
+                          : {},
+                      } : null);
+                    }}
+                  >
+                    <option value="PER_UNIT">Per unit — value × points</option>
+                    <option value="FLAT">Flat — fixed points when stat &gt; 0</option>
+                    <option value="BRACKET">Bracket — points when value in range</option>
+                    <option value="PER_N">Per N — floor(value ÷ N) × points</option>
+                    <option value="POSITION">Position-based — points by position</option>
+                  </select>
                 </label>
+
+                {/* ── BRACKET fields ── */}
+                {scoringRuleEdit.ruleType === 'BRACKET' && (
+                  <>
+                    <label className="fa-field">
+                      <span>Minimum value (inclusive) *</span>
+                      <input
+                        aria-label="bracket minimum"
+                        type="number" min="0" step="1"
+                        value={scoringRuleEdit.bracketMin}
+                        onChange={e => setScoringRuleEdit(prev => prev ? { ...prev, bracketMin: e.target.value } : null)}
+                        placeholder="e.g. 1"
+                      />
+                    </label>
+                    <label className="fa-field">
+                      <span>Maximum value — leave empty for no upper bound</span>
+                      <input
+                        aria-label="bracket maximum"
+                        type="number" min="1" step="1"
+                        value={scoringRuleEdit.bracketMax}
+                        onChange={e => setScoringRuleEdit(prev => prev ? { ...prev, bracketMax: e.target.value } : null)}
+                        placeholder="empty = no upper bound"
+                      />
+                    </label>
+                  </>
+                )}
+
+                {/* ── PER_N field ── */}
+                {scoringRuleEdit.ruleType === 'PER_N' && (
+                  <label className="fa-field">
+                    <span>Every N units *</span>
+                    <input
+                      aria-label="per n value"
+                      type="number" min="1" step="1"
+                      value={scoringRuleEdit.perN}
+                      onChange={e => setScoringRuleEdit(prev => prev ? { ...prev, perN: e.target.value } : null)}
+                      placeholder="e.g. 3"
+                    />
+                  </label>
+                )}
+
+                {/* ── POSITION fields ── */}
+                {scoringRuleEdit.ruleType === 'POSITION' && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    <span style={{ fontSize:'0.82rem', fontWeight:600 }}>Points per position</span>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
+                      {Object.keys(competition?.position_rules ?? {}).map(pos => (
+                        <label key={pos} className="fa-field" style={{ minWidth:80 }}>
+                          <span>{pos}</span>
+                          <input
+                            aria-label={`position points ${pos}`}
+                            type="number" step="1"
+                            value={scoringRuleEdit.positionPts[pos] ?? '0'}
+                            onChange={e => setScoringRuleEdit(prev => prev ? {
+                              ...prev,
+                              positionPts: { ...prev.positionPts, [pos]: e.target.value },
+                            } : null)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Points (hidden for POSITION) ── */}
+                {scoringRuleEdit.ruleType !== 'POSITION' && (
+                  <label className="fa-field">
+                    <span>
+                      {scoringRuleEdit.ruleType === 'FLAT' ? 'Points (flat)' :
+                       scoringRuleEdit.ruleType === 'BRACKET' ? 'Points awarded when in range' :
+                       scoringRuleEdit.ruleType === 'PER_N' ? 'Points per N' :
+                       'Points per unit'}
+                    </span>
+                    <input
+                      aria-label="points per unit"
+                      type="number" step="any"
+                      value={scoringRuleEdit.points}
+                      onChange={e => setScoringRuleEdit(prev => prev ? { ...prev, points: e.target.value } : null)}
+                    />
+                  </label>
+                )}
+
                 <label className="fa-checkbox-row">
                   <input
                     type="checkbox"
                     aria-label="rule enabled"
                     checked={scoringRuleEdit.enabled}
-                    onChange={e => setScoringRuleEdit({ ...scoringRuleEdit, enabled: e.target.checked })}
+                    onChange={e => setScoringRuleEdit(prev => prev ? { ...prev, enabled: e.target.checked } : null)}
                   />
                   Enabled
                 </label>

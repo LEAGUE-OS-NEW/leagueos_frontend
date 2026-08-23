@@ -395,8 +395,8 @@ describe('Leagues — league detail drawer', () => {
 
     render(<Leagues competition={competition} team={team} />);
     await userEvent.click(await screen.findByText('Detail League'));
-    await waitFor(() => expect(screen.getByText('Test Team')).toBeInTheDocument());
-    expect(screen.getByText('Test Manager')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Test Team/)).toBeInTheDocument());
+    expect(screen.getByText(/Test Manager/)).toBeInTheDocument();
   });
 
   it('shows a Leave league button in the drawer', async () => {

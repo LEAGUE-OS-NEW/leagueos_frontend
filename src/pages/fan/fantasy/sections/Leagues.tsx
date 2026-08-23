@@ -10,6 +10,22 @@ import { extractApiError } from '../../../../services/apiUtils';
 import { Modal, Drawer } from './Modal';
 
 const NO_TEAM_BACKEND_MSG = 'Invalid invite code or no team for this competition.';
+const ALREADY_MEMBER_MSG = "You're already a member of this league.";
+
+// ── Extract an invite code from either a raw code or a pasted invite link ───
+// Supports: raw code (ABC12345), or URLs containing ?code=ABC12345
+function extractCodeFromInput(raw: string): string {
+  const trimmed = raw.trim();
+  try {
+    // Accept full URLs: https://…/fan/fantasy/join?code=ABC12345
+    const url = new URL(trimmed.startsWith('http') ? trimmed : `https://x.com/${trimmed}`);
+    const codeParam = url.searchParams.get('code');
+    if (codeParam) return codeParam.trim().toUpperCase();
+  } catch {
+    // Not a URL — fall through to treat as raw code
+  }
+  return trimmed.toUpperCase();
+}
 
 // ── Pending invite codes — persisted in localStorage ──────────────────────────
 const PENDING_CODES_KEY = 'leagueos:fantasy:pendingInviteCodes';
@@ -94,8 +110,22 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
       fetchPublicLeagues(),
       fetchCompetitionLeaderboard(competition.id),
     ]);
-    setMine(m.filter(x => x.fantasy_competition === competition.id));
-    setPublic(p.filter(x => x.fantasy_competition === competition.id));
+    // My Leagues: all leagues for this competition the user owns or is a member of
+    const myLeagues = m.filter(x => x.fantasy_competition === competition.id);
+    setMine(myLeagues);
+
+    // Derive the set of league IDs the user already belongs to
+    const myLeagueIds = new Set(myLeagues.map(x => x.id));
+
+    // Public Leagues: public leagues for this competition the user has NOT already joined
+    setPublic(
+      p.filter(
+        x =>
+          x.fantasy_competition === competition.id &&
+          x.visibility === 'PUBLIC' &&
+          !myLeagueIds.has(x.id),
+      ),
+    );
     setOverall(o);
   }, [competition.id]);
 
@@ -120,11 +150,17 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
       const updates: Record<string, FantasyLeague | null> = {};
       await Promise.all(unresolved.map(async ({ code: c }) => {
         try {
-          const league = await joinFantasyLeagueByCode(c);
+          const result = await joinFantasyLeagueByCode(c);
           if (cancelled) return;
+          // Already-member: backend returns {detail} — treat as joined (clean up)
+          if ('detail' in result) {
+            removePendingCode(c);
+            updates[c] = { id: '', name: '', fantasy_competition: competition.id, visibility: 'PRIVATE' as const, description: '', capacity: null, member_count: 0 };
+            return;
+          }
           // Successfully joined — remove from pending list and reload
           removePendingCode(c);
-          updates[c] = league;
+          updates[c] = result;
         } catch (err: unknown) {
           if (cancelled) return;
           const msg = extractApiError(err).message;
@@ -212,21 +248,35 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
 
   async function joinByCode() {
     setJoinError('');
+    const cleaned = extractCodeFromInput(code);
+    if (!cleaned) { setJoinError('Enter a valid invite code or link.'); return; }
     try {
-      const cleaned = code.trim().toUpperCase();
-      const row = await joinFantasyLeagueByCode(cleaned);
+      const result = await joinFantasyLeagueByCode(cleaned);
+      // Already-member: backend returns {detail: "..."} at HTTP 200
+      if ('detail' in result) {
+        if (result.detail === ALREADY_MEMBER_MSG) {
+          setJoinOpen(false);
+          setCode('');
+          removePendingCode(cleaned);
+          setInvites(prev => prev.filter(e => e.code !== cleaned));
+          await reload();
+          setError(ALREADY_MEMBER_MSG);
+          return;
+        }
+        setJoinError(result.detail ?? 'Could not join league.');
+        return;
+      }
       setJoinOpen(false);
       setCode('');
       // Remove from invites if it was there
       removePendingCode(cleaned);
       setInvites(prev => prev.filter(e => e.code !== cleaned));
       await reload();
-      await open(row);
+      await open(result);
     } catch (e) {
       const { message } = extractApiError(e);
       if (message === NO_TEAM_BACKEND_MSG) {
         setJoinOpen(false);
-        const cleaned = code.trim().toUpperCase();
         // Save to invites so it shows in the Invites tab
         addPendingCode(cleaned);
         setInvites(prev =>
@@ -251,11 +301,24 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
   async function joinFromInvites(entry: InviteEntry) {
     setError('');
     try {
-      const row = await joinFantasyLeagueByCode(entry.code);
+      const result = await joinFantasyLeagueByCode(entry.code);
+      if ('detail' in result) {
+        if (result.detail === ALREADY_MEMBER_MSG) {
+          // Already joined — clean up the pending invite and refresh
+          removePendingCode(entry.code);
+          setInvites(prev => prev.filter(e => e.code !== entry.code));
+          await reload();
+          setTab('mine');
+          setError(ALREADY_MEMBER_MSG);
+          return;
+        }
+        setError(result.detail ?? 'Could not join league.');
+        return;
+      }
       removePendingCode(entry.code);
       setInvites(prev => prev.filter(e => e.code !== entry.code));
       await reload();
-      await open(row);
+      await open(result);
       setTab('mine');
     } catch (e) {
       const { message } = extractApiError(e);
@@ -276,9 +339,18 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
   async function joinPublic(row: FantasyLeague) {
     setError('');
     try {
-      await joinFantasyLeague(row.id);
+      const result = await joinFantasyLeague(row.id);
+      if ('detail' in result) {
+        if (result.detail === ALREADY_MEMBER_MSG) {
+          await reload();
+          setError(ALREADY_MEMBER_MSG);
+          return;
+        }
+        setError(result.detail ?? 'Could not join league.');
+        return;
+      }
       await reload();
-      await open(row);
+      await open(result);
     } catch (e) {
       setError(extractApiError(e).message);
     }
@@ -462,9 +534,17 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
         <div className="leagues-invites">
           <div className="sb-summary-bar">
             <span>Leagues you've been invited to join.</span>
-            <button className="btn btn-secondary" onClick={() => setJoinOpen(true)}>
-              Enter invite code
-            </button>
+            <div className="sb-actions">
+              <button className="btn btn-secondary" onClick={() => setJoinOpen(true)}>
+                Enter invite code
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => setCreateOpen(true)}
+              >
+                Create league
+              </button>
+            </div>
           </div>
 
           {activeInvites.length === 0 ? (
@@ -567,14 +647,12 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
         <>
           <div className="sb-summary-bar">
             <span>Compete with friends, clubs and the League OS community.</span>
-            <div className="sb-actions" style={{ margin: 0 }}>
+            <div className="sb-actions">
               <button className="btn btn-secondary" onClick={() => setJoinOpen(true)}>
                 Join by code
               </button>
               <button
                 className="btn btn-primary"
-                disabled={!hasTeam}
-                title={hasTeam ? undefined : 'Create a Fantasy squad for this competition first'}
                 onClick={() => setCreateOpen(true)}
               >
                 Create league
@@ -586,8 +664,19 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
             {listRows.map(row => <LeagueCard key={row.id} row={row} />)}
             {!listRows.length && (
               <div className="empty-state">
-                <h3>No leagues found</h3>
-                {tab === 'mine' && !hasTeam && <p>Build your squad to start or join a league.</p>}
+                {tab === 'mine' ? (
+                  <>
+                    <h3>No leagues yet</h3>
+                    {hasTeam
+                      ? <p>Create a league or join one using an invite code.</p>
+                      : <p>Build your squad first, then create or join a league.</p>}
+                  </>
+                ) : (
+                  <>
+                    <h3>No public leagues available</h3>
+                    <p>All public leagues for this competition are ones you've already joined, or none exist yet.</p>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -596,7 +685,22 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
 
       {/* ── Overall Leaderboard tab ── */}
       {tab === 'overall' && (
-        <table className="standings-table">
+        <>
+          <div className="sb-summary-bar">
+            <span>Overall standings across all teams in this competition.</span>
+            <div className="sb-actions">
+              <button className="btn btn-secondary" onClick={() => setJoinOpen(true)}>
+                Join by code
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => setCreateOpen(true)}
+              >
+                Create league
+              </button>
+            </div>
+          </div>
+          <table className="standings-table">
           <thead>
             <tr><th>Rank</th><th>Team</th><th>Manager</th><th>Points</th></tr>
           </thead>
@@ -611,6 +715,7 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
             ))}
           </tbody>
         </table>
+        </>
       )}
 
       {/* ── League detail drawer ── */}
@@ -838,18 +943,28 @@ export default function Leagues({ competition, team, initialCode, onNeedTeam }: 
         >
           <div className="modal-join-icon-row">
             <span className="modal-join-icon">🏆</span>
-            <p className="modal-join-hint">Enter the invite code shared by the league owner.</p>
+            <p className="modal-join-hint">Enter the invite code or paste an invite link shared by the league owner.</p>
           </div>
           <div className="modal-field-group">
-            <label className="modal-field-label" htmlFor="league-code-input">Invite code</label>
+            <label className="modal-field-label" htmlFor="league-code-input">Invite code or link</label>
             <input
               id="league-code-input"
               className="modal-field-input modal-code-input"
               value={code}
               autoFocus
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. ABC12345"
+              onChange={e => {
+                const raw = e.target.value;
+                // If the user pastes a full URL, extract the code immediately
+                const extracted = extractCodeFromInput(raw);
+                // Show the extracted code if it looks like a code (≤12 chars),
+                // otherwise keep the raw input so URLs remain readable until submit.
+                setCode(extracted.length <= 12 ? extracted : raw);
+              }}
+              placeholder="e.g. ABC12345 or paste an invite link"
             />
+            <span style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+              You can also paste a full invite link — the code will be extracted automatically.
+            </span>
           </div>
           {joinError && <p className="modal-field-error" role="alert">{joinError}</p>}
         </Modal>

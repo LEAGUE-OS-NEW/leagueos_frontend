@@ -1,4 +1,4 @@
-import type { FantasyCompetition, FantasyPlayer, FantasyTeam as ApiTeam, FantasyTeamScore } from '../../../services/fantasyService';
+import type { FantasyCompetition, FantasyPlayer, FantasyStanding, FantasyTeam as ApiTeam, FantasyTeamScore } from '../../../services/fantasyService';
 import type { Competition, FantasyTeam, Player, PositionGroup, SportRules } from './types';
 
 const labels: Record<string,string> = { GK:'Goalkeepers',DEF:'Defenders',MID:'Midfielders',FWD:'Forwards',PG:'Point Guards',SG:'Shooting Guards',SF:'Small Forwards',PF:'Power Forwards',C:'Centres',FR:'Front Row',LK:'Locks',BR:'Back Row',HB:'Half Backs',CT:'Centres',B3:'Back Three' };
@@ -19,7 +19,43 @@ export function rulesFor(competition:Competition):SportRules {
   return {sport:competition.sport,label:competition.sport[0].toUpperCase()+competition.sport.slice(1),budget:Number(row.initial_budget),squadSize:row.squad_size,startersCount:row.starting_lineup_size,maxPerClub:row.max_players_per_team,positionGroups:groups,pitchStyle:competition.sport==='basketball'?'court':competition.sport==='rugby'?'rugby':'grass',multiplierLabel:competition.sport==='basketball'?'Star Player':'Captain'};
 }
 
-export function teamFromApi(row:ApiTeam,competition:Competition,scores:FantasyTeamScore[]=[]):FantasyTeam {
-  const latest=scores.at(-1);
-  return {id:row.id,competitionId:row.fantasy_competition,teamName:row.name,managerName:latest?.manager??'',budgetRemaining:Number(row.budget_remaining),squad:row.selections.map(s=>({playerId:s.fantasy_player,isStarter:s.is_starter,benchOrder:s.bench_order??undefined})),captainId:row.selections.find(s=>s.is_captain)?.fantasy_player??null,viceCaptainId:row.selections.find(s=>s.is_vice_captain)?.fantasy_player??null,freeTransfers:row.free_transfers,totalPoints:scores.reduce((sum,s)=>sum+Number(s.total_points),0),gwPoints:Number(latest?.total_points??0),overallRank:null,submitted:true,score:latest,competition};
+/**
+ * Map an API team + scores + leaderboard into a local FantasyTeam object.
+ *
+ * @param leaderboard - rows from GET /fantasy/competitions/{id}/leaderboard/
+ *   Pass the full array so we can find this team's rank without an extra
+ *   request.  The leaderboard is optional for backwards compat (e.g. when
+ *   called immediately after team creation before a score exists).
+ */
+export function teamFromApi(
+  row: ApiTeam,
+  competition: Competition,
+  scores: FantasyTeamScore[] = [],
+  leaderboard: FantasyStanding[] = [],
+): FantasyTeam {
+  const latest = scores.at(-1);
+  // Resolve rank from the leaderboard: find the row whose team_id matches.
+  const leaderboardRow = leaderboard.find(r => r.team_id === row.id);
+  const overallRank = leaderboardRow ? leaderboardRow.rank : null;
+  return {
+    id: row.id,
+    competitionId: row.fantasy_competition,
+    teamName: row.name,
+    managerName: latest?.manager ?? '',
+    budgetRemaining: Number(row.budget_remaining),
+    squad: row.selections.map(s => ({
+      playerId: s.fantasy_player,
+      isStarter: s.is_starter,
+      benchOrder: s.bench_order ?? undefined,
+    })),
+    captainId: row.selections.find(s => s.is_captain)?.fantasy_player ?? null,
+    viceCaptainId: row.selections.find(s => s.is_vice_captain)?.fantasy_player ?? null,
+    freeTransfers: row.free_transfers,
+    totalPoints: scores.reduce((sum, s) => sum + Number(s.total_points), 0),
+    gwPoints: Number(latest?.total_points ?? 0),
+    overallRank,
+    submitted: true,
+    score: latest,
+    competition,
+  };
 }

@@ -42,7 +42,7 @@ export default function FantasyHub({ teams, competitions, leagueCount, onOpenCom
       <div className="stat-row">
         <StatCard label="Active teams" value={active.length} accent="#6c5ce7" />
         <StatCard label="Best overall rank" value={bestRank ? `#${bestRank.toLocaleString()}` : '—'} accent="#f4661b" />
-        <StatCard label="Total points" value={totalPoints} accent="#ec4899" />
+        <StatCard label="Total points" value={totalPoints} accent="#6c5ce7" />
         <StatCard label="Mini-leagues" value={leagueCount} accent="#22c55e" />
       </div>
 
@@ -61,7 +61,7 @@ export default function FantasyHub({ teams, competitions, leagueCount, onOpenCom
                       <span className="sport-tag">
                         {SPORT_META[c.sport].emoji} {c.shortName}
                       </span>
-                      <Badge tone="green">GW{c.currentGameweek} open</Badge>
+                      <Badge tone="green">GWk{c.currentGameweek}/{c.totalGameweeks} open</Badge>
                     </div>
                     <strong className="hub-team-card-name">{team.teamName}</strong>
                     <div className="hub-team-card-stats">

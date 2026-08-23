@@ -202,7 +202,17 @@ export default function MyTeam({
               </span>
               <span className="breakdown-stat-sub">
                 {team.captainId
-                  ? (() => { const c = byId.get(team.captainId); return c ? `${c.name.split(' ').slice(-1)[0]} ×2` : ''; })()
+                  ? (() => {
+                      const c = byId.get(team.captainId);
+                      const captainScore = scoreFor(team.captainId);
+                      const multiplier = competition.api.captain_multiplier;
+                      const bonus = captainScore ? Number(captainScore.captain_bonus) : 0;
+                      const name = c ? c.name.split(' ').slice(-1)[0] : '';
+                      if (captainScore?.statistics_available && bonus !== 0) {
+                        return `${name} ×${multiplier} (+${bonus} bonus)`;
+                      }
+                      return `${name} ×${multiplier}`;
+                    })()
                   : 'No captain set'}
               </span>
             </div>
@@ -246,18 +256,37 @@ export default function MyTeam({
 
           {/* ── Per-player list ── */}
           <div className="points-breakdown-list">
-            {starters.map((p) => (
-              <div className="points-breakdown-row" key={p.id}>
-                <PlayerAvatar player={p} size={32} />
-                <div className="points-breakdown-name">
-                  <strong>
-                    {p.name} {p.id === team.captainId && <span className="captain-c-inline">C</span>}
-                  </strong>
-                  <span>{p.club}</span>
+            {starters.map((p) => {
+              const scoreRow = scoreFor(p.id);
+              const isCaptain = p.id === team.captainId;
+              const captainBonus = scoreRow ? Number(scoreRow.captain_bonus) : 0;
+              const basePoints = scoreRow ? Number(scoreRow.base_points) : 0;
+              const finalPoints = scoreRow ? Number(scoreRow.final_points) : 0;
+              const statsAvail = scoreRow?.statistics_available ?? false;
+              return (
+                <div className="points-breakdown-row" key={p.id}>
+                  <PlayerAvatar player={p} size={32} />
+                  <div className="points-breakdown-name">
+                    <strong>
+                      {p.name} {isCaptain && <span className="captain-c-inline">C</span>}
+                    </strong>
+                    <span>{p.club}</span>
+                  </div>
+                  <div className="points-breakdown-value">
+                    {!statsAvail ? (
+                      'Awaiting statistics'
+                    ) : isCaptain && captainBonus !== 0 ? (
+                      <span className="captain-pts-detail" title={`Base: ${basePoints} + Captain bonus: ${captainBonus}`}>
+                        {finalPoints} pts
+                        <span className="captain-pts-sub"> ({basePoints} + {captainBonus})</span>
+                      </span>
+                    ) : (
+                      `${finalPoints} pts`
+                    )}
+                  </div>
                 </div>
-                <div className="points-breakdown-value">{pointsLabel(p.id)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {bench.length > 0 && (

@@ -1,6 +1,7 @@
 import apiClient from './apiClient.ts';
 export * from './fantasyService';
-import type { FantasyAvailability, FantasyCompetition, FantasyFixture, FantasyGameweek, FantasyPlayer, FantasyScoringRule } from './fantasyService';
+import type { FantasyAvailability, FantasyCompetition, FantasyFixture, FantasyGameweek, FantasyPlayer, FantasyScoringRule, ScoringRuleType } from './fantasyService';
+export type { ScoringRuleType };
 export interface FantasyPlayerCandidate { id:string; name:string; club:string|null; profile_position:string }
 // Represents a Competition + Season pair that is already covered by a FantasyCompetition.
 // Returned by canonical-options so the admin UI can warn before attempting a duplicate POST.
@@ -65,7 +66,7 @@ export async function adminFinalizeGameweek(value:string){return (await apiClien
 // Returns full statistic type objects — label shown to admin, observed flag indicates available stats in match data
 export async function fetchFantasyStatisticTypes(competition:string):Promise<FantasyStatisticType[]>{return list<FantasyStatisticType>((await apiClient.get(`/fantasy/competitions/${id(competition)}/statistic-types/`)).data);}
 export async function adminCreateScoringRule(payload:Partial<FantasyScoringRule>&{fantasy_competition:string}){return (await apiClient.post('/fantasy/admin/scoring-rules/',payload)).data as FantasyScoringRule;}
-export async function adminUpdateScoringRule(value:string,payload:Partial<Pick<FantasyScoringRule,'points'|'enabled'>>){return (await apiClient.patch(`/fantasy/admin/scoring-rules/${id(value)}/`,payload)).data as FantasyScoringRule;}
+export async function adminUpdateScoringRule(value:string,payload:Partial<Pick<FantasyScoringRule,'points'|'enabled'|'rule_type'|'conditions'>>){return (await apiClient.patch(`/fantasy/admin/scoring-rules/${id(value)}/`,payload)).data as FantasyScoringRule;}
 export async function adminDeleteScoringRule(value:string){await apiClient.delete(`/fantasy/admin/scoring-rules/${id(value)}/`);}
 export async function adminCreateCorrection(payload:{player_points:string;new_value:string;reason:string}){return (await apiClient.post('/fantasy/admin/corrections/',payload)).data as FantasyCorrection;}
 export async function fetchAdminCorrections(gameweek?:string):Promise<Record<string,unknown>[]>{return list<Record<string,unknown>>((await apiClient.get('/fantasy/admin/corrections/',{params:gameweek?{gameweek}:{}})).data);}

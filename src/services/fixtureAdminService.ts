@@ -227,3 +227,120 @@ export async function submitFixtureVerification(fixtureId: string): Promise<Fixt
   );
   return mapFixture(response.data);
 }
+
+// ---------------------------------------------------------------------------
+// Match Statistics Entry — Sports Data Admin
+// ---------------------------------------------------------------------------
+
+/** One stat record stored for a player in a fixture. */
+export interface FixturePlayerStat {
+  id: string;
+  stat_type: string;
+  value: string;
+}
+
+/** A player row returned by GET /admin/fixtures/<id>/player-statistics/ */
+export interface FixtureStatPlayer {
+  participant_id: string;
+  participant_name: string;
+  /** UUID of the FantasyPlayer if this participant is in a Fantasy pool, else null. */
+  fantasy_player_id: string | null;
+  /** True when this participant is in at least one Fantasy competition pool
+   *  whose gameweek contains this fixture. */
+  in_fantasy_pool: boolean;
+  stats: FixturePlayerStat[];
+}
+
+/** Full response from GET /admin/fixtures/<id>/player-statistics/ */
+export interface FixtureStatisticsData {
+  fixture_id: string;
+  fixture_name: string;
+  fixture_status: string;
+  /** Sport slug / name, e.g. "football" */
+  sport: string;
+  /** Ordered list of stat_type codes used as column headers, e.g. ["GOALS","ASSISTS",...] */
+  stat_types: string[];
+  /** Map of stat_type code → human-readable label */
+  stat_labels: Record<string, string>;
+  players: FixtureStatPlayer[];
+}
+
+/** A single row sent in the POST body. */
+export interface StatisticEntryRow {
+  /** Participant UUID (ATHLETE kind). */
+  participant: string;
+  stat_type: string;
+  value: number | string;
+}
+
+/** Body for POST /admin/fixtures/<id>/player-statistics/ */
+export interface SaveStatisticsInput {
+  statistics: StatisticEntryRow[];
+  /**
+   * True  → Fantasy scoring is triggered after save (use for COMPLETED fixtures).
+   * False → statistics are saved without scoring (use for LIVE/partial saves).
+   * Defaults to true.
+   */
+  trigger_scoring?: boolean;
+}
+
+/** Row-level validation error returned in a 400 response. */
+export interface StatisticsRowError {
+  index: number;
+  participant_id: string;
+  stat_type: string;
+  error: string;
+}
+
+/** 202 success response from POST. */
+export interface SaveStatisticsResult {
+  fixture_id: string;
+  fixture_name: string;
+  records_created: number;
+  records_updated: number;
+  records_unchanged: number;
+  scoring_scheduled: boolean;
+  ingestion_id: string | null;
+  message: string;
+}
+
+/** 400 error response from POST. */
+export interface SaveStatisticsError {
+  success: false;
+  message: string;
+  errors?: StatisticsRowError[];
+}
+
+/**
+ * Fetch all players and their current statistics for a fixture.
+ * GET /api/v1/admin/fixtures/<fixtureId>/player-statistics/
+ */
+export async function fetchFixtureStatistics(
+  fixtureId: string,
+): Promise<FixtureStatisticsData> {
+  const response = await apiClient.get<FixtureStatisticsData>(
+    `/admin/fixtures/${encodeURIComponent(fixtureId)}/player-statistics/`,
+  );
+  return response.data;
+}
+
+/**
+ * Bulk-save (upsert) player statistics for a fixture.
+ * POST /api/v1/admin/fixtures/<fixtureId>/player-statistics/
+ *
+ * Throws with the raw Axios error on network/4xx/5xx failures so the caller
+ * can use extractApiError() for consistent error display.
+ */
+export async function saveFixtureStatistics(
+  fixtureId: string,
+  input: SaveStatisticsInput,
+): Promise<SaveStatisticsResult> {
+  const response = await apiClient.post<SaveStatisticsResult>(
+    `/admin/fixtures/${encodeURIComponent(fixtureId)}/player-statistics/`,
+    {
+      statistics: input.statistics,
+      trigger_scoring: input.trigger_scoring ?? true,
+    },
+  );
+  return response.data;
+}
