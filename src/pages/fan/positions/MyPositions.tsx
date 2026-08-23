@@ -53,8 +53,8 @@ function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function daysSince(iso: string): number {
-  const ms = Date.now() - new Date(iso).getTime();
+function daysSince(iso: string, nowMs: number): number {
+  const ms = nowMs - new Date(iso).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
@@ -370,6 +370,7 @@ function MyPositions() {
   const [showFilters, setShowFilters] = useState(true);
   const [sparklineRangeKey, setSparklineRangeKey] = useState('30');
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
+  const [currentTimeMs, setCurrentTimeMs] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -401,6 +402,16 @@ function MyPositions() {
       document.body.style.overflow = '';
     };
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTimeMs(Date.now());
+    const timeoutId = window.setTimeout(updateCurrentTime, 0);
+    const intervalId = window.setInterval(updateCurrentTime, 60 * 1000);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   function refreshPositions() {
     setIsLoading(true);
@@ -454,8 +465,8 @@ function MyPositions() {
   const avgEntryPrice = openPositions.length
     ? openPositions.reduce((sum, p) => sum + getNormalizedPrice(p, getEntryPrice(p)), 0) / openPositions.length
     : 0;
-  const longestOpenDays = openPositions.length
-    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt)))
+  const longestOpenDays = openPositions.length && currentTimeMs != null
+    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt, currentTimeMs)))
     : 0;
   const upcomingSettlement = useMemo(() => {
     const withClose = openPositions
@@ -610,7 +621,10 @@ function MyPositions() {
     const chronological = [...settledPositions].sort(
       (a, b) => new Date(a.contract.matchedAt).getTime() - new Date(b.contract.matchedAt).getTime(),
     );
-    const cutoff = sparklineRangeDays == null ? null : Date.now() - sparklineRangeDays * 24 * 60 * 60 * 1000;
+    const cutoff =
+      sparklineRangeDays == null || currentTimeMs == null
+        ? null
+        : currentTimeMs - sparklineRangeDays * 24 * 60 * 60 * 1000;
     return chronological.reduce<{ date: string; value: number }[]>((points, p) => {
       const previousValue = points.at(-1)?.value ?? 0;
       const nextValue = previousValue + getRealizedPnl(p);
@@ -619,7 +633,7 @@ function MyPositions() {
       }
       return [...points, { date: p.contract.matchedAt, value: nextValue }];
     }, []);
-  }, [settledPositions, sparklineRangeDays]);
+  }, [settledPositions, sparklineRangeDays, currentTimeMs]);
 
   return (
     <div className="my-positions-shell">
