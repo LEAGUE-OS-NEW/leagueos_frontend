@@ -19,7 +19,7 @@ import SquadBuilder from './sections/SquadBuilder';
 import MyTeam from './sections/MyTeam';
 import Transfers from './sections/Transfers';
 import Leagues from './sections/Leagues';
-import { BellIcon, TrophyIcon } from './sections/shared';
+import { BellIcon } from './sections/shared';
 import { Drawer } from './sections/Modal';
 import Sidebar from '../../../components/fan/Sidebar';
 import Footer from '../../../components/landing/Footer';

@@ -324,7 +324,7 @@ select { cursor: pointer; }
 .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
 
 /* ------------------------------------------------------------------- hub */
-.hub { }
+
 .hub-heading { margin-bottom: 24px; }
 .hub-heading h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
 .hub-heading p { color: var(--text-dim); margin: 4px 0 0; font-size: 14px; }
