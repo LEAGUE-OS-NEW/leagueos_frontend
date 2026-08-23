@@ -11,6 +11,12 @@ import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
 import { useAuth } from '../../hooks/useAuth';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY as FULL_REGISTRY, ROLE_LABELS } from './clubAdminData';
 import type { DashboardEntitlement } from '../../types/dashboardAccess';
+import {
+  getClubAdminEntitlements,
+  getSelectedClubAdminEntitlement,
+  getUserClub,
+  normalizeWorkspaceRole,
+} from '../../utils/clubAdminAccess';
 import './ClubAdminSidebar.css';
 
 const CLUB_REGISTRY: Record<string | number, { name: string; league: string; badge: string }> = Object.fromEntries(
@@ -34,7 +40,7 @@ const NAV_ITEMS = [
 
 interface Props { isOpen: boolean; onClose: () => void; }
 
-function getClubInfo(entitlement: DashboardEntitlement, realClub: { id: string; name: string } | null) {
+function getClubInfo(entitlement: DashboardEntitlement, realClub: { id: string | number; name: string } | null) {
   if (realClub) {
     return { name: realClub.name, league: '', badge: realClub.name.slice(0, 2).toUpperCase() };
   }
@@ -51,7 +57,7 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
   const { selectedEntitlementId, selectEntitlement } = useClubWorkspaceStore();
 
   // Gather club entitlements from auth — fall back to demo when none exist
-  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const rawEntitlements = getClubAdminEntitlements(user);
   const hasRealEntitlement = rawEntitlements.length > 0;
   const entitlements: DashboardEntitlement[] = hasRealEntitlement ? rawEntitlements : DEMO_ENTITLEMENTS;
 
@@ -59,10 +65,7 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
   // active ClubWorkspace — prefer that over the demo registry whenever we
   // have a genuine (non-demo) entitlement. Real and demo entitlements are
   // never mixed in the same list, so this applies to every entry here.
-  const realClub =
-    hasRealEntitlement && user?.club && typeof user.club === 'object' && 'id' in user.club && 'name' in user.club
-      ? (user.club as { id: string; name: string })
-      : null;
+  const realClub = hasRealEntitlement ? getUserClub(user) : null;
 
   // Auto-select first entitlement if nothing selected
   useEffect(() => {
@@ -71,20 +74,10 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
     }
   }, [selectedEntitlementId, entitlements, selectEntitlement]);
 
-  const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
+  const current = getSelectedClubAdminEntitlement(entitlements, selectedEntitlementId);
   const clubInfo = current ? getClubInfo(current, realClub) : null;
-  const roleLabel = current?.workspace_role ? (ROLE_LABELS[current.workspace_role] ?? current.workspace_role) : '—';
-
-  const canAccess = (permission: string | null) => {
-    if (!permission || !current) return true;
-    // Full access for club admin / owner roles regardless of granular permissions
-    if (
-      current.workspace_role === 'CLUB_ADMIN' ||
-      current.workspace_role === 'CLUB_OWNER' ||
-      current.permissions.includes('dashboard.club_admin')
-    ) return true;
-    return current.permissions.includes(permission);
-  };
+  const normalizedRole = normalizeWorkspaceRole(current?.workspace_role);
+  const roleLabel = normalizedRole ? (ROLE_LABELS[normalizedRole] ?? current?.workspace_role ?? normalizedRole) : '—';
 
   const handleSwitch = (id: string) => {
     selectEntitlement(id);
@@ -134,7 +127,8 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
               <div className="ca-switcher-dropdown">
                 {entitlements.map(e => {
                   const info = getClubInfo(e, realClub);
-                  const role = ROLE_LABELS[e.workspace_role ?? ''] ?? e.workspace_role ?? '—';
+                  const switcherRole = normalizeWorkspaceRole(e.workspace_role);
+                  const role = switcherRole ? (ROLE_LABELS[switcherRole] ?? e.workspace_role ?? switcherRole) : '—';
                   const isActive = e.id === (current?.id);
                   return (
                     <button
@@ -160,24 +154,6 @@ export default function ClubAdminSidebar({ isOpen, onClose }: Props) {
         {/* ── Nav ── */}
         <nav className="ca-sidebar-nav" aria-label="Club Admin">
           {NAV_ITEMS.map((item) => {
-            const allowed = canAccess(item.permission);
-            if (!allowed) {
-              return (
-                <div
-                  key={item.route}
-                  className="ca-sidebar-link ca-sidebar-link-locked"
-                  title={`${item.label} — access restricted`}
-                >
-                  <span className="ca-sidebar-link-icon"><item.icon /></span>
-                  {!collapsed && (
-                    <>
-                      <span>{item.label}</span>
-                      <FiLock className="ca-sidebar-lock-icon" />
-                    </>
-                  )}
-                </div>
-              );
-            }
             return (
               <NavLink
                 key={item.route}

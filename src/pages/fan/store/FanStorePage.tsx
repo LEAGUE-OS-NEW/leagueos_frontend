@@ -101,6 +101,18 @@ function cachedToClubProduct(product: StoreProduct): ClubProduct {
   };
 }
 
+// The public products endpoint currently returns one row per product per
+// size/variant (a backend join issue), so the same product id can appear
+// several times in a row. Collapse to one entry per id here as a stop-gap
+// until the API is fixed, so the storefront doesn't show visible dupes.
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Map<string, T>();
+  for (const item of items) {
+    if (!seen.has(item.id)) seen.set(item.id, item);
+  }
+  return Array.from(seen.values());
+}
+
 function SportBadge({ sport }: { sport: string }) {
   return <span className={`fsp-sport-badge fsp-sport-badge--${sport.toLowerCase()}`}>{sport}</span>;
 }
@@ -131,7 +143,9 @@ function FanStorePage() {
         if (cancelled) return;
         const slugs = slugsResult.status === 'fulfilled' ? slugsResult.value : [];
         const allClubs = clubsResult.status === 'fulfilled' ? clubsResult.value : [];
-        const publicProducts = productsResult.status === 'fulfilled' ? productsResult.value : [];
+        const publicProducts = productsResult.status === 'fulfilled'
+          ? dedupeById(productsResult.value)
+          : [];
         const clubs = allClubs.filter(c => slugs.includes(c.slug));
         setFollowedClubs(clubs);
         const fanProducts: ClubProduct[] = [];
@@ -150,9 +164,11 @@ function FanStorePage() {
         setProducts(
           productsResult.status === 'fulfilled' && fanProducts.length > 0
             ? fanProducts
-            : useClubProductStore.getState().products
-                .filter(p => slugs.includes(p.clubSlug))
-                .map(cachedToClubProduct),
+            : dedupeById(
+                useClubProductStore.getState().products
+                  .filter(p => slugs.includes(p.clubSlug))
+                  .map(cachedToClubProduct),
+              ),
         );
         setLoading(false);
       });
