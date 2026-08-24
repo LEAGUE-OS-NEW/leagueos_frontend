@@ -2,6 +2,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background:
+    linear-gradient(rgba(7, 3, 18, 0.82), rgba(7, 3, 18, 0.9)),
+    url('/images/cta-banner.png') center / cover fixed;
   background-color: var(--color-bg);
 }
 
@@ -10,7 +13,7 @@
   flex: 1;
   min-height: 0;
   overflow: clip;
-  background-color: var(--color-bg);
+  background-color: transparent;
 }
 
 .my-positions-main {
@@ -21,38 +24,22 @@
 }
 
 .my-positions-content {
-  position: relative;
   flex: 1;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px);
-  background-image: url('/images/stadium-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
-
-.my-positions-content::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-section);
-  z-index: 0;
+  padding: 18px clamp(16px, 2.4vw, 26px) 28px;
 }
 
 .my-positions-inner {
-  position: relative;
-  z-index: 1;
   max-width: 960px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 /* Wide variant used by the redesigned page so the two-column layout and
    6-up stat grid have room to breathe. */
 .my-positions-inner.mp-wide {
-  max-width: 1440px;
+  max-width: 1560px;
 }
 
 .my-positions-header {
@@ -91,8 +78,8 @@
 .my-positions-section {
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 8px;
+  padding: 16px 18px;
 }
 
 .my-positions-section h2 {
@@ -134,41 +121,78 @@
 
 .my-positions-market {
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
   color: var(--color-text-primary);
 }
 
 .my-positions-market strong {
-  font-size: 0.95rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .my-positions-market span {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .my-positions-market:hover strong {
   text-decoration: underline;
 }
 
+.mp-market-crests {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.mp-market-crest {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #fff;
+  border: 2px solid var(--color-card-bg);
+}
+
+.mp-market-crest--home {
+  background: var(--color-primary-light);
+  z-index: 1;
+}
+
+.mp-market-crest--away {
+  background: var(--color-accent-light);
+  margin-left: -10px;
+}
+
+.mp-market-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .my-positions-outcome {
+  min-width: 48px;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.03em;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .my-positions-outcome--yes {
@@ -183,7 +207,7 @@
 
 .my-positions-stake,
 .my-positions-payout {
-  font-size: 0.98rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }
@@ -193,7 +217,7 @@
 }
 
 .my-positions-time {
-  font-size: 0.84rem;
+  font-size: 0.76rem;
   color: var(--color-text-muted);
 }
 
@@ -224,16 +248,16 @@
 .mp-stats-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 .mp-stat-card {
   background-color: var(--color-card-bg);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 14px 16px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 
@@ -319,8 +343,8 @@
   appearance: none;
   background: none;
   border: none;
-  padding: 10px 14px;
-  font-size: 0.86rem;
+  padding: 11px 18px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -347,6 +371,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.mp-toolbar-spacer {
+  flex: 1;
 }
 
 .mp-search {
@@ -388,9 +416,9 @@
   gap: 8px;
   background: var(--color-card-bg);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-size: 0.82rem;
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
   color: var(--color-text-secondary);
 }
 
@@ -408,14 +436,32 @@
   color: var(--color-text-primary);
 }
 
+.mp-date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mp-date-range input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+}
+
+.mp-date-range-sep {
+  color: var(--color-text-muted);
+}
+
 .mp-filters-toggle,
 .mp-export-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 10px;
-  padding: 9px 14px;
-  font-size: 0.84rem;
+  border-radius: 5px;
+  padding: 9px 12px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -457,12 +503,13 @@
 
 .mp-filters-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(5, minmax(112px, 1fr));
   gap: 10px;
-  padding: 14px;
+  padding: 12px;
   background: var(--color-card-bg);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 8px;
+  margin-bottom: 0;
 }
 
 .mp-filters-panel .mp-select {
@@ -483,41 +530,8 @@
   width: 100%;
 }
 
-.mp-filters-panel .mp-select--daterange {
-  min-width: 190px;
-}
-
-.mp-date-range {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-}
-
-.mp-date-range input[type='date'] {
-  flex: 1;
+.mp-filters-panel .mp-search {
   min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--color-text-primary);
-  font-size: 0.78rem;
-  color-scheme: dark;
-}
-
-.mp-date-range-sep {
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-}
-
-.mp-filters-panel .mp-search--inline {
-  flex: none;
-  min-width: 0;
-  align-self: stretch;
-}
-
-.mp-toolbar-spacer {
-  flex: 1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -526,8 +540,8 @@
 
 .mp-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 336px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -535,7 +549,7 @@
 .mp-side-col {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -560,17 +574,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 56px;
-  margin-bottom: 0;
-  padding: 0 18px;
+  margin: 0;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .mp-table-header-row h2 {
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  font-size: 0.95rem;
 }
 
 .mp-view-all-btn {
@@ -591,111 +601,331 @@
   width: 100%;
 }
 
-.mp-row {
-  display: grid;
-  align-items: center;
-  column-gap: 18px;
-  row-gap: 0;
-  padding: 0 18px;
-  width: max(100%, var(--mp-table-min-width, 100%));
-  box-sizing: border-box;
-}
-
-.mp-row--open-cols {
-  --mp-table-min-width: 1420px;
-  grid-template-columns:
-    minmax(260px, 2.25fr)
-    minmax(118px, 0.88fr)
-    minmax(112px, 0.82fr)
-    minmax(96px, 0.68fr)
-    minmax(126px, 0.86fr)
-    minmax(132px, 0.96fr)
-    minmax(126px, 0.94fr)
-    minmax(104px, 0.78fr)
-    minmax(112px, 0.84fr)
-    minmax(96px, 0.72fr)
-    minmax(58px, 0.36fr);
-  grid-template-areas: 'market side stake entry currentPrice potential currentValue pnl placed status action';
-}
-
-.mp-col-market {
-  grid-area: market;
-}
-
-.mp-col-side {
-  grid-area: side;
-  justify-self: center;
+.mp-open-table {
   width: 100%;
+  min-width: 1360px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
 }
 
-.mp-cell.mp-col-side {
-  align-items: center;
+.mp-open-table .mp-col-market {
+  width: 275px;
 }
 
-.mp-col-stake {
-  grid-area: stake;
+.mp-open-table .mp-col-side {
+  width: 110px;
 }
 
-.mp-col-entry {
-  grid-area: entry;
+.mp-open-table .mp-col-stake {
+  width: 108px;
 }
 
-.mp-col-current-price {
-  grid-area: currentPrice;
+.mp-open-table .mp-col-entry {
+  width: 90px;
 }
 
-.mp-col-potential {
-  grid-area: potential;
+.mp-open-table .mp-col-current-price {
+  width: 116px;
 }
 
-.mp-col-current-value {
-  grid-area: currentValue;
+.mp-open-table .mp-col-potential {
+  width: 138px;
 }
 
-.mp-col-pnl {
-  grid-area: pnl;
+.mp-open-table .mp-col-current-value {
+  width: 130px;
 }
 
-.mp-col-placed {
-  grid-area: placed;
+.mp-open-table .mp-col-pnl {
+  width: 112px;
 }
 
-.mp-col-status {
-  grid-area: status;
+.mp-open-table .mp-col-placed {
+  width: 112px;
 }
 
-.mp-col-action {
-  grid-area: action;
-  justify-self: center;
+.mp-open-table .mp-col-status {
+  width: 88px;
 }
 
-.mp-row--head .mp-col-action {
-  text-align: center;
+.mp-open-table .mp-col-action {
+  width: 72px;
+}
+
+.mp-open-table .my-positions-list {
+  display: table-row-group;
+}
+
+.mp-open-table th,
+.mp-open-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  vertical-align: middle;
+}
+
+.mp-open-table th {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: left;
   white-space: nowrap;
 }
 
-.mp-row--settled-cols {
-  --mp-table-min-width: 680px;
+.mp-open-table th:nth-child(n+3):nth-child(-n+8),
+.mp-open-table td:nth-child(n+3):nth-child(-n+8) {
+  text-align: right;
+}
+
+.mp-open-table th:nth-child(2),
+.mp-open-table th:nth-child(10),
+.mp-open-table th:nth-child(11),
+.mp-open-table td:nth-child(2),
+.mp-open-table td:nth-child(10),
+.mp-open-table td:nth-child(11) {
+  text-align: center;
+}
+
+.mp-open-table td.mp-cell {
+  display: table-cell;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.mp-open-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.mp-open-table tbody tr:hover,
+.mp-open-table tbody tr.mp-row--selected {
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.mp-open-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mp-row {
+  display: grid;
+  align-items: stretch;
+  grid-auto-flow: column;
+  column-gap: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Vertical column dividers are drawn by the cells themselves. The open
+   positions table uses fixed tracks, so each divider lands on the same
+   x-position in the header and every body row. */
+.mp-row > *:not(:last-child) {
+  border-right: 1px solid rgba(148, 120, 255, 0.24);
+}
+
+/* 11 tracks matching the full column set: Market, My Positions, Stake,
+   Entry Price, Current Price, Potential Payout, Current Value, P&L,
+   Placed, Status, Action. Widths are sized to fit each column's own
+   header label AND its widest realistic value with no wrapping (see the
+   white-space: nowrap rules on .mp-cell below) — a value that wraps is
+   what spills into the next row's line and makes columns look mismatched
+   with their headers. Grid-template-columns must also have exactly as
+   many tracks as there are cells per row, or the extra cells get
+   auto-placed onto an implicit second row. */
+.mp-row--open-cols {
   grid-template-columns:
-    minmax(220px, 2fr)
-    minmax(92px, 0.85fr)
-    minmax(110px, 1fr)
-    minmax(100px, 0.9fr)
-    minmax(116px, 1fr);
+    340px  /* Market */
+    140px  /* My Positions */
+    142px  /* Stake */
+    116px  /* Entry Price */
+    154px  /* Current Price */
+    172px  /* Potential Payout */
+    160px  /* Current Value */
+    142px  /* P&L */
+    142px  /* Placed */
+    108px  /* Status */
+    52px;  /* Action */
+  min-width: 1668px;
+  width: max(100%, 1668px);
+}
+
+.mp-col-market {
+  grid-column: 1;
+}
+
+.mp-col-side {
+  grid-column: 2;
+}
+
+.mp-col-stake {
+  grid-column: 3;
+}
+
+.mp-col-entry {
+  grid-column: 4;
+}
+
+.mp-col-current-price {
+  grid-column: 5;
+}
+
+.mp-col-potential {
+  grid-column: 6;
+}
+
+.mp-col-current-value {
+  grid-column: 7;
+}
+
+.mp-col-pnl {
+  grid-column: 8;
+}
+
+.mp-col-placed {
+  grid-column: 9;
+}
+
+.mp-col-status {
+  grid-column: 10;
+}
+
+.mp-col-action {
+  grid-column: 11;
+}
+
+.mp-col-side {
+  align-items: center;
+  text-align: center;
+}
+
+.mp-col-stake {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.mp-col-market,
+.mp-col-side,
+.mp-col-stake,
+.mp-col-entry,
+.mp-col-current-price,
+.mp-col-potential,
+.mp-col-current-value,
+.mp-col-pnl,
+.mp-col-placed,
+.mp-col-status,
+.mp-col-action {
+  box-sizing: border-box;
+  grid-row: 1;
+  min-width: 0;
+  padding: 12px;
+}
+
+.mp-row--settled-cols {
+  grid-template-columns:
+    minmax(160px, 1.6fr)
+    minmax(64px, 0.8fr)
+    minmax(76px, 0.9fr)
+    minmax(76px, 0.9fr)
+    minmax(76px, 0.9fr);
+  width: 100%;
+}
+
+.mp-settlements-card .mp-row--settled-cols {
+  --settlements-inline: 22px;
+  grid-template-columns:
+    minmax(210px, 1fr)
+    96px
+    112px
+    118px
+    126px;
+  align-items: center;
+}
+
+.mp-settlements-card .mp-row > *:not(:last-child) {
+  border-right: none;
+}
+
+.mp-settlements-card .mp-row--head {
+  width: auto;
+  margin: 0;
+  padding: 0 var(--settlements-inline);
+}
+
+.mp-settlements-card .mp-row--head > span:nth-child(1) {
+  transform: translateX(-10px);
+}
+
+.mp-settlements-card .mp-row--head > span:nth-child(2) {
+  transform: translateX(-28px);
+}
+
+.mp-settlements-card .mp-row--head > span:nth-child(3),
+.mp-settlements-card .mp-row--head > span:nth-child(4),
+.mp-settlements-card .mp-row--head > span:nth-child(5) {
+  transform: translateX(-24px);
+}
+
+.mp-settlements-card .my-positions-list {
+  padding: 0;
+}
+
+.mp-settlements-card .my-positions-market {
+  min-width: 0;
+}
+
+.mp-settlements-card .my-positions-market span {
+  flex-shrink: 0;
+}
+
+.mp-settlements-card .mp-cell {
+  align-items: flex-start;
+}
+
+.mp-settlements-card .mp-cell--num {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.mp-settlements-card .mp-row--settled-cols > :nth-child(2),
+.mp-settlements-card .mp-row--settled-cols > :nth-child(4) {
+  align-items: center;
+  text-align: center;
+}
+
+.mp-settlements-card .mp-row--settled-cols > :nth-child(4) {
+  margin-left: 24px;
+}
+
+.mp-settlements-card .mp-row--head > :nth-child(3),
+.mp-settlements-card .mp-row--head > :nth-child(5) {
+  text-align: right;
 }
 
 .mp-row--head {
-  min-height: 50px;
   border-bottom: 1px solid var(--color-border);
   font-size: 0.72rem;
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--color-text-muted);
 }
 
+.mp-row--head > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mp-row--head .mp-col-stake,
+.mp-row--head .mp-col-entry,
+.mp-row--head .mp-col-current-price,
+.mp-row--head .mp-col-potential,
+.mp-row--head .mp-col-current-value,
+.mp-row--head .mp-col-pnl {
+  text-align: right;
+}
+
 .my-positions-row.mp-row {
-  min-height: 92px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -706,15 +936,32 @@
 .mp-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.95rem;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.85rem;
   color: var(--color-text-primary);
   min-width: 0;
 }
 
+/* Numeric / date / badge content must never wrap — a wrapped value is
+   what was spilling into the next table row and making columns look
+   mismatched with their headers. */
+.mp-cell,
+.mp-cell *,
+.my-positions-stake,
+.my-positions-payout,
+.my-positions-time,
+.mp-pnl,
+.mp-price-cell,
+.mp-price-cell *,
+.my-positions-outcome,
+.mp-result-badge {
+  white-space: nowrap;
+}
+
 .mp-cell--num {
-  align-items: center;
-  text-align: center;
+  align-items: flex-end;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -726,8 +973,8 @@
   display: none;
 }
 
-/* Secondary line under the Status badge (used to fold "Placed" into the
-   Status cell now that the table has fewer columns). */
+/* Secondary line under the Status badge (kept for other row variants that
+   fold "Placed" into the Status cell). */
 .mp-cell-sub {
   font-size: 0.72rem;
   color: var(--color-text-muted);
@@ -735,8 +982,8 @@
 }
 
 .mp-row-action-btn {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -753,14 +1000,14 @@
 }
 
 .mp-row-action-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .mp-price-cell {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 2px;
   font-weight: 700;
 }
@@ -781,8 +1028,6 @@
 }
 
 .mp-pnl {
-  display: inline-flex;
-  justify-content: center;
   font-weight: 800;
 }
 
@@ -827,6 +1072,26 @@
 .mp-result-badge--cancelled {
   background: rgba(148, 163, 184, 0.16);
   color: var(--color-text-secondary);
+}
+
+.mp-open-table th,
+.mp-open-table td {
+  padding: 9px 10px;
+}
+
+.mp-open-table td.mp-col-market,
+.mp-open-table td.mp-col-side,
+.mp-open-table td.mp-col-stake,
+.mp-open-table td.mp-col-entry,
+.mp-open-table td.mp-col-current-price,
+.mp-open-table td.mp-col-potential,
+.mp-open-table td.mp-col-current-value,
+.mp-open-table td.mp-col-pnl,
+.mp-open-table td.mp-col-placed,
+.mp-open-table td.mp-col-status,
+.mp-open-table td.mp-col-action {
+  grid-column: auto;
+  grid-row: auto;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1043,8 +1308,21 @@
   margin-bottom: 16px;
 }
 
-.mp-detail-header h2 {
+.mp-detail-heading h2 {
   margin: 0;
+}
+
+.mp-detail-id {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.mp-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .mp-close-btn {
@@ -1216,9 +1494,14 @@
   color: var(--color-text-primary);
 }
 
-.mp-sparkline-range {
+.mp-sparkline-range-select select {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--color-text-secondary);
   font-size: 0.74rem;
-  color: var(--color-text-muted);
+  cursor: pointer;
 }
 
 .mp-sparkline {
@@ -1254,7 +1537,7 @@
 }
 
 .mp-settlements-card .my-positions-row {
-  padding: 10px 4px;
+  padding: 10px var(--settlements-inline);
 }
 
 .mp-view-full-history {
@@ -1271,11 +1554,121 @@
   text-decoration: underline;
 }
 
+.mp-open-table th,
+.mp-open-table td {
+  display: table-cell !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  min-width: 0;
+}
+
+.mp-open-table colgroup {
+  display: table-column-group !important;
+}
+
+.mp-open-table col {
+  display: table-column !important;
+}
+
+.mp-open-table tr {
+  display: table-row !important;
+}
+
+.mp-open-table thead {
+  display: table-header-group !important;
+}
+
+.mp-open-table tbody.my-positions-list {
+  display: table-row-group !important;
+  margin: 0;
+  padding: 0;
+}
+
+.mp-open-table th,
+.mp-open-table td {
+  padding: 11px 16px !important;
+  vertical-align: middle;
+}
+
+.mp-open-table td.mp-col-market {
+  padding-left: 18px !important;
+}
+
+.mp-open-table td.mp-col-action {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  position: relative;
+}
+
+.mp-open-table td.mp-cell--num,
+.mp-open-table .mp-price-cell {
+  text-align: right;
+}
+
+.mp-open-table td.mp-col-side,
+.mp-open-table td.mp-col-status,
+.mp-open-table td.mp-col-action {
+  text-align: center;
+}
+
+.mp-open-table td.mp-col-side .my-positions-outcome,
+.mp-open-table td.mp-col-status .mp-result-badge {
+  margin-inline: auto;
+}
+
+.mp-row-action-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.mp-row-action-menu {
+  position: static;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  padding: 3px;
+  border: 1px solid rgba(148, 120, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(20, 14, 38, 0.92);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.mp-row-action-menu a,
+.mp-row-action-menu button {
+  width: auto;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mp-row-action-menu a:hover,
+.mp-row-action-menu button:hover {
+  background: rgba(124, 58, 237, 0.18);
+  color: #fff;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Responsive                                                              */
 /* ---------------------------------------------------------------------- */
 
-@media (max-width: 1600px) {
+@media (max-width: 1280px) {
   .mp-stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1284,27 +1677,12 @@
     grid-template-columns: 1fr;
   }
 
+  .mp-side-col {
+    order: -1;
+  }
+
   .mp-bottom-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1200px) {
-  .mp-row--open-cols {
-    --mp-table-min-width: 1420px;
-    grid-template-columns:
-      minmax(260px, 2.25fr)
-      minmax(118px, 0.88fr)
-      minmax(112px, 0.82fr)
-      minmax(96px, 0.68fr)
-      minmax(126px, 0.86fr)
-      minmax(132px, 0.96fr)
-      minmax(126px, 0.94fr)
-      minmax(104px, 0.78fr)
-      minmax(112px, 0.84fr)
-      minmax(96px, 0.72fr)
-      minmax(58px, 0.36fr);
-    grid-template-areas: 'market side stake entry currentPrice potential currentValue pnl placed status action';
   }
 }
 
@@ -1327,18 +1705,52 @@
 
   .mp-row--open-cols,
   .mp-row--settled-cols {
-    --mp-table-min-width: 100%;
     grid-template-columns: 1fr;
-    grid-template-areas: none;
+    grid-auto-flow: row;
     min-width: 0;
+    width: 100%;
     row-gap: 6px;
     padding: 14px 4px;
+  }
+
+  .mp-col-market,
+  .mp-col-side,
+  .mp-col-stake,
+  .mp-col-entry,
+  .mp-col-current-price,
+  .mp-col-potential,
+  .mp-col-current-value,
+  .mp-col-pnl,
+  .mp-col-placed,
+  .mp-col-status,
+  .mp-col-action {
+    grid-column: 1;
+    grid-row: auto;
+    padding: 0;
   }
 
   .mp-cell {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .mp-cell,
+  .mp-cell *,
+  .my-positions-stake,
+  .my-positions-payout,
+  .my-positions-time,
+  .mp-pnl,
+  .mp-price-cell,
+  .mp-price-cell *,
+  .my-positions-outcome,
+  .mp-result-badge {
+    white-space: normal;
+  }
+
+  .mp-row > *:not(:last-child) {
+    border-right: none;
+    padding-right: 0;
   }
 
   .mp-cell--num {
@@ -1360,11 +1772,48 @@
   .mp-cell--action {
     justify-content: flex-end;
   }
-}
 
-@media (max-width: 767px) {
-  .my-positions-content {
-    background-attachment: scroll;
+  .mp-open-table {
+    min-width: 0;
+  }
+
+  .mp-open-table,
+  .mp-open-table tbody,
+  .mp-open-table tr,
+  .mp-open-table td {
+    display: block !important;
+    width: 100%;
+  }
+
+  .mp-open-table thead,
+  .mp-open-table colgroup {
+    display: none !important;
+  }
+
+  .mp-open-table tbody tr {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .mp-open-table th,
+  .mp-open-table td,
+  .mp-open-table td.mp-cell {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .mp-open-table td.mp-col-market {
+    display: block !important;
+    text-align: left;
+    padding-bottom: 10px;
+  }
+
+  .mp-open-table .my-positions-market {
+    align-items: flex-start;
   }
 }
-

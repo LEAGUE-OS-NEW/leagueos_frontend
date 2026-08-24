@@ -24,6 +24,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const PAGE_SIZE = 8;
+const INITIAL_TIME_MS = Date.now();
 
 function formatUgx(amount: number): string {
   return `UGX ${Math.round(amount).toLocaleString('en-US')}`;
@@ -53,8 +54,8 @@ function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function daysSince(iso: string): number {
-  const ms = Date.now() - new Date(iso).getTime();
+function daysSince(iso: string, nowMs: number): number {
+  const ms = nowMs - new Date(iso).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
@@ -157,6 +158,11 @@ function getInitials(value: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function shortPositionCode(id: string): string {
+  const digits = id.replace(/\D/g, '');
+  return digits ? `#POS-${digits.slice(-6).padStart(6, '0')}` : `#${id.toUpperCase()}`;
 }
 
 // --- tiny dependency-free icons ---------------------------------------------
@@ -337,6 +343,12 @@ function PriceChange({ position, from, to }: { position: Position; from: number;
 
 // -----------------------------------------------------------------------------
 
+const SPARKLINE_RANGES = [
+  { key: '7', label: 'Last 7 Days', days: 7 },
+  { key: '30', label: 'Last 30 Days', days: 30 },
+  { key: 'all', label: 'Full History', days: null as number | null },
+];
+
 function MyPositions() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -353,10 +365,13 @@ function MyPositions() {
   const [statusFilter, setStatusFilter] = useState<TabKey>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [sortKey, setSortKey] = useState<SortKey>('oldest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [sparklineRangeKey, setSparklineRangeKey] = useState('30');
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
+  const [currentTimeMs, setCurrentTimeMs] = useState(INITIAL_TIME_MS);
 
   useEffect(() => {
     let cancelled = false;
@@ -364,7 +379,11 @@ function MyPositions() {
       .then((result) => {
         if (!cancelled) {
           setPositions(result);
-          setSelectedId((current) => current ?? result[0]?.contract.id ?? null);
+          setSelectedId((current) =>
+            current && result.some((position) => position.contract.id === current)
+              ? current
+              : result[0]?.contract.id ?? null,
+          );
         }
       })
       .catch(() => {
@@ -385,11 +404,26 @@ function MyPositions() {
     };
   }, [isSidebarOpen]);
 
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTimeMs(Date.now());
+    const intervalId = window.setInterval(updateCurrentTime, 60 * 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   function refreshPositions() {
     setIsLoading(true);
     setError('');
     fetchFanPositions()
-      .then(setPositions)
+      .then((result) => {
+        setPositions(result);
+        setSelectedId((current) =>
+          current && result.some((position) => position.contract.id === current)
+            ? current
+            : result[0]?.contract.id ?? null,
+        );
+      })
       .catch(() => setError("Couldn't load your positions."))
       .finally(() => setIsLoading(false));
   }
@@ -431,7 +465,7 @@ function MyPositions() {
     ? openPositions.reduce((sum, p) => sum + getNormalizedPrice(p, getEntryPrice(p)), 0) / openPositions.length
     : 0;
   const longestOpenDays = openPositions.length
-    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt)))
+    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt, currentTimeMs)))
     : 0;
   const upcomingSettlement = useMemo(() => {
     const withClose = openPositions
@@ -580,15 +614,23 @@ function MyPositions() {
     [settledPositions],
   );
 
+  const sparklineRangeDays = SPARKLINE_RANGES.find((r) => r.key === sparklineRangeKey)?.days ?? null;
+
   const sparklinePoints = useMemo(() => {
     const chronological = [...settledPositions].sort(
       (a, b) => new Date(a.contract.matchedAt).getTime() - new Date(b.contract.matchedAt).getTime(),
     );
+    const cutoff =
+      sparklineRangeDays == null ? null : currentTimeMs - sparklineRangeDays * 24 * 60 * 60 * 1000;
     return chronological.reduce<{ date: string; value: number }[]>((points, p) => {
       const previousValue = points.at(-1)?.value ?? 0;
-      return [...points, { date: p.contract.matchedAt, value: previousValue + getRealizedPnl(p) }];
+      const nextValue = previousValue + getRealizedPnl(p);
+      if (cutoff != null && new Date(p.contract.matchedAt).getTime() < cutoff) {
+        return points;
+      }
+      return [...points, { date: p.contract.matchedAt, value: nextValue }];
     }, []);
-  }, [settledPositions]);
+  }, [settledPositions, sparklineRangeDays, currentTimeMs]);
 
   return (
     <div className="my-positions-shell">
@@ -599,7 +641,6 @@ function MyPositions() {
           <div className="my-positions-content">
             <div className="my-positions-inner mp-wide">
               <div className="my-positions-header">
-                <p className="my-positions-eyebrow">Account</p>
                 <h1>My Positions</h1>
                 <p>Track your markets, active positions and settlement history.</p>
               </div>
@@ -676,129 +717,129 @@ function MyPositions() {
                     ))}
                   </div>
 
-                  {showFilters && (
-                    <div className="mp-filters-panel">
-                      <label className="mp-select">
-                        <span>Sport</span>
-                        <select value={sportFilter} onChange={(event) => setSportFilter(event.target.value)}>
-                          <option value="all">All Sports</option>
-                          {sportOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="mp-select">
-                        <span>League</span>
-                        <select value={leagueFilter} onChange={(event) => setLeagueFilter(event.target.value)}>
-                          <option value="all">All Leagues</option>
-                          {leagueOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="mp-select">
-                        <span>Club</span>
-                        <select value={clubFilter} onChange={(event) => setClubFilter(event.target.value)}>
-                          <option value="all">All Clubs</option>
-                          {clubOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="mp-select">
-                        <span>Market Type</span>
-                        <select value={marketTypeFilter} onChange={(event) => setMarketTypeFilter(event.target.value)}>
-                          <option value="all">All Types</option>
-                          {marketTypeOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="mp-select">
-                        <span>Side</span>
-                        <select value={sideFilter} onChange={(event) => setSideFilter(event.target.value as SideFilter)}>
-                          <option value="all">All (Yes/No)</option>
-                          <option value="yes">Yes</option>
-                          <option value="no">No</option>
-                        </select>
-                      </label>
-                      <label className="mp-select">
-                        <span>Status</span>
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TabKey)}>
-                          <option value="all">All Status</option>
-                          {TABS.filter((tab) => tab.key !== 'all').map((tab) => (
-                            <option key={tab.key} value={tab.key}>
-                              {tab.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="mp-select mp-select--daterange">
-                        <span>Date Range</span>
-                        <span className="mp-date-range">
-                          <input
-                            type="date"
-                            value={dateFrom}
-                            onChange={(event) => setDateFrom(event.target.value)}
-                            aria-label="From date"
-                          />
-                          <span className="mp-date-range-sep">–</span>
-                          <input
-                            type="date"
-                            value={dateTo}
-                            onChange={(event) => setDateTo(event.target.value)}
-                            aria-label="To date"
-                          />
-                        </span>
-                      </label>
-                    </div>
-                  )}
-
-                  <div className="mp-toolbar">
-                    <div className="mp-search">
-                      <IconSearch />
-                      <input
-                        type="text"
-                        placeholder="Search positions..."
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                      />
-                    </div>
-                    <label className="mp-select">
-                      <span>Sort by</span>
-                      <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="stake_desc">Highest Stake</option>
-                        <option value="stake_asc">Lowest Stake</option>
-                      </select>
-                    </label>
-                    <div className="mp-toolbar-spacer" />
-                    <button type="button" className="mp-export-btn" onClick={exportCsv}>
-                      <IconDownload />
-                      Export
-                    </button>
-                    <button
-                      type="button"
-                      className={`mp-filters-toggle${showFilters ? ' mp-filters-toggle--active' : ''}`}
-                      onClick={() => setShowFilters((value) => !value)}
-                      aria-expanded={showFilters}
-                    >
-                      <IconFilter />
-                      Filters
-                    </button>
-                  </div>
-
                   <div className="mp-layout">
                     <div className="mp-main-col">
+                      {showFilters && (
+                        <div className="mp-filters-panel">
+                          <label className="mp-select">
+                            <span>Sport</span>
+                            <select value={sportFilter} onChange={(event) => setSportFilter(event.target.value)}>
+                              <option value="all">All Sports</option>
+                              {sportOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="mp-select">
+                            <span>League</span>
+                            <select value={leagueFilter} onChange={(event) => setLeagueFilter(event.target.value)}>
+                              <option value="all">All Leagues</option>
+                              {leagueOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="mp-select">
+                            <span>Club</span>
+                            <select value={clubFilter} onChange={(event) => setClubFilter(event.target.value)}>
+                              <option value="all">All Clubs</option>
+                              {clubOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="mp-select">
+                            <span>Market Type</span>
+                            <select value={marketTypeFilter} onChange={(event) => setMarketTypeFilter(event.target.value)}>
+                              <option value="all">All Types</option>
+                              {marketTypeOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="mp-select">
+                            <span>Side</span>
+                            <select value={sideFilter} onChange={(event) => setSideFilter(event.target.value as SideFilter)}>
+                              <option value="all">All (Yes/No)</option>
+                              <option value="yes">Yes</option>
+                              <option value="no">No</option>
+                            </select>
+                          </label>
+                          <label className="mp-select">
+                            <span>Status</span>
+                            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TabKey)}>
+                              <option value="all">All Status</option>
+                              {TABS.filter((tab) => tab.key !== 'all').map((tab) => (
+                                <option key={tab.key} value={tab.key}>
+                                  {tab.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="mp-select mp-select--daterange">
+                            <span>Date Range</span>
+                            <span className="mp-date-range">
+                              <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(event) => setDateFrom(event.target.value)}
+                                aria-label="From date"
+                              />
+                              <span className="mp-date-range-sep">–</span>
+                              <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(event) => setDateTo(event.target.value)}
+                                aria-label="To date"
+                              />
+                            </span>
+                          </label>
+                        </div>
+                      )}
+
+                      <div className="mp-toolbar">
+                        <div className="mp-search">
+                          <IconSearch />
+                          <input
+                            type="text"
+                            placeholder="Search positions..."
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                          />
+                        </div>
+                        <label className="mp-select">
+                          <span>Sort by</span>
+                          <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="stake_desc">Highest Stake</option>
+                            <option value="stake_asc">Lowest Stake</option>
+                          </select>
+                        </label>
+                        <div className="mp-toolbar-spacer" />
+                        <button type="button" className="mp-export-btn" onClick={exportCsv}>
+                          <IconDownload />
+                          Export
+                        </button>
+                        <button
+                          type="button"
+                          className={`mp-filters-toggle${showFilters ? ' mp-filters-toggle--active' : ''}`}
+                          onClick={() => setShowFilters((value) => !value)}
+                          aria-expanded={showFilters}
+                        >
+                          <IconFilter />
+                          Filters
+                        </button>
+                      </div>
+
                       {filteredPositions.length === 0 ? (
                         <div className="my-positions-section">
                           <p className="mp-empty-filtered">No positions match these filters.</p>
@@ -812,112 +853,154 @@ function MyPositions() {
                           </div>
 
                           <div className="mp-table-scroll">
-                            <div className="mp-row mp-row--head mp-row--open-cols">
-                              <span className="mp-col-market">Market</span>
-                              <span className="mp-col-side">My Position</span>
-                              <span className="mp-col-stake">Stake</span>
-                              <span className="mp-col-entry">Entry Price</span>
-                              <span className="mp-col-current-price">Current Price</span>
-                              <span className="mp-col-potential">Potential Payout</span>
-                              <span className="mp-col-current-value">Current Value</span>
-                              <span className="mp-col-pnl">P&amp;L</span>
-                              <span className="mp-col-placed">Placed</span>
-                              <span className="mp-col-status">Status</span>
-                              <span className="mp-col-action">Action</span>
-                            </div>
-
-                            <ul className="my-positions-list">
+                            <table className="mp-open-table">
+                              <colgroup>
+                                <col className="mp-col-market" />
+                                <col className="mp-col-side" />
+                                <col className="mp-col-stake" />
+                                <col className="mp-col-entry" />
+                                <col className="mp-col-current-price" />
+                                <col className="mp-col-potential" />
+                                <col className="mp-col-current-value" />
+                                <col className="mp-col-pnl" />
+                                <col className="mp-col-placed" />
+                                <col className="mp-col-status" />
+                                <col className="mp-col-action" />
+                              </colgroup>
+                              <thead>
+                                <tr>
+                                  <th>Market</th>
+                                  <th>My Positions</th>
+                                  <th>Stake</th>
+                                  <th>Entry Price</th>
+                                  <th>Current Price</th>
+                                  <th>Potential Payout</th>
+                                  <th>Current Value</th>
+                                  <th>P&amp;L</th>
+                                  <th>Placed</th>
+                                  <th>Status</th>
+                                  <th>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="my-positions-list">
                               {pagedPositions.map((position) => {
                                 const bucket = classify(position);
                                 const settled = bucket === 'won' || bucket === 'lost';
                                 const [homeTeam, awayTeam] = splitMarketLabel(position.market.eventLabel);
                                 return (
-                                  <li
-                                    className={`my-positions-row mp-row mp-row--open-cols${
+                                  <tr
+                                    className={`my-positions-row${
                                       selectedId === position.contract.id ? ' mp-row--selected' : ''
                                     }`}
                                     key={position.contract.id}
-                                    onClick={() => setSelectedId(position.contract.id)}
+                                    onClick={() => {
+                                      setSelectedId(position.contract.id);
+                                      setActionMenuId(null);
+                                    }}
                                   >
-                                    <Link
-                                      to={`/fan/markets/${position.market.id}`}
-                                      className="my-positions-market mp-col-market"
-                                      onClick={(event) => event.stopPropagation()}
-                                    >
-                                      <span className="mp-market-crests" aria-hidden="true">
-                                        <span className="mp-market-crest mp-market-crest--home">{getInitials(homeTeam)}</span>
-                                        {awayTeam && <span className="mp-market-crest mp-market-crest--away">{getInitials(awayTeam)}</span>}
-                                      </span>
-                                      <span className="mp-market-copy">
-                                        <strong>{position.market.eventLabel}</strong>
-                                        <span>{position.market.question}</span>
-                                      </span>
-                                    </Link>
+                                    <td className="mp-col-market">
+                                      <Link
+                                        to={`/fan/markets/${position.market.id}`}
+                                        className="my-positions-market"
+                                        onClick={(event) => event.stopPropagation()}
+                                      >
+                                        <span className="mp-market-crests" aria-hidden="true">
+                                          <span className="mp-market-crest mp-market-crest--home">{getInitials(homeTeam)}</span>
+                                          {awayTeam && <span className="mp-market-crest mp-market-crest--away">{getInitials(awayTeam)}</span>}
+                                        </span>
+                                        <span className="mp-market-copy">
+                                          <strong>{position.market.eventLabel}</strong>
+                                          <span>{position.market.question}</span>
+                                        </span>
+                                      </Link>
+                                    </td>
 
-                                    <span className="mp-cell mp-col-side">
-                                      <span className="mp-cell-label">My Position</span>
+                                    <td className="mp-cell mp-col-side">
+                                      <span className="mp-cell-label">My Positions</span>
                                       <OutcomeBadge outcomeId={position.contract.outcomeId} />
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-stake">
+                                    <td className="mp-cell mp-cell--num mp-col-stake">
                                       <span className="mp-cell-label">Stake</span>
                                       <span className="my-positions-stake">{formatUgx(getStake(position))}</span>
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-entry">
+                                    <td className="mp-cell mp-cell--num mp-col-entry">
                                       <span className="mp-cell-label">Entry Price</span>
                                       {settled ? '-' : formatPositionPrice(position, getEntryPrice(position))}
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-current-price">
+                                    <td className="mp-cell mp-cell--num mp-col-current-price">
                                       <span className="mp-cell-label">Current Price</span>
                                       {settled ? '—' : <PriceChange position={position} from={getEntryPrice(position)} to={getCurrentPrice(position)} />}
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-potential">
+                                    <td className="mp-cell mp-cell--num mp-col-potential">
                                       <span className="mp-cell-label">Potential Payout</span>
                                       {settled ? '-' : formatUgx(getPotentialPayout(position))}
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-current-value">
+                                    <td className="mp-cell mp-cell--num mp-col-current-value">
                                       <span className="mp-cell-label">Current Value</span>
                                       <span className="my-positions-payout">
                                         {formatUgx(settled ? getSettledPayout(position) : getCurrentValue(position))}
                                       </span>
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--num mp-col-pnl">
+                                    <td className="mp-cell mp-cell--num mp-col-pnl">
                                       <span className="mp-cell-label">P&amp;L</span>
                                       <Pnl amount={settled ? getRealizedPnl(position) : getUnrealizedPnl(position)} />
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-col-placed">
+                                    <td className="mp-cell mp-col-placed">
                                       <span className="mp-cell-label">Placed</span>
                                       <span className="my-positions-time">{formatDateTime(position.contract.matchedAt)}</span>
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-col-status">
+                                    <td className="mp-cell mp-col-status">
                                       <span className="mp-cell-label">Status</span>
                                       <ResultBadge bucket={bucket} />
-                                    </span>
+                                    </td>
 
-                                    <span className="mp-cell mp-cell--action mp-col-action">
-                                      <button
-                                        type="button"
-                                        className="mp-row-action-btn"
-                                        aria-label="Row actions"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setSelectedId(position.contract.id);
-                                        }}
-                                      >
-                                        <IconDots />
-                                      </button>
-                                    </span>
-                                  </li>
+                                    <td className="mp-cell mp-cell--action mp-col-action">
+                                      <div className="mp-row-action-wrap">
+                                        <button
+                                          type="button"
+                                          className="mp-row-action-btn"
+                                          aria-label="Row actions"
+                                          aria-expanded={actionMenuId === position.contract.id}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setSelectedId(position.contract.id);
+                                            setActionMenuId((current) =>
+                                              current === position.contract.id ? null : position.contract.id,
+                                            );
+                                          }}
+                                        >
+                                          <IconDots />
+                                        </button>
+                                        {actionMenuId === position.contract.id && (
+                                          <div className="mp-row-action-menu" onClick={(event) => event.stopPropagation()}>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedId(position.contract.id);
+                                                setActionMenuId(null);
+                                              }}
+                                            >
+                                              Details
+                                            </button>
+                                            <Link to={`/fan/markets/${position.market.id}`}>Market</Link>
+                                            {bucket === 'open' && <Link to={`/fan/positions/${position.contract.id}/sell`}>Sell</Link>}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
                                 );
                               })}
-                            </ul>
+                              </tbody>
+                            </table>
                           </div>
 
                           <div className="mp-pagination">
@@ -1023,10 +1106,16 @@ function MyPositions() {
                       {selectedPosition && (
                         <section className="my-positions-section mp-detail-card">
                           <div className="mp-detail-header">
-                            <h2>Position Details</h2>
-                            <button type="button" className="mp-close-btn" onClick={() => setSelectedId(null)} aria-label="Close">
-                              <IconClose />
-                            </button>
+                            <div className="mp-detail-heading">
+                              <h2>Position Details</h2>
+                              <p className="mp-detail-id">{shortPositionCode(selectedPosition.contract.id)}</p>
+                            </div>
+                            <div className="mp-detail-header-actions">
+                              <ResultBadge bucket={classify(selectedPosition)} />
+                              <button type="button" className="mp-close-btn" onClick={() => setSelectedId(null)} aria-label="Close">
+                                <IconClose />
+                              </button>
+                            </div>
                           </div>
                           <dl className="mp-detail-list">
                             <div>
@@ -1038,7 +1127,7 @@ function MyPositions() {
                               <dd>{selectedPosition.market.question}</dd>
                             </div>
                             <div>
-                              <dt>Your Position</dt>
+                              <dt>My Positions</dt>
                               <dd>
                                 <OutcomeBadge outcomeId={selectedPosition.contract.outcomeId} />
                               </dd>
@@ -1180,7 +1269,19 @@ function MyPositions() {
                         <div className="mp-sparkline-wrap">
                           <div className="mp-sparkline-header">
                             <p className="mp-sparkline-title">P&amp;L Over Time</p>
-                            <span className="mp-sparkline-range">Full History</span>
+                            <label className="mp-sparkline-range-select">
+                              <select
+                                value={sparklineRangeKey}
+                                onChange={(event) => setSparklineRangeKey(event.target.value)}
+                                aria-label="P&L history range"
+                              >
+                                {SPARKLINE_RANGES.map((range) => (
+                                  <option key={range.key} value={range.key}>
+                                    {range.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
                           <svg viewBox="0 0 320 110" preserveAspectRatio="none" className="mp-sparkline">
                             {(() => {
