@@ -23,7 +23,8 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled / Refunded' },
 ];
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 8;
+const INITIAL_TIME_MS = Date.now();
 
 function formatUgx(amount: number): string {
   return `UGX ${Math.round(amount).toLocaleString('en-US')}`;
@@ -354,7 +355,7 @@ function MyPositions() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<TabKey>('open');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [search, setSearch] = useState('');
   const [sideFilter, setSideFilter] = useState<SideFilter>('all');
   const [sportFilter, setSportFilter] = useState('all');
@@ -367,10 +368,10 @@ function MyPositions() {
   const [sortKey, setSortKey] = useState<SortKey>('oldest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [sparklineRangeKey, setSparklineRangeKey] = useState('30');
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
-  const [currentTimeMs, setCurrentTimeMs] = useState<number | null>(null);
+  const [currentTimeMs, setCurrentTimeMs] = useState(INITIAL_TIME_MS);
 
   useEffect(() => {
     let cancelled = false;
@@ -405,10 +406,8 @@ function MyPositions() {
 
   useEffect(() => {
     const updateCurrentTime = () => setCurrentTimeMs(Date.now());
-    const timeoutId = window.setTimeout(updateCurrentTime, 0);
     const intervalId = window.setInterval(updateCurrentTime, 60 * 1000);
     return () => {
-      window.clearTimeout(timeoutId);
       window.clearInterval(intervalId);
     };
   }, []);
@@ -465,7 +464,7 @@ function MyPositions() {
   const avgEntryPrice = openPositions.length
     ? openPositions.reduce((sum, p) => sum + getNormalizedPrice(p, getEntryPrice(p)), 0) / openPositions.length
     : 0;
-  const longestOpenDays = openPositions.length && currentTimeMs != null
+  const longestOpenDays = openPositions.length
     ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt, currentTimeMs)))
     : 0;
   const upcomingSettlement = useMemo(() => {
@@ -622,9 +621,7 @@ function MyPositions() {
       (a, b) => new Date(a.contract.matchedAt).getTime() - new Date(b.contract.matchedAt).getTime(),
     );
     const cutoff =
-      sparklineRangeDays == null || currentTimeMs == null
-        ? null
-        : currentTimeMs - sparklineRangeDays * 24 * 60 * 60 * 1000;
+      sparklineRangeDays == null ? null : currentTimeMs - sparklineRangeDays * 24 * 60 * 60 * 1000;
     return chronological.reduce<{ date: string; value: number }[]>((points, p) => {
       const previousValue = points.at(-1)?.value ?? 0;
       const nextValue = previousValue + getRealizedPnl(p);
@@ -805,19 +802,19 @@ function MyPositions() {
                               />
                             </span>
                           </label>
-                          <div className="mp-search">
-                            <IconSearch />
-                            <input
-                              type="text"
-                              placeholder="Search positions..."
-                              value={search}
-                              onChange={(event) => setSearch(event.target.value)}
-                            />
-                          </div>
                         </div>
                       )}
 
                       <div className="mp-toolbar">
+                        <div className="mp-search">
+                          <IconSearch />
+                          <input
+                            type="text"
+                            placeholder="Search positions..."
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                          />
+                        </div>
                         <label className="mp-select">
                           <span>Sort by</span>
                           <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
