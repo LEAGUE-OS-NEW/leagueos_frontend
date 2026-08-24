@@ -3,8 +3,10 @@ import apiClient from './apiClient.ts';
 export type FantasySport = 'football' | 'rugby' | 'basketball';
 export type FantasyAvailability = 'AVAILABLE' | 'DOUBTFUL' | 'INJURED' | 'SUSPENDED' | 'UNAVAILABLE';
 
-export interface FantasyScoringRule { id: string; fantasy_competition: string; statistic_type: string; points: string; conditions: Record<string, never>; enabled: boolean }
-export interface FantasyFixture { id: string; name: string; starts_at: string; status: string }
+export type ScoringRuleType = 'PER_UNIT' | 'FLAT' | 'BRACKET' | 'PER_N' | 'POSITION';
+
+export interface FantasyScoringRule { id: string; fantasy_competition: string; statistic_type: string; rule_type: ScoringRuleType; points: string; conditions: Record<string, unknown>; enabled: boolean }
+export interface FantasyFixture { id: string; name: string; home_team?: string | null; away_team?: string | null; starts_at: string; status: string; venue?: string | null; home_score?: number | null; away_score?: number | null }
 export interface FantasyGameweek { id: string; fantasy_competition: string; number: number; name: string; starts_at: string; deadline_at: string; ends_at: string; status: 'DRAFT'|'OPEN'|'LOCKED'|'LIVE'|'SCORING'|'FINALIZED'; fixtures: string[]; fixture_details: FantasyFixture[] }
 export interface FantasyCompetition {
   id: string; competition: string; season: string; season_name: string; sport: FantasySport; name: string; description: string;
@@ -60,8 +62,14 @@ export async function fetchGameweekLeaderboard(gameweekId:string) { return (awai
 export async function fetchPublicLeagues() { return list<FantasyLeague>((await apiClient.get('/fantasy/leagues/')).data); }
 export async function fetchMyLeagues() { return list<FantasyLeague>((await apiClient.get('/fantasy/leagues/mine/')).data); }
 export async function createFantasyLeague(payload:Pick<FantasyLeague,'fantasy_competition'|'name'|'visibility'> & Partial<Pick<FantasyLeague,'description'|'capacity'>>) { return (await apiClient.post('/fantasy/leagues/',payload)).data as FantasyLeague; }
-export async function joinFantasyLeague(leagueId:string) { return (await apiClient.post(`/fantasy/leagues/${id(leagueId)}/join/`)).data as FantasyLeague; }
-export async function joinFantasyLeagueByCode(code:string) { return (await apiClient.post('/fantasy/leagues/join_by_code/',{code})).data as FantasyLeague; }
+export async function joinFantasyLeague(leagueId:string) {
+  const res = await apiClient.post<FantasyLeague | {detail:string}>(`/fantasy/leagues/${id(leagueId)}/join/`);
+  return res.data;
+}
+export async function joinFantasyLeagueByCode(code:string) {
+  const res = await apiClient.post<FantasyLeague | {detail:string}>('/fantasy/leagues/join_by_code/',{code});
+  return res.data;
+}
 export async function leaveFantasyLeague(leagueId:string) { await apiClient.post(`/fantasy/leagues/${id(leagueId)}/leave/`); }
 export async function fetchLeagueMembers(leagueId:string) { return (await apiClient.get(`/fantasy/leagues/${id(leagueId)}/members/`)).data as FantasyLeagueMember[]; }
 export async function fetchLeagueStandings(leagueId:string) { return (await apiClient.get(`/fantasy/leagues/${id(leagueId)}/standings/`)).data as FantasyStanding[]; }

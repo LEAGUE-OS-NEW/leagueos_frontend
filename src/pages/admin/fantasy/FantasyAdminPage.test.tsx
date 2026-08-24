@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import FantasyAdminPage from './FantasyAdminPage';
 import * as api from '../../../services/fantasyAdminService';
+import type { FantasyScoringRule, ScoringRuleType } from '../../../services/fantasyService';
 
 /** Set a textarea/input value directly — avoids userEvent.type() choking on { } characters */
 const setInputValue = (element: HTMLElement, value: string) => {
@@ -29,11 +30,11 @@ const competition = {
   squad_size:15, starting_lineup_size:11, bench_size:4, initial_budget:'100.00',
   max_players_per_team:3, captain_multiplier:'2.00', vice_captain_fallback:true,
   free_transfers_per_gameweek:1, transfer_penalty:4,
-  position_rules:{Goalkeeper:2,Forward:3}, formation_rules:{Goalkeeper:{min:1,max:1},Forward:{min:1,max:3}},
+  position_rules: { Goalkeeper: 2, Forward: 3 } as Record<string, number>, formation_rules: { Goalkeeper: { min: 1, max: 1 }, Forward: { min: 1, max: 3 } } as Record<string, { min: number; max: number }>,
   tie_break_rules:['total_points'], gameweek_rules:{}, registration_deadline:null,
   prize_metadata:{winner:'Cup'}, scoring_rules:[], current_gameweek:null, entries:0, total_gameweeks:0,
 };
-const scoringRule = { id:'sr1', fantasy_competition:'c1', statistic_type:'GOALS', points:'5.00', conditions:{}, enabled:true };
+const scoringRule = { id:'sr1', fantasy_competition:'c1', statistic_type:'GOALS', rule_type: 'PER_UNIT' as const, points:'5.00', conditions:{}, enabled:true };
 const competitionWithRules = { ...competition, scoring_rules:[scoringRule] };
 const player = {
   id:'p1', fantasy_competition:'c1', player:'canonical-p1', player_name:'Safe Player',
@@ -736,6 +737,7 @@ describe('FantasyAdminPage — scoring rules', () => {
       expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
         fantasy_competition: 'c1',
         statistic_type: 'GOALS',
+        rule_type: 'PER_UNIT',
         points: '3',
         conditions: {},
         enabled: true,
@@ -785,7 +787,8 @@ describe('FantasyAdminPage — scoring rules', () => {
     await openScoringTab(userEvent.setup());
 
     expect(await screen.findByText('GOALS')).toBeInTheDocument();
-    expect(screen.getByText('5.00')).toBeInTheDocument();
+    // describeRule for PER_UNIT GOALS 5.00 produces "5.00 pts per goals"
+    expect(screen.getByText('5.00 pts per goals')).toBeInTheDocument();
     // "Yes" pill for enabled rule
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
@@ -850,7 +853,7 @@ describe('FantasyAdminPage — scoring rules', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
 
     await waitFor(() =>
-      expect(api.adminUpdateScoringRule).toHaveBeenCalledWith('sr1', { points: '7', enabled: false })
+      expect(api.adminUpdateScoringRule).toHaveBeenCalledWith('sr1', { points: '7', enabled: false, rule_type: 'PER_UNIT', conditions: {} })
     );
     expect(await screen.findByRole('status')).toHaveTextContent('Scoring rule updated.');
   });
@@ -1158,5 +1161,448 @@ describe('FantasyAdminPage — JSON object field auto-wrapping (edit modal)', ()
     await waitFor(() => expect(api.adminUpdateCompetition).toHaveBeenCalledWith(
       'c1', expect.objectContaining({ prize_metadata: {} })
     ));
+  });
+});
+
+/* ════════════════════════════════════════════════════
+   SCORING RULE TYPES — Phase 3 tests
+   Covers all 16 required scenarios from the spec.
+════════════════════════════════════════════════════ */
+
+/** Competition fixture that exposes real position_rules so POSITION form works */
+const competitionWithPositions = {
+  ...competition,
+  position_rules: { GK: 1, DEF: 4, MID: 4, FWD: 2 },
+  scoring_rules: [],
+};
+
+const scoreRuleWithType = (overrides: Partial<FantasyScoringRule> & { rule_type?: ScoringRuleType } = {}): FantasyScoringRule => ({
+  ...scoringRule,
+  ...overrides,
+});
+
+const setupScoringTab = async (user: ReturnType<typeof userEvent.setup>, comp = competition) => {
+  vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([comp]);
+  vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([
+    { code: 'GOALS', label: 'Goals', observed: true },
+    { code: 'MINUTES_PLAYED', label: 'Minutes played', observed: true },
+    { code: 'SAVES', label: 'Saves', observed: true },
+    { code: 'PENALTIES_SAVED', label: 'Penalties saved', observed: false },
+    { code: 'CLEAN_SHEETS', label: 'Clean sheets', observed: false },
+  ]);
+  render(<FantasyAdminPage />);
+  await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+  // Wait for statistic type selector to be in the DOM
+  await screen.findByRole('combobox', { name: /statistic type/i });
+};
+
+describe('FantasyAdminPage — scoring rule types: form rendering', () => {
+
+  it('T01 PER_UNIT: default rule type is PER_UNIT and shows points input', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    const rtSelect = screen.getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement;
+    expect(rtSelect.value).toBe('PER_UNIT');
+    expect(screen.getByRole('spinbutton', { name: /points per unit/i })).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /bracket minimum/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /per n value/i })).not.toBeInTheDocument();
+  });
+
+  it('T02 FLAT: selecting FLAT shows points input and no condition fields', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'FLAT');
+    expect(screen.getByRole('spinbutton', { name: /points per unit/i })).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /bracket minimum/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /per n value/i })).not.toBeInTheDocument();
+  });
+
+  it('T03 BRACKET: selecting BRACKET shows min and max inputs', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    expect(screen.getByRole('spinbutton', { name: /bracket minimum/i })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /bracket maximum/i })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /points per unit/i })).toBeInTheDocument();
+  });
+
+  it('T04 BRACKET null max: max input empty means no upper bound', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    const maxInput = screen.getByRole('spinbutton', { name: /bracket maximum/i }) as HTMLInputElement;
+    // Default value is empty — no upper bound
+    expect(maxInput.value).toBe('');
+  });
+
+  it('T05 PER_N: selecting PER_N shows per_n input', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'PER_N');
+    expect(screen.getByRole('spinbutton', { name: /per n value/i })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /points per unit/i })).toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /bracket minimum/i })).not.toBeInTheDocument();
+  });
+
+  it('T06 POSITION: selecting POSITION shows position inputs from competition.position_rules', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user, competitionWithPositions);
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'POSITION');
+    // Each position in position_rules gets its own input
+    expect(screen.getByRole('spinbutton', { name: 'position points GK' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'position points DEF' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'position points MID' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'position points FWD' })).toBeInTheDocument();
+    // Points per unit input is hidden for POSITION
+    expect(screen.queryByRole('spinbutton', { name: /points per unit/i })).not.toBeInTheDocument();
+  });
+
+  it('T07 switching rule type clears incompatible conditions', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    // Enter BRACKET conditions
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket minimum/i }), '1');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket maximum/i }), '59');
+    // Switch to PER_UNIT — bracket fields disappear
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'PER_UNIT');
+    expect(screen.queryByRole('spinbutton', { name: /bracket minimum/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('spinbutton', { name: /bracket maximum/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('FantasyAdminPage — scoring rule types: correct payloads', () => {
+
+  it('T08 PER_UNIT: sends correct payload', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'GOALS');
+    // Rule type already PER_UNIT by default
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '5');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    await waitFor(() => expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
+      fantasy_competition: 'c1',
+      statistic_type: 'GOALS',
+      rule_type: 'PER_UNIT',
+      points: '5',
+      conditions: {},
+      enabled: true,
+    }));
+  });
+
+  it('T09 BRACKET with max: sends correct payload', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'MINUTES_PLAYED');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket minimum/i }), '1');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket maximum/i }), '59');
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '1');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    await waitFor(() => expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
+      fantasy_competition: 'c1',
+      statistic_type: 'MINUTES_PLAYED',
+      rule_type: 'BRACKET',
+      points: '1',
+      conditions: { min: 1, max: 59 },
+      enabled: true,
+    }));
+  });
+
+  it('T09b BRACKET with no max: sends null for max (no upper bound)', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'MINUTES_PLAYED');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket minimum/i }), '60');
+    // Leave max empty → no upper bound
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '2');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    await waitFor(() => expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
+      fantasy_competition: 'c1',
+      statistic_type: 'MINUTES_PLAYED',
+      rule_type: 'BRACKET',
+      points: '2',
+      conditions: { min: 60, max: null },
+      enabled: true,
+    }));
+  });
+
+  it('T10 PER_N: sends correct payload', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'SAVES');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'PER_N');
+    setInputValue(screen.getByRole('spinbutton', { name: /per n value/i }), '3');
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '1');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    await waitFor(() => expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
+      fantasy_competition: 'c1',
+      statistic_type: 'SAVES',
+      rule_type: 'PER_N',
+      points: '1',
+      conditions: { per_n: 3 },
+      enabled: true,
+    }));
+  });
+
+  it('T11 POSITION: sends correct payload with 0 points as string', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user, competitionWithPositions);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'GOALS');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'POSITION');
+    setInputValue(screen.getByRole('spinbutton', { name: 'position points GK' }), '10');
+    setInputValue(screen.getByRole('spinbutton', { name: 'position points DEF' }), '6');
+    setInputValue(screen.getByRole('spinbutton', { name: 'position points MID' }), '5');
+    setInputValue(screen.getByRole('spinbutton', { name: 'position points FWD' }), '4');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    await waitFor(() => expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
+      fantasy_competition: 'c1',
+      statistic_type: 'GOALS',
+      rule_type: 'POSITION',
+      points: '0',
+      conditions: { positions: { GK: 10, DEF: 6, MID: 5, FWD: 4 } },
+      enabled: true,
+    }));
+  });
+});
+
+describe('FantasyAdminPage — scoring rule types: validation', () => {
+
+  it('T12 BRACKET invalid: missing min shows error, does not call API', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'MINUTES_PLAYED');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    // Leave min empty
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket maximum/i }), '59');
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '1');
+    // Add button should be disabled because min is empty
+    expect(screen.getByRole('button', { name: 'Add rule' })).toBeDisabled();
+    expect(api.adminCreateScoringRule).not.toHaveBeenCalled();
+  });
+
+  it('T12b BRACKET invalid: max <= min shows error via validateConditions', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'MINUTES_PLAYED');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'BRACKET');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket minimum/i }), '60');
+    setInputValue(screen.getByRole('spinbutton', { name: /bracket maximum/i }), '59'); // max < min
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '1');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/maximum must be greater/i);
+    expect(api.adminCreateScoringRule).not.toHaveBeenCalled();
+  });
+
+  it('T13 PER_N invalid: per_n < 1 is disabled', async () => {
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'SAVES');
+    await user.selectOptions(screen.getByRole('combobox', { name: /rule type/i }), 'PER_N');
+    // Leave per_n empty — button should be disabled
+    expect(screen.getByRole('button', { name: 'Add rule' })).toBeDisabled();
+    expect(api.adminCreateScoringRule).not.toHaveBeenCalled();
+  });
+});
+
+describe('FantasyAdminPage — scoring rule types: edit existing rule', () => {
+
+  it('T14 existing PER_UNIT rule can be edited (backward compatible)', async () => {
+    const rule = scoreRuleWithType({ rule_type: 'PER_UNIT', conditions: {} });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'GOALS', label: 'Goals', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule GOALS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+
+    // rule_type selector should be PER_UNIT
+    const rtSelect = within(dialog).getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement;
+    expect(rtSelect.value).toBe('PER_UNIT');
+    // Points pre-populated
+    const pts = within(dialog).getByRole('spinbutton', { name: 'points per unit' }) as HTMLInputElement;
+    expect(pts.value).toBe('5.00');
+
+    setInputValue(pts, '7');
+    await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+
+    await waitFor(() => expect(api.adminUpdateScoringRule).toHaveBeenCalledWith(
+      'sr1',
+      expect.objectContaining({ points: '7', enabled: true, rule_type: 'PER_UNIT', conditions: {} })
+    ));
+  });
+
+  it('T15 legacy rule without rule_type defaults to PER_UNIT in edit modal', async () => {
+    // Simulate a rule that came from before Phase 1 — no rule_type field
+    const legacyRule = { id: 'sr-legacy', fantasy_competition: 'c1', statistic_type: 'ASSISTS', points: '3.00', conditions: {}, enabled: true } as typeof scoringRule;
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [legacyRule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'ASSISTS', label: 'Assists', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule ASSISTS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+
+    // Should default to PER_UNIT
+    const rtSelect = within(dialog).getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement;
+    expect(rtSelect.value).toBe('PER_UNIT');
+  });
+
+  it('T16 backend 400 error is displayed in the alert banner', async () => {
+    vi.mocked(api.adminCreateScoringRule).mockRejectedValueOnce(new Error('Duplicate rule for this statistic'));
+    const user = userEvent.setup();
+    await setupScoringTab(user);
+    await user.selectOptions(screen.getByRole('combobox', { name: /statistic type/i }), 'GOALS');
+    setInputValue(screen.getByRole('spinbutton', { name: /points per unit/i }), '5');
+    await user.click(screen.getByRole('button', { name: 'Add rule' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Duplicate rule for this statistic');
+  });
+
+  it('BRACKET rule pre-populates min and max in edit modal', async () => {
+    const bracketRule = scoreRuleWithType({
+      rule_type: 'BRACKET',
+      points: '1.00',
+      conditions: { min: 1, max: 59 },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [bracketRule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'GOALS', label: 'Goals', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule GOALS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+
+    expect((within(dialog).getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement).value).toBe('BRACKET');
+    expect((within(dialog).getByRole('spinbutton', { name: /bracket minimum/i }) as HTMLInputElement).value).toBe('1');
+    expect((within(dialog).getByRole('spinbutton', { name: /bracket maximum/i }) as HTMLInputElement).value).toBe('59');
+    expect((within(dialog).getByRole('spinbutton', { name: 'points per unit' }) as HTMLInputElement).value).toBe('1.00');
+  });
+
+  it('BRACKET no-upper-bound rule pre-populates empty max in edit modal', async () => {
+    const bracketRule = scoreRuleWithType({
+      rule_type: 'BRACKET',
+      points: '2.00',
+      conditions: { min: 60, max: null },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [bracketRule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'GOALS', label: 'Goals', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule GOALS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+    expect((within(dialog).getByRole('spinbutton', { name: /bracket minimum/i }) as HTMLInputElement).value).toBe('60');
+    expect((within(dialog).getByRole('spinbutton', { name: /bracket maximum/i }) as HTMLInputElement).value).toBe('');
+  });
+
+  it('PER_N rule pre-populates per_n in edit modal', async () => {
+    const perNRule = scoreRuleWithType({
+      rule_type: 'PER_N',
+      points: '1.00',
+      conditions: { per_n: 3 },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [perNRule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'SAVES', label: 'Saves', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule GOALS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+    expect((within(dialog).getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement).value).toBe('PER_N');
+    expect((within(dialog).getByRole('spinbutton', { name: /per n value/i }) as HTMLInputElement).value).toBe('3');
+  });
+
+  it('POSITION rule pre-populates position points in edit modal', async () => {
+    const posRule = scoreRuleWithType({
+      rule_type: 'POSITION',
+      points: '0.00',
+      conditions: { positions: { GK: 10, DEF: 6, MID: 5, FWD: 4 } },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{
+      ...competitionWithPositions,
+      scoring_rules: [posRule],
+    }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([{ code: 'GOALS', label: 'Goals', observed: true }]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Edit scoring rule GOALS' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit scoring rule' });
+    expect((within(dialog).getByRole('combobox', { name: /rule type/i }) as HTMLSelectElement).value).toBe('POSITION');
+    expect((within(dialog).getByRole('spinbutton', { name: 'position points GK' }) as HTMLInputElement).value).toBe('10');
+    expect((within(dialog).getByRole('spinbutton', { name: 'position points FWD' }) as HTMLInputElement).value).toBe('4');
+  });
+});
+
+describe('FantasyAdminPage — rule description display', () => {
+
+  it('PER_UNIT rule shows readable description in table', async () => {
+    const rule = scoreRuleWithType({ rule_type: 'PER_UNIT', points: '5.00', statistic_type: 'GOALS' });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+    expect(await screen.findByText('5.00 pts per goals')).toBeInTheDocument();
+  });
+
+  it('BRACKET rule shows range description in table', async () => {
+    const rule = scoreRuleWithType({
+      rule_type: 'BRACKET', points: '1.00', statistic_type: 'MINUTES_PLAYED',
+      conditions: { min: 1, max: 59 },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+    expect(await screen.findByText(/1–59 → 1\.00 pt/)).toBeInTheDocument();
+  });
+
+  it('BRACKET no-max rule shows plus description in table', async () => {
+    const rule = scoreRuleWithType({
+      rule_type: 'BRACKET', points: '2.00', statistic_type: 'MINUTES_PLAYED',
+      conditions: { min: 60, max: null },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+    expect(await screen.findByText(/60\+ → 2\.00 pts/)).toBeInTheDocument();
+  });
+
+  it('PER_N rule shows per-N description in table', async () => {
+    const rule = scoreRuleWithType({
+      rule_type: 'PER_N', points: '1.00', statistic_type: 'SAVES',
+      conditions: { per_n: 3 },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+    expect(await screen.findByText('1.00 pt per 3 saves')).toBeInTheDocument();
+  });
+
+  it('POSITION rule shows position summary in table', async () => {
+    const rule = scoreRuleWithType({
+      rule_type: 'POSITION', points: '0.00', statistic_type: 'GOALS',
+      conditions: { positions: { GK: 10, DEF: 6, MID: 5, FWD: 4 } },
+    });
+    vi.mocked(api.fetchAdminFantasyCompetitions).mockResolvedValue([{ ...competition, scoring_rules: [rule] }]);
+    vi.mocked(api.fetchFantasyStatisticTypes).mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<FantasyAdminPage />);
+    await user.click(await screen.findByRole('button', { name: 'Scoring' }));
+    expect(await screen.findByText('GK 10 • DEF 6 • MID 5 • FWD 4')).toBeInTheDocument();
   });
 });

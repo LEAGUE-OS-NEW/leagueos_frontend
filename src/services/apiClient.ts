@@ -81,6 +81,18 @@ axiosInstance.interceptors.response.use(
       isPublicAuth(config.url)
     )
       return Promise.reject(error);
+
+    // In local development (import.meta.env.DEV), if there is no refresh
+    // token stored, do not attempt a refresh — just let the 401 pass
+    // through as-is.  The backend's DEBUG fallback already handles these
+    // requests without requiring a token, so the caller receives the
+    // original 401 error rather than the misleading "No refresh token
+    // available" message.  Production behavior is unchanged: when DEV is
+    // false the normal refresh path runs regardless.
+    if (import.meta.env.DEV && !getRefreshToken()) {
+      return Promise.reject(error);
+    }
+
     config._retry = true;
     try {
       const access = await refreshAccessToken();

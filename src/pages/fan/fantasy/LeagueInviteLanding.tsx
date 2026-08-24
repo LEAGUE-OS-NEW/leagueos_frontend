@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { joinFantasyLeagueByCode } from '../../../services/fantasyService';
 import { extractApiError } from '../../../services/apiUtils';
+import './FantasyCompetitions.css';
 
 type Phase = 'joining' | 'no-team' | 'error' | 'done';
 
@@ -51,14 +52,19 @@ export default function LeagueInviteLanding() {
     let cancelled = false;
 
     joinFantasyLeagueByCode(code)
-      .then((league) => {
+      .then((result) => {
         if (cancelled) return;
-        leagueCompetitionId.current = league.fantasy_competition;
+        // Narrow: already-member (or other informational 200) returns {detail}
+        if ('detail' in result) {
+          // Treat already-a-member as a successful join — navigate to Fantasy hub.
+          navigate('/fan/fantasy?screen=leagues', { replace: true });
+          return;
+        }
+        // Full FantasyLeague object — normal join success.
+        leagueCompetitionId.current = result.fantasy_competition;
         setPhase('done');
-        // Navigate to /fan/fantasy with the competition highlighted and the
-        // leagues screen open.
         navigate(
-          `/fan/fantasy?competitionId=${encodeURIComponent(league.fantasy_competition)}&screen=leagues`,
+          `/fan/fantasy?competitionId=${encodeURIComponent(result.fantasy_competition)}&screen=leagues`,
           { replace: true },
         );
       })
