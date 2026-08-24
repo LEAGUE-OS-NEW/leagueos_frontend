@@ -23,7 +23,8 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled / Refunded' },
 ];
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 8;
+const INITIAL_TIME_MS = Date.now();
 
 function formatUgx(amount: number): string {
   return `UGX ${Math.round(amount).toLocaleString('en-US')}`;
@@ -53,8 +54,8 @@ function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function daysSince(iso: string): number {
-  const ms = Date.now() - new Date(iso).getTime();
+function daysSince(iso: string, nowMs: number): number {
+  const ms = nowMs - new Date(iso).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
@@ -354,7 +355,7 @@ function MyPositions() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [activeTab, setActiveTab] = useState<TabKey>('open');
+  const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [search, setSearch] = useState('');
   const [sideFilter, setSideFilter] = useState<SideFilter>('all');
   const [sportFilter, setSportFilter] = useState('all');
@@ -367,9 +368,10 @@ function MyPositions() {
   const [sortKey, setSortKey] = useState<SortKey>('oldest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [sparklineRangeKey, setSparklineRangeKey] = useState('30');
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
+  const [currentTimeMs, setCurrentTimeMs] = useState(INITIAL_TIME_MS);
 
   useEffect(() => {
     let cancelled = false;
@@ -401,6 +403,14 @@ function MyPositions() {
       document.body.style.overflow = '';
     };
   }, [isSidebarOpen]);
+
+  useEffect(() => {
+    const updateCurrentTime = () => setCurrentTimeMs(Date.now());
+    const intervalId = window.setInterval(updateCurrentTime, 60 * 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   function refreshPositions() {
     setIsLoading(true);
@@ -455,7 +465,7 @@ function MyPositions() {
     ? openPositions.reduce((sum, p) => sum + getNormalizedPrice(p, getEntryPrice(p)), 0) / openPositions.length
     : 0;
   const longestOpenDays = openPositions.length
-    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt)))
+    ? Math.max(...openPositions.map((p) => daysSince(p.contract.matchedAt, currentTimeMs)))
     : 0;
   const upcomingSettlement = useMemo(() => {
     const withClose = openPositions
@@ -610,7 +620,8 @@ function MyPositions() {
     const chronological = [...settledPositions].sort(
       (a, b) => new Date(a.contract.matchedAt).getTime() - new Date(b.contract.matchedAt).getTime(),
     );
-    const cutoff = sparklineRangeDays == null ? null : Date.now() - sparklineRangeDays * 24 * 60 * 60 * 1000;
+    const cutoff =
+      sparklineRangeDays == null ? null : currentTimeMs - sparklineRangeDays * 24 * 60 * 60 * 1000;
     return chronological.reduce<{ date: string; value: number }[]>((points, p) => {
       const previousValue = points.at(-1)?.value ?? 0;
       const nextValue = previousValue + getRealizedPnl(p);
@@ -619,7 +630,7 @@ function MyPositions() {
       }
       return [...points, { date: p.contract.matchedAt, value: nextValue }];
     }, []);
-  }, [settledPositions, sparklineRangeDays]);
+  }, [settledPositions, sparklineRangeDays, currentTimeMs]);
 
   return (
     <div className="my-positions-shell">
@@ -791,19 +802,19 @@ function MyPositions() {
                               />
                             </span>
                           </label>
-                          <div className="mp-search">
-                            <IconSearch />
-                            <input
-                              type="text"
-                              placeholder="Search positions..."
-                              value={search}
-                              onChange={(event) => setSearch(event.target.value)}
-                            />
-                          </div>
                         </div>
                       )}
 
                       <div className="mp-toolbar">
+                        <div className="mp-search">
+                          <IconSearch />
+                          <input
+                            type="text"
+                            placeholder="Search positions..."
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                          />
+                        </div>
                         <label className="mp-select">
                           <span>Sort by</span>
                           <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>
