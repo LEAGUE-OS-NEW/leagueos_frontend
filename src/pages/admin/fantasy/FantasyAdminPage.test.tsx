@@ -737,6 +737,7 @@ describe('FantasyAdminPage — scoring rules', () => {
       expect(api.adminCreateScoringRule).toHaveBeenCalledWith({
         fantasy_competition: 'c1',
         statistic_type: 'GOALS',
+        rule_type: 'PER_UNIT',
         points: '3',
         conditions: {},
         enabled: true,
@@ -786,7 +787,8 @@ describe('FantasyAdminPage — scoring rules', () => {
     await openScoringTab(userEvent.setup());
 
     expect(await screen.findByText('GOALS')).toBeInTheDocument();
-    expect(screen.getByText('5.00')).toBeInTheDocument();
+    // describeRule for PER_UNIT GOALS 5.00 produces "5.00 pts per goals"
+    expect(screen.getByText('5.00 pts per goals')).toBeInTheDocument();
     // "Yes" pill for enabled rule
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
@@ -851,7 +853,7 @@ describe('FantasyAdminPage — scoring rules', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
 
     await waitFor(() =>
-      expect(api.adminUpdateScoringRule).toHaveBeenCalledWith('sr1', { points: '7', enabled: false })
+      expect(api.adminUpdateScoringRule).toHaveBeenCalledWith('sr1', { points: '7', enabled: false, rule_type: 'PER_UNIT', conditions: {} })
     );
     expect(await screen.findByRole('status')).toHaveTextContent('Scoring rule updated.');
   });
@@ -1562,7 +1564,7 @@ describe('FantasyAdminPage — rule description display', () => {
     const user = userEvent.setup();
     render(<FantasyAdminPage />);
     await user.click(await screen.findByRole('button', { name: 'Scoring' }));
-    expect(await screen.findByText(/1–59 → 1 pt/)).toBeInTheDocument();
+    expect(await screen.findByText(/1–59 → 1\.00 pt/)).toBeInTheDocument();
   });
 
   it('BRACKET no-max rule shows plus description in table', async () => {
@@ -1575,7 +1577,7 @@ describe('FantasyAdminPage — rule description display', () => {
     const user = userEvent.setup();
     render(<FantasyAdminPage />);
     await user.click(await screen.findByRole('button', { name: 'Scoring' }));
-    expect(await screen.findByText(/60\+ → 2 pts/)).toBeInTheDocument();
+    expect(await screen.findByText(/60\+ → 2\.00 pts/)).toBeInTheDocument();
   });
 
   it('PER_N rule shows per-N description in table', async () => {

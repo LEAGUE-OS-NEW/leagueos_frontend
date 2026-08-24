@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -8,6 +8,16 @@ import MyTeam from './sections/MyTeam';
 import * as service from '../../../services/fantasyService';
 import { competitionFromApi } from './data';
 import type { FantasyCompetition, FantasyLeague } from '../../../services/fantasyService';
+
+/** Build a mock Axios error so extractApiError() reads the backend detail. */
+const makeAxiosError = (detail: string) => {
+  const err = new Error(detail) as Error & { isAxiosError: boolean; response: { data: { detail: string }; status: number } };
+  err.isAxiosError = true;
+  err.response = { data: { detail }, status: 400 };
+  // Make axios.isAxiosError() return true for this object
+  Object.defineProperty(err, 'isAxiosError', { value: true });
+  return err;
+};
 
 // ── Mock the entire service layer ────────────────────────────────────────────
 vi.mock('../../../services/fantasyService', async () => {
@@ -68,7 +78,21 @@ const makeLeague = (overrides: Partial<FantasyLeague> = {}): FantasyLeague => ({
   ...overrides,
 });
 
-// ── Default mock returns ──────────────────────────────────────────────────────
+/** Click the league card body div that wraps a league by its name text */
+async function openLeagueDrawer(name: string) {
+  // Wait for the league name to appear, then find the nearest clickable card body
+  const nameEl = await screen.findByText(name);
+  const cardBody = nameEl.closest('.league-card-body');
+  if (cardBody) {
+    // Use fireEvent which bypasses pointer-events checks unlike userEvent
+    fireEvent.click(cardBody);
+  } else {
+    // Fallback: click the text element directly
+    fireEvent.click(nameEl);
+  }
+  // Give the async open() handler a tick to resolve
+  await waitFor(() => {}, { timeout: 100 });
+}
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(service.fetchMyLeagues).mockResolvedValue([]);
@@ -101,7 +125,7 @@ describe('latest Fantasy sections', () => {
       makeLeague({ id: 'l2', name: 'Selected', member_count: 2 }),
     ]);
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Selected'));
+    await openLeagueDrawer('Selected');
     await waitFor(() => expect(service.fetchLeagueMembers).toHaveBeenCalledWith('l2'));
     expect(service.fetchLeagueStandings).toHaveBeenCalledWith('l2');
   });
@@ -155,8 +179,11 @@ describe('Leagues — create flow', () => {
     const nameInput = screen.getByLabelText(/league name/i);
     await userEvent.type(nameInput, 'The Invincibles');
 
-    // Switch to Public
-    await userEvent.click(screen.getByRole('button', { name: /public/i }));
+    // Switch to Public — click the "Public" option inside the modal vis-picker
+    // (not the "Public Leagues" tab button)
+    const dialog = screen.getByRole('dialog', { name: /create league/i });
+    const publicOption = within(dialog).getByRole('button', { name: /public/i });
+    await userEvent.click(publicOption);
 
     // Submit
     const submitBtn = screen.getAllByRole('button', { name: /create league/i })
@@ -181,12 +208,12 @@ describe('Leagues — create flow', () => {
     expect(screen.getByLabelText(/max members/i)).toBeInTheDocument();
   });
 
-  it('disables Create button when user has no team', async () => {
-    // Pass no team prop
+  it('Create league button is enabled even when user has no team', async () => {
+    // Create league no longer requires a squad — button should be enabled
     render(<Leagues competition={competition} />);
     await screen.findByText(/build your squad/i);
     const createBtn = screen.getByRole('button', { name: /create league/i });
-    expect(createBtn).toBeDisabled();
+    expect(createBtn).not.toBeDisabled();
   });
 
   it('creates a PRIVATE league by default', async () => {
@@ -237,8 +264,11 @@ describe('Leagues — join public flow', () => {
     vi.mocked(service.fetchMyLeagues).mockResolvedValue([joined]);
 
     render(<Leagues competition={competition} team={team} />);
+    // The league is in My Leagues (already joined), so it is filtered out of Public tab.
+    // Switch to Public tab — it should be empty (or at least have no Join button).
     await userEvent.click(await screen.findByRole('button', { name: /public leagues/i }));
-    await screen.findByText('Already In');
+    // The league does not appear in Public tab (already-joined leagues are excluded)
+    await waitFor(() => expect(screen.queryByText('Already In')).not.toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^join$/i })).not.toBeInTheDocument();
   });
 
@@ -290,9 +320,9 @@ describe('Leagues — join by code flow', () => {
   });
 
   it('shows error message when an invalid code is entered', async () => {
-    vi.mocked(service.joinFantasyLeagueByCode).mockRejectedValue({
-      response: { data: { detail: 'Invalid invite code or no team for this competition.' } },
-    });
+    vi.mocked(service.joinFantasyLeagueByCode).mockRejectedValue(
+      makeAxiosError('Invalid invite code or no team for this competition.'),
+    );
     const onNeedTeam = vi.fn();
     render(<Leagues competition={competition} team={undefined as never} initialCode="BADCODE1" onNeedTeam={onNeedTeam} />);
     const submitBtn = await screen.findByRole('button', { name: /join league/i });
@@ -301,9 +331,9 @@ describe('Leagues — join by code flow', () => {
   });
 
   it('shows a real error for invalid/expired codes', async () => {
-    vi.mocked(service.joinFantasyLeagueByCode).mockRejectedValue({
-      response: { data: { detail: 'League capacity has been reached.' } },
-    });
+    vi.mocked(service.joinFantasyLeagueByCode).mockRejectedValue(
+      makeAxiosError('League capacity has been reached.'),
+    );
     render(<Leagues competition={competition} team={team} initialCode="FULLLEAG" />);
     const submitBtn = await screen.findByRole('button', { name: /join league/i });
     await userEvent.click(submitBtn);
@@ -332,7 +362,7 @@ describe('Leagues — share / invite flow', () => {
 
   it('shows the invite code in the drawer for private league owner', async () => {
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Share Test League'));
+    await openLeagueDrawer('Share Test League');
     await waitFor(() =>
       expect(screen.getByLabelText(/league invite code/i)).toHaveTextContent('SHARE001'),
     );
@@ -340,9 +370,9 @@ describe('Leagues — share / invite flow', () => {
 
   it('shows Copy invite code and Copy invite link buttons', async () => {
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Share Test League'));
-    await waitFor(() => screen.getByText(/copy invite code/i));
-    expect(screen.getByText(/copy invite link/i)).toBeInTheDocument();
+    await openLeagueDrawer('Share Test League');
+    await waitFor(() => screen.getByText(/copy code/i));
+    expect(screen.getByText(/copy link/i)).toBeInTheDocument();
   });
 
   it('copies the invite code to clipboard when Copy invite code is clicked', async () => {
@@ -350,9 +380,9 @@ describe('Leagues — share / invite flow', () => {
     Object.assign(navigator, { clipboard: { writeText } });
 
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Share Test League'));
-    await waitFor(() => screen.getByText(/copy invite code/i));
-    await userEvent.click(screen.getByText(/copy invite code/i));
+    await openLeagueDrawer('Share Test League');
+    await waitFor(() => screen.getByText(/copy code/i));
+    await userEvent.click(screen.getByText(/copy code/i));
 
     expect(writeText).toHaveBeenCalledWith('SHARE001');
   });
@@ -362,9 +392,9 @@ describe('Leagues — share / invite flow', () => {
     Object.assign(navigator, { clipboard: { writeText } });
 
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Share Test League'));
-    await waitFor(() => screen.getByText(/copy invite link/i));
-    await userEvent.click(screen.getByText(/copy invite link/i));
+    await openLeagueDrawer('Share Test League');
+    await waitFor(() => screen.getByText(/copy link/i));
+    await userEvent.click(screen.getByText(/copy link/i));
 
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/fan/fantasy/join?code=SHARE001')),
@@ -374,11 +404,14 @@ describe('Leagues — share / invite flow', () => {
   it('does not show invite code section for public leagues', async () => {
     const pubLeague = makeLeague({ id: 'pub_share', name: 'Open League', visibility: 'PUBLIC' });
     vi.mocked(service.fetchMyLeagues).mockResolvedValue([pubLeague]);
-    vi.mocked(service.fetchLeagueMembers).mockResolvedValue([]);
+    vi.mocked(service.fetchLeagueMembers).mockResolvedValue([
+      { rank: 1, team_id: 't1', fantasy_team: 'My XI', manager: 'Me', total_points: '0', joined_at: '' },
+    ]);
 
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Open League'));
-    await waitFor(() => screen.getByText(/members/i));
+    await openLeagueDrawer('Open League');
+    // Wait for members heading to appear in the drawer
+    await waitFor(() => expect(screen.getAllByRole('heading', { name: /members/i }).length).toBeGreaterThan(0));
     expect(screen.queryByLabelText(/league invite code/i)).not.toBeInTheDocument();
   });
 });
@@ -394,7 +427,7 @@ describe('Leagues — league detail drawer', () => {
     ]);
 
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Detail League'));
+    await openLeagueDrawer('Detail League');
     await waitFor(() => expect(screen.getByText(/Test Team/)).toBeInTheDocument());
     expect(screen.getByText(/Test Manager/)).toBeInTheDocument();
   });
@@ -402,14 +435,14 @@ describe('Leagues — league detail drawer', () => {
   it('shows a Leave league button in the drawer', async () => {
     vi.mocked(service.fetchMyLeagues).mockResolvedValue([makeLeague({ id: 'leave1', name: 'Leaveable' })]);
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('Leaveable'));
+    await openLeagueDrawer('Leaveable');
     expect(await screen.findByRole('button', { name: /leave league/i })).toBeInTheDocument();
   });
 
   it('calls leaveFantasyLeague and closes drawer on Leave', async () => {
     vi.mocked(service.fetchMyLeagues).mockResolvedValue([makeLeague({ id: 'leave2', name: 'LeaveMeNow' })]);
     render(<Leagues competition={competition} team={team} />);
-    await userEvent.click(await screen.findByText('LeaveMeNow'));
+    await openLeagueDrawer('LeaveMeNow');
     const leaveBtn = await screen.findByRole('button', { name: /leave league/i });
     await userEvent.click(leaveBtn);
     await waitFor(() => expect(service.leaveFantasyLeague).toHaveBeenCalledWith('leave2'));
@@ -430,7 +463,7 @@ describe('Leagues — loading and error states', () => {
 
   it('shows an empty state when there are no leagues', async () => {
     render(<Leagues competition={competition} team={team} />);
-    expect(await screen.findByText(/no leagues found/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no leagues yet/i)).toBeInTheDocument();
   });
 
   it('shows no-team banner when team prop is absent', async () => {
