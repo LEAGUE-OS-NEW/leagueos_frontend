@@ -1,24 +1,35 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiPlus, FiDownload, FiX, FiEdit2, FiCheck, FiAlertCircle,
-  FiClock, FiUsers, FiZap, FiSave,
+  FiClock, FiUsers, FiZap, FiSave, FiUpload, FiEye, FiLoader,
 } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../../store/authStore';
 import { DEMO_ENTITLEMENTS } from '../../../components/clubadmin/clubAdminData';
+import {
+  createTicketProduct,
+  deleteTicketProduct,
+  fetchTicketOrders,
+  fetchTicketProducts,
+  publishTicketProduct,
+  scanTicketCode,
+  updateTicketProduct,
+  type SaveTicketProductInput,
+  type TicketOrder,
+  type TicketProduct,
+} from '../../../services/ticketAdminService';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubTicketsAdminPage.css';
 
-const TABS = ['Events', 'Ticket Types', 'Scanner'];
-
-type EventStatus = 'on sale' | 'pending' | 'sold out' | 'closed';
-type MatchEvent = { id: string; match: string; date: string; sold: number; cap: number; rev: string; status: EventStatus };
-type TicketType = { id: string; name: string; price: string; sold: number; cap: number; color: string };
-type CheckIn = { id: string; holder: string; type: string; time: string; valid: boolean };
+const TABS = ['Ticket Products', 'Scanner'];
 
 const STATUS_CLASS: Record<string, string> = {
-  'on sale': 'ca-pill-green', pending: 'ca-pill-orange', 'sold out': 'ca-pill-red', closed: 'ca-pill-muted',
+  DRAFT: 'ca-pill-muted',
+  ACTIVE: 'ca-pill-green',
+  PAUSED: 'ca-pill-orange',
+  SOLD_OUT: 'ca-pill-red',
+  ARCHIVED: 'ca-pill-muted',
 };
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
@@ -29,172 +40,293 @@ function exportCSV(rows: Record<string, unknown>[], filename: string) {
   a.click();
 }
 
-const BLANK_EVENT: Omit<MatchEvent, 'id'> = { match: '', date: '', sold: 0, cap: 6000, rev: '—', status: 'pending' };
-const BLANK_TYPE: Omit<TicketType, 'id'> = { name: '', price: '', sold: 0, cap: 500, color: '#3b82f6' };
+function errorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const response = (err as { response?: { data?: unknown } }).response;
+    const data = response?.data;
+    if (data && typeof data === 'object' && 'detail' in data) {
+      const detail = (data as { detail: unknown }).detail;
+      return typeof detail === 'string' ? detail : JSON.stringify(detail);
+    }
+  }
+  return err instanceof Error ? err.message : 'Something went wrong.';
+}
 
-type ModalKind = null | 'event' | 'type';
-let idCounter = 200;
+type ProductForm = {
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  venue: string;
+  capacity: string;
+  is_refundable: boolean;
+  eventLabel: string;
+};
+
+const BLANK_FORM: ProductForm = {
+  name: '', description: '', price: '', currency: 'UGX', venue: '', capacity: '', is_refundable: false, eventLabel: '',
+};
+
+function toSavePayload(form: ProductForm): SaveTicketProductInput {
+  return {
+    name: form.name.trim(),
+    description: form.description.trim(),
+    price: form.price,
+    currency: form.currency.trim() || 'UGX',
+    venue: form.venue.trim(),
+    capacity: form.capacity.trim() ? Number(form.capacity) : null,
+    is_refundable: form.is_refundable,
+    metadata: form.eventLabel.trim() ? { event_label: form.eventLabel.trim() } : {},
+  };
+}
+
+function fromProduct(product: TicketProduct): ProductForm {
+  return {
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    currency: product.currency,
+    venue: product.venue,
+    capacity: product.capacity != null ? String(product.capacity) : '',
+    is_refundable: product.is_refundable,
+    eventLabel: typeof product.metadata?.event_label === 'string' ? product.metadata.event_label : '',
+  };
+}
 
 export default function ClubTicketsAdminPage() {
-  const [activeTab, setActiveTab] = useState('Events');
-  const [events, setEvents] = useState<MatchEvent[]>([]);
-  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [modal, setModal] = useState<ModalKind>(null);
-  const [editEventId, setEditEventId] = useState<string | null>(null);
-  const [editTypeId, setEditTypeId] = useState<string | null>(null);
-  const [eventForm, setEventForm] = useState<Omit<MatchEvent, 'id'>>(BLANK_EVENT);
-  const [typeForm, setTypeForm] = useState<Omit<TicketType, 'id'>>(BLANK_TYPE);
-  const [scanInput, setScanInput] = useState('');
-  const [scanResult, setScanResult] = useState<null | { valid: boolean; message: string; holder?: string; type?: string }>(null);
-  const [toast, setToast] = useState('');
-  const scanRef = useRef<HTMLInputElement>(null);
-
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEnt = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
   const ents = rawEnt.length > 0 ? rawEnt : DEMO_ENTITLEMENTS;
   const current = ents.find(e => e.id === selectedEntitlementId) ?? ents[0] ?? null;
   const canManage = current?.permissions.includes('club.ticketing.manage') ?? true;
+  const clubId = current?.scope_id != null ? String(current.scope_id) : '';
+
+  const [activeTab, setActiveTab] = useState('Ticket Products');
+  const [products, setProducts] = useState<TicketProduct[]>([]);
+  const [loading, setLoading] = useState(() => Boolean(clubId));
+  const [fetchError, setFetchError] = useState('');
+  const [modal, setModal] = useState<null | 'product'>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<ProductForm>(BLANK_FORM);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [ordersProduct, setOrdersProduct] = useState<TicketProduct | null>(null);
+  const [orders, setOrders] = useState<TicketOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const [scanInput, setScanInput] = useState('');
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanResult, setScanResult] = useState<null | { valid: boolean; message: string }>(null);
+  const [scannedOrders, setScannedOrders] = useState<TicketOrder[]>([]);
+  const [toast, setToast] = useState('');
+  const scanRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const openNewEvent = () => { setEventForm(BLANK_EVENT); setEditEventId(null); setModal('event'); };
-  const openEditEvent = (ev: MatchEvent) => { setEventForm({ match: ev.match, date: ev.date, sold: ev.sold, cap: ev.cap, rev: ev.rev, status: ev.status }); setEditEventId(ev.id); setModal('event'); };
-
-  const saveEvent = () => {
-    if (!eventForm.match.trim() || !eventForm.date.trim()) return;
-    if (editEventId) {
-      setEvents(prev => prev.map(e => e.id === editEventId ? { ...eventForm, id: editEventId } : e));
-      showToast('Event updated');
-    } else {
-      const id = `ev-${idCounter++}`;
-      setEvents(prev => [...prev, { ...eventForm, id }]);
-      showToast(`Event "${eventForm.match}" created`);
+  useEffect(() => {
+    if (!clubId) {
+      return;
     }
-    setModal(null);
+    let cancelled = false;
+    fetchTicketProducts(clubId)
+      .then((list) => {
+        if (cancelled) return;
+        setProducts(list);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setFetchError(errorMessage(err));
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId]);
+
+  const openNew = () => { setForm(BLANK_FORM); setEditId(null); setSaveError(''); setModal('product'); };
+  const openEdit = (product: TicketProduct) => { setForm(fromProduct(product)); setEditId(product.id); setSaveError(''); setModal('product'); };
+
+  const saveProduct = async () => {
+    if (!form.name.trim() || !form.price.trim()) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      const payload = toSavePayload(form);
+      if (editId) {
+        const updated = await updateTicketProduct(clubId, editId, payload);
+        setProducts(prev => prev.map(p => (p.id === editId ? updated : p)));
+        showToast('Ticket product updated');
+      } else {
+        const created = await createTicketProduct(clubId, payload);
+        setProducts(prev => [created, ...prev]);
+        showToast(`Ticket product "${created.name}" created`);
+      }
+      setModal(null);
+    } catch (err) {
+      setSaveError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const openNewType = () => { setTypeForm(BLANK_TYPE); setEditTypeId(null); setModal('type'); };
-  const openEditType = (t: TicketType) => { setTypeForm({ name: t.name, price: t.price, sold: t.sold, cap: t.cap, color: t.color }); setEditTypeId(t.id); setModal('type'); };
-
-  const saveType = () => {
-    if (!typeForm.name.trim()) return;
-    if (editTypeId) {
-      setTicketTypes(prev => prev.map(t => t.id === editTypeId ? { ...typeForm, id: editTypeId } : t));
-      showToast('Ticket type updated');
-    } else {
-      const id = `tt-${idCounter++}`;
-      setTicketTypes(prev => [...prev, { ...typeForm, id }]);
-      showToast(`Ticket type "${typeForm.name}" added`);
+  const handlePublish = async (product: TicketProduct) => {
+    setBusyId(product.id);
+    try {
+      const published = await publishTicketProduct(clubId, product.id);
+      setProducts(prev => prev.map(p => (p.id === product.id ? published : p)));
+      showToast(`"${product.name}" is now on sale`);
+    } catch (err) {
+      showToast(errorMessage(err));
+    } finally {
+      setBusyId(null);
     }
-    setModal(null);
   };
 
-  const handleScan = () => {
+  const handleDelete = async (product: TicketProduct) => {
+    if (!window.confirm(`Delete ticket product "${product.name}"? This cannot be undone.`)) return;
+    setBusyId(product.id);
+    try {
+      await deleteTicketProduct(clubId, product.id);
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      showToast('Ticket product deleted');
+    } catch (err) {
+      showToast(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openOrders = async (product: TicketProduct) => {
+    setOrdersProduct(product);
+    setOrdersLoading(true);
+    try {
+      const list = await fetchTicketOrders(clubId, product.id);
+      setOrders(list);
+    } catch (err) {
+      showToast(errorMessage(err));
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const handleScan = async () => {
     const code = scanInput.trim().toUpperCase();
-    if (!code) return;
-    const alreadyScanned = checkIns.find(c => c.id === code);
-    if (alreadyScanned) {
-      setScanResult({ valid: false, message: `Ticket ${code} already used at ${alreadyScanned.time}.` });
-    } else if (code.startsWith('TK-') && code.length >= 8) {
-      const types = ticketTypes.map(t => t.name);
-      const type = types.length > 0 ? types[Math.floor(Math.random() * types.length)] : '—';
-      const newCheckIn: CheckIn = { id: code, holder: 'Fan', type, time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), valid: true };
-      setCheckIns(prev => [newCheckIn, ...prev]);
-      setScanResult({ valid: true, message: `Valid ticket${type !== '—' ? ` — ${type}` : ''}`, holder: 'Fan', type });
-    } else {
-      setScanResult({ valid: false, message: `Invalid ticket code: ${code}` });
+    if (!code || !clubId) return;
+    setScanBusy(true);
+    try {
+      const order = await scanTicketCode(clubId, code);
+      setScannedOrders(prev => [order, ...prev]);
+      setScanResult({ valid: true, message: `Valid ticket — ${order.product_name}` });
+      setProducts(prev => prev.map(p => (p.id === order.product ? { ...p } : p)));
+    } catch (err) {
+      setScanResult({ valid: false, message: errorMessage(err) });
+    } finally {
+      setScanBusy(false);
+      setScanInput('');
+      setTimeout(() => setScanResult(null), 4000);
+      scanRef.current?.focus();
     }
-    setScanInput('');
-    setTimeout(() => setScanResult(null), 4000);
-    scanRef.current?.focus();
   };
 
-  const totalCapacity = events.reduce((s, e) => s + e.cap, 0);
-  const totalCheckedIn = checkIns.filter(c => c.valid).length;
-  const scanPct = totalCapacity > 0 ? Math.round((totalCheckedIn / totalCapacity) * 100) : 0;
+  const totalSold = useMemo(() => products.reduce((s, p) => s + p.sold, 0), [products]);
+  const totalCheckedIn = scannedOrders.length;
+  const scanPct = totalSold > 0 ? Math.round((totalCheckedIn / totalSold) * 100) : 0;
+  const loadError = !clubId ? 'No club is selected for this workspace.' : fetchError;
 
   return (
     <ClubAdminLayout>
       {toast && <div className="ca-toast"><FiCheck /> {toast}</div>}
 
-      {/* Event modal */}
-      {modal === 'event' && (
-        <div className="ca-modal-overlay" onClick={() => setModal(null)}>
+      {/* Ticket product modal */}
+      {modal === 'product' && (
+        <div className="ca-modal-overlay" onClick={() => !saving && setModal(null)}>
           <div className="ca-modal" onClick={e => e.stopPropagation()}>
             <div className="ca-modal-header">
-              <h2 className="ca-modal-title">{editEventId ? 'Edit Match Event' : 'Create Match Event'}</h2>
+              <h2 className="ca-modal-title">{editId ? 'Edit Ticket Product' : 'Create Ticket Product'}</h2>
               <button type="button" className="ca-modal-close" onClick={() => setModal(null)}><FiX /></button>
             </div>
             <div className="ca-modal-body">
+              {saveError && (
+                <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: '#ef4444' }}>{saveError}</p>
+              )}
               <div className="ca-form-grid">
                 <div className="ca-field ca-form-grid-full">
-                  <label className="ca-label">Match *</label>
-                  <input className="ca-input" value={eventForm.match} onChange={e => setEventForm(f => ({ ...f, match: e.target.value }))} placeholder="e.g. Club A vs Club B" />
+                  <label className="ca-label">Name *</label>
+                  <input className="ca-input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Final Match — General Admission" />
+                </div>
+                <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Match / Event</label>
+                  <input className="ca-input" value={form.eventLabel} onChange={e => setForm(f => ({ ...f, eventLabel: e.target.value }))} placeholder="e.g. Club A vs Club B, 18 May 2026" />
                 </div>
                 <div className="ca-field">
-                  <label className="ca-label">Date *</label>
-                  <input className="ca-input" value={eventForm.date} onChange={e => setEventForm(f => ({ ...f, date: e.target.value }))} placeholder="e.g. 18 May 2026" />
+                  <label className="ca-label">Price *</label>
+                  <input className="ca-input" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="10000.00" />
                 </div>
                 <div className="ca-field">
-                  <label className="ca-label">Total Capacity</label>
-                  <input className="ca-input" type="number" min="1" value={eventForm.cap} onChange={e => setEventForm(f => ({ ...f, cap: Number(e.target.value) }))} />
+                  <label className="ca-label">Currency</label>
+                  <input className="ca-input" value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))} placeholder="UGX" />
                 </div>
                 <div className="ca-field">
-                  <label className="ca-label">Status</label>
-                  <select className="ca-select" value={eventForm.status} onChange={e => setEventForm(f => ({ ...f, status: e.target.value as EventStatus }))}>
-                    <option value="pending">Pending</option>
-                    <option value="on sale">On Sale</option>
-                    <option value="sold out">Sold Out</option>
-                    <option value="closed">Closed</option>
-                  </select>
+                  <label className="ca-label">Capacity</label>
+                  <input className="ca-input" type="number" min="1" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} placeholder="Leave blank for unlimited" />
+                </div>
+                <div className="ca-field">
+                  <label className="ca-label">Venue</label>
+                  <input className="ca-input" value={form.venue} onChange={e => setForm(f => ({ ...f, venue: e.target.value }))} placeholder="e.g. Mandela National Stadium" />
+                </div>
+                <div className="ca-field ca-form-grid-full">
+                  <label className="ca-label">Description</label>
+                  <input className="ca-input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                 </div>
               </div>
             </div>
             <div className="ca-modal-footer">
-              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={saveEvent}>
-                {editEventId ? <><FiSave /> Save Changes</> : <><FiPlus /> Create Event</>}
+              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)} disabled={saving}>Cancel</button>
+              <button type="button" className="ca-btn ca-btn-primary" onClick={saveProduct} disabled={saving}>
+                {saving ? <><FiLoader className="ca-spin" /> Saving…</> : editId ? <><FiSave /> Save Changes</> : <><FiPlus /> Create Product</>}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Ticket type modal */}
-      {modal === 'type' && (
-        <div className="ca-modal-overlay" onClick={() => setModal(null)}>
+      {/* Orders modal */}
+      {ordersProduct && (
+        <div className="ca-modal-overlay" onClick={() => setOrdersProduct(null)}>
           <div className="ca-modal" onClick={e => e.stopPropagation()}>
             <div className="ca-modal-header">
-              <h2 className="ca-modal-title">{editTypeId ? 'Edit Ticket Type' : 'Add Ticket Type'}</h2>
-              <button type="button" className="ca-modal-close" onClick={() => setModal(null)}><FiX /></button>
+              <h2 className="ca-modal-title">Orders — {ordersProduct.name}</h2>
+              <button type="button" className="ca-modal-close" onClick={() => setOrdersProduct(null)}><FiX /></button>
             </div>
             <div className="ca-modal-body">
-              <div className="ca-form-grid">
-                <div className="ca-field">
-                  <label className="ca-label">Type Name *</label>
-                  <input className="ca-input" value={typeForm.name} onChange={e => setTypeForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. VIP Lounge" />
+              {ordersLoading ? (
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>Loading orders…</p>
+              ) : orders.length === 0 ? (
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>No orders yet for this ticket.</p>
+              ) : (
+                <div className="ca-table-wrap">
+                  <table className="ca-table">
+                    <thead><tr><th>Buyer</th><th>Qty</th><th>Total</th><th>Status</th><th>Code</th></tr></thead>
+                    <tbody>
+                      {orders.map(o => (
+                        <tr key={o.id}>
+                          <td>{o.buyer_email}</td>
+                          <td>{o.quantity}</td>
+                          <td>{o.total_amount} {o.currency}</td>
+                          <td><span className={`ca-pill ${STATUS_CLASS[o.status] ?? 'ca-pill-muted'}`}>{o.status}</span></td>
+                          <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{o.code}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="ca-field">
-                  <label className="ca-label">Price</label>
-                  <input className="ca-input" value={typeForm.price} onChange={e => setTypeForm(f => ({ ...f, price: e.target.value }))} placeholder="e.g. UGX 50,000" />
-                </div>
-                <div className="ca-field">
-                  <label className="ca-label">Capacity</label>
-                  <input className="ca-input" type="number" min="1" value={typeForm.cap} onChange={e => setTypeForm(f => ({ ...f, cap: Number(e.target.value) }))} />
-                </div>
-                <div className="ca-field">
-                  <label className="ca-label">Color</label>
-                  <input className="ca-input" type="color" value={typeForm.color} style={{ padding: '4px', height: 38 }} onChange={e => setTypeForm(f => ({ ...f, color: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-            <div className="ca-modal-footer">
-              <button type="button" className="ca-btn ca-btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-              <button type="button" className="ca-btn ca-btn-primary" onClick={saveType}>
-                {editTypeId ? 'Save Changes' : 'Add Type'}
-              </button>
+              )}
             </div>
           </div>
         </div>
@@ -203,18 +335,15 @@ export default function ClubTicketsAdminPage() {
       <div className="ca-page-header">
         <div>
           <h1 className="ca-page-title">Ticketing &amp; Match Events</h1>
-          <p className="ca-page-subtitle">Manage match events, ticket types, seating and match-day check-in.</p>
+          <p className="ca-page-subtitle">Manage ticket products, sales and match-day check-in.</p>
         </div>
         <div className="ca-page-actions">
           <button type="button" className="ca-btn ca-btn-secondary"
-            onClick={() => exportCSV(events as unknown as Record<string, unknown>[], 'events.csv')}>
+            onClick={() => exportCSV(products as unknown as Record<string, unknown>[], 'ticket-products.csv')}>
             <FiDownload /> Export
           </button>
-          {canManage && activeTab === 'Events' && (
-            <button type="button" className="ca-btn ca-btn-primary" onClick={openNewEvent}><FiPlus /> Create Event</button>
-          )}
-          {canManage && activeTab === 'Ticket Types' && (
-            <button type="button" className="ca-btn ca-btn-primary" onClick={openNewType}><FiPlus /> Add Type</button>
+          {canManage && activeTab === 'Ticket Products' && (
+            <button type="button" className="ca-btn ca-btn-primary" onClick={openNew}><FiPlus /> Create Ticket Product</button>
           )}
         </div>
       </div>
@@ -225,36 +354,55 @@ export default function ClubTicketsAdminPage() {
         ))}
       </div>
 
-      {/* ── EVENTS TAB ── */}
-      {activeTab === 'Events' && (
+      {loadError && (
+        <div className="ca-scan-result ca-scan-invalid" style={{ marginBottom: 16 }}>
+          <FiAlertCircle style={{ fontSize: '1.1rem', color: '#ef4444', flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: '0.82rem' }}>{loadError}</p>
+        </div>
+      )}
+
+      {/* ── TICKET PRODUCTS TAB ── */}
+      {activeTab === 'Ticket Products' && (
         <div className="ca-content-grid">
           <div className="ca-content-main">
             <div className="ca-panel">
               <div className="ca-panel-header">
-                <h2 className="ca-panel-title">Match Events</h2>
-                <span className="ca-panel-count">{events.length} events</span>
+                <h2 className="ca-panel-title">Ticket Products</h2>
+                <span className="ca-panel-count">{products.length} products</span>
               </div>
               <div className="ca-table-wrap">
                 <table className="ca-table">
                   <thead>
-                    <tr><th>Match</th><th>Date</th><th>Sold</th><th>Capacity</th><th>Revenue</th><th>Status</th><th></th></tr>
+                    <tr><th>Name</th><th>Match / Event</th><th>Price</th><th>Sold</th><th>Capacity</th><th>Status</th><th></th></tr>
                   </thead>
                   <tbody>
-                    {events.length === 0 && (
-                      <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No events yet. Create a match event to get started.</td></tr>
+                    {loading && (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}><FiLoader className="ca-spin" /> Loading ticket products…</td></tr>
                     )}
-                    {events.map(e => (
-                      <tr key={e.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>{e.match}</td>
-                        <td>{e.date}</td>
-                        <td>{e.sold > 0 ? e.sold.toLocaleString() : '—'}</td>
-                        <td>{e.cap.toLocaleString()}</td>
-                        <td>{e.rev}</td>
-                        <td><span className={`ca-pill ${STATUS_CLASS[e.status]}`}>{e.status}</span></td>
+                    {!loading && products.length === 0 && !loadError && (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No ticket products yet. Create one to start selling.</td></tr>
+                    )}
+                    {products.map(p => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>{p.name}</td>
+                        <td>{typeof p.metadata?.event_label === 'string' ? p.metadata.event_label : '—'}</td>
+                        <td>{p.price} {p.currency}</td>
+                        <td>{p.sold > 0 ? p.sold.toLocaleString() : '—'}</td>
+                        <td>{p.capacity != null ? p.capacity.toLocaleString() : 'Unlimited'}</td>
+                        <td><span className={`ca-pill ${STATUS_CLASS[p.status] ?? 'ca-pill-muted'}`}>{p.status}</span></td>
                         <td>
-                          {canManage && (
-                            <button type="button" className="ca-icon-btn" onClick={() => openEditEvent(e)}><FiEdit2 /></button>
-                          )}
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button type="button" className="ca-icon-btn" title="View orders" onClick={() => openOrders(p)}><FiEye /></button>
+                            {canManage && (
+                              <>
+                                <button type="button" className="ca-icon-btn" title="Edit" onClick={() => openEdit(p)}><FiEdit2 /></button>
+                                {p.status === 'DRAFT' && (
+                                  <button type="button" className="ca-icon-btn" title="Publish" disabled={busyId === p.id} onClick={() => handlePublish(p)}><FiUpload /></button>
+                                )}
+                                <button type="button" className="ca-icon-btn" title="Delete" disabled={busyId === p.id} onClick={() => handleDelete(p)}><FiX /></button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -266,98 +414,20 @@ export default function ClubTicketsAdminPage() {
 
           <div className="ca-content-aside">
             <div className="ca-panel">
-              <div className="ca-panel-header"><h2 className="ca-panel-title">Sales by Category</h2></div>
-              {ticketTypes.length === 0
-                ? <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No ticket types configured.</p>
+              <div className="ca-panel-header"><h2 className="ca-panel-title">Sales Overview</h2></div>
+              {products.length === 0
+                ? <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No ticket products configured.</p>
                 : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {ticketTypes.map(t => {
-                      const pct = Math.round(t.sold / Math.max(t.cap, 1) * 100);
+                    {products.map(p => {
+                      const pct = p.capacity ? Math.round((p.sold / Math.max(p.capacity, 1)) * 100) : 0;
                       return (
-                        <div key={t.id} className="ca-channel-row">
-                          <div style={{ width: 10, height: 10, borderRadius: 3, background: t.color, flexShrink: 0 }} />
-                          <span className="ca-channel-label" style={{ width: 100 }}>{t.name}</span>
+                        <div key={p.id} className="ca-channel-row">
+                          <span className="ca-channel-label" style={{ width: 110 }}>{p.name}</span>
                           <div className="ca-channel-bar-wrap" style={{ flex: 1 }}>
-                            <div className="ca-channel-bar" style={{ width: `${pct}%`, background: t.color }} />
+                            <div className="ca-channel-bar" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="ca-channel-pct">{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              }
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TICKET TYPES TAB ── */}
-      {activeTab === 'Ticket Types' && (
-        <div className="ca-content-grid">
-          <div className="ca-content-main">
-            <div className="ca-panel">
-              <div className="ca-panel-header">
-                <h2 className="ca-panel-title">Ticket Types &amp; Pricing</h2>
-                <span className="ca-panel-count">{ticketTypes.length} types</span>
-              </div>
-              <div className="ca-table-wrap">
-                <table className="ca-table">
-                  <thead><tr><th>Type</th><th>Price</th><th>Sold</th><th>Capacity</th><th>Fill Rate</th><th></th></tr></thead>
-                  <tbody>
-                    {ticketTypes.length === 0 && (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '28px' }}>No ticket types yet. Add a type to define seating categories.</td></tr>
-                    )}
-                    {ticketTypes.map(t => {
-                      const pct = Math.round(t.sold / Math.max(t.cap, 1) * 100);
-                      return (
-                        <tr key={t.id}>
-                          <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ width: 10, height: 10, borderRadius: 3, background: t.color, flexShrink: 0 }} />
-                              {t.name}
-                            </div>
-                          </td>
-                          <td>{t.price}</td>
-                          <td>{t.sold.toLocaleString()}</td>
-                          <td>{t.cap.toLocaleString()}</td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div className="ca-fill-bar-wrap">
-                                <div className="ca-fill-bar" style={{ width: `${pct}%`, background: t.color }} />
-                              </div>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{pct}%</span>
-                            </div>
-                          </td>
-                          <td>
-                            {canManage && <button type="button" className="ca-icon-btn" onClick={() => openEditType(t)}><FiEdit2 /></button>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div className="ca-content-aside">
-            <div className="ca-panel">
-              <div className="ca-panel-header"><h2 className="ca-panel-title">Capacity Overview</h2></div>
-              {ticketTypes.length === 0
-                ? <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0 }}>No ticket types to display.</p>
-                : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {ticketTypes.map(t => {
-                      const pct = Math.round(t.sold / Math.max(t.cap, 1) * 100);
-                      return (
-                        <div key={t.id}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8rem' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>{t.name}</span>
-                            <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{t.sold.toLocaleString()} / {t.cap.toLocaleString()}</span>
-                          </div>
-                          <div className="ca-fill-bar-wrap" style={{ width: '100%' }}>
-                            <div className="ca-fill-bar" style={{ width: `${pct}%`, background: t.color }} />
-                          </div>
+                          <span className="ca-channel-pct">{p.capacity ? `${pct}%` : p.sold}</span>
                         </div>
                       );
                     })}
@@ -380,7 +450,7 @@ export default function ClubTicketsAdminPage() {
               </div>
               <div className="ca-scanner-box">
                 <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                  Scan a QR code or enter a ticket ID manually and press Enter
+                  Enter a ticket code and press Enter to check it in
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input
@@ -391,8 +461,11 @@ export default function ClubTicketsAdminPage() {
                     onKeyDown={e => e.key === 'Enter' && handleScan()}
                     placeholder="TK-XXXXXXXX"
                     autoFocus
+                    disabled={scanBusy}
                   />
-                  <button type="button" className="ca-btn ca-btn-primary" onClick={handleScan}>Scan</button>
+                  <button type="button" className="ca-btn ca-btn-primary" onClick={handleScan} disabled={scanBusy}>
+                    {scanBusy ? <FiLoader className="ca-spin" /> : 'Scan'}
+                  </button>
                 </div>
 
                 {scanResult && (
@@ -415,16 +488,16 @@ export default function ClubTicketsAdminPage() {
                 <div className="ca-scanner-stat">
                   <FiUsers style={{ color: '#22c55e', fontSize: '1.2rem' }} />
                   <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: 'var(--color-text-primary)' }}>{totalCheckedIn.toLocaleString()}</p>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Checked In</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Checked In (this session)</p>
                 </div>
                 <div className="ca-scanner-stat">
                   <FiClock style={{ color: '#f97316', fontSize: '1.2rem' }} />
-                  <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: 'var(--color-text-primary)' }}>{Math.max(totalCapacity - totalCheckedIn, 0).toLocaleString()}</p>
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Remaining</p>
+                  <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: 'var(--color-text-primary)' }}>{totalSold.toLocaleString()}</p>
+                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Total Sold</p>
                 </div>
                 <div className="ca-scanner-stat">
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--color-primary-light)' }}>{scanPct}%</div>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Attendance Rate</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Session Attendance</p>
                 </div>
               </div>
               <div className="ca-fill-bar-wrap" style={{ width: '100%', marginTop: 6 }}>
@@ -435,27 +508,21 @@ export default function ClubTicketsAdminPage() {
             <div className="ca-panel">
               <div className="ca-panel-header">
                 <h2 className="ca-panel-title">Recent Check-ins</h2>
-                <span className="ca-panel-count">{checkIns.length} scanned</span>
+                <span className="ca-panel-count">{scannedOrders.length} scanned</span>
               </div>
               <div className="ca-table-wrap">
                 <table className="ca-table">
-                  <thead><tr><th>Ticket ID</th><th>Holder</th><th>Type</th><th>Time</th><th>Result</th></tr></thead>
+                  <thead><tr><th>Code</th><th>Buyer</th><th>Product</th><th>Checked in</th></tr></thead>
                   <tbody>
-                    {checkIns.length === 0 && (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '24px' }}>No tickets scanned yet.</td></tr>
+                    {scannedOrders.length === 0 && (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '24px' }}>No tickets scanned yet this session.</td></tr>
                     )}
-                    {checkIns.map((c, i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 700, color: 'var(--color-primary-light)', fontFamily: 'monospace', fontSize: '0.78rem' }}>{c.id}</td>
-                        <td style={{ color: 'var(--color-text-primary)' }}>{c.holder}</td>
-                        <td>{c.type}</td>
-                        <td>{c.time}</td>
-                        <td>
-                          {c.valid
-                            ? <span className="ca-pill ca-pill-green" style={{ fontSize: '0.65rem' }}><FiCheck style={{ fontSize: '0.6rem' }} /> Valid</span>
-                            : <span className="ca-pill ca-pill-red" style={{ fontSize: '0.65rem' }}><FiAlertCircle style={{ fontSize: '0.6rem' }} /> Invalid</span>
-                          }
-                        </td>
+                    {scannedOrders.map(o => (
+                      <tr key={o.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-primary-light)', fontFamily: 'monospace', fontSize: '0.78rem' }}>{o.code}</td>
+                        <td style={{ color: 'var(--color-text-primary)' }}>{o.buyer_email}</td>
+                        <td>{o.product_name}</td>
+                        <td>{o.checked_in_at ? new Date(o.checked_in_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -469,9 +536,9 @@ export default function ClubTicketsAdminPage() {
               <div className="ca-panel-header"><h2 className="ca-panel-title">Scanner Tips</h2></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  'Valid ticket IDs start with TK-',
-                  'Each ticket can only be scanned once',
-                  'Invalid scans are logged for review',
+                  'Valid ticket codes start with TK-',
+                  'Each ticket can only be checked in once',
+                  'Invalid or expired scans are not counted',
                   'Press Enter to scan quickly',
                 ].map((tip, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>

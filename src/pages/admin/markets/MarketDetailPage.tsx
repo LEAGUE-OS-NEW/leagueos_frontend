@@ -133,17 +133,25 @@ function MarketDetailPage() {
   useEffect(() => {
     if (!marketId) return;
     let cancelled = false;
-    Promise.all([fetchMarket(marketId), fetchOrderBook(marketId)])
-      .then(([marketResult, orderBookResult]) => {
-        if (cancelled) return;
-        applyMarket(marketResult);
-        setOrderBook(orderBookResult);
+    fetchMarket(marketId)
+      .then((marketResult) => {
+        if (!cancelled) applyMarket(marketResult);
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load this market. Please try again.');
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
+      });
+    // A draft market has no outcomes/order book yet — that 404 is expected,
+    // not fatal, so it's fetched independently and just leaves orderBook
+    // null on failure instead of taking down the whole page.
+    fetchOrderBook(marketId)
+      .then((orderBookResult) => {
+        if (!cancelled) setOrderBook(orderBookResult);
+      })
+      .catch(() => {
+        /* no order book yet — leave it null */
       });
     return () => {
       cancelled = true;

@@ -735,6 +735,22 @@ export async function publishMarket(id: string): Promise<Market> {
   }
 }
 
+// Recovery path for a market stuck at APPROVED after a failed open() (e.g.
+// missing treasury provider) — moves it back to DRAFT so the wizard can
+// edit and resubmit it instead of dead-ending.
+export async function revertMarketToDraft(id: string, reason: string): Promise<Market> {
+  if (!reason.trim()) fail('A reason is required to revert this market to draft.');
+  try {
+    const response = await apiClient.post(
+      `/market-admin/markets/${encodeURIComponent(id)}/revert-to-draft/`,
+      { notes: reason.trim() },
+    );
+    return adaptApiMarket(response.data as ApiAdminMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
 export async function cancelMarket(id: string, reason: string): Promise<Market> {
   if (!reason.trim()) fail('A cancellation reason is required.');
   try {
