@@ -31,7 +31,9 @@ export interface WalletTransactionApi {
   transaction_type:
     | 'DEPOSIT'
     | 'WITHDRAWAL'
-    | 'ADJUSTMENT';
+    | 'ADJUSTMENT'
+    | 'SETTLEMENT_PAYOUT'
+    | 'VOID_REFUND';
   amount: string;
   currency: string;
   status: string;
@@ -163,7 +165,13 @@ export async function fetchFanWalletTransactions(): Promise<
         if (
           transaction
             .transaction_type ===
-          'DEPOSIT'
+            'DEPOSIT' ||
+          transaction
+            .transaction_type ===
+            'SETTLEMENT_PAYOUT' ||
+          transaction
+            .transaction_type ===
+            'VOID_REFUND'
         ) {
           type =
             'credit';

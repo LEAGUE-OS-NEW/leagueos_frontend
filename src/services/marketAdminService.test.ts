@@ -59,6 +59,20 @@ describe('market admin backend adaptation', () => {
     expect(market.tags).toContain('FB');
     expect(market.category).not.toBe('Football');
   });
+
+  it('maps settlement and refund visibility from the backend booleans', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ ...base, status: 'RESOLVED', is_settled: true, is_refunded: false }] });
+    const market = (await fetchMarkets())[0];
+    expect(market.isSettled).toBe(true);
+    expect(market.isRefunded).toBe(false);
+  });
+
+  it('defaults settlement/refund visibility to false when the backend omits them', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ ...base, status: 'VOIDED' }] });
+    const market = (await fetchMarkets())[0];
+    expect(market.isSettled).toBe(false);
+    expect(market.isRefunded).toBe(false);
+  });
 });
 
 describe('market scope payload contract', () => {

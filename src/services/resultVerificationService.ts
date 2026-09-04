@@ -1,18 +1,16 @@
 // Referee / Resolution Officer — service layer (US-17.4, rebranded from
-// Result Verification Admin per the partners' meeting). No backend endpoint
-// exists for the verification workflow yet, so this reads through
-// marketAdminService's in-memory Market store (the single source of truth
-// every admin module shares) and layers a lightweight verification queue and
-// dispute log on top — every export is async and delay()-wrapped so a real
-// backend swap later only touches this file.
+// Result Verification Admin per the partners' meeting). Backs the admin
+// approval funnel for the market result lifecycle (close -> provisional
+// result -> dispute window -> resolve -> settle) plus the void/refund path,
+// against the real market-admin/result-verification queue endpoint and its
+// per-action endpoints — no in-memory store involved.
 //
 // Flow (per the reference diagram): Event Happens -> Referee Verifies
 // Result -> Market Resolved -> Payouts Sent. "Verify" records the proposed
 // outcome and evidence; "Finalise" is the separate confirming action that
-// actually resolves the market and settles its contracts (marketAdminService
-// computes each contract's payout there). Splitting verify/finalise keeps a
-// second look possible before money moves, mirroring the separation of
-// duties used elsewhere in the merged admin workflow.
+// actually resolves the market and settles its contracts. Splitting
+// verify/finalise keeps a second look possible before money moves, mirroring
+// the separation of duties used elsewhere in the merged admin workflow.
 
 import apiClient from './apiClient.ts';
 import { normalizeApiList } from './apiUtils.ts';
@@ -23,7 +21,7 @@ import {
   type OutcomeId,
 } from './marketAdminService';
 
-export type VerificationStage = 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Ready to Settle' | 'Settled' | 'Voided / Refunded';
+export type VerificationStage = 'Ready to Close' | 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Ready to Settle' | 'Settled' | 'Ready to Refund' | 'Refunded';
 export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved' | 'Unavailable';
 
 export interface AuditEvent {
@@ -50,6 +48,9 @@ export interface ResultVerification {
   canPublishProvisional: boolean;
   canResolve: boolean;
   canSettle: boolean;
+  canClose: boolean;
+  canVoid: boolean;
+  canRefund: boolean;
   disputeWindowHours?: number;
   verifiedBy?: string;
   verifiedAt?: string;
@@ -58,6 +59,7 @@ export interface ResultVerification {
   developmentWindowEndedAt?: string;
   finalizedAt?: string;
   settlement?: { reference: string; status: string; executedAt?: string; totalPositionCount?: number; totalPayoutAmount?: string };
+  refund?: { reference: string; status: string; executedAt?: string };
   auditHistory: AuditEvent[];
 }
 
@@ -85,9 +87,9 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
   const response = await apiClient.get('/market-admin/result-verification/');
   const records = normalizeApiList<Record<string, unknown>>(response.data);
   const stageMap: Record<string, VerificationStage> = {
-    AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
+    READY_TO_CLOSE: 'Ready to Close', AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
     DISPUTED: 'Disputed', READY_TO_RESOLVE: 'Ready to Resolve', READY_TO_SETTLE: 'Ready to Settle',
-    SETTLED: 'Settled', VOIDED: 'Voided / Refunded', REFUNDED: 'Voided / Refunded', VOIDED_REFUNDED: 'Voided / Refunded',
+    SETTLED: 'Settled', VOIDED: 'Ready to Refund', REFUNDED: 'Refunded',
   };
   return records.map((record) => {
         const adapted = (record as { id: string }).id;
@@ -113,6 +115,9 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
           canPublishProvisional: record.can_publish_provisional === true,
           canResolve: record.can_resolve === true,
           canSettle: record.can_settle === true,
+          canClose: record.can_close === true,
+          canVoid: record.can_void === true,
+          canRefund: record.can_refund === true,
           disputeWindowHours: provisional?.published_at && provisional?.dispute_deadline
             ? Math.round((new Date(String(provisional.dispute_deadline)).getTime() - new Date(String(provisional.published_at)).getTime()) / 3_600_000)
             : undefined,
@@ -125,6 +130,11 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
             reference: String((record.settlement as Record<string, unknown>).reference ?? ''),
             status: String((record.settlement as Record<string, unknown>).status ?? ''),
             executedAt: (record.settlement as Record<string, unknown>).executed_at ? String((record.settlement as Record<string, unknown>).executed_at) : undefined,
+          } : undefined,
+          refund: record.void_refund && typeof record.void_refund === 'object' ? {
+            reference: String((record.void_refund as Record<string, unknown>).reference ?? ''),
+            status: String((record.void_refund as Record<string, unknown>).status ?? ''),
+            executedAt: (record.void_refund as Record<string, unknown>).executed_at ? String((record.void_refund as Record<string, unknown>).executed_at) : undefined,
           } : undefined,
           auditHistory: [],
         };
@@ -155,6 +165,7 @@ export async function verifyResult(
     stage: 'Dispute Window', proposedWinningOutcomeId: input.winningOutcomeId,
     evidenceNote: input.evidenceNote.trim(), verifiedAt: new Date().toISOString(),
     canPublishProvisional: false, canResolve: false, canSettle: false,
+    canClose: false, canVoid: false, canRefund: false,
     openDisputeCount: 0,
     auditHistory: market.auditHistory,
   };
@@ -178,6 +189,36 @@ export async function settleResult(marketId: string): Promise<{ reference: strin
     status: 'SETTLED',
     totalPositionCount: data.total_position_count === undefined ? undefined : Number(data.total_position_count),
     totalPayoutAmount: data.total_payout_amount === undefined ? undefined : String(data.total_payout_amount),
+  };
+}
+
+export async function closeMarket(marketId: string, notes: string): Promise<void> {
+  if (!notes.trim()) fail('A closing note is required.');
+  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
+  if (!verification?.canClose) fail('The backend has not made this market available to close.');
+  await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/close/`, { notes: notes.trim() });
+}
+
+export async function voidMarket(marketId: string, input: { notes: string; evidence: string }): Promise<void> {
+  if (!input.notes.trim()) fail('Explain why this market is being voided.');
+  if (!input.evidence.trim()) fail('Cite the evidence used for this void decision.');
+  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
+  if (!verification?.canVoid) fail('The backend has not made this market available to void.');
+  await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/void/`, {
+    notes: input.notes.trim(),
+    evidence: input.evidence.trim(),
+  });
+}
+
+export async function refundResult(marketId: string): Promise<{ reference: string; status: string; executedAt?: string }> {
+  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
+  if (!verification?.canRefund) fail('The backend has not made this market available to refund.');
+  const response = await apiClient.post(`/markets/${encodeURIComponent(marketId)}/void-refund/`);
+  const data = response.data as Record<string, unknown>;
+  return {
+    reference: String(data.id ?? ''),
+    status: 'REFUNDED',
+    executedAt: data.executed_at ? String(data.executed_at) : undefined,
   };
 }
 

@@ -22,6 +22,7 @@ import {
   type ProposalStatus,
 } from '../../../services/marketAdminService';
 import { formatUgx } from '../../../utils/rules';
+import { payoutPill } from '../../../utils/payoutStatus.ts';
 import './MarketsListPage.css';
 
 type TabKey =
@@ -417,6 +418,7 @@ function MarketsListPage() {
                   <tbody>
                     {visibleMarkets.map((market) => {
                       const stats = marketStats.get(market.id);
+                      const payout = payoutPill(market.status, market.isSettled, market.isRefunded);
                       return (
                         <tr key={market.id} onClick={() => navigate(`/dashboard/admin/markets/${market.id}`)}>
                           <td className="mkt-table__title-cell">
@@ -432,6 +434,11 @@ function MarketsListPage() {
                           </td>
                           <td>
                             <span className={statusPillClass(market.status)}>{market.status}</span>
+                            {payout && (
+                              <span className={`mkt-status-pill mkt-status-pill--${payout.variant}`}>
+                                {payout.label}
+                              </span>
+                            )}
                           </td>
                           <td>{formatDateTime(market.kickoff)}</td>
                         </tr>

@@ -103,6 +103,8 @@ export interface Market {
     volume: string;
     trader_count: number;
   };
+  is_settled: boolean;
+  is_refunded: boolean;
 }
 export interface AdminMarket extends Market {
   liquidity?: {

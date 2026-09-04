@@ -3,10 +3,13 @@ import { FiAlertTriangle, FiActivity, FiCheckCircle, FiShield, FiXCircle } from 
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   fetchAwaitingResult,
+  closeMarket,
   endDisputeWindowForDevelopment,
+  refundResult,
   resolveResult,
   settleResult,
   verifyResult,
+  voidMarket,
   type ResultVerification,
 } from '../../../services/resultVerificationService';
 import {
@@ -33,13 +36,15 @@ function formatDateTime(iso: string): string {
 
 function stagePillClass(stage: ResultVerification['stage']): string {
   switch (stage) {
+    case 'Ready to Close':
     case 'Provisional Result':
     case 'Dispute Window':
     case 'Ready to Resolve':
     case 'Ready to Settle':
+    case 'Ready to Refund':
       return 'rv-stage-pill rv-stage-pill--verified';
     case 'Settled':
-    case 'Voided / Refunded':
+    case 'Refunded':
       return 'rv-stage-pill rv-stage-pill--finalised';
     default:
       return 'rv-stage-pill rv-stage-pill--awaiting';
@@ -77,6 +82,7 @@ function ResultVerificationPage() {
   const [formSyncedId, setFormSyncedId] = useState<string | null>(null);
   const [winningOutcomeId, setWinningOutcomeId] = useState<OutcomeId | null>(null);
   const [evidenceNote, setEvidenceNote] = useState('');
+  const [actionNotes, setActionNotes] = useState('');
 
   const fetchAll = () => Promise.all([fetchAwaitingResult(), fetchFixtureResultVerifications()]);
 
@@ -109,6 +115,11 @@ function ResultVerificationPage() {
     () => fixtureItems.find((item) => item.id === selectedFixtureId) ?? null,
     [fixtureItems, selectedFixtureId],
   );
+  const stageCounts = useMemo(() => {
+    const counts: Partial<Record<ResultVerification['stage'], number>> = {};
+    for (const item of items) counts[item.stage] = (counts[item.stage] ?? 0) + 1;
+    return counts;
+  }, [items]);
 
   // Reset the form whenever the selected market changes — done during render
   // (React's documented pattern for this) rather than in an effect, so
@@ -117,6 +128,7 @@ function ResultVerificationPage() {
     setFormSyncedId(selected.marketId);
     setWinningOutcomeId(selected.proposedWinningOutcomeId ?? null);
     setEvidenceNote(selected.evidenceNote ?? '');
+    setActionNotes('');
   }
 
   const handleRetry = () => {
@@ -181,6 +193,60 @@ function ResultVerificationPage() {
       setActionSuccess(`Settlement ${settlement.status.toLowerCase()}${settlement.reference ? ` — reference ${settlement.reference}` : ''}${settlement.totalPositionCount === undefined ? '' : ` — ${settlement.totalPositionCount} positions`}.`);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Could not settle this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClose = async () => {
+    if (!selected) return;
+    if (!window.confirm('Close this market for trading? No new orders will be accepted after this.')) return;
+    setIsSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      await closeMarket(selected.marketId, actionNotes);
+      await refreshQueue();
+      setActionNotes('');
+      setActionSuccess('Market closed.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not close this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVoid = async () => {
+    if (!selected) return;
+    if (!window.confirm('Void this market? This cannot be undone, and positions will need to be refunded next.')) return;
+    setIsSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      await voidMarket(selected.marketId, { notes: actionNotes, evidence: evidenceNote });
+      await refreshQueue();
+      setActionNotes('');
+      setEvidenceNote('');
+      setActionSuccess('Market voided. Positions are ready to be refunded.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not void this market.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!selected) return;
+    if (!window.confirm('Refund all reserved funds and open positions for this voided market?')) return;
+    setIsSaving(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const refund = await refundResult(selected.marketId);
+      await refreshQueue();
+      setActionSuccess(`Refund complete${refund.reference ? ` — reference ${refund.reference}` : ''}.`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not refund this market.');
     } finally {
       setIsSaving(false);
     }
@@ -258,6 +324,21 @@ function ResultVerificationPage() {
             Loading the verification queue…
           </div>
         ) : (
+          <>
+          <div className="rv-summary-cards">
+            {([
+              ['Ready to Close', stageCounts['Ready to Close'] ?? 0],
+              ['Ready to Resolve', stageCounts['Ready to Resolve'] ?? 0],
+              ['Disputed', stageCounts.Disputed ?? 0],
+              ['Ready to Settle', stageCounts['Ready to Settle'] ?? 0],
+              ['Ready to Refund', stageCounts['Ready to Refund'] ?? 0],
+            ] as const).map(([label, count]) => (
+              <div className="rv-summary-card" key={label}>
+                <span className="rv-summary-card__count">{count}</span>
+                <span className="rv-summary-card__label">{label}</span>
+              </div>
+            ))}
+          </div>
           <div className="rv-layout">
             <div className="rv-panel rv-queue">
               <div className="rv-panel__header">
@@ -481,11 +562,30 @@ function ResultVerificationPage() {
                   <textarea
                     rows={3}
                     value={evidenceNote}
-                    disabled={selected.stage !== 'Awaiting Result'}
+                    disabled={selected.stage !== 'Awaiting Result' && !selected.canVoid}
                     onChange={(event) => setEvidenceNote(event.target.value)}
                     placeholder="e.g. Confirmed via FUFA official match report."
                   />
                 </label>
+
+                {(selected.canClose || selected.canVoid) && (
+                  <label className="rv-field">
+                    <span>Action notes</span>
+                    <textarea
+                      rows={2}
+                      value={actionNotes}
+                      onChange={(event) => setActionNotes(event.target.value)}
+                      placeholder="Reason for closing or voiding this market."
+                    />
+                  </label>
+                )}
+
+                {selected.refund && (
+                  <p className="rv-verified-meta">
+                    Refunded — reference {selected.refund.reference}
+                    {selected.refund.executedAt && ` — ${formatDateTime(selected.refund.executedAt)}`}
+                  </p>
+                )}
 
                 {selected.verifiedBy && (
                   <p className="rv-verified-meta">
@@ -500,6 +600,26 @@ function ResultVerificationPage() {
                     </button>
                   )}
                   {reviewAcceleratorVisible && selected.stage === 'Dispute Window' && <p>Synthetic staging review only. This does not resolve the result and does not settle funds.</p>}
+                  {selected.canClose && (
+                    <button
+                      type="button"
+                      className="rv-btn rv-btn--outline"
+                      disabled={!actionNotes.trim() || isSaving}
+                      onClick={() => void handleClose()}
+                    >
+                      Close Market
+                    </button>
+                  )}
+                  {selected.canVoid && (
+                    <button
+                      type="button"
+                      className="rv-btn rv-btn--outline"
+                      disabled={!actionNotes.trim() || !evidenceNote.trim() || isSaving}
+                      onClick={() => void handleVoid()}
+                    >
+                      Void Market
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rv-btn rv-btn--outline"
@@ -524,10 +644,21 @@ function ResultVerificationPage() {
                   >
                     Settle Payouts
                   </button>
+                  {selected.canRefund && (
+                    <button
+                      type="button"
+                      className="rv-btn rv-btn--gradient"
+                      disabled={isSaving}
+                      onClick={() => void handleRefund()}
+                    >
+                      Refund Positions
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </AdminLayout>
