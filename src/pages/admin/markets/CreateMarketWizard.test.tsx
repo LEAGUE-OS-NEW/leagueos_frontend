@@ -29,6 +29,7 @@ const createdMarket = {
   description: '', tags: [], outcomes: [], faceValueUgx: 10_000,
   parameters: { opensAt: '2099-08-14T10:00:00Z', closesAt: fixture.starts_at, settlesBy: '2099-08-17T14:00:00Z', initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY' as const, openingSpreadBps: 100, minTradeUgx: 1000, maxTradeUgx: 500000, feePct: 2, featured: false, trending: false, recommended: false, inPlayTrading: false },
   status: 'Draft' as const, createdBy: 'Admin', createdAt: '2099-08-14T10:00:00Z', auditHistory: [],
+  isSettled: false, isRefunded: false,
 };
 
 async function selectUpcomingFixture() {
