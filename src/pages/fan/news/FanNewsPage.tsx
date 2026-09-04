@@ -5,7 +5,8 @@ import { FiCircle } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchApprovedStories, type AdminStory } from '../../../services/newsAdminService';
+import { fetchClubs, fetchFollowedClubSlugs } from '../../../services/clubsService';
+import { fetchNews, type Story } from '../../../services/newsService';
 import '../sections/FanDashboard.css';
 import './FanNewsPage.css';
 
@@ -44,10 +45,12 @@ function trendingBadgeMod(category: string): string {
   }
 }
 
-// Stub: returns all stories until onboarding club preferences are wired in.
-// TODO: filter by user's followed clubs once available from the profile store.
-function forYouStories(stories: AdminStory[]): AdminStory[] {
-  return stories;
+// Prefer followed clubs when we can resolve them; otherwise fall back to the
+// full feed so the page still has content.
+function forYouStories(stories: Story[], followedClubIds: Set<string>): Story[] {
+  if (followedClubIds.size === 0) return stories;
+  const selected = stories.filter((story) => story.club && followedClubIds.has(story.club));
+  return selected.length > 0 ? selected : stories;
 }
 
 /* ---------- component ---------- */
@@ -55,17 +58,25 @@ function forYouStories(stories: AdminStory[]): AdminStory[] {
 export default function FanNewsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<Filter>('For You');
-  const [stories, setStories] = useState<AdminStory[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
+  const [followedClubIds, setFollowedClubIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
-    fetchApprovedStories().then((data) => {
-      if (!cancelled) {
-        setStories(data);
-        setLoading(false);
-      }
+    Promise.all([fetchNews(), fetchFollowedClubSlugs(), fetchClubs()]).then(([news, slugs, clubs]) => {
+      if (cancelled) return;
+      const clubIds = new Set(
+        slugs
+          .map((slug) => clubs.find((club) => club.slug === slug)?.id)
+          .filter((id): id is string => Boolean(id)),
+      );
+      setStories(news);
+      setFollowedClubIds(clubIds);
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
@@ -77,12 +88,12 @@ export default function FanNewsPage() {
   }, []);
 
   // Apply sport filter to main feed
-  const filtered: AdminStory[] =
+  const filtered: Story[] =
     activeFilter === 'For You'
-      ? forYouStories(stories)
+      ? forYouStories(stories, followedClubIds)
       : stories.filter((s) => s.category === activeFilter);
 
-  const heroStory: AdminStory | undefined =
+  const heroStory: Story | undefined =
     filtered.find((s) => s.isFeatured) ?? filtered[0];
 
   // Grid excludes the hero so it doesn't appear twice

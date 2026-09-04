@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { FiBell, FiUser, FiLogOut, FiChevronDown } from 'react-icons/fi';
 import type { Competition, FantasyTeam, Player, SquadSlot, Toast } from './types';
 import { competitionFromApi, playerFromApi, teamFromApi } from './data';
 import {
-  createFantasyTeam, fetchFantasyCompetitions, fetchFantasyPlayers,
-  fetchMyLeagues, fetchMyTeams, fetchTeamPoints, joinFantasyLeagueByCode,
-  makeFantasyTransfer, updateFantasyLineup, type FantasyTeamSelection,
+  createFantasyTeam, fetchCompetitionLeaderboard, fetchFantasyCompetitions,
+  fetchFantasyPlayers, fetchMyLeagues, fetchMyTeams, fetchTeamPoints,
+  joinFantasyLeagueByCode, makeFantasyTransfer, updateFantasyLineup,
+  type FantasyStanding, type FantasyTeamSelection,
 } from '../../../services/fantasyService';
 import { extractApiError } from '../../../services/apiUtils';
 import { fetchFanNotificationSummary, markFanNotificationRead, type NotificationItem } from '../../../services/fanNotificationsServices';
+import { useCurrentUser } from '../../../hooks/useCurrentUser';
+import { useAuthStore } from '../../../store/authStore';
 import FantasyHub from './sections/FantasyHub';
 import CompetitionDetail from './sections/CompetitionDetail';
 import SquadBuilder from './sections/SquadBuilder';
 import MyTeam from './sections/MyTeam';
 import Transfers from './sections/Transfers';
 import Leagues from './sections/Leagues';
-import { BellIcon, TrophyIcon } from './sections/shared';
+import { BellIcon } from './sections/shared';
 import { Drawer } from './sections/Modal';
 import Sidebar from '../../../components/fan/Sidebar';
 import Footer from '../../../components/landing/Footer';
@@ -40,6 +44,7 @@ function selections(
 
 export default function FantasyCompetitions() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ── Core state ──────────────────────────────────────────────────────────────
   const [screen, setScreen] = useState<Screen>('hub');
@@ -54,6 +59,28 @@ export default function FantasyCompetitions() {
   const [error, setError] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ── Profile / auth ───────────────────────────────────────────────────────────
+  const { currentUser } = useCurrentUser();
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const displayName = currentUser?.name?.trim() || 'Fan';
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [userMenuOpen]);
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    clearAuth();
+    navigate('/login');
+  };
 
   /**
    * Pending invite code — set when the user arrives from:
@@ -91,11 +118,28 @@ export default function FantasyCompetitions() {
       cs = apiCompetitions.map(competitionFromApi);
       setCompetitions(cs);
       setLeagueCount(myLeagues.length);
+
+      // Group teams by competition so we only fetch each leaderboard once.
+      const compIds = [...new Set(apiTeams.map(t => t.fantasy_competition))];
+      const leaderboardMap: Record<string, FantasyStanding[]> = {};
+      await Promise.all(
+        compIds.map(async cid => {
+          try {
+            leaderboardMap[cid] = await fetchCompetitionLeaderboard(cid);
+          } catch {
+            leaderboardMap[cid] = [];
+          }
+        }),
+      );
+
       const mapped: Record<string, FantasyTeam> = {};
       await Promise.all(
         apiTeams.map(async t => {
           const c = cs.find(x => x.id === t.fantasy_competition);
-          if (c) mapped[c.id] = teamFromApi(t, c, await fetchTeamPoints(t.id));
+          if (c) {
+            const [scores] = await Promise.all([fetchTeamPoints(t.id)]);
+            mapped[c.id] = teamFromApi(t, c, scores, leaderboardMap[c.id] ?? []);
+          }
         }),
       );
       setTeams(mapped);
@@ -171,11 +215,22 @@ export default function FantasyCompetitions() {
           const rows = (await fetchFantasyPlayers(active.id)).map(p => playerFromApi(p, active.sport));
           setPlayers(prev => ({ ...prev, [active.id]: rows }));
         }
+        // Fetch leaderboards once per competition
+        const compIds = [...new Set(apiTeams.map(t => t.fantasy_competition))];
+        const leaderboardMap: Record<string, FantasyStanding[]> = {};
+        await Promise.all(
+          compIds.map(async cid => {
+            try { leaderboardMap[cid] = await fetchCompetitionLeaderboard(cid); }
+            catch { leaderboardMap[cid] = []; }
+          }),
+        );
         const mapped: Record<string, FantasyTeam> = {};
         await Promise.all(
           apiTeams.map(async t => {
             const c = cs.find(x => x.id === t.fantasy_competition);
-            if (c) mapped[c.id] = teamFromApi(t, c, await fetchTeamPoints(t.id));
+            if (c) {
+              mapped[c.id] = teamFromApi(t, c, await fetchTeamPoints(t.id), leaderboardMap[c.id] ?? []);
+            }
           }),
         );
         setTeams(mapped);
@@ -219,6 +274,7 @@ export default function FantasyCompetitions() {
         fantasy_competition: c.id,
         selections: selections(result.squad, result.captainId, result.viceCaptainId),
       });
+      // No scores yet after creation, rank will be populated on next full load
       setTeams(prev => ({ ...prev, [c.id]: teamFromApi(row, c) }));
       toast(`${result.teamName} saved.`);
 
@@ -252,7 +308,12 @@ export default function FantasyCompetitions() {
   ) {
     const team = teams[c.id];
     const row = await updateFantasyLineup(team.id, selections(squad, captain, vice));
-    setTeams(prev => ({ ...prev, [c.id]: teamFromApi(row, c) }));
+    // Keep the existing overallRank when updating lineup — no need to refetch leaderboard.
+    const existingRank = teams[c.id]?.overallRank ?? null;
+    const currentScores = await fetchTeamPoints(team.id);
+    const updated = teamFromApi(row, c, currentScores);
+    updated.overallRank = existingRank;
+    setTeams(prev => ({ ...prev, [c.id]: updated }));
     toast('Lineup saved.');
   }
 
@@ -262,7 +323,11 @@ export default function FantasyCompetitions() {
     if (!gameweek) throw new Error('No current gameweek is available.');
     const row = await makeFantasyTransfer(team.id, { gameweek, player_out: outId, player_in: inId });
     const scores = await fetchTeamPoints(team.id);
-    setTeams(prev => ({ ...prev, [c.id]: teamFromApi(row, c, scores) }));
+    // Preserve existing rank — transfer doesn't change season leaderboard yet
+    const existingRank = teams[c.id]?.overallRank ?? null;
+    const updated = teamFromApi(row, c, scores);
+    updated.overallRank = existingRank;
+    setTeams(prev => ({ ...prev, [c.id]: updated }));
     toast('Transfer confirmed.');
   }
 
@@ -315,16 +380,63 @@ export default function FantasyCompetitions() {
             >
               ↺
             </button>
+            {/* Bell — shows Fantasy-specific notifications + unread badge */}
             <button
-              className="icon-btn"
-              aria-label="Fantasy notifications"
+              className="icon-btn topbar-bell-btn"
+              aria-label={`Fantasy notifications${notifications.filter(n => !n.isRead).length ? `, ${notifications.filter(n => !n.isRead).length} unread` : ''}`}
               onClick={() => setNotificationsOpen(true)}
             >
               <BellIcon />
-              {notifications.filter(n => !n.isRead).length || ''}
+              {notifications.filter(n => !n.isRead).length > 0 && (
+                <span className="topbar-bell-badge">
+                  {notifications.filter(n => !n.isRead).length > 9 ? '9+' : notifications.filter(n => !n.isRead).length}
+                </span>
+              )}
             </button>
-            <div className="user-chip">
-              <TrophyIcon size={14} />Fantasy Manager
+            {/* Profile dropdown — same pattern as fan dashboard Topbar */}
+            <div className="topbar-profile-wrap" ref={userMenuRef}>
+              <button
+                className="topbar-profile-btn"
+                onClick={() => setUserMenuOpen(o => !o)}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+              >
+                {currentUser?.avatarUrl ? (
+                  <img src={currentUser.avatarUrl} alt="" className="topbar-avatar" />
+                ) : (
+                  <img src="/players/player-avatar.png" alt="" className="topbar-avatar" />
+                )}
+                <span className="topbar-profile-name">{displayName}</span>
+                <FiChevronDown className={`topbar-profile-chevron${userMenuOpen ? ' is-open' : ''}`} />
+              </button>
+              {userMenuOpen && (
+                <div className="topbar-profile-menu" role="menu">
+                  <Link
+                    to="/profile"
+                    className="topbar-profile-menu-item"
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <FiUser /> Profile
+                  </Link>
+                  <Link
+                    to="/settings?tab=notifications"
+                    className="topbar-profile-menu-item"
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <FiBell /> Notifications
+                  </Link>
+                  <button
+                    type="button"
+                    className="topbar-profile-menu-item topbar-profile-menu-danger"
+                    role="menuitem"
+                    onClick={handleLogout}
+                  >
+                    <FiLogOut /> Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -390,6 +502,12 @@ export default function FantasyCompetitions() {
                 void saveSquad(active, squad, activeTeam.captainId, activeTeam.viceCaptainId)
                   .catch(e => toast(extractApiError(e).message, 'warning'));
               }}
+              onEditLineup={() => setScreen('build')}
+              onChangeCaptain={(captainId, viceId) => {
+                void saveSquad(active, activeTeam.squad, captainId, viceId)
+                  .catch(e => toast(extractApiError(e).message, 'warning'));
+              }}
+              onViewFixtures={() => navigate('/fixtures')}
             />
           )}
 

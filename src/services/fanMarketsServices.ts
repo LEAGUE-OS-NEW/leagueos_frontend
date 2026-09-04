@@ -658,11 +658,15 @@ export async function fetchFanPositions(): Promise<Position[]> {
               ),
             price,
             quantityUgx:
-              shares * price,
+              Number(position.total_cost_basis),
             buyer: 'You',
             seller: 'Market',
             matchedAt: position.created_at,
             status: position.market_status,
+            payoutUgx:
+              position.market_status === 'RESOLVED'
+                ? Number(position.total_cost_basis) + Number(position.realized_pnl)
+                : undefined,
           },
           market,
           portfolio,

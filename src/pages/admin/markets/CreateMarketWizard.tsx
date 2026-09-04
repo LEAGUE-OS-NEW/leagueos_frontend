@@ -496,7 +496,7 @@ function CreateMarketWizard() {
                     </select>
                   </label>}
                   <label className="wiz-field">
-                    <span>Tags (comma separated)</span>
+                    <span>Match Type</span>
                     <input
                       type="text"
                       value={details.tags}

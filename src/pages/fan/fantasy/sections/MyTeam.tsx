@@ -12,13 +12,27 @@ interface Props {
   players: Player[];
   onGoTransfers: () => void;
   onSwapLineup: (starterId: string, benchId: string) => void;
+  /** Navigate to squad builder to reorder starters / bench */
+  onEditLineup: () => void;
+  /** Persist a new captain + vice-captain selection */
+  onChangeCaptain: (captainId: string, viceId: string) => void;
+  /** Navigate to fixtures page */
+  onViewFixtures: () => void;
 }
 
-export default function MyTeam({ competition, team, players, onGoTransfers, onSwapLineup }: Props) {
+export default function MyTeam({
+  competition, team, players,
+  onGoTransfers, onSwapLineup,
+  onEditLineup, onChangeCaptain, onViewFixtures,
+}: Props) {
   const rules = rulesFor(competition);
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const [viewPlayer, setViewPlayer] = useState<Player | null>(null);
   const [showPointsFor, setShowPointsFor] = useState<Player | null>(null);
+  // Captain picker state
+  const [captainOpen, setCaptainOpen] = useState(false);
+  const [pendingCaptain, setPendingCaptain] = useState<string | null>(null);
+  const [pendingVice, setPendingVice] = useState<string | null>(null);
 
   const starters = team.squad.filter((s) => s.isStarter).map((s) => byId.get(s.playerId)!);
   const bench = team.squad.filter((s) => !s.isStarter).map((s) => byId.get(s.playerId)!);
@@ -103,15 +117,37 @@ export default function MyTeam({ competition, team, players, onGoTransfers, onSw
               <strong>Make transfers</strong>
               <span>{team.freeTransfers} free transfer{team.freeTransfers === 1 ? '' : 's'} available</span>
             </li>
-            <li>
+            <li
+              onClick={onEditLineup}
+              className="action-list-item-interactive"
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && onEditLineup()}
+            >
               <strong>Edit lineup</strong>
               <span>Change starters and bench order</span>
             </li>
-            <li>
+            <li
+              onClick={() => {
+                setPendingCaptain(team.captainId);
+                setPendingVice(team.viceCaptainId);
+                setCaptainOpen(true);
+              }}
+              className="action-list-item-interactive"
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && setCaptainOpen(true)}
+            >
               <strong>Change {rules.multiplierLabel.toLowerCase()}</strong>
-              <span>{rules.multiplierLabel} multiplier x2</span>
+              <span>{rules.multiplierLabel} multiplier ×{competition.api.captain_multiplier}</span>
             </li>
-            <li>
+            <li
+              onClick={onViewFixtures}
+              className="action-list-item-interactive"
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && onViewFixtures()}
+            >
               <strong>View fixtures</strong>
               <span>Check matchups for your players</span>
             </li>
@@ -166,7 +202,17 @@ export default function MyTeam({ competition, team, players, onGoTransfers, onSw
               </span>
               <span className="breakdown-stat-sub">
                 {team.captainId
-                  ? (() => { const c = byId.get(team.captainId); return c ? `${c.name.split(' ').slice(-1)[0]} ×2` : ''; })()
+                  ? (() => {
+                      const c = byId.get(team.captainId);
+                      const captainScore = scoreFor(team.captainId);
+                      const multiplier = competition.api.captain_multiplier;
+                      const bonus = captainScore ? Number(captainScore.captain_bonus) : 0;
+                      const name = c ? c.name.split(' ').slice(-1)[0] : '';
+                      if (captainScore?.statistics_available && bonus !== 0) {
+                        return `${name} ×${multiplier} (+${bonus} bonus)`;
+                      }
+                      return `${name} ×${multiplier}`;
+                    })()
                   : 'No captain set'}
               </span>
             </div>
@@ -210,18 +256,37 @@ export default function MyTeam({ competition, team, players, onGoTransfers, onSw
 
           {/* ── Per-player list ── */}
           <div className="points-breakdown-list">
-            {starters.map((p) => (
-              <div className="points-breakdown-row" key={p.id}>
-                <PlayerAvatar player={p} size={32} />
-                <div className="points-breakdown-name">
-                  <strong>
-                    {p.name} {p.id === team.captainId && <span className="captain-c-inline">C</span>}
-                  </strong>
-                  <span>{p.club}</span>
+            {starters.map((p) => {
+              const scoreRow = scoreFor(p.id);
+              const isCaptain = p.id === team.captainId;
+              const captainBonus = scoreRow ? Number(scoreRow.captain_bonus) : 0;
+              const basePoints = scoreRow ? Number(scoreRow.base_points) : 0;
+              const finalPoints = scoreRow ? Number(scoreRow.final_points) : 0;
+              const statsAvail = scoreRow?.statistics_available ?? false;
+              return (
+                <div className="points-breakdown-row" key={p.id}>
+                  <PlayerAvatar player={p} size={32} />
+                  <div className="points-breakdown-name">
+                    <strong>
+                      {p.name} {isCaptain && <span className="captain-c-inline">C</span>}
+                    </strong>
+                    <span>{p.club}</span>
+                  </div>
+                  <div className="points-breakdown-value">
+                    {!statsAvail ? (
+                      'Awaiting statistics'
+                    ) : isCaptain && captainBonus !== 0 ? (
+                      <span className="captain-pts-detail" title={`Base: ${basePoints} + Captain bonus: ${captainBonus}`}>
+                        {finalPoints} pts
+                        <span className="captain-pts-sub"> ({basePoints} + {captainBonus})</span>
+                      </span>
+                    ) : (
+                      `${finalPoints} pts`
+                    )}
+                  </div>
                 </div>
-                <div className="points-breakdown-value">{pointsLabel(p.id)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {bench.length > 0 && (
@@ -241,6 +306,92 @@ export default function MyTeam({ competition, team, players, onGoTransfers, onSw
               </div>
             </>
           )}
+        </Drawer>
+      )}
+      {captainOpen && (
+        <Drawer
+          title={`Change ${rules.multiplierLabel}`}
+          subtitle={`Pick your ${rules.multiplierLabel.toLowerCase()} and vice-${rules.multiplierLabel.toLowerCase()} for Gameweek ${competition.currentGameweek}`}
+          onClose={() => setCaptainOpen(false)}
+        >
+          <p className="captain-picker-hint">
+            Your {rules.multiplierLabel.toLowerCase()} scores{' '}
+            <strong>×{competition.api.captain_multiplier}</strong> each gameweek. Pick wisely.
+          </p>
+
+          <div className="captain-picker-section">
+            <p className="captain-picker-label">
+              {rules.multiplierLabel}
+              {pendingCaptain && (
+                <span className="captain-picker-current">
+                  {' '}— {byId.get(pendingCaptain)?.name ?? 'selected'}
+                </span>
+              )}
+            </p>
+            <div className="captain-picker-grid">
+              {starters.filter(Boolean).map((p) => (
+                <button
+                  key={p.id}
+                  className={`captain-picker-player${pendingCaptain === p.id ? ' selected captain-pick' : ''}${pendingVice === p.id ? ' selected vice-pick' : ''}`}
+                  onClick={() => {
+                    if (pendingVice === p.id) setPendingVice(null);
+                    setPendingCaptain(p.id);
+                  }}
+                >
+                  <PlayerAvatar player={p} size={36} />
+                  <span className="captain-picker-name">{p.name.split(' ').slice(-1)[0]}</span>
+                  <span className="captain-picker-club">{p.club}</span>
+                  {pendingCaptain === p.id && <span className="captain-badge captain-badge-sm">C</span>}
+                  {pendingVice === p.id && <span className="vice-badge vice-badge-sm">V</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="captain-picker-section">
+            <p className="captain-picker-label">
+              Vice-{rules.multiplierLabel.toLowerCase()}
+              <span className="captain-picker-sublabel"> (fallback if {rules.multiplierLabel.toLowerCase()} doesn't play)</span>
+              {pendingVice && (
+                <span className="captain-picker-current">
+                  {' '}— {byId.get(pendingVice)?.name ?? 'selected'}
+                </span>
+              )}
+            </p>
+            <div className="captain-picker-grid">
+              {starters.filter(Boolean).map((p) => (
+                <button
+                  key={p.id}
+                  className={`captain-picker-player${pendingVice === p.id ? ' selected vice-pick' : ''}${pendingCaptain === p.id ? ' captain-pick' : ''}`}
+                  disabled={pendingCaptain === p.id}
+                  onClick={() => setPendingVice(p.id)}
+                >
+                  <PlayerAvatar player={p} size={36} />
+                  <span className="captain-picker-name">{p.name.split(' ').slice(-1)[0]}</span>
+                  <span className="captain-picker-club">{p.club}</span>
+                  {pendingVice === p.id && <span className="vice-badge vice-badge-sm">V</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="drawer-actions">
+            <button
+              className="btn btn-primary"
+              disabled={!pendingCaptain || !pendingVice}
+              onClick={() => {
+                if (pendingCaptain && pendingVice) {
+                  onChangeCaptain(pendingCaptain, pendingVice);
+                  setCaptainOpen(false);
+                }
+              }}
+            >
+              Save {rules.multiplierLabel.toLowerCase()} choice
+            </button>
+            <button className="btn btn-secondary" onClick={() => setCaptainOpen(false)}>
+              Cancel
+            </button>
+          </div>
         </Drawer>
       )}
     </div>

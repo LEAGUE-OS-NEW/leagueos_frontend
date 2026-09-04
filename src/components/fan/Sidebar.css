@@ -213,3 +213,11 @@
     display: none;
   }
 }
+
+/* ── Cart button (inherits fan-sidebar-link styles) ── */
+.fan-sidebar-cart-btn {
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+}

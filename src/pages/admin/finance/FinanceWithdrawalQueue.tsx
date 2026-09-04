@@ -1047,6 +1047,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--primary"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }
@@ -1064,6 +1065,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--danger"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }
@@ -1086,6 +1088,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--primary"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }
@@ -1103,6 +1106,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--danger"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }
@@ -1125,6 +1129,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--success"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }
@@ -1142,6 +1147,7 @@ function FinanceWithdrawalQueue({
                       type="button"
                       className="fa-btn fa-btn--danger"
                       disabled={
+                        detailLoading ||
                         processingId ===
                         selectedWithdrawal.id
                       }

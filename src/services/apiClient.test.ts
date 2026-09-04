@@ -159,4 +159,44 @@ describe("API authentication interceptors", () => {
     );
     expect(mocks.refreshClient.post).toHaveBeenCalledWith("/auth/token-refresh/", { refresh: "refresh-old" });
   });
+
+  it("does not attempt token refresh in dev mode when no refresh token exists", async () => {
+    // Simulate local-dev with no tokens stored at all.
+    mocks.getToken.mockReturnValue(null);
+    mocks.getRefreshToken.mockReturnValue(null);
+
+    // import.meta.env.DEV is true in Vitest by default.  The dev guard
+    // should let the 401 pass through without calling the refresh endpoint
+    // or throwing "No refresh token available".
+    const error = unauthorized({ url: "/admin/me/", headers: {} });
+    await expect(responseInterceptor()(error)).rejects.toEqual(error);
+
+    expect(mocks.refreshClient.post).not.toHaveBeenCalled();
+    expect(mocks.clearAuth).not.toHaveBeenCalled();
+  });
+
+  it("does not attempt token refresh in dev mode for the fantasy admin-overview endpoint", async () => {
+    mocks.getToken.mockReturnValue(null);
+    mocks.getRefreshToken.mockReturnValue(null);
+
+    const error = unauthorized({ url: "/fantasy/leagues/admin-overview/", headers: {} });
+    await expect(responseInterceptor()(error)).rejects.toEqual(error);
+
+    expect(mocks.refreshClient.post).not.toHaveBeenCalled();
+    expect(mocks.clearAuth).not.toHaveBeenCalled();
+  });
+
+  it("still attempts refresh in dev mode when a refresh token is present", async () => {
+    // Token exists — normal refresh path must run even in dev mode.
+    mocks.getRefreshToken.mockReturnValue("refresh-old");
+    mocks.refreshClient.post.mockResolvedValue({
+      data: { access: "access-new" },
+    });
+
+    await responseInterceptor()(
+      unauthorized({ url: "/admin/me/", headers: {} }),
+    );
+
+    expect(mocks.refreshClient.post).toHaveBeenCalledOnce();
+  });
 });

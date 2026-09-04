@@ -346,7 +346,7 @@ interface BackendFollow {
   club_slug: string;
 }
 
-async function resolveClubId(slug: string): Promise<string | null> {
+export async function resolveClubId(slug: string): Promise<string | null> {
   if (clubIdBySlug.has(slug)) return clubIdBySlug.get(slug) ?? null;
   await fetchClubs();
   return clubIdBySlug.get(slug) ?? null;

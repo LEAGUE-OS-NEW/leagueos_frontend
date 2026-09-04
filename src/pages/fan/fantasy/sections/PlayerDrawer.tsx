@@ -41,7 +41,7 @@ export default function PlayerDrawer({
       <div className="player-drawer-head">
         <PlayerAvatar player={player} size={72} />
         <div>
-          <div className="player-drawer-price">UGX {player.price.toFixed(1)}M</div>
+          <div className="player-drawer-price">{player.price.toFixed(1)}M</div>
           <Badge tone={statusTone}>
             {player.status === 'ready'
               ? 'Available'
@@ -49,7 +49,9 @@ export default function PlayerDrawer({
               ? 'Doubtful'
               : player.status === 'injured'
               ? 'Injured'
-              : 'Suspended'}
+              : player.status === 'suspended'
+              ? 'Suspended'
+              : 'Unavailable'}
           </Badge>
         </div>
       </div>
@@ -67,11 +69,11 @@ export default function PlayerDrawer({
         </div>
         <div>
           <span>Form (5 GW avg)</span>
-          <strong>{player.form === null ? 'Unavailable' : player.form.toFixed(1)}</strong>
+          <strong>{player.form == null ? 'No data' : player.form.toFixed(1)}</strong>
         </div>
         <div>
           <span>Selected by</span>
-          <strong>{player.ownership === null ? 'No ownership data' : `${player.ownership.toFixed(1)}%`}</strong>
+          <strong>{player.ownership == null ? 'No ownership data' : `${player.ownership.toFixed(1)}%`}</strong>
         </div>
       </div>
 

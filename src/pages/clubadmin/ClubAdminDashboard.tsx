@@ -4,6 +4,13 @@ import ClubAdminLayout from '../../components/clubadmin/ClubAdminLayout';
 import { useAuthStore } from '../../store/authStore';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
 import { DEMO_ENTITLEMENTS, CLUB_REGISTRY, ROLE_LABELS } from '../../components/clubadmin/clubAdminData';
+import {
+  canAccessClubSection,
+  getClubAdminEntitlements,
+  getSelectedClubAdminEntitlement,
+  getUserClub,
+  normalizeWorkspaceRole,
+} from '../../utils/clubAdminAccess';
 import '../../components/clubadmin/ClubAdminLayout.css';
 import './ClubAdminDashboard.css';
 
@@ -28,19 +35,16 @@ export default function ClubAdminDashboard() {
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
 
-  const rawEntitlements = user?.dashboard_access?.entitlements.filter(e => e.dashboard === 'CLUB_ADMIN') ?? [];
+  const rawEntitlements = getClubAdminEntitlements(user);
   const hasRealEntitlement = rawEntitlements.length > 0;
   const entitlements = hasRealEntitlement ? rawEntitlements : DEMO_ENTITLEMENTS;
-  const current = entitlements.find(e => e.id === selectedEntitlementId) ?? entitlements[0] ?? null;
+  const current = getSelectedClubAdminEntitlement(entitlements, selectedEntitlementId);
 
   // AuthContextService.user_context() populates user.club from the user's
   // real active ClubWorkspace — prefer that over the demo registry
   // whenever we have a genuine (non-demo) entitlement, so the header
   // shows the club this admin was actually invited to, not a stand-in.
-  const realClub =
-    user?.club && typeof user.club === 'object' && 'id' in user.club && 'name' in user.club
-      ? (user.club as { id: string; name: string })
-      : null;
+  const realClub = getUserClub(user);
 
   const scopeId = current?.scope_id ?? 1;
   const clubInfo =
@@ -52,17 +56,11 @@ export default function ClubAdminDashboard() {
           season: 'Season 2025/26',
           badge: String(scopeId).slice(0, 2).toUpperCase(),
         });
-  const roleLabel = current?.workspace_role ? (ROLE_LABELS[current.workspace_role] ?? current.workspace_role) : '—';
+  const normalizedRole = normalizeWorkspaceRole(current?.workspace_role);
+  const roleLabel = normalizedRole ? (ROLE_LABELS[normalizedRole] ?? current?.workspace_role ?? normalizedRole) : '—';
 
   const canAccess = (permission: string | null) => {
-    if (!permission || !current) return true;
-    // Full access for club admin / owner roles regardless of granular permissions
-    if (
-      current.workspace_role === 'CLUB_ADMIN' ||
-      current.workspace_role === 'CLUB_OWNER' ||
-      current.permissions.includes('dashboard.club_admin')
-    ) return true;
-    return current.permissions.includes(permission);
+    return canAccessClubSection(current, permission);
   };
 
   return (

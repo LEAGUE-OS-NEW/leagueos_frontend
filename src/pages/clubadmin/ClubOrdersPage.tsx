@@ -13,6 +13,11 @@ import ClubAdminLayout from '../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../store/authStore';
 import {
+  getClubAdminEntitlements,
+  getSelectedClubAdminEntitlement,
+  getSelectedClubId,
+} from '../../utils/clubAdminAccess';
+import {
   fetchClubStoreOrders,
   type ClubStoreOrder,
 } from '../../services/clubStoreService';
@@ -113,28 +118,17 @@ export default function ClubOrdersPage() {
     selectedEntitlementId,
   } = useClubWorkspaceStore();
 
-  const entitlements =
-    user?.dashboard_access?.entitlements.filter(
-      entitlement =>
-        entitlement.dashboard ===
-          'CLUB_ADMIN' &&
-        entitlement.scope_type === 'CLUB' &&
-        entitlement.scope_id,
-    ) ?? [];
+  const entitlements = getClubAdminEntitlements(user);
 
-  const current =
-    entitlements.find(
-      entitlement =>
-        entitlement.id ===
-        selectedEntitlementId,
-    ) ??
-    entitlements[0] ??
-    null;
+  const current = getSelectedClubAdminEntitlement(
+    entitlements,
+    selectedEntitlementId,
+  );
 
-  const clubId =
-    current?.scope_id
-      ? String(current.scope_id)
-      : '';
+  const clubId = getSelectedClubId(
+    current,
+    user,
+  );
 
   const [
     orders,

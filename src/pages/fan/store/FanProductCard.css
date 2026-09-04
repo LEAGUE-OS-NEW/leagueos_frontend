@@ -15,7 +15,7 @@
 
 .fan-product-card-image {
   position: relative;
-  height: 110px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,6 +24,12 @@
 .fan-product-card-icon {
   font-size: 2.6rem;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.fan-product-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .fan-product-badge {

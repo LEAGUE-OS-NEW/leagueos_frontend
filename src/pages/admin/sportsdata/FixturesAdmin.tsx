@@ -3,12 +3,15 @@ import {
   FiCalendar,
   FiCheckCircle,
   FiChevronDown,
+  FiList,
   FiPause,
   FiPlay,
   FiPlus,
   FiRotateCcw,
+  FiShield,
   FiSlash,
   FiClock,
+  FiX,
 } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { extractApiError } from '../../../services/apiUtils';
@@ -19,17 +22,24 @@ import {
   createParticipant,
   fetchAdminFixtures,
   fetchCompetitions,
+  fetchFixtureStatistics,
   fetchParticipants,
   fetchSports,
   rescheduleFixture,
+  saveFixtureStatistics,
   setFixtureStatus,
+  submitFixtureVerification,
   updateFixtureScore,
   type CompetitionOption,
   type FixtureAdminItem,
+  type FixtureStatisticsData,
   type ParticipantOption,
   type SportOption,
+  type StatisticEntryRow,
 } from '../../../services/fixtureAdminService';
 import './FixturesAdmin.css';
+
+const MATCH_TYPE_PRESETS = ['Derby', 'Final', 'Cup Final', 'Rivalry', 'Friendly', 'Other'];
 
 const BLANK_CREATE = {
   sportId: '',
@@ -39,6 +49,10 @@ const BLANK_CREATE = {
   startsAt: '',
   endsAt: '',
   venue: '',
+  matchType: '',
+  matchTypeOther: '',
+  showInMarkets: false,
+  isLiveScoreFeatured: false,
 };
 
 const BLANK_CREATE_CLUB = { name: '', sportId: '' };
@@ -108,9 +122,94 @@ function FixturesAdmin() {
 
   const [openActionMenuFor, setOpenActionMenuFor] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [sportFilter, setSportFilter] = useState('ALL');
+  const [submittingVerificationFor, setSubmittingVerificationFor] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
 
+  // ── Match Statistics Panel ─────────────────────────────────────────────
+  const [statsFixture, setStatsFixture] = useState<FixtureAdminItem | null>(null);
+  const [statsData, setStatsData] = useState<FixtureStatisticsData | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [statsNotice, setStatsNotice] = useState<string | null>(null);
+  const [statsSaving, setStatsSaving] = useState(false);
+  // pendingValues: participantId → statType → raw string value being edited
+  const [pendingValues, setPendingValues] = useState<Record<string, Record<string, string>>>({});
+
   const refreshFixtures = () => fetchAdminFixtures().then(setFixtures);
+
+  // ── Match Statistics Panel handlers ───────────────────────────────────
+
+  const openStatsPanel = async (fixture: FixtureAdminItem) => {
+    setStatsFixture(fixture);
+    setStatsData(null);
+    setStatsError(null);
+    setStatsNotice(null);
+    setPendingValues({});
+    setStatsLoading(true);
+    try {
+      const data = await fetchFixtureStatistics(fixture.id);
+      setStatsData(data);
+      // Pre-populate pending values from existing stats
+      const initial: Record<string, Record<string, string>> = {};
+      for (const player of data.players) {
+        initial[player.participant_id] = {};
+        for (const stat of player.stats) {
+          initial[player.participant_id][stat.stat_type] = stat.value;
+        }
+      }
+      setPendingValues(initial);
+    } catch (e) {
+      setStatsError(extractApiError(e).message);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const handleSaveStatistics = async (triggerScoring: boolean) => {
+    if (!statsFixture || !statsData) return;
+    setStatsSaving(true);
+    setStatsError(null);
+    setStatsNotice(null);
+    try {
+      // Collect all non-empty pending values as rows
+      const rows: StatisticEntryRow[] = [];
+      for (const [participantId, statMap] of Object.entries(pendingValues)) {
+        for (const [statType, rawValue] of Object.entries(statMap)) {
+          const trimmed = String(rawValue).trim();
+          if (trimmed === '') continue;
+          const num = parseFloat(trimmed);
+          if (!isNaN(num) && num >= 0) {
+            rows.push({ participant: participantId, stat_type: statType, value: num });
+          }
+        }
+      }
+      if (rows.length === 0) {
+        setStatsError('No statistics entered. Fill in at least one value before saving.');
+        return;
+      }
+      const result = await saveFixtureStatistics(statsFixture.id, {
+        statistics: rows,
+        trigger_scoring: triggerScoring,
+      });
+      setStatsNotice(result.message);
+      // Reload the panel data to reflect saved state
+      const refreshed = await fetchFixtureStatistics(statsFixture.id);
+      setStatsData(refreshed);
+      const updated: Record<string, Record<string, string>> = {};
+      for (const player of refreshed.players) {
+        updated[player.participant_id] = {};
+        for (const stat of player.stats) {
+          updated[player.participant_id][stat.stat_type] = stat.value;
+        }
+      }
+      setPendingValues(updated);
+    } catch (e) {
+      setStatsError(extractApiError(e).message);
+    } finally {
+      setStatsSaving(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +288,9 @@ function FixturesAdmin() {
         startsAt: new Date(createForm.startsAt).toISOString(),
         endsAt: createForm.endsAt ? new Date(createForm.endsAt).toISOString() : undefined,
         venue: createForm.venue,
+        matchType: createForm.matchType === 'Other' ? createForm.matchTypeOther : createForm.matchType,
+        showInMarkets: createForm.showInMarkets,
+        isLiveScoreFeatured: createForm.isLiveScoreFeatured,
       });
       setCreateForm((current) => ({ ...BLANK_CREATE, sportId: current.sportId }));
       setCreateMessage('Fixture created.');
@@ -286,6 +388,19 @@ function FixturesAdmin() {
     }
   };
 
+  const handleSubmitVerification = async (fixtureId: string) => {
+    setActionError(null);
+    setSubmittingVerificationFor(fixtureId);
+    try {
+      await submitFixtureVerification(fixtureId);
+      refreshFixtures();
+    } catch (err) {
+      setActionError(extractApiError(err).message);
+    } finally {
+      setSubmittingVerificationFor(null);
+    }
+  };
+
   const openScoreEditor = (fixture: FixtureAdminItem) => {
     setScoreEditor({
       fixtureId: fixture.id,
@@ -359,8 +474,12 @@ function FixturesAdmin() {
   const endsAtMin = createForm.startsAt || kickoffMin;
   const rescheduleEndsAtMin = rescheduleEditor?.startsAt || kickoffMin;
 
-  const visibleFixtures =
-    statusFilter === 'ALL' ? fixtures : fixtures.filter((fixture) => fixture.status === statusFilter);
+  const selectedSportName = sports.find((sport) => sport.id === sportFilter)?.name;
+  const visibleFixtures = fixtures.filter(
+    (fixture) =>
+      (statusFilter === 'ALL' || fixture.status === statusFilter) &&
+      (sportFilter === 'ALL' || fixture.sportName === selectedSportName),
+  );
 
   return (
     <AdminLayout>
@@ -430,6 +549,28 @@ function FixturesAdmin() {
 
               <div className="fxa-field-row">
                 <label className="fxa-field">
+                  Match Type
+                  <select
+                    value={createForm.matchType}
+                    onChange={(event) => setCreateForm((current) => ({ ...current, matchType: event.target.value }))}
+                  >
+                    <option value="">Select…</option>
+                    {MATCH_TYPE_PRESETS.map((preset) => (
+                      <option key={preset} value={preset}>
+                        {preset}
+                      </option>
+                    ))}
+                  </select>
+                  {createForm.matchType === 'Other' && (
+                    <input
+                      type="text"
+                      value={createForm.matchTypeOther}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, matchTypeOther: event.target.value }))}
+                      placeholder="Describe the match type"
+                    />
+                  )}
+                </label>
+                <label className="fxa-field">
                   Venue
                   <input
                     type="text"
@@ -494,6 +635,24 @@ function FixturesAdmin() {
 
               {createMessage && <p className="fxa-compose-message">{createMessage}</p>}
               <div className="fxa-panel__footer">
+                <div className="fxa-footer-checks">
+                  <label className="fxa-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={createForm.showInMarkets}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, showInMarkets: event.target.checked }))}
+                    />
+                    Add to Markets
+                  </label>
+                  <label className="fxa-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={createForm.isLiveScoreFeatured}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, isLiveScoreFeatured: event.target.checked }))}
+                    />
+                    Live Score
+                  </label>
+                </div>
                 <button type="button" className="fxa-btn fxa-btn--primary" disabled={isCreating} onClick={() => void handleCreateFixture()}>
                   {isCreating ? 'Creating…' : 'Create Fixture'}
                 </button>
@@ -502,8 +661,27 @@ function FixturesAdmin() {
 
             {/* ── Fixtures table ── */}
             <section className="fxa-panel">
-              <div className="fxa-panel__header">
+              <div className="fxa-panel__header fxa-panel__header--fixtures">
                 <h2>All Fixtures</h2>
+                <div className="fxa-sport-filter">
+                  <button
+                    type="button"
+                    className={`fxa-sport-chip${sportFilter === 'ALL' ? ' fxa-sport-chip--active' : ''}`}
+                    onClick={() => setSportFilter('ALL')}
+                  >
+                    All Sports
+                  </button>
+                  {sports.map((sport) => (
+                    <button
+                      key={sport.id}
+                      type="button"
+                      className={`fxa-sport-chip${sportFilter === sport.id ? ' fxa-sport-chip--active' : ''}`}
+                      onClick={() => setSportFilter(sport.id)}
+                    >
+                      {sport.name}
+                    </button>
+                  ))}
+                </div>
                 <div className="fxa-panel__header-right">
                   <div className="fxa-status-tabs">
                     {(['ALL', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED'] as StatusFilter[]).map((tab) => (
@@ -560,6 +738,31 @@ function FixturesAdmin() {
                           </td>
                           <td>
                             <div className="fxa-row-actions">
+                              {fixture.status === 'COMPLETED' && fixture.verificationStatus === 'PENDING' && (
+                                <span className="fxa-verification-badge">Pending Verification</span>
+                              )}
+                              {fixture.status === 'COMPLETED' && fixture.verificationStatus === 'VERIFIED' && (
+                                <span className="fxa-verification-badge fxa-verification-badge--verified">Verified</span>
+                              )}
+                              {fixture.status === 'COMPLETED' &&
+                                (fixture.verificationStatus === 'NONE' || fixture.verificationStatus === 'REJECTED') && (
+                                  <button
+                                    type="button"
+                                    className="fxa-icon-btn fxa-icon-btn--primary"
+                                    title="Submit for result verification"
+                                    disabled={submittingVerificationFor === fixture.id}
+                                    onClick={() => void handleSubmitVerification(fixture.id)}
+                                  >
+                                    <FiShield />{' '}
+                                    <span>
+                                      {submittingVerificationFor === fixture.id
+                                        ? 'Submitting…'
+                                        : fixture.verificationStatus === 'REJECTED'
+                                          ? 'Resubmit Verification'
+                                          : 'Submit Verification'}
+                                    </span>
+                                  </button>
+                                )}
                               {(fixture.status === 'LIVE' || fixture.status === 'SCHEDULED') && (
                                 <button
                                   type="button"
@@ -568,6 +771,17 @@ function FixturesAdmin() {
                                   onClick={() => openScoreEditor(fixture)}
                                 >
                                   <FiClock /> <span>Update Score</span>
+                                </button>
+                              )}
+
+                              {(fixture.status === 'LIVE' || fixture.status === 'COMPLETED') && (
+                                <button
+                                  type="button"
+                                  className="fxa-icon-btn fxa-icon-btn--stats"
+                                  title="Enter match statistics"
+                                  onClick={() => void openStatsPanel(fixture)}
+                                >
+                                  <FiList /> <span>Statistics</span>
                                 </button>
                               )}
 
@@ -777,6 +991,190 @@ function FixturesAdmin() {
                 {isSavingReschedule ? 'Saving…' : 'Save schedule'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          MATCH STATISTICS PANEL (side drawer)
+          Shown for LIVE (partial, no scoring) and COMPLETED (final, triggers scoring)
+      ══════════════════════════════════════════════════════════ */}
+      {statsFixture && (
+        <div
+          className="fxa-modal-overlay fxa-stats-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Match statistics: ${statsFixture.name}`}
+          onClick={() => setStatsFixture(null)}
+        >
+          <div className="fxa-stats-drawer" onClick={(e) => e.stopPropagation()}>
+
+            {/* Drawer header */}
+            <div className="fxa-stats-drawer__header">
+              <div>
+                <h3 className="fxa-stats-drawer__title">
+                  <FiList aria-hidden="true" /> Match Statistics
+                </h3>
+                <p className="fxa-stats-drawer__subtitle">
+                  {statsFixture.homeName} vs {statsFixture.awayName}
+                  <span className={`fxa-status ${statusPillClass(statsFixture.status)}`} style={{ marginLeft: 8 }}>
+                    {statsFixture.status}
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="fxa-icon-btn"
+                aria-label="Close statistics panel"
+                onClick={() => setStatsFixture(null)}
+              >
+                <FiX />
+              </button>
+            </div>
+
+            {/* Live / completed context notice */}
+            {statsFixture.status === 'LIVE' ? (
+              <div className="fxa-stats-notice fxa-stats-notice--live">
+                <strong>Live statistics</strong> — Fantasy scoring is <em>not</em> triggered until
+                you click <strong>Final Save &amp; Score</strong>.
+              </div>
+            ) : (
+              <div className="fxa-stats-notice fxa-stats-notice--completed">
+                <strong>Final statistics</strong> — saving will trigger Fantasy scoring automatically.
+              </div>
+            )}
+
+            {/* Error / success banners */}
+            {statsError && (
+              <div className="fxa-error-banner" role="alert">
+                {statsError}
+                <button type="button" className="fxa-btn fxa-btn--ghost" style={{ marginLeft: 'auto' }} onClick={() => setStatsError(null)}>✕</button>
+              </div>
+            )}
+            {statsNotice && (
+              <div className="fxa-stats-notice fxa-stats-notice--success" role="status">
+                ✓ {statsNotice}
+                <button type="button" className="fxa-btn fxa-btn--ghost" style={{ marginLeft: 'auto' }} onClick={() => setStatsNotice(null)}>✕</button>
+              </div>
+            )}
+
+            {/* Body */}
+            {statsLoading ? (
+              <p className="fxa-empty">Loading statistics…</p>
+            ) : !statsData ? null : statsData.players.length === 0 ? (
+              <p className="fxa-empty">No players found for this fixture.</p>
+            ) : (
+              <>
+                {/* Statistics table — columns driven by the sport catalogue */}
+                <div className="fxa-stats-table-wrap">
+                  <table className="fxa-stats-table">
+                    <thead>
+                      <tr>
+                        <th className="fxa-stats-table__player-col">Player</th>
+                        {statsData.stat_types.map((code) => (
+                          <th key={code} title={statsData.stat_labels[code] ?? code}>
+                            {/* Short label: first word of label, e.g. "Goals" */}
+                            {(statsData.stat_labels[code] ?? code).split(' ')[0]}
+                          </th>
+                        ))}
+                        <th className="fxa-stats-table__pool-col">Pool</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statsData.players.map((player) => {
+                        const playerVals = pendingValues[player.participant_id] ?? {};
+                        const hasNoStats = player.stats.length === 0 &&
+                          statsData.stat_types.every(
+                            (code) => (playerVals[code] ?? '').trim() === '',
+                          );
+                        return (
+                          <tr
+                            key={player.participant_id}
+                            className={[
+                              player.in_fantasy_pool ? 'fxa-stats-row--fantasy' : '',
+                              hasNoStats ? 'fxa-stats-row--empty' : '',
+                            ].filter(Boolean).join(' ')}
+                          >
+                            <td className="fxa-stats-table__player-col">
+                              <span className="fxa-stats-player-name">{player.participant_name}</span>
+                            </td>
+                            {statsData.stat_types.map((code) => (
+                              <td key={code}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  className="fxa-stats-input"
+                                  value={playerVals[code] ?? ''}
+                                  placeholder="—"
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setPendingValues((prev) => ({
+                                      ...prev,
+                                      [player.participant_id]: {
+                                        ...(prev[player.participant_id] ?? {}),
+                                        [code]: val,
+                                      },
+                                    }));
+                                  }}
+                                />
+                              </td>
+                            ))}
+                            <td className="fxa-stats-table__pool-col">
+                              {player.in_fantasy_pool ? (
+                                <span className="fxa-stats-pool-badge" title="In Fantasy pool">F</span>
+                              ) : (
+                                <span className="fxa-stats-pool-badge fxa-stats-pool-badge--none" title="Not in Fantasy pool">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Action footer */}
+                <div className="fxa-stats-drawer__footer">
+                  {statsFixture.status === 'LIVE' ? (
+                    <>
+                      <button
+                        type="button"
+                        className="fxa-btn fxa-btn--ghost"
+                        disabled={statsSaving}
+                        onClick={() => void handleSaveStatistics(false)}
+                      >
+                        {statsSaving ? 'Saving…' : 'Save (no scoring)'}
+                      </button>
+                      <button
+                        type="button"
+                        className="fxa-btn fxa-btn--primary"
+                        disabled={statsSaving}
+                        onClick={() => void handleSaveStatistics(true)}
+                      >
+                        {statsSaving ? 'Saving…' : 'Final Save & Score'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="fxa-btn fxa-btn--primary"
+                      disabled={statsSaving}
+                      onClick={() => void handleSaveStatistics(true)}
+                    >
+                      {statsSaving ? 'Saving…' : 'Save & Trigger Scoring'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="fxa-btn fxa-btn--ghost"
+                    onClick={() => setStatsFixture(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

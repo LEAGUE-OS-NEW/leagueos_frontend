@@ -45,7 +45,11 @@ export function FanProductCard({ product }: { product: ClubProduct }) {
             {product.badge}
           </span>
         )}
-        <span className="fan-product-card-icon">{productIcon(product.category)}</span>
+        {product.image ? (
+          <img src={product.image} alt={product.name} className="fan-product-card-photo" />
+        ) : (
+          <span className="fan-product-card-icon">{productIcon(product.category)}</span>
+        )}
       </div>
 
       <div className="fan-product-card-body">

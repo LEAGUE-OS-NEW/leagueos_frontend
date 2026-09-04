@@ -100,9 +100,10 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
   }, []);
 
   return (
-    <header className="navbar">
-      <div className="navbar-inner">
-        <HomeLogo className="navbar-logo" imageClassName="navbar-logo-image" />
+    <>
+      <header className="navbar">
+        <div className="navbar-inner">
+          <HomeLogo className="navbar-logo" imageClassName="navbar-logo-image" />
 
         <nav className="navbar-links" aria-label="Primary">
           {links.map((link) => (
@@ -270,7 +271,8 @@ function Navbar({ links = DEFAULT_LINKS, showSignup = true }: NavbarProps) {
           )}
         </div>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
 
