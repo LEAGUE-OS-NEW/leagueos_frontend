@@ -784,6 +784,88 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
   }
 }
 
+export interface OpenOrder {
+  id: string;
+  marketId: string;
+  marketQuestion: string;
+  outcomeId: OutcomeId;
+  outcomeLabel: string;
+  side: 'BUY' | 'SELL';
+  status: string;
+  limitPriceUgx: number;
+  quantityShares: number;
+  filledQuantityShares: number;
+  remainingQuantityShares: number;
+  amountUgx: number;
+  createdAt: string;
+}
+
+async function fetchOrderMarkets(orders: MarketOrderApi[]): Promise<Map<string, Market>> {
+  const ids = [...new Set(orders.map((order) => order.market))];
+  const entries = await Promise.all(
+    ids.map((id) => fetchMarket(id).then((market) => [id, market] as const).catch(() => null)),
+  );
+  return new Map(entries.filter(Boolean) as Array<readonly [string, Market]>);
+}
+
+// Resting (unmatched) or partially-filled orders — the backend only accepts
+// a single `status` filter per request, so OPEN and PARTIALLY_FILLED are
+// fetched separately and merged. Cancelling one of these is the only way a
+// fan can currently get their reserved funds back before the market closes
+// (market close auto-expires anything still resting).
+export async function fetchMyOpenOrders(): Promise<OpenOrder[]> {
+  try {
+    const [openResponse, partialResponse] = await Promise.all([
+      apiClient.get('/market-orders/', { params: { status: 'OPEN' } }),
+      apiClient.get('/market-orders/', { params: { status: 'PARTIALLY_FILLED' } }),
+    ]);
+    const orders = [
+      ...normalizeApiList<MarketOrderApi>(openResponse.data),
+      ...normalizeApiList<MarketOrderApi>(partialResponse.data),
+    ];
+    const marketsById = await fetchOrderMarkets(orders);
+    return orders
+      .map((order) => {
+        const market = marketsById.get(order.market);
+        if (!market) return null;
+        const outcome = market.outcomes.find((item) => item.backendOutcomeId === order.outcome);
+        if (!outcome) return null;
+        const limitPrice = Number(order.limit_price);
+        const quantity = Number(order.quantity);
+        const filledQuantity = Number(order.filled_quantity);
+        return {
+          id: order.id,
+          marketId: market.id,
+          marketQuestion: market.question,
+          outcomeId: outcome.id,
+          outcomeLabel: outcome.label,
+          side: order.side,
+          status: order.status,
+          limitPriceUgx: normalizedPriceToUgxSharePrice(limitPrice, market.faceValueUgx),
+          quantityShares: backendQuantityToShares(quantity, market.faceValueUgx),
+          filledQuantityShares: backendQuantityToShares(filledQuantity, market.faceValueUgx),
+          remainingQuantityShares: backendQuantityToShares(quantity - filledQuantity, market.faceValueUgx),
+          // quantity is already in settlement-value (UGX) units — multiplying
+          // by faceValueUgx again would inflate this by orders of magnitude.
+          amountUgx: (quantity - filledQuantity) * limitPrice,
+          createdAt: order.created_at,
+        };
+      })
+      .filter((order): order is OpenOrder => order !== null)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function cancelOrder(orderId: string): Promise<void> {
+  try {
+    await apiClient.post(`/market-orders/${encodeURIComponent(orderId)}/cancel/`);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
 export async function sellPosition(input: SellOrderInput): Promise<Contract> {
   if (!(input.limitPrice > 0 && input.limitPrice < 1)) throw new Error('A genuine executable quote is required.');
   try {

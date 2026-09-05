@@ -3,6 +3,7 @@ import { FiAlertTriangle, FiActivity, FiCheckCircle, FiShield, FiXCircle } from 
 import AdminLayout from '../../../components/admin/AdminLayout';
 import {
   fetchAwaitingResult,
+  fetchMarketExposure,
   closeMarket,
   endDisputeWindowForDevelopment,
   refundResult,
@@ -10,6 +11,7 @@ import {
   settleResult,
   verifyResult,
   voidMarket,
+  type MarketExposure,
   type ResultVerification,
 } from '../../../services/resultVerificationService';
 import {
@@ -83,6 +85,8 @@ function ResultVerificationPage() {
   const [winningOutcomeId, setWinningOutcomeId] = useState<OutcomeId | null>(null);
   const [evidenceNote, setEvidenceNote] = useState('');
   const [actionNotes, setActionNotes] = useState('');
+  const [exposure, setExposure] = useState<MarketExposure | null>(null);
+  const [isExposureLoading, setIsExposureLoading] = useState(false);
 
   const fetchAll = () => Promise.all([fetchAwaitingResult(), fetchFixtureResultVerifications()]);
 
@@ -111,6 +115,33 @@ function ResultVerificationPage() {
     [items, activeTab],
   );
   const selected = useMemo(() => visibleItems.find((item) => item.marketId === selectedId) ?? null, [visibleItems, selectedId]);
+
+  // Live, unsettled position exposure for the selected market only — fetched
+  // on demand rather than embedded in the queue payload (avoids an aggregate
+  // query per queue row). Meaningless once a market is settled (positions
+  // are zeroed then), so skip the fetch and clear any stale value.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selected || selected.stage === 'Settled') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExposure(null);
+      return;
+    }
+    setIsExposureLoading(true);
+    fetchMarketExposure(selected.marketId)
+      .then((result) => {
+        if (!cancelled) setExposure(result);
+      })
+      .catch(() => {
+        if (!cancelled) setExposure(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsExposureLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
   const selectedFixture = useMemo(
     () => fixtureItems.find((item) => item.id === selectedFixtureId) ?? null,
     [fixtureItems, selectedFixtureId],
@@ -556,6 +587,23 @@ function ResultVerificationPage() {
                     </button>
                   ))}
                 </div>
+
+                {isExposureLoading && <p className="rv-exposure-loading">Loading position exposure…</p>}
+                {!isExposureLoading && exposure && exposure.outcomes.length > 0 && (
+                  <div className="rv-summary-cards rv-exposure-cards">
+                    {exposure.outcomes.map((outcomeExposure) => (
+                      <div className="rv-summary-card" key={outcomeExposure.outcomeId}>
+                        <span className="rv-summary-card__count">{outcomeExposure.positionCount}</span>
+                        <span className="rv-summary-card__label">
+                          {outcomeExposure.label} positions — UGX {Number(outcomeExposure.totalStake).toLocaleString()} staked
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!isExposureLoading && exposure && exposure.outcomes.length === 0 && (
+                  <p className="rv-exposure-loading">No open positions on this market.</p>
+                )}
 
                 <label className="rv-field">
                   <span>Evidence / official source note</span>
