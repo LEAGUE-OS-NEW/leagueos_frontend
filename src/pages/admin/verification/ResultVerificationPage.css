@@ -130,6 +130,17 @@
   color: var(--color-text-muted);
 }
 
+.rv-exposure-cards {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 14px;
+}
+
+.rv-exposure-loading {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 4px 0 14px;
+}
+
 /* ---------- Layout ---------- */
 
 .rv-layout {

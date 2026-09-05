@@ -226,6 +226,36 @@ export async function endDisputeWindowForDevelopment(marketId: string): Promise<
   await apiClient.post(`/market-admin/result-verification/${encodeURIComponent(marketId)}/dev-end-dispute-window/`);
 }
 
+export interface MarketOutcomeExposure {
+  outcomeId: OutcomeId;
+  label: string;
+  positionCount: number;
+  totalQuantity: string;
+  totalStake: string;
+}
+
+export interface MarketExposure {
+  outcomes: MarketOutcomeExposure[];
+}
+
+// Live, unsettled exposure only — positions are zeroed on settlement, so
+// this is meaningless (and the backend excludes them) once a market has
+// actually been settled. Fetched on demand for the selected market only,
+// not embedded in the queue list, to avoid an aggregate query per row.
+export async function fetchMarketExposure(marketId: string): Promise<MarketExposure> {
+  const response = await apiClient.get(`/market-admin/result-verification/${encodeURIComponent(marketId)}/exposure/`);
+  const data = response.data as { outcomes?: Array<Record<string, unknown>> };
+  return {
+    outcomes: (data.outcomes ?? []).map((outcome) => ({
+      outcomeId: String(outcome.side) as OutcomeId,
+      label: String(outcome.label ?? outcome.side),
+      positionCount: Number(outcome.position_count ?? 0),
+      totalQuantity: String(outcome.total_quantity ?? '0'),
+      totalStake: String(outcome.total_stake ?? '0'),
+    })),
+  };
+}
+
 /* ============================================================
    DISPUTES
    ============================================================ */
