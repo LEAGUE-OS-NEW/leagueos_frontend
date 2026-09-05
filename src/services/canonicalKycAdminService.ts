@@ -25,3 +25,15 @@ export async function fetchCanonicalAdminKycDetail(id: string): Promise<AdminKyc
 export async function decideCanonicalAdminKyc(id: string, decision: 'VERIFIED' | 'REJECTED', notes: string): Promise<void> {
   await apiClient.post(`/admin/kyc/verifications/${encodeURIComponent(id)}/review/`, { decision, notes });
 }
+
+export type AdminKycDocumentTarget = 'document' | 'selfie';
+
+export async function fetchCanonicalAdminKycDocumentBlob(id: string, target: AdminKycDocumentTarget): Promise<Blob> {
+  const tokenResponse = await apiClient.get(`/admin/kyc/verifications/${encodeURIComponent(id)}/document-url/`, { params: { target } });
+  const { token } = unwrap(tokenResponse.data) as { token: string; target: AdminKycDocumentTarget; expires_in_seconds: number };
+  const fileResponse = await apiClient.get(`/admin/kyc/verifications/${encodeURIComponent(id)}/document/`, {
+    params: { token, target },
+    responseType: 'blob',
+  });
+  return fileResponse.data as Blob;
+}
