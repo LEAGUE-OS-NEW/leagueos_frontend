@@ -263,7 +263,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 70000,
         matchedAt: '2026-08-10T08:26:00.000Z',
-        status: 'SETTLED',
+        status: 'WON',
         outcomeId: 'YES',
         payoutUgx: 112000,
       },
@@ -278,7 +278,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 30000,
         matchedAt: '2026-08-05T11:04:00.000Z',
-        status: 'SETTLED',
+        status: 'LOST',
         outcomeId: 'NO',
         payoutUgx: 0,
       },
@@ -307,7 +307,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 10000,
         matchedAt: '2026-08-01T12:00:00.000Z',
-        status: 'CANCELLED',
+        status: 'REFUNDED',
         outcomeId: 'NO',
       },
       market: {
@@ -524,7 +524,7 @@ describe('MyPositions', () => {
     it('reports win rate and treats zero losses as an infinite profit factor', async () => {
       vi.mocked(fetchFanPositions).mockResolvedValue([
         makePosition({
-          contract: { status: 'SETTLED', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
+          contract: { status: 'WON', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
           market: { eventLabel: 'Only Win', question: 'Q?', status: 'Resolved' },
         }),
       ]);
@@ -542,7 +542,7 @@ describe('MyPositions', () => {
     it('only renders the P&L history chart once there are 2+ settled positions', async () => {
       vi.mocked(fetchFanPositions).mockResolvedValue([
         makePosition({
-          contract: { status: 'SETTLED', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
+          contract: { status: 'WON', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
           market: { eventLabel: 'Settled One', question: 'Q?', status: 'Resolved' },
         }),
       ]);

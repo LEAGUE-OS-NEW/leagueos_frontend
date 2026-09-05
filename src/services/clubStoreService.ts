@@ -47,11 +47,16 @@ export interface ClubMerchandiseProduct {
 export interface ClubStoreOrder {
   id: string;
   user: string;
+  user_email?: string;
   club: string;
+  club_name?: string;
   status:
     | 'PENDING'
     | 'PAID'
     | 'PROCESSING'
+    | 'READY_FOR_COLLECTION'
+    | 'SHIPPED'
+    | 'DELIVERED'
     | 'FULFILLED'
     | 'CANCELLED'
     | 'REFUNDED';
@@ -62,6 +67,11 @@ export interface ClubStoreOrder {
   items?: ClubStoreOrderItem[];
   fulfilled_at: string | null;
   cancelled_at: string | null;
+  payment_transaction?: string | null;
+  payment_reference?: string | null;
+  refund_transaction?: string | null;
+  refund_reference?: string | null;
+  delivery_reference?: string;
 }
 
 export interface ClubStoreOrderItem {
@@ -75,6 +85,7 @@ export interface ClubStoreOrderItem {
 }
 
 export interface CreatePublicStoreOrderInput {
+  idempotency_key: string;
   items: Array<{
     product: string;
     quantity: number;
@@ -158,10 +169,10 @@ export async function deleteClubProduct(
 
 export async function createPublicStoreOrder(
   payload: CreatePublicStoreOrderInput,
-): Promise<ClubStoreOrder> {
+): Promise<ClubStoreOrder[]> {
   const response = await apiClient.post('/store/orders/', payload);
 
-  return response.data as ClubStoreOrder;
+  return (response.data as { orders: ClubStoreOrder[] }).orders;
 }
 
 export async function fetchClubProductCategories(
@@ -203,5 +214,19 @@ export async function fetchClubStoreOrders(
   return normalizeApiList<ClubStoreOrder>(
     response.data,
   );
+}
+
+export async function updateClubOrderFulfilment(
+  clubId: string,
+  orderId: string,
+  status: 'PROCESSING' | 'READY_FOR_COLLECTION' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED',
+  note = '',
+  deliveryReference = '',
+): Promise<ClubStoreOrder> {
+  const response = await apiClient.post(
+    `/${encodeURIComponent(clubId)}/orders/${encodeURIComponent(orderId)}/fulfilment/`,
+    { status, note, delivery_reference: deliveryReference },
+  );
+  return response.data as ClubStoreOrder;
 }
 

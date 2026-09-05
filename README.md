@@ -44,6 +44,15 @@ export default defineConfig([
 
 ```
 
+## Financial and compliance flows
+
+- Fan identity verification submits legal name, identity number, date of birth, and country of residence to the canonical KYC API. Markets eligibility is read from the server after the profile and required checks are complete.
+- A resolved market settlement credits the fan's League OS wallet automatically. External Mobile Money withdrawal remains a separate fan-requested workflow.
+- My Positions reads `/api/v1/market-participations/history/`, including settled wins, losses, pending settlements, and void refunds.
+- Super Admin Finance and Store screens read `/api/v1/admin/finance/` and `/api/v1/admin/store/`; neither screen contains financial fixture data or balance-edit controls.
+- Store checkout sends one idempotent cart request. Prices, wallet debit, inventory reservation, multi-club orders, and payment linkage are committed atomically by the backend.
+- Club fulfilment status changes are persisted through the backend lifecycle (`PAID` → `PROCESSING` → collection/shipping → delivered), including actor and timestamp history.
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

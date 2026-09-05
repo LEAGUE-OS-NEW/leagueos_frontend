@@ -124,12 +124,10 @@ function getMarketType(position: Position): string {
 
 function classify(position: Position): ResultBucket {
   const status = position.contract.status.toUpperCase();
-  if (status.includes('CANCEL') || status.includes('REFUND')) return 'cancelled';
-  if (status.includes('PENDING')) return 'pending';
-  if (status.includes('CLOSED')) return 'pending';
-  if (status === 'SETTLED' || position.market.status === 'Resolved') {
-    return getRealizedPnl(position) > 0 ? 'won' : 'lost';
-  }
+  if (status === 'REFUNDED') return 'cancelled';
+  if (status === 'PENDING_SETTLEMENT') return 'pending';
+  if (status === 'WON') return 'won';
+  if (status === 'LOST') return 'lost';
   return 'open';
 }
 

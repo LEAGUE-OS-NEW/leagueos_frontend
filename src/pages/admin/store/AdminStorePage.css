@@ -1,0 +1,10 @@
+.admin-store { padding: 24px; display: grid; gap: 24px; }
+.admin-store header p, .admin-store-table span { color: #64748b; }
+.admin-store-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; }
+.admin-store-stats article, .admin-store-table article { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
+.admin-store-stats article { display: grid; gap: 6px; }
+.admin-store-stats b { font-size: 1.5rem; }
+.admin-store-table { display: grid; gap: 8px; }
+.admin-store-table article { display: grid; grid-template-columns: minmax(180px,2fr) repeat(4,minmax(120px,1fr)); gap: 12px; align-items: center; overflow-wrap: anywhere; }
+.admin-store-error { color: #991b1b; background: #fef2f2; padding: 14px; border-radius: 10px; }
+@media (max-width: 760px) { .admin-store-table article { grid-template-columns: 1fr; } }

@@ -6,13 +6,11 @@ import {
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useClubWorkspaceStore } from '../../../store/clubWorkspaceStore';
 import { useAuthStore } from '../../../store/authStore';
-import { DEMO_ENTITLEMENTS, CLUB_REGISTRY } from '../../../components/clubadmin/clubAdminData';
 import {
   canAccessClubSection,
   getClubAdminEntitlements,
   getSelectedClubAdminEntitlement,
 } from '../../../utils/clubAdminAccess';
-import { useClubProductStore, toCategorySlug, nameToSlug, CATEGORY_COLORS } from '../../../store/clubProductStore';
 import { parseUGX } from '../../../store/cartStore';
 import {
   fetchClubProducts,
@@ -20,6 +18,7 @@ import {
   updateClubProduct as apiUpdateClubProduct,
   deleteClubProduct,
   fetchClubStoreOrders,
+  updateClubOrderFulfilment,
   type SaveClubProductInput,
   type ClubMerchandiseProduct,
   type ClubStoreOrder,
@@ -32,21 +31,16 @@ const CATEGORIES = ['Apparel', 'Fan Gear', 'Training', 'Accessories', 'Other'];
 
 // Reverse of clubProductStore's toCategorySlug — for displaying a locally
 // persisted product's category back in this page's own category labels.
-const CATEGORY_TO_LABEL: Record<string, string> = {
-  jerseys: 'Apparel', 'fan-gear': 'Fan Gear', 'training-wear': 'Training',
-  accessories: 'Accessories', caps: 'Other', all: 'Other',
-};
-
 type ProductStatus = 'active' | 'low stock' | 'out of stock';
 type Product = { id: string; name: string; cat: string; price: string; stock: number; status: ProductStatus; sku?: string; description?: string; image?: string };
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'fulfilled' | 'cancelled';
+type OrderStatus = 'pending' | 'processing' | 'ready' | 'shipped' | 'fulfilled' | 'cancelled';
 type Order = { id: string; item: string; buyer: string; email: string; amt: string; date: string; qty: number; address: string; notes: string; status: OrderStatus };
 
 const STATUS_CLASS: Record<string, string> = {
   active: 'ca-pill-green', 'low stock': 'ca-pill-orange', 'out of stock': 'ca-pill-red',
 };
 const ORDER_STATUS_CLASS: Record<OrderStatus, string> = {
-  pending: 'ca-pill-orange', processing: 'ca-pill-blue', shipped: 'ca-pill-blue',
+  pending: 'ca-pill-orange', processing: 'ca-pill-blue', ready: 'ca-pill-orange', shipped: 'ca-pill-blue',
   fulfilled: 'ca-pill-green', cancelled: 'ca-pill-red',
 };
 
@@ -94,6 +88,7 @@ function fromApiProduct(p: ClubMerchandiseProduct): Product {
 
 const BACKEND_TO_LOCAL_ORDER: Record<string, OrderStatus> = {
   PENDING: 'pending', PAID: 'processing', PROCESSING: 'processing',
+  READY_FOR_COLLECTION: 'ready', SHIPPED: 'shipped', DELIVERED: 'fulfilled',
   FULFILLED: 'fulfilled', CANCELLED: 'cancelled', REFUNDED: 'cancelled',
 };
 
@@ -112,7 +107,7 @@ function fromApiOrder(o: ClubStoreOrder): Order {
       ? new Date(o.cancelled_at).toLocaleDateString()
       : 'Pending';
   return {
-    id: o.id.slice(0, 8).toUpperCase(),
+    id: o.id,
     item: itemLabel,
     buyer: o.user,
     email: '',
@@ -127,7 +122,6 @@ function fromApiOrder(o: ClubStoreOrder): Order {
 
 const BLANK_PRODUCT: Omit<Product, 'id' | 'status'> = { name: '', cat: 'Apparel', price: '', stock: 0, sku: '', description: '', image: '' };
 type ModalKind = null | 'product' | 'order-detail' | 'restock' | 'confirm-delete';
-let prodIdCounter = Date.now();
 
 export default function ClubStorePage() {
   const [activeTab, setActiveTab] = useState('Products');
@@ -143,19 +137,14 @@ export default function ClubStorePage() {
   const [catFilter, setCatFilter] = useState('All');
   const [toast, setToast] = useState('');
   const [hasFetched, setHasFetched] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const user = useAuthStore(s => s.user);
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEnt = getClubAdminEntitlements(user);
-  const ents = rawEnt.length > 0 ? rawEnt : DEMO_ENTITLEMENTS;
-  const current = getSelectedClubAdminEntitlement(ents, selectedEntitlementId);
+  const current = getSelectedClubAdminEntitlement(rawEnt, selectedEntitlementId);
   const canManage = canAccessClubSection(current, 'club.admin.manage');
-
-  const { products: storeProducts, addProduct, updateProduct, removeProduct } = useClubProductStore();
-
-  const scopeId = current?.scope_id ?? 1;
-  const clubInfo = CLUB_REGISTRY[scopeId] ?? { name: `Club #${scopeId}`, league: '', season: '', badge: '' };
 
   // Real club UUID — only available when the backend issued a real entitlement
   const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
@@ -164,20 +153,11 @@ export default function ClubStorePage() {
   // local store instead of an empty array, so products added here survive a
   // refresh the same way they would via a real backend fetch. Lazy-initialized
   // (not an effect) since this is a pure sync read, no fetch involved.
-  const [products, setProducts] = useState<Product[]>(() => {
-    if (clubId) return [];
-    const clubSlug = nameToSlug(clubInfo.name);
-    return storeProducts
-      .filter(p => p.clubSlug === clubSlug)
-      .map(p => ({
-        id: p.id, name: p.name, cat: CATEGORY_TO_LABEL[p.category] ?? 'Other',
-        price: p.price, stock: p.stock, status: getStatus(p.stock),
-        sku: p.sku, description: p.description, image: p.image,
-      }));
-  });
+  const [products, setProducts] = useState<Product[]>([]);
 
   // Derived: show loading only while the real club fetch is in flight
   const isLoadingData = !!clubId && !hasFetched;
+  const visibleLoadError = loadError || (!clubId ? 'Select an authorized club workspace to manage its Store.' : '');
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
   const categoryOptions = useMemo(() => CATEGORIES, []);
@@ -186,13 +166,14 @@ export default function ClubStorePage() {
   useEffect(() => {
     if (!clubId) return;
     let cancelled = false;
-    Promise.all([
-      fetchClubProducts(clubId).catch(() => null),
-      fetchClubStoreOrders(clubId).catch(() => null),
-    ]).then(([apiProducts, apiOrders]) => {
+    Promise.all([fetchClubProducts(clubId), fetchClubStoreOrders(clubId)]).then(([apiProducts, apiOrders]) => {
       if (cancelled) return;
-      if (apiProducts) setProducts(apiProducts.map(fromApiProduct));
-      if (apiOrders) setOrders(apiOrders.map(fromApiOrder));
+      setProducts(apiProducts.map(fromApiProduct));
+      setOrders(apiOrders.map(fromApiOrder));
+    }).catch((reason: unknown) => {
+      if (!cancelled) setLoadError(reason instanceof Error ? reason.message : 'Could not load Store data.');
+    }).finally(() => {
+      if (cancelled) return;
       setHasFetched(true);
     });
     return () => { cancelled = true; };
@@ -234,64 +215,23 @@ export default function ClubStorePage() {
     if (!productForm.name.trim()) return;
     setIsSaving(true);
 
-    // Fall back to local-only mode if no real club UUID
     if (!clubId) {
-      const status = getStatus(productForm.stock);
-      const categorySlug = toCategorySlug(productForm.cat);
-      const clubSlug = nameToSlug(clubInfo.name);
-      if (editProductId) {
-        setProducts(prev => prev.map(p => p.id === editProductId ? { ...productForm, id: editProductId, status } : p));
-        updateProduct(editProductId, {
-          name: productForm.name, category: categorySlug, price: productForm.price,
-          priceValue: parseUGX(productForm.price), stock: productForm.stock,
-          description: productForm.description, sku: productForm.sku,
-          image: productForm.image, accentColor: CATEGORY_COLORS[categorySlug],
-        });
-        showToast('Product updated');
-      } else {
-        const id = `p-${prodIdCounter++}`;
-        setProducts(prev => [...prev, { ...productForm, id, status }]);
-        addProduct({
-          id, clubSlug, clubName: clubInfo.name, name: productForm.name,
-          category: categorySlug, price: productForm.price,
-          priceValue: parseUGX(productForm.price), description: productForm.description,
-          sku: productForm.sku, stock: productForm.stock, image: productForm.image,
-          accentColor: CATEGORY_COLORS[categorySlug], createdAt: Date.now(),
-        });
-        showToast(`${productForm.name} added to catalog`);
-      }
-      setModal(null);
+      showToast('Select an authorized club workspace first.');
       setIsSaving(false);
       return;
     }
 
     try {
       const payload = buildApiPayload();
-      const clubSlug = nameToSlug(clubInfo.name);
-      const categorySlug = toCategorySlug(productForm.cat);
-
       if (editProductId) {
         const updated = await apiUpdateClubProduct(clubId, editProductId, payload);
         const display = fromApiProduct(updated);
         setProducts(prev => prev.map(p => p.id === editProductId ? display : p));
-        updateProduct(editProductId, {
-          name: display.name, category: categorySlug, price: display.price,
-          priceValue: parseUGX(display.price), stock: display.stock,
-          description: display.description, sku: display.sku,
-          image: display.image, accentColor: CATEGORY_COLORS[categorySlug],
-        });
         showToast('Product updated');
       } else {
         const created = await createClubProduct(clubId, payload);
         const display = fromApiProduct(created);
         setProducts(prev => [display, ...prev]);
-        addProduct({
-          id: display.id, clubSlug, clubName: clubInfo.name,
-          name: display.name, category: categorySlug, price: display.price,
-          priceValue: parseUGX(display.price), description: display.description,
-          sku: display.sku, stock: display.stock, image: display.image,
-          accentColor: CATEGORY_COLORS[categorySlug], createdAt: Date.now(),
-        });
         showToast(`${display.name} added to catalog`);
       }
       setModal(null);
@@ -312,7 +252,6 @@ export default function ClubStorePage() {
         await apiUpdateClubProduct(clubId, restockProduct.id, { stock: newStock });
       }
       setProducts(prev => prev.map(p => p.id === restockProduct.id ? { ...p, stock: newStock, status: getStatus(newStock) } : p));
-      updateProduct(restockProduct.id, { stock: newStock });
       showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
       setModal(null);
     } catch {
@@ -330,7 +269,6 @@ export default function ClubStorePage() {
         await deleteClubProduct(clubId, deleteProductId);
       }
       setProducts(prev => prev.filter(p => p.id !== deleteProductId));
-      removeProduct(deleteProductId);
       showToast('Product deleted');
       setDeleteProductId(null);
       setModal(null);
@@ -342,19 +280,26 @@ export default function ClubStorePage() {
   };
 
   const openOrderDetail = (o: Order) => { setSelectedOrder(o); setModal('order-detail'); };
-  const advanceOrderStatus = (id: string) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id !== id) return o;
-      const next: Record<OrderStatus, OrderStatus> = { pending: 'processing', processing: 'shipped', shipped: 'fulfilled', fulfilled: 'fulfilled', cancelled: 'cancelled' };
-      return { ...o, status: next[o.status] };
-    }));
-    showToast('Order status updated');
-    setModal(null);
+  const advanceOrderStatus = async (id: string) => {
+    if (!clubId) return;
+    const current = orders.find(o => o.id === id);
+    if (!current) return;
+    const next: Record<OrderStatus, 'PROCESSING' | 'READY_FOR_COLLECTION' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'> = {
+      pending: 'PROCESSING', processing: 'SHIPPED', ready: 'DELIVERED', shipped: 'DELIVERED',
+      fulfilled: 'DELIVERED', cancelled: 'CANCELLED',
+    };
+    try {
+      const updated = await updateClubOrderFulfilment(clubId, id, next[current.status]);
+      setOrders(prev => prev.map(o => o.id === id ? fromApiOrder(updated) : o));
+      showToast('Order status updated'); setModal(null);
+    } catch (reason) { showToast(reason instanceof Error ? reason.message : 'Could not update order.'); }
   };
-  const cancelOrder = (id: string) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'cancelled' } : o));
-    showToast('Order cancelled');
-    setModal(null);
+  const cancelOrder = async (id: string) => {
+    if (!clubId) return;
+    try { const updated = await updateClubOrderFulfilment(clubId, id, 'CANCELLED');
+      setOrders(prev => prev.map(o => o.id === id ? fromApiOrder(updated) : o));
+      showToast('Order cancelled'); setModal(null);
+    } catch (reason) { showToast(reason instanceof Error ? reason.message : 'Could not cancel order.'); }
   };
 
   const filteredProducts = products.filter(p => catFilter === 'All' || p.cat === catFilter);
@@ -567,6 +512,7 @@ export default function ClubStorePage() {
       {isLoadingData && (
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', padding: '24px 0' }}>Loading store data…</p>
       )}
+      {visibleLoadError && <div className="ca-empty-state" role="alert">{visibleLoadError}</div>}
 
       {/* ── PRODUCTS TAB ── */}
       {!isLoadingData && activeTab === 'Products' && (

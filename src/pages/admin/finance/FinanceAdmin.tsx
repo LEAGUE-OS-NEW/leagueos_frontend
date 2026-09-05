@@ -415,7 +415,7 @@ const FinanceAdminDashboard: React.FC<FinanceAdminDashboardProps> = ({ initialQu
   };
 
   const assignAnalyst = (exceptionId: string) => {
-    const analyst = ANALYSTS[Math.floor(Math.random() * ANALYSTS.length)];
+    const analyst = ANALYSTS[0];
     setProcessingExceptionId(exceptionId);
     setExceptions((prev) =>
       prev.map((e) =>

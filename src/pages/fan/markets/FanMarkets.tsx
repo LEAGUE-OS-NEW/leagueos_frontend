@@ -879,7 +879,9 @@ function Markets() {
             /* --------------------------- browse: live strip + all markets, as two distinct panels --------------------------- */
             <div className="markets-browse-stack">
               <section className="markets-terminal-col live-markets-panel">
-                <h2 className="section-title live-markets-title">Live Now</h2>
+                <h2 className="section-title live-markets-title">
+                  {LIST_TABS.find((item) => item.key === tab)?.label ?? 'Markets'}
+                </h2>
                 {visibleMarkets.length === 0 ? (
                   <DashboardNotice tone="empty" title="No markets here yet" message="Check back soon or browse another tab." />
                 ) : (
@@ -948,7 +950,7 @@ function Markets() {
                           </small>
                         </span>
                       </span>
-                      <span role="cell">Yes / No</span>
+                      <span role="cell">{market.marketType}</span>
                       <span role="cell" className={`markets-row-ends markets-row-ends--${market.status}`}>
                         {market.endsInLabel}
                       </span>

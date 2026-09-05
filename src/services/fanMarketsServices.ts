@@ -211,6 +211,15 @@ export interface PortfolioPositionApi {
   created_at: string;
 }
 
+interface ParticipationHistoryApi {
+  id: string; market_id: string; market_question: string; market_state: string;
+  outcome: 'YES' | 'NO'; outcome_id: string; outcome_label: string;
+  participation_status: 'OPEN' | 'PENDING_SETTLEMENT' | 'WON' | 'LOST' | 'REFUNDED';
+  participated_quantity: string; current_open_quantity: string; total_cost: string;
+  average_price: string; gross_payout: string; fees: string; net_payout: string;
+  realized_pnl: string; settled_at: string | null; created_at: string;
+}
+
 interface MarketOrderApi {
   id: string;
   market: string;
@@ -543,7 +552,7 @@ export async function fetchMarketPriceHistory(
   } catch (error) { throw apiError(error); }
 }
 
-async function fetchPositionMarkets(positions: PortfolioPositionApi[]): Promise<Map<string, Market>> {
+async function fetchPositionMarkets(positions: Array<{ market_id: string }>): Promise<Map<string, Market>> {
   const ids = [...new Set(positions.map((position) => position.market_id))];
   const entries = await Promise.all(
     ids.map((id) => fetchMarket(id).then((market) => [id, market] as const).catch(() => null)),
@@ -600,8 +609,8 @@ export async function fetchMyPositions(): Promise<UserPosition[]> {
 
 export async function fetchFanPositions(): Promise<Position[]> {
   try {
-    const response = await apiClient.get('/markets/portfolio/positions/');
-    const positions = normalizeApiList<PortfolioPositionApi>(response.data);
+    const response = await apiClient.get('/market-participations/history/');
+    const positions = normalizeApiList<ParticipationHistoryApi>(response.data);
     const marketsById = await fetchPositionMarkets(positions);
     return positions
       .map((position) => {
@@ -609,10 +618,7 @@ export async function fetchFanPositions(): Promise<Position[]> {
         if (!market) return null;
         const outcome = market.outcomes.find((item) => item.backendOutcomeId === position.outcome_id);
         const backendQuantity =
-          Number(
-            position.available_quantity ||
-            position.quantity,
-          );
+          Number(position.current_open_quantity);
 
         const shares =
           backendQuantityToShares(
@@ -620,19 +626,17 @@ export async function fetchFanPositions(): Promise<Position[]> {
             market.faceValueUgx,
           );
 
-        const price = normalizedPriceToUgxSharePrice(Number(position.average_entry_price), market.faceValueUgx);
+        const price = normalizedPriceToUgxSharePrice(Number(position.average_price), market.faceValueUgx);
         const portfolio: PortfolioPosition = {
           id: position.id, marketId: position.market_id, backendOutcomeId: position.outcome_id,
-          outcomeLabel: position.outcome_label, marketStatus: position.market_status,
-          quantity: backendQuantityToShares(Number(position.quantity), market.faceValueUgx), availableQuantity: shares,
-          reservedQuantity: backendQuantityToShares(Number(position.reserved_quantity), market.faceValueUgx), averageEntryPrice: price,
-          totalCostBasis: Number(position.total_cost_basis), realizedPnl: Number(position.realized_pnl),
-          markPrice: position.mark_price === null ? null : normalizedPriceToUgxSharePrice(Number(position.mark_price), market.faceValueUgx),
-          markSource: position.mark_source, marketValue: position.market_value === null ? null : Number(position.market_value),
-          unrealizedPnl: position.unrealized_pnl === null ? null : Number(position.unrealized_pnl),
-          totalPositionPnl: position.total_position_pnl === null ? null : Number(position.total_position_pnl),
-          valuationComplete: position.valuation_complete, openSellOrderCount: position.open_sell_order_count,
-          reservedSellOrderQuantity: backendQuantityToShares(Number(position.reserved_sell_order_quantity), market.faceValueUgx),
+          outcomeLabel: position.outcome_label, marketStatus: position.market_state,
+          quantity: backendQuantityToShares(Number(position.participated_quantity), market.faceValueUgx), availableQuantity: shares,
+          reservedQuantity: 0, averageEntryPrice: price,
+          totalCostBasis: Number(position.total_cost), realizedPnl: Number(position.realized_pnl),
+          markPrice: null, markSource: position.participation_status,
+          marketValue: position.participation_status === 'OPEN' ? Number(position.total_cost) : Number(position.net_payout),
+          unrealizedPnl: null, totalPositionPnl: Number(position.realized_pnl),
+          valuationComplete: true, openSellOrderCount: 0, reservedSellOrderQuantity: 0,
         };
 
         return {
@@ -650,15 +654,13 @@ export async function fetchFanPositions(): Promise<Position[]> {
               ),
             price,
             quantityUgx:
-              Number(position.total_cost_basis),
+              Number(position.total_cost),
             buyer: 'You',
             seller: 'Market',
             matchedAt: position.created_at,
-            status: position.market_status,
-            payoutUgx:
-              position.market_status === 'RESOLVED'
-                ? Number(position.total_cost_basis) + Number(position.realized_pnl)
-                : undefined,
+            status: position.participation_status,
+            payoutUgx: ['WON', 'REFUNDED'].includes(position.participation_status)
+              ? Number(position.net_payout) : undefined,
           },
           market,
           portfolio,

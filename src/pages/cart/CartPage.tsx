@@ -9,7 +9,6 @@ import Topbar from '../fan/sections/Topbar';
 import Footer from '../../components/landing/Footer';
 import { useCartStore } from '../../store/cartStore';
 import { useFanWallet } from '../../hooks/useFanWallet';
-import { spendWalletBalance } from '../../services/fanWalletApiService';
 import { createPublicStoreOrder } from '../../services/clubStoreService';
 import '../fan/sections/FanDashboard.css';
 import './CartPage.css';
@@ -45,37 +44,11 @@ export default function CartPage() {
 
     setPlacing(true);
     try {
-      // Group items by club for the order payload
-      const itemsByClub = items.reduce<Record<string, typeof items>>((groups, item) => {
-        groups[item.clubSlug] = [...(groups[item.clubSlug] ?? []), item];
-        return groups;
-      }, {});
-
-      // Deduct wallet first
-      await spendWalletBalance({
-        amount: total,
-        currency: 'UGX',
-        description: `Store purchase — ${items.length} item${items.length !== 1 ? 's' : ''}`,
-        idempotencyKey: idempotencyKeyRef.current,
+      await createPublicStoreOrder({
+        idempotency_key: idempotencyKeyRef.current,
+        items: items.map((item) => ({ product: item.productId, quantity: item.qty, size: item.size })),
+        metadata: { cartLineIds: items.map((item) => item.id) },
       });
-
-      // Place one order per club via the public store endpoint
-      await Promise.all(
-        Object.entries(itemsByClub).map(([clubSlug, clubItems]) =>
-          createPublicStoreOrder({
-            items: clubItems.map((item) => ({
-              product: item.productId,
-              quantity: item.qty,
-              size: item.size,
-            })),
-            metadata: {
-              clubSlug,
-              cartLineIds: clubItems.map((item) => item.id),
-              walletIdempotencyKey: idempotencyKeyRef.current,
-            },
-          }),
-        ),
-      );
 
       await refreshWallet();
       setDeductedAmount(total);
