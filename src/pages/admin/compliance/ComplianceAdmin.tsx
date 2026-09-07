@@ -2229,7 +2229,7 @@ const ComplianceAdmin: React.FC = () => {
                     <ComplianceQueueCard
                       key={item.config.title}
                       config={item.config}
-                      disabled={isQueueEmpty(item.targetQueue)}
+                      disabled={item.targetQueue === "KYC" ? false : isQueueEmpty(item.targetQueue)}
                       onAction={() => handleQueueCardAction(item.targetQueue)}
                     />
                   ))}

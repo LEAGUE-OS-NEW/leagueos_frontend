@@ -155,6 +155,7 @@ function App() {
           <Route path="/settings" element={authenticated(<FanSettings />)} />
           <Route path="/wallet" element={authenticated(<FanWallet />)} />
           <Route path="/positions" element={authenticated(<MyPositions />)} />
+          <Route path="/fan/positions" element={<Navigate to="/positions" replace />} />
           <Route path="/memberships" element={<FanMembershipsPage />} />
           <Route path="/fan/clubs" element={<FanClubsPage />} />
           <Route path="/fan/clubs/:clubSlug" element={<FanClubProfile />} />
