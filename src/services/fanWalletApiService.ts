@@ -55,6 +55,31 @@ export interface FanWalletTransaction {
 }
 
 
+export interface WalletLedgerEntryApi {
+  id: string;
+  entry_type:
+    | 'CREDIT'
+    | 'DEBIT'
+    | 'RESERVE'
+    | 'RELEASE';
+  debit_account: string;
+  credit_account: string;
+  amount: string;
+  currency: string;
+  available_balance_before: string;
+  available_balance_after: string;
+  reserved_balance_before: string;
+  reserved_balance_after: string;
+  idempotency_reference: string | null;
+  market: string | null;
+  market_question: string | null;
+  order: string | null;
+  fill: string | null;
+  transaction_reference: string | null;
+  created_at: string;
+}
+
+
 function apiError(
   error: unknown,
 ): Error {
@@ -137,7 +162,7 @@ export async function fetchFanWalletTransactions(): Promise<
   try {
     const response =
       await apiClient.get(
-        '/wallets/transactions/',
+        '/wallets/UGX/ledger/',
         {
           params: {
             page_size: 100,
@@ -146,83 +171,80 @@ export async function fetchFanWalletTransactions(): Promise<
       );
 
     const records =
-      normalizeApiList<WalletTransactionApi>(
+      normalizeApiList<WalletLedgerEntryApi>(
         response.data,
       );
 
-    return records.map(
-      (
-        transaction,
-      ) => {
-        let type:
-          | 'credit'
-          | 'debit'
-          | 'neutral' =
-          'neutral';
+    return records
+      .filter(
+        (entry) =>
+          entry.entry_type === 'CREDIT' ||
+          entry.entry_type === 'DEBIT',
+      )
+      .map(
+        (entry) => {
+          const type:
+            | 'credit'
+            | 'debit' =
+            entry.entry_type === 'CREDIT'
+              ? 'credit'
+              : 'debit';
 
-        if (
-          transaction
-            .transaction_type ===
-          'DEPOSIT'
-        ) {
-          type =
-            'credit';
-        }
+          let label: string;
 
-        if (
-          transaction
-            .transaction_type ===
-          'WITHDRAWAL'
-        ) {
-          type =
-            'debit';
-        }
+          if (entry.market) {
+            if (
+              entry.entry_type === 'CREDIT' &&
+              entry.fill
+            ) {
+              label = 'Market sale proceeds';
+            } else if (
+              entry.entry_type === 'CREDIT'
+            ) {
+              label = 'Market winnings';
+            } else if (
+              entry.entry_type === 'DEBIT' &&
+              entry.fill
+            ) {
+              label = 'Market purchase';
+            } else {
+              label = 'Market debit';
+            }
 
-        const label =
-          transaction
-            .description
-            .trim() ||
-          transaction
-            .transaction_type
-            .replaceAll(
-              '_',
-              ' ',
-            )
-            .toLowerCase()
-            .replace(
-              /^./,
-              (
-                value,
-              ) =>
-                value.toUpperCase(),
-            );
+            if (entry.market_question) {
+              label += ` · ${entry.market_question}`;
+            }
+          } else if (
+            entry.entry_type === 'CREDIT'
+          ) {
+            label =
+              entry.transaction_reference
+                ? 'Wallet deposit'
+                : 'Wallet credit';
+          } else {
+            label =
+              entry.transaction_reference
+                ? 'Wallet payment / withdrawal'
+                : 'Wallet debit';
+          }
 
-        return {
-          id:
-            transaction.id,
-          type,
-          label,
-          amount:
-            Number(
-              transaction.amount,
-            ),
-          currency:
-            transaction.currency,
-          status:
-            transaction.status,
-          createdAt:
-            transaction.created_at,
-        };
-      },
-    );
-  } catch (
-    error
-  ) {
-    throw apiError(
-      error,
-    );
+          return {
+            id: entry.id,
+            type,
+            label,
+            amount: Number(entry.amount),
+            currency: entry.currency,
+            status: 'COMPLETED',
+            createdAt: entry.created_at,
+          };
+        },
+      );
+  } catch (error) {
+    throw apiError(error);
   }
 }
+
+
 /* ------------------------------------------------------------------ */
 /* Deposits                                                             */
 /* ------------------------------------------------------------------ */

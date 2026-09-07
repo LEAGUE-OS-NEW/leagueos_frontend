@@ -78,44 +78,51 @@ describe(
 
 
     it(
-      'loads canonical wallet transactions',
+      'loads canonical ledger-backed wallet activity',
       async () => {
         vi.mocked(
           apiClient.get,
         ).mockResolvedValue({
           data: {
-            count:
-              1,
-            next:
-              null,
-            previous:
-              null,
+            count: 1,
+            next: null,
+            previous: null,
             results: [
               {
                 id:
-                  'tx-1',
-                reference:
-                  'DEP-1',
-                transaction_type:
-                  'DEPOSIT',
+                  'ledger-1',
+                entry_type:
+                  'CREDIT',
+                debit_account:
+                  'REVENUE',
+                credit_account:
+                  'USER_WALLET',
                 amount:
-                  '50000.0000',
+                  '16528.9256',
                 currency:
                   'UGX',
-                status:
-                  'COMPLETED',
-                provider_code:
-                  'PESAPAL_SANDBOX',
-                provider_reference:
-                  '',
-                description:
-                  'Pesapal wallet deposit',
-                completed_at:
-                  '2026-08-15T12:00:00Z',
+                available_balance_before:
+                  '179834.7107',
+                available_balance_after:
+                  '196363.6363',
+                reserved_balance_before:
+                  '0.0000',
+                reserved_balance_after:
+                  '0.0000',
+                idempotency_reference:
+                  '941dbc7c-f5e5-5a29-92a2-5fe216d94713',
+                market:
+                  '71b0bcb3-f1f0-4da3-97ae-3b3c1d54e7c4',
+                market_question:
+                  'LOCAL QA: Will City Oilers beat Namuwongo Blazers?',
+                order:
+                  null,
+                fill:
+                  null,
+                transaction_reference:
+                  null,
                 created_at:
-                  '2026-08-15T12:00:00Z',
-                updated_at:
-                  '2026-08-15T12:00:00Z',
+                  '2026-09-07T17:01:18Z',
               },
             ],
           },
@@ -127,8 +134,10 @@ describe(
           expect.objectContaining({
             type:
               'credit',
+            label:
+              'Market winnings · LOCAL QA: Will City Oilers beat Namuwongo Blazers?',
             amount:
-              50_000,
+              16528.9256,
             status:
               'COMPLETED',
           }),
@@ -137,7 +146,7 @@ describe(
         expect(
           apiClient.get,
         ).toHaveBeenCalledWith(
-          '/wallets/transactions/',
+          '/wallets/UGX/ledger/',
           {
             params: {
               page_size:
