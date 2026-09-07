@@ -323,6 +323,18 @@ describe('MyPositions', () => {
       vi.mocked(fetchFanPositions).mockResolvedValue(basePositions);
     });
 
+    it('shows a completely sold position as exited rather than open', async () => {
+      vi.mocked(fetchFanPositions).mockResolvedValue([
+        makePosition({ contract: { quantityUgx: 0, matchedAt: '2026-08-20T12:00:00.000Z', status: 'EXITED', outcomeId: 'YES' } }),
+      ]);
+      const user = userEvent.setup();
+      renderPositions();
+      await user.click(await screen.findByRole('button', { name: 'Exited' }));
+      expect(screen.getAllByText('Exited', { selector: '.mp-result-badge' }).length).toBeGreaterThan(0);
+      await user.click(screen.getByRole('button', { name: /^Open/ }));
+      expect(screen.getByText(/No positions match/)).toBeInTheDocument();
+    });
+
     it('computes the summary stat cards from live data', async () => {
       renderPositions();
 

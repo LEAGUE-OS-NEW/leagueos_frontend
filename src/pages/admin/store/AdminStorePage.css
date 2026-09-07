@@ -8,3 +8,10 @@
 .admin-store-table article { display: grid; grid-template-columns: minmax(180px,2fr) repeat(4,minmax(120px,1fr)); gap: 12px; align-items: center; overflow-wrap: anywhere; }
 .admin-store-error { color: #991b1b; background: #fef2f2; padding: 14px; border-radius: 10px; }
 @media (max-width: 760px) { .admin-store-table article { grid-template-columns: 1fr; } }
+.admin-store-tabs, .admin-store-filters, .admin-store-pagination { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.admin-store-tabs button[aria-pressed="true"] { background:#0f172a; color:#fff; }
+.admin-store-filters input { min-width:min(420px,100%); flex:1; }
+.admin-store-filters input, .admin-store-filters select, .admin-store-tabs button, .admin-store-pagination button { padding:10px; border:1px solid #cbd5e1; border-radius:8px; }
+.admin-store-order { border:0; background:none; color:#1d4ed8; text-align:left; overflow-wrap:anywhere; cursor:pointer; }
+.admin-store-modal { position:fixed; inset:0; background:#0008; display:grid; place-items:center; padding:20px; z-index:50; }
+.admin-store-modal > section { background:#fff; border-radius:12px; padding:24px; max-width:800px; max-height:90vh; overflow:auto; width:100%; }

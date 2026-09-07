@@ -72,6 +72,7 @@ export interface ClubStoreOrder {
   refund_transaction?: string | null;
   refund_reference?: string | null;
   delivery_reference?: string;
+  status_history?: Array<{ previous_status: string; new_status: string; changed_by: string; changed_by_email?: string; note: string; created_at: string }>;
 }
 
 export interface ClubStoreOrderItem {

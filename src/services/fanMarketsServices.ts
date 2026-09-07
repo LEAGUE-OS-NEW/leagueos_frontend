@@ -214,7 +214,7 @@ export interface PortfolioPositionApi {
 interface ParticipationHistoryApi {
   id: string; market_id: string; market_question: string; market_state: string;
   outcome: 'YES' | 'NO'; outcome_id: string; outcome_label: string;
-  participation_status: 'OPEN' | 'PENDING_SETTLEMENT' | 'WON' | 'LOST' | 'REFUNDED';
+  participation_status: 'OPEN' | 'EXITED' | 'PENDING_SETTLEMENT' | 'WON' | 'LOST' | 'REFUNDED';
   participated_quantity: string; current_open_quantity: string; total_cost: string;
   average_price: string; gross_payout: string; fees: string; net_payout: string;
   realized_pnl: string; settled_at: string | null; created_at: string;
