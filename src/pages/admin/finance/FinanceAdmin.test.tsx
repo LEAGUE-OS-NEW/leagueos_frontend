@@ -11,7 +11,7 @@ const overview = { deposit_count:0,deposit_total:'0.0000',wallet_transaction_cou
 describe('FinanceAdmin authoritative reporting', () => {
   beforeEach(() => vi.mocked(getFinancePage).mockReset().mockResolvedValue({overview,resource:'deposits',count:0,page:1,page_size:25,total_pages:1,results:[]}));
   it('shows loading then empty and has no fake financial action buttons', async () => {
-    render(<FinanceAdmin />); expect(screen.getByText(/Loading finance data/)).toBeInTheDocument();
+    render(<FinanceAdmin />); expect(screen.getByText(/Loading finance records/)).toBeInTheDocument();
     expect(await screen.findByText(/No records match/)).toBeInTheDocument();
     expect(screen.queryByText(/Approve Step|Mark Resolved|Escalate|Assign analyst/i)).not.toBeInTheDocument();
   });
