@@ -64,7 +64,6 @@ export interface MarketParameters {
   maxTradeUgx: number;
   positionLimitUgx?: number;
   dailyLimitUgx?: number;
-  feePct: number;
   featured: boolean;
   trending: boolean;
   recommended: boolean;
@@ -389,7 +388,6 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
       openingSpreadBps: 'liquidity' in market && market.liquidity ? market.liquidity.opening_spread_bps : 100,
       minTradeUgx: 1_000,
       maxTradeUgx: 500_000,
-      feePct: 2,
       featured: market.is_featured,
       trending: market.is_featured,
       recommended: market.is_featured,

@@ -62,7 +62,6 @@ const openMarket: Market = {
     liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100,
     minTradeUgx: 1_000,
     maxTradeUgx: 500_000,
-    feePct: 2,
     featured: false,
     trending: false,
     recommended: false,

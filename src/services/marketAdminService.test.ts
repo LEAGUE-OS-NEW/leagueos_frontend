@@ -91,7 +91,7 @@ describe('market scope payload contract', () => {
 describe('create market timing contracts', () => {
   const parameters: MarketParameters = {
     opensAt: '2099-01-01T00:00:00Z', closesAt: '2099-01-02T00:00:00Z', settlesBy: '2099-01-04T00:00:00Z',
-    initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100, minTradeUgx: 1_000, maxTradeUgx: 500_000, feePct: 2,
+    initialLiquidityUgx: 0, liquiditySource: 'PLATFORM_TREASURY', openingSpreadBps: 100, minTradeUgx: 1_000, maxTradeUgx: 500_000,
     featured: false, trending: false, recommended: false, inPlayTrading: false,
   };
 

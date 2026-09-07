@@ -97,7 +97,6 @@ function makePosition(overrides: {
       liquidityActivationStatus: 'ACTIVE',
       minTradeUgx: 1000,
       maxTradeUgx: 500000,
-      feePct: 2,
       featured: false,
       trending: false,
       recommended: false,
