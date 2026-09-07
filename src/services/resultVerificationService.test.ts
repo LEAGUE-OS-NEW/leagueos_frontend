@@ -3,18 +3,31 @@ import apiClient from './apiClient';
 import { fetchAwaitingResult, settleResult, verifyResult } from './resultVerificationService';
 vi.mock('./apiClient', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('./marketAdminService', () => ({ fetchMarket: vi.fn(), fetchMarkets: vi.fn(), resolveMarket: vi.fn() }));
-import { fetchMarket } from './marketAdminService';
 
 describe('result verification aggregation', () => {
   beforeEach(() => vi.clearAllMocks());
   it.each([
     ['AWAITING_RESULT', 'Awaiting Result'], ['DISPUTE_WINDOW', 'Dispute Window'], ['DISPUTED', 'Disputed'],
     ['READY_TO_RESOLVE', 'Ready to Resolve'], ['READY_TO_SETTLE', 'Ready to Settle'], ['SETTLED', 'Settled'],
+    ['SETTLEMENT_PENDING', 'Waiting to Settle'],
     ['VOIDED_REFUNDED', 'Voided / Refunded'],
   ])('maps %s without disguising backend lifecycle state', async (workflow_state, expected) => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', status: 'CLOSED', workflow_state, outcomes: [], sporting_event: { starts_at: '2025-12-31T18:00:00Z' }, closes_at: '2026-01-01T00:00:00Z', settles_by: '2026-01-02T00:00:00Z', can_resolve: workflow_state === 'READY_TO_RESOLVE', can_settle: workflow_state === 'READY_TO_SETTLE' }] });
     await expect(fetchAwaitingResult()).resolves.toEqual([expect.objectContaining({ stage: expected })]);
     expect(apiClient.get).toHaveBeenCalledWith('/market-admin/result-verification/');
+  });
+
+  it('preserves the authoritative settlement block reason while settlement is pending', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'SETTLEMENT_PENDING', outcomes: [], can_settle: false, settles_by: '2026-01-02T10:00:00Z', settlement_block_reason: 'Settlement becomes available at 2026-01-02T10:00:00Z.' }] });
+
+    await expect(fetchAwaitingResult()).resolves.toEqual([
+      expect.objectContaining({
+        stage: 'Waiting to Settle',
+        canSettle: false,
+        settlementTarget: '2026-01-02T10:00:00Z',
+        settlementBlockReason: 'Settlement becomes available at 2026-01-02T10:00:00Z.',
+      }),
+    ]);
   });
 
   it('keeps kickoff, trading close, settlement target and dispute deadline distinct', async () => {
@@ -23,7 +36,7 @@ describe('result verification aggregation', () => {
   });
 
   it('publishes a provisional result without settling or overriding the backend dispute-window default', async () => {
-    vi.mocked(fetchMarket).mockResolvedValue({ id: 'm1', outcomes: [{ id: 'YES', backendOutcomeId: 'outcome-1' }], eventLabel: 'Event', question: 'Q?', competition: '', kickoff: '', description: '', auditHistory: [] } as never);
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ id: 'm1', question: 'Q?', workflow_state: 'AWAITING_RESULT', outcomes: [{ id: 'outcome-1', side: 'YES', label: 'Yes' }], can_publish_provisional: true }] });
     vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
     await verifyResult('m1', { winningOutcomeId: 'YES', evidenceNote: 'Official source' });
     expect(apiClient.post).toHaveBeenCalledTimes(1);

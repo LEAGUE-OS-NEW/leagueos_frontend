@@ -16,6 +16,7 @@ import type { ComplianceDecision } from "../../../types/api.ts";
 import "./ComplianceAdmin.css";
 import CanonicalKycWorkspace from './CanonicalKycWorkspace';
 import { fetchMyAdminAccess } from '../../../services/adminUsersService';
+import { countCanonicalKycReviewQueue, fetchCanonicalAdminKyc, type AdminKycRecord } from '../../../services/canonicalKycAdminService';
 
 // The backend's ComplianceDecisionProposal only models five specific
 // clear/override actions — that system doesn't touch KYC status at all.
@@ -306,17 +307,6 @@ const ComplianceQueueCard: React.FC<{
    ============================================================ */
 
 const PAGE_SIZE = 5;
-
-// Real KYCVerificationSession.status values — "terminal" ones are no
-// longer awaiting a decision. Kept in sync with the status() mapper's
-// handling of the same enum above.
-const KYC_TERMINAL_STATUSES = new Set([
-  "VERIFIED",
-  "REJECTED",
-  "EXPIRED",
-  "CANCELLED",
-  "ERROR",
-]);
 
 type KycTab = "Pending" | "Verified" | "Rejected";
 
@@ -1891,6 +1881,7 @@ const ComplianceAdmin: React.FC = () => {
   const [loadError, setLoadError] = useState("");
   const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
   const [showKycQueue, setShowKycQueue] = useState(false);
+  const [canonicalKycRecords, setCanonicalKycRecords] = useState<AdminKycRecord[]>([]);
 
   useEffect(() => {
     void fetchMyAdminAccess().then((access) => {
@@ -1900,13 +1891,15 @@ const ComplianceAdmin: React.FC = () => {
     });
     let active = true;
     Promise.all([
+      fetchCanonicalAdminKyc(),
       fetchKYCSessions(),
       fetchRiskProfiles(),
       fetchRiskAssessments(),
       fetchComplianceDecisions(),
     ])
-      .then(async ([kycPage, profilePage, assessmentPage, decisionPage]) => {
+      .then(async ([canonicalRecords, kycPage, profilePage, assessmentPage, decisionPage]) => {
         if (!active) return;
+        setCanonicalKycRecords(canonicalRecords);
         const riskLevel = (score: number): RiskLevel =>
           score >= 90
             ? "Critical"
@@ -2045,10 +2038,7 @@ const ComplianceAdmin: React.FC = () => {
     };
   }, []);
 
-  const kycCases = cases.filter((c) => c.queueType === "KYC");
-  const kycPendingCases = kycCases.filter(
-    (c) => !c.kycSessionStatus || !KYC_TERMINAL_STATUSES.has(c.kycSessionStatus),
-  );
+  const canonicalReviewCount = countCanonicalKycReviewQueue(canonicalKycRecords);
   const fraudCases = cases.filter((c) => c.queueType === "Fraud");
   const duplicateCases = cases.filter((c) => c.queueType === "Duplicate");
   const restrictionCases = cases.filter((c) =>
@@ -2068,10 +2058,10 @@ const ComplianceAdmin: React.FC = () => {
         title: "KYC Verification Queue",
         icon: "🪪",
         color: "#a855f7",
-        primaryValue: kycPendingCases.length,
+        primaryValue: canonicalReviewCount,
         primaryLabel: "Pending reviews",
-        secondaryValue: kycCases.filter(
-          (c) => c.riskLevel === "High" || c.riskLevel === "Critical",
+        secondaryValue: canonicalKycRecords.filter(
+          (record) => record.status === 'REVIEW' && ['HIGH', 'CRITICAL'].includes(record.risk_level),
         ).length,
         secondaryLabel: "High-risk",
         actionLabel: "Review KYC",
@@ -2229,7 +2219,7 @@ const ComplianceAdmin: React.FC = () => {
                     <ComplianceQueueCard
                       key={item.config.title}
                       config={item.config}
-                      disabled={item.targetQueue === "KYC" ? false : isQueueEmpty(item.targetQueue)}
+                      disabled={item.targetQueue === "KYC" ? canonicalReviewCount === 0 : isQueueEmpty(item.targetQueue)}
                       onAction={() => handleQueueCardAction(item.targetQueue)}
                     />
                   ))}

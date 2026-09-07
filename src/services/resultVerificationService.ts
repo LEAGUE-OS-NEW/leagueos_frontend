@@ -22,7 +22,7 @@ import {
   type OutcomeId,
 } from './marketAdminService';
 
-export type VerificationStage = 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Ready to Settle' | 'Settled' | 'Voided / Refunded';
+export type VerificationStage = 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Waiting to Settle' | 'Ready to Settle' | 'Settled' | 'Voided / Refunded';
 export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved' | 'Unavailable';
 
 export interface AuditEvent {
@@ -49,6 +49,7 @@ export interface ResultVerification {
   canPublishProvisional: boolean;
   canResolve: boolean;
   canSettle: boolean;
+  settlementBlockReason?: string;
   disputeWindowHours?: number;
   verifiedBy?: string;
   verifiedAt?: string;
@@ -86,6 +87,7 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
   const stageMap: Record<string, VerificationStage> = {
     AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
     DISPUTED: 'Disputed', READY_TO_RESOLVE: 'Ready to Resolve', READY_TO_SETTLE: 'Ready to Settle',
+    SETTLEMENT_PENDING: 'Waiting to Settle', WAITING_TO_SETTLE: 'Waiting to Settle',
     SETTLED: 'Settled', VOIDED: 'Voided / Refunded', REFUNDED: 'Voided / Refunded', VOIDED_REFUNDED: 'Voided / Refunded',
   };
   return records.map((record) => {
@@ -116,6 +118,7 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
           canPublishProvisional: record.can_publish_provisional === true,
           canResolve: record.can_resolve === true,
           canSettle: record.can_settle === true,
+          settlementBlockReason: record.settlement_block_reason ? String(record.settlement_block_reason) : undefined,
           disputeWindowHours: provisional?.published_at && provisional?.dispute_deadline
             ? Math.round((new Date(String(provisional.dispute_deadline)).getTime() - new Date(String(provisional.published_at)).getTime()) / 3_600_000)
             : undefined,

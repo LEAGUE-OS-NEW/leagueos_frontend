@@ -11,6 +11,10 @@ export interface AdminKycRecord {
   updated_at: string; attempts_count: number; checks: AdminKycCheck[];
 }
 
+export function countCanonicalKycReviewQueue(records: AdminKycRecord[]): number {
+  return records.filter((record) => record.status === 'REVIEW').length;
+}
+
 function unwrap<T>(payload: T | { data: T }): T { return typeof payload === 'object' && payload !== null && 'data' in payload ? (payload as { data: T }).data : payload as T; }
 
 export async function fetchCanonicalAdminKyc(status?: AdminKycStatus): Promise<AdminKycRecord[]> {
