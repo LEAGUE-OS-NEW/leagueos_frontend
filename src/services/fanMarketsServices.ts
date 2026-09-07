@@ -7,6 +7,7 @@ import {
   sharesToBackendQuantity,
   stakeUgxToBackendQuantity,
 } from '../utils/marketPricing.ts';
+import { marketDisplayStatus } from '../utils/marketDisplayState.ts';
 
 export type MarketStatus = 'live' | 'upcoming' | 'suspended' | 'closed' | 'resolved' | 'voided';
 export type AdminMarketStatus = 'Draft' | 'Pending Approval' | 'Upcoming' | 'Live' | 'Suspended' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
@@ -17,7 +18,6 @@ export const MARKET_CATEGORIES = ['Football', 'Rugby', 'Basketball', 'Cricket', 
 
 const DEFAULT_MIN_TRADE_UGX = 1_000;
 const DEFAULT_MAX_TRADE_UGX = 500_000;
-const DEFAULT_FEE_PCT = 2;
 
 export interface MarketListItem {
   id: string;
@@ -78,7 +78,6 @@ export interface MarketParameters {
   maxTradeUgx: number;
   positionLimitUgx?: number;
   dailyLimitUgx?: number;
-  feePct: number;
   featured: boolean;
   trending: boolean;
   recommended: boolean;
@@ -211,6 +210,15 @@ export interface PortfolioPositionApi {
   created_at: string;
 }
 
+export interface MarketFeePreview {
+  estimatedOrderNotional: string;
+  effectiveFeeBps: number;
+  estimatedFee: string;
+  estimatedTotalDebit: string;
+  estimatedNetProceeds: string;
+  currency: string;
+}
+
 interface ParticipationHistoryApi {
   id: string; market_id: string; market_question: string; market_state: string;
   outcome: 'YES' | 'NO'; outcome_id: string; outcome_label: string;
@@ -326,46 +334,7 @@ function formatDurationUntil(iso?: string | null): string {
 function statusFromApi(
   market: ApiMarket,
 ): AdminMarketStatus {
-  if (
-    market.status === 'DRAFT' ||
-    market.status === 'REJECTED'
-  ) {
-    return 'Draft';
-  }
-
-  if (market.status === 'PENDING_APPROVAL') {
-    return 'Pending Approval';
-  }
-
-  if (market.status === 'APPROVED') {
-    return 'Upcoming';
-  }
-
-  if (market.status === 'OPEN') {
-    return 'Live';
-  }
-
-  if (market.status === 'SUSPENDED') {
-    return 'Suspended';
-  }
-
-  if (market.status === 'CLOSED') {
-    return 'Closed';
-  }
-
-  if (market.status === 'RESOLVED') {
-    return 'Resolved';
-  }
-
-  if (market.status === 'VOIDED') {
-    return 'Voided';
-  }
-
-  if (market.status === 'CANCELLED') {
-    return 'Cancelled';
-  }
-
-  return 'Draft';
+  return marketDisplayStatus(market.status, market.opens_at, market.closes_at) as AdminMarketStatus;
 }
 
 function listStatusFromMarket(
@@ -449,7 +418,6 @@ function adaptMarket(market: ApiMarket): Market {
         market.opening_liquidity?.activation_status ?? 'UNCONFIGURED',
       minTradeUgx: DEFAULT_MIN_TRADE_UGX,
       maxTradeUgx: DEFAULT_MAX_TRADE_UGX,
-      feePct: DEFAULT_FEE_PCT,
       featured: market.is_featured,
       trending: market.is_featured,
       recommended: market.is_featured,
@@ -709,6 +677,37 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
       filledQuantityUgx: Number(order.filled_quantity) * Number(order.average_fill_price ?? order.limit_price),
       remainingQuantityUgx: (Number(order.quantity) - Number(order.filled_quantity)) * Number(order.limit_price),
       averageFillPrice: order.average_fill_price === null ? null : normalizedPriceToUgxSharePrice(Number(order.average_fill_price), market.faceValueUgx),
+    };
+  } catch (error) {
+    if (error instanceof Error && !('response' in error)) throw error;
+    throw apiError(error);
+  }
+}
+
+export async function fetchMarketFeePreview(input: PlaceOrderInput): Promise<MarketFeePreview> {
+  try {
+    const market = await fetchMarket(input.marketId);
+    const outcome = market.outcomes.find((item) => item.id === input.outcomeId);
+    if (!outcome) throw new Error('Select YES or NO.');
+    const quantity = stakeUgxToBackendQuantity(input.quantityUgx, input.limitPrice);
+    const response = await apiClient.post(
+      `/markets/${encodeURIComponent(input.marketId)}/orders/fee-preview/`,
+      {
+        outcome_id: outcome.backendOutcomeId,
+        side: 'BUY',
+        quantity: quantity.toFixed(4),
+        limit_price: input.limitPrice.toFixed(5),
+        time_in_force: 'GTC',
+      },
+    );
+    const data = response.data as Record<string, string | number>;
+    return {
+      estimatedOrderNotional: String(data.estimated_order_notional),
+      effectiveFeeBps: Number(data.effective_fee_bps),
+      estimatedFee: String(data.estimated_fee),
+      estimatedTotalDebit: String(data.estimated_total_debit),
+      estimatedNetProceeds: String(data.estimated_net_proceeds),
+      currency: String(data.currency),
     };
   } catch (error) {
     if (error instanceof Error && !('response' in error)) throw error;

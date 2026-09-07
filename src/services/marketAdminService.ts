@@ -12,6 +12,7 @@ import type {
   NamedResource,
 } from '../types/api.ts';
 import { backendQuantityToShares, normalizedPriceToUgxSharePrice } from '../utils/marketPricing.ts';
+import { marketDisplayStatus } from '../utils/marketDisplayState.ts';
 
 export const MARKET_CATEGORIES = [
   'Football',
@@ -299,46 +300,7 @@ function isUuid(value?: string): value is string {
 function backendStatusToAdminStatus(
   market: ApiMarket,
 ): MarketStatus {
-  if (
-    market.status === 'DRAFT' ||
-    market.status === 'REJECTED'
-  ) {
-    return 'Draft';
-  }
-
-  if (market.status === 'PENDING_APPROVAL') {
-    return 'Pending Approval';
-  }
-
-  if (market.status === 'APPROVED') {
-    return 'Upcoming';
-  }
-
-  if (market.status === 'OPEN') {
-    return 'Live';
-  }
-
-  if (market.status === 'SUSPENDED') {
-    return 'Suspended';
-  }
-
-  if (market.status === 'CLOSED') {
-    return 'Closed';
-  }
-
-  if (market.status === 'RESOLVED') {
-    return 'Resolved';
-  }
-
-  if (market.status === 'VOIDED') {
-    return 'Voided';
-  }
-
-  if (market.status === 'CANCELLED') {
-    return 'Cancelled';
-  }
-
-  return 'Draft';
+  return marketDisplayStatus(market.status, market.opens_at, market.closes_at) as MarketStatus;
 }
 
 function adminName(user: ApiAdminMarket['created_by']): string {

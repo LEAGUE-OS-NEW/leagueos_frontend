@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from './apiClient.ts';
-import { fetchMarket, fetchMarketOrderBook, placeOrder, sellPosition } from './fanMarketsServices.ts';
+import { fetchMarket, fetchMarketFeePreview, fetchMarketOrderBook, placeOrder, sellPosition } from './fanMarketsServices.ts';
 
 vi.mock('./apiClient.ts', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const market = { id:'market-1', question:'Question?', face_value_ugx:1000, outcomes:[{id:'outcome-1',side:'YES',label:'Yes'}], status:'OPEN', is_featured:false, created_at:'2026-01-01T00:00:00Z', sport:{name:'Football'}, category:{name:'Match Result'} };
@@ -57,6 +57,21 @@ describe('genuine market order integration', () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-1',market:'market-1',outcome:'outcome-1',side:'BUY',quantity:'16129.0323',limit_price:'0.62000',filled_quantity:'0',average_fill_price:null,status:'OPEN',created_at:'2026-01-01T00:00:00Z'} });
     await placeOrder({marketId:'market-1',outcomeId:'YES',quantityUgx:10000,limitPrice:0.62});
     expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/', expect.objectContaining({side:'BUY',limit_price:'0.62000'}));
+  });
+  it('uses authoritative decimal fee-preview values without sending a client fee', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: market });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {
+      estimated_order_notional: '10000.0000', effective_fee_bps: 0,
+      estimated_fee: '0.0000', estimated_total_debit: '10000.0000',
+      estimated_net_proceeds: '0.0000', currency: 'UGX',
+    } });
+
+    const preview = await fetchMarketFeePreview({
+      marketId: 'market-1', outcomeId: 'YES', quantityUgx: 10000, limitPrice: 0.5,
+    });
+
+    expect(preview).toMatchObject({ effectiveFeeBps: 0, estimatedFee: '0.0000', estimatedTotalDebit: '10000.0000' });
+    expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/fee-preview/', expect.not.objectContaining({ fee: expect.anything() }));
   });
   it('submits an OPEN GTC limit BUY without requesting an order book', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: market });

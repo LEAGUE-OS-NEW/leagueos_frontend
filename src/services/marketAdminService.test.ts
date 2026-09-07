@@ -21,7 +21,7 @@ const details = (overrides: Partial<MarketDetailsInput>): MarketDetailsInput => 
 
 const base = {
   id: 'market-1', question: 'Will the home team win?', description: '', scope_type: 'EVENT',
-  status: 'OPEN', opens_at: '2099-01-01T00:00:00Z', closes_at: '2099-01-02T00:00:00Z',
+  status: 'OPEN', opens_at: '2020-01-01T00:00:00Z', closes_at: '2099-01-02T00:00:00Z',
   is_featured: false, sport: { id: 'sport-1', name: 'Football', slug: 'football', code: 'FB' },
   category: { id: 'category-1', name: 'Match Result', slug: 'match-result' },
   subject: { type: 'event', id: 'event-1', name: 'Lions v Stars' }, outcomes: [
@@ -51,10 +51,10 @@ describe('market admin backend adaptation', () => {
   );
 
   it('keeps MarketCategory separate from sport, including a future OPEN market', async () => {
-    vi.mocked(apiClient.get).mockResolvedValue({ data: [base] });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [{ ...base, opens_at: '2099-01-01T00:00:00Z' }] });
     const market = (await fetchMarkets())[0];
-    expect(market.status).toBe('Live');
-    expect(market.status).not.toBe('Upcoming');
+    expect(market.status).toBe('Upcoming');
+    expect(market.status).not.toBe('Live');
     expect(market.category).toBe('Match Result');
     expect(market.tags).toContain('FB');
     expect(market.category).not.toBe('Football');

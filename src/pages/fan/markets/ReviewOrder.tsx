@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 // NOTE: adjust these relative imports to match wherever this page actually
@@ -7,8 +7,8 @@ import { FiArrowLeft } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
-import { fetchMarket, fetchMarketOrderBook, placeOrder } from '../../../services/fanMarketsServices';
-import type { Market, OutcomeId } from '../../../services/fanMarketsServices';
+import { fetchMarket, fetchMarketFeePreview, fetchMarketOrderBook, placeOrder } from '../../../services/fanMarketsServices';
+import type { Market, MarketFeePreview, OutcomeId } from '../../../services/fanMarketsServices';
 import {
   isTradeOrderDraft,
 } from './trading/tradeDraft';
@@ -60,6 +60,8 @@ function ReviewOrder() {
 
   const [market, setMarket] = useState<Market | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [feePreview, setFeePreview] = useState<MarketFeePreview | null>(null);
+  const [feePreviewError, setFeePreviewError] = useState('');
 
   useEffect(() => {
     if (!marketId) {
@@ -76,11 +78,20 @@ function ReviewOrder() {
       });
   }, [marketId]);
 
+  useEffect(() => {
+    if (!market || amount <= 0 || !(limitPrice > 0 && limitPrice < 1)) return;
+    let cancelled = false;
+    fetchMarketFeePreview({ marketId, outcomeId, quantityUgx: amount, limitPrice })
+      .then((preview) => {
+        if (!cancelled) setFeePreview(preview);
+      })
+      .catch(() => {
+        if (!cancelled) setFeePreviewError('Fee preview is unavailable. Refresh before placing this order.');
+      });
+    return () => { cancelled = true; };
+  }, [amount, limitPrice, market, marketId, outcomeId]);
+
   const outcomeLabel = market?.outcomes.find((item) => item.id === outcomeId)?.label ?? outcomeId;
-  const platformFee = useMemo(
-    () => (market ? Math.round(amount * (market.parameters.feePct / 100)) : 0),
-    [amount, market],
-  );
 
   const goBack = () => {
     if (!marketId) {
@@ -239,15 +250,16 @@ function ReviewOrder() {
                     <dt>Contracts You Receive (est.)</dt>
                     <dd>{contracts.toFixed(2)}</dd>
                   </div>
-                  {market && (
+                  {market && feePreview && (
                     <div>
-                      <dt>Platform Fee ({market.parameters.feePct}%, informational)</dt>
-                      <dd>{platformFee.toLocaleString()}</dd>
+                      <dt>Estimated fee ({(feePreview.effectiveFeeBps / 100).toFixed(2)}%)</dt>
+                      <dd>{feePreview.currency} {Number(feePreview.estimatedFee).toLocaleString()}</dd>
                     </div>
                   )}
+                  {feePreviewError && <div><dt>Estimated fee</dt><dd>Unavailable</dd></div>}
                   <div>
                     <dt>Total Charged (UGX)</dt>
-                    <dd>{amount.toLocaleString()}</dd>
+                    <dd>{feePreview ? Number(feePreview.estimatedTotalDebit).toLocaleString() : 'Calculating…'}</dd>
                   </div>
                 </dl>
                 {mode === 'LIMIT_ORDER' && <><p>Your order may rest on the order book until matched.</p><p>Status may be OPEN, PARTIALLY_FILLED, or FILLED.</p></>}
@@ -265,7 +277,7 @@ function ReviewOrder() {
                 <button
                   type="button"
                   className="verify-btn verify-btn--primary"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !feePreview}
                   onClick={() => void confirmOrder()}
                 >
                   {isSubmitting ? 'Placing Order\u2026' : 'Confirm & Place Order'}
