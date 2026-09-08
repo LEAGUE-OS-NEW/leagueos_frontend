@@ -27,6 +27,8 @@ export interface MarketListItem {
   crestB?: string;
   league: string;
   status: MarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   isTrending: boolean;
   liveMinute?: string;
   scheduleLabel?: string;
@@ -101,6 +103,8 @@ export interface Market {
   faceValueUgx: number;
   parameters: MarketParameters;
   status: AdminMarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   createdBy: string;
   createdAt: string;
   publishedAt?: string;
@@ -428,6 +432,8 @@ function adaptMarket(market: ApiMarket): Market {
       inPlayTrading: status === 'Live',
     },
     status,
+    isSettled: market.is_settled === true,
+    isRefunded: market.is_refunded === true,
     createdBy: 'Market Admin',
     createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
     publishedAt: market.opens_at,
@@ -456,6 +462,8 @@ function adaptListItem(market: Market): MarketListItem {
     teamB: teamB || market.category,
     league: market.competition,
     status: listStatusFromMarket(market),
+    isSettled: market.isSettled,
+    isRefunded: market.isRefunded,
     isTrending: market.parameters.trending,
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
     marketType: market.category,
@@ -660,6 +668,68 @@ export async function fetchFanPositions(): Promise<Position[]> {
   }
 }
 
+// GET /markets/portfolio/activity/ — a permanent per-settlement history, unlike
+// /markets/portfolio/positions/ (quantity__gt=0 only): once a position actually
+// settles, its quantity is zeroed and it disappears from the positions endpoint
+// entirely, so this is the only place a fan can see a past win/loss/void outcome.
+interface SettledActivityApi {
+  id: string;
+  event_type: 'BUY_FILL' | 'SELL_FILL' | 'ORDER_CANCELLED' | 'SETTLEMENT_WIN' | 'SETTLEMENT_LOSS' | 'VOID_REFUND';
+  occurred_at: string;
+  currency: string;
+  market_id: string;
+  outcome_id: string;
+  market_question: string;
+  outcome_label: string;
+  quantity: string | null;
+  wallet_amount: string | null;
+}
+
+export interface SettledPositionActivity {
+  id: string;
+  marketId: string;
+  marketQuestion: string;
+  outcomeId: OutcomeId;
+  outcomeLabel: string;
+  outcome: 'WON' | 'LOST' | 'VOIDED';
+  quantity: number;
+  payoutUgx: number;
+  occurredAt: string;
+}
+
+const SETTLEMENT_EVENT_TYPES = new Set(['SETTLEMENT_WIN', 'SETTLEMENT_LOSS', 'VOID_REFUND']);
+
+function settlementOutcome(eventType: SettledActivityApi['event_type']): 'WON' | 'LOST' | 'VOIDED' {
+  if (eventType === 'SETTLEMENT_WIN') return 'WON';
+  if (eventType === 'VOID_REFUND') return 'VOIDED';
+  return 'LOST';
+}
+
+export async function fetchSettledActivity(): Promise<SettledPositionActivity[]> {
+  try {
+    const response = await apiClient.get('/markets/portfolio/activity/', { params: { page_size: 100 } });
+    const rows = normalizeApiList<SettledActivityApi>(response.data);
+    return rows
+      .filter((row) => SETTLEMENT_EVENT_TYPES.has(row.event_type))
+      .map((row) => ({
+        id: row.id,
+        marketId: row.market_id,
+        marketQuestion: row.market_question,
+        outcomeId: row.outcome_label.toLowerCase().includes('no') ? 'NO' : 'YES',
+        outcomeLabel: row.outcome_label,
+        outcome: settlementOutcome(row.event_type),
+        quantity: Number(row.quantity ?? 0),
+        // wallet_amount is already the net UGX amount actually credited to the
+        // wallet (confirmed against wallets.WalletTransaction.amount) — no
+        // share/face-value conversion needed, unlike quantityUgx elsewhere.
+        payoutUgx: Number(row.wallet_amount ?? 0),
+        occurredAt: row.occurred_at,
+      }));
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
 export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
   try {
     const market = await fetchMarket(input.marketId);
@@ -704,6 +774,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
   }
 }
 
+
 export async function fetchMarketFeePreview(input: PlaceOrderInput): Promise<MarketFeePreview> {
   try {
     const market = await fetchMarket(input.marketId);
@@ -731,6 +802,91 @@ export async function fetchMarketFeePreview(input: PlaceOrderInput): Promise<Mar
     };
   } catch (error) {
     if (error instanceof Error && !('response' in error)) throw error;
+
+    throw apiError(error);
+  }
+}
+
+
+export interface OpenOrder {
+  id: string;
+  marketId: string;
+  marketQuestion: string;
+  outcomeId: OutcomeId;
+  outcomeLabel: string;
+  side: 'BUY' | 'SELL';
+  status: string;
+  limitPriceUgx: number;
+  quantityShares: number;
+  filledQuantityShares: number;
+  remainingQuantityShares: number;
+  amountUgx: number;
+  createdAt: string;
+}
+
+async function fetchOrderMarkets(orders: MarketOrderApi[]): Promise<Map<string, Market>> {
+  const ids = [...new Set(orders.map((order) => order.market))];
+  const entries = await Promise.all(
+    ids.map((id) => fetchMarket(id).then((market) => [id, market] as const).catch(() => null)),
+  );
+  return new Map(entries.filter(Boolean) as Array<readonly [string, Market]>);
+}
+
+// Resting (unmatched) or partially-filled orders — the backend only accepts
+// a single `status` filter per request, so OPEN and PARTIALLY_FILLED are
+// fetched separately and merged. Cancelling one of these is the only way a
+// fan can currently get their reserved funds back before the market closes
+// (market close auto-expires anything still resting).
+export async function fetchMyOpenOrders(): Promise<OpenOrder[]> {
+  try {
+    const [openResponse, partialResponse] = await Promise.all([
+      apiClient.get('/market-orders/', { params: { status: 'OPEN' } }),
+      apiClient.get('/market-orders/', { params: { status: 'PARTIALLY_FILLED' } }),
+    ]);
+    const orders = [
+      ...normalizeApiList<MarketOrderApi>(openResponse.data),
+      ...normalizeApiList<MarketOrderApi>(partialResponse.data),
+    ];
+    const marketsById = await fetchOrderMarkets(orders);
+    return orders
+      .map((order) => {
+        const market = marketsById.get(order.market);
+        if (!market) return null;
+        const outcome = market.outcomes.find((item) => item.backendOutcomeId === order.outcome);
+        if (!outcome) return null;
+        const limitPrice = Number(order.limit_price);
+        const quantity = Number(order.quantity);
+        const filledQuantity = Number(order.filled_quantity);
+        return {
+          id: order.id,
+          marketId: market.id,
+          marketQuestion: market.question,
+          outcomeId: outcome.id,
+          outcomeLabel: outcome.label,
+          side: order.side,
+          status: order.status,
+          limitPriceUgx: normalizedPriceToUgxSharePrice(limitPrice, market.faceValueUgx),
+          quantityShares: backendQuantityToShares(quantity, market.faceValueUgx),
+          filledQuantityShares: backendQuantityToShares(filledQuantity, market.faceValueUgx),
+          remainingQuantityShares: backendQuantityToShares(quantity - filledQuantity, market.faceValueUgx),
+          // quantity is already in settlement-value (UGX) units — multiplying
+          // by faceValueUgx again would inflate this by orders of magnitude.
+          amountUgx: (quantity - filledQuantity) * limitPrice,
+          createdAt: order.created_at,
+        };
+      })
+      .filter((order): order is OpenOrder => order !== null)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+export async function cancelOrder(orderId: string): Promise<void> {
+  try {
+    await apiClient.post(`/market-orders/${encodeURIComponent(orderId)}/cancel/`);
+  } catch (error) {
+
     throw apiError(error);
   }
 }

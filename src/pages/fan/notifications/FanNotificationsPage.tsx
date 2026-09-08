@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiCheckCircle } from 'react-icons/fi';
+import { FiBell, FiCheckCircle, FiRotateCcw, FiXCircle } from 'react-icons/fi';
 import Sidebar from '../../../components/fan/Sidebar';
 import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
@@ -10,6 +10,23 @@ import { useNotificationsStore } from '../../../store/fanNotificationsStore';
 import type { NotificationItem } from '../../../services/fanNotificationsServices';
 import { useState } from 'react';
 import './FanNotificationsPage.css';
+
+// Closes the specific win/loss/void gap the audit flagged — not a full icon
+// taxonomy for every notification type, everything else keeps the generic bell.
+function settlementTone(eventType?: string): 'won' | 'lost' | 'voided' | null {
+  if (eventType === 'SETTLEMENT_WIN') return 'won';
+  if (eventType === 'SETTLEMENT_LOSS') return 'lost';
+  if (eventType === 'VOID_REFUND') return 'voided';
+  return null;
+}
+
+function NotificationIcon({ eventType }: { eventType?: string }) {
+  const tone = settlementTone(eventType);
+  if (tone === 'won') return <FiCheckCircle />;
+  if (tone === 'lost') return <FiXCircle />;
+  if (tone === 'voided') return <FiRotateCcw />;
+  return <FiBell />;
+}
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -88,7 +105,9 @@ function FanNotificationsPage() {
                 />
               ) : (
                 <ul className="fan-notifications-list">
-                  {items.map((item) => (
+                  {items.map((item) => {
+                  const tone = settlementTone(item.eventType);
+                  return (
                     <li
                       key={item.id}
                       className={`fan-notification-item${item.isRead ? '' : ' fan-notification-item--unread'}`}
@@ -98,8 +117,11 @@ function FanNotificationsPage() {
                         className="fan-notification-item-btn"
                         onClick={() => handleItemClick(item)}
                       >
-                        <span className="fan-notification-item-icon" aria-hidden="true">
-                          <FiBell />
+                        <span
+                          className={`fan-notification-item-icon${tone ? ` fan-notification-item-icon--${tone}` : ''}`}
+                          aria-hidden="true"
+                        >
+                          <NotificationIcon eventType={item.eventType} />
                         </span>
                         <span className="fan-notification-item-body">
                           <span className="fan-notification-item-title">{item.title}</span>
@@ -109,7 +131,8 @@ function FanNotificationsPage() {
                         {!item.isRead && <span className="fan-notification-item-dot" aria-hidden="true" />}
                       </button>
                     </li>
-                  ))}
+                  );
+                })}
                 </ul>
               )}
             </div>

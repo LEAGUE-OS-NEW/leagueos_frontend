@@ -92,6 +92,8 @@ export interface Market {
   parameters: MarketParameters;
   liquidity?: MarketLiquidity;
   status: MarketStatus;
+  isSettled: boolean;
+  isRefunded: boolean;
   createdBy: string;
   createdAt: string;
   publishedAt?: string;
@@ -405,6 +407,8 @@ function adaptApiMarket(market: ApiAdminMarket | ApiMarket): Market {
       providerDisplayName: market.liquidity.provider,
     } : undefined,
     status,
+    isSettled: market.is_settled === true,
+    isRefunded: market.is_refunded === true,
     createdBy,
     createdAt: market.created_at ?? market.opens_at ?? new Date().toISOString(),
     publishedAt: market.opens_at,
@@ -687,6 +691,22 @@ export async function publishMarket(id: string): Promise<Market> {
       }
 
       return adaptApiMarket(backendMarket);
+  } catch (error) {
+    throw apiError(error);
+  }
+}
+
+// Recovery path for a market stuck at APPROVED after a failed open() (e.g.
+// missing treasury provider) — moves it back to DRAFT so the wizard can
+// edit and resubmit it instead of dead-ending.
+export async function revertMarketToDraft(id: string, reason: string): Promise<Market> {
+  if (!reason.trim()) fail('A reason is required to revert this market to draft.');
+  try {
+    const response = await apiClient.post(
+      `/market-admin/markets/${encodeURIComponent(id)}/revert-to-draft/`,
+      { notes: reason.trim() },
+    );
+    return adaptApiMarket(response.data as ApiAdminMarket);
   } catch (error) {
     throw apiError(error);
   }

@@ -27,6 +27,7 @@ vi.mock('../../../services/fanMarketsServices', async (importOriginal) => {
   return {
     ...actual,
     fetchFanPositions: vi.fn(),
+    fetchSettledActivity: vi.fn(),
   };
 });
 

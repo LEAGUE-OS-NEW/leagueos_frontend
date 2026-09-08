@@ -14,6 +14,7 @@ import {
   type MarketStatus,
   type OrderBook,
 } from '../../../services/marketAdminService';
+import { payoutPill } from '../../../utils/payoutStatus.ts';
 import './MarketDetailPage.css';
 
 type Tab = 'Overview' | 'Outcomes' | 'Contracts' | 'Trading' | 'Audit Log';
@@ -132,17 +133,25 @@ function MarketDetailPage() {
   useEffect(() => {
     if (!marketId) return;
     let cancelled = false;
-    Promise.all([fetchMarket(marketId), fetchOrderBook(marketId)])
-      .then(([marketResult, orderBookResult]) => {
-        if (cancelled) return;
-        applyMarket(marketResult);
-        setOrderBook(orderBookResult);
+    fetchMarket(marketId)
+      .then((marketResult) => {
+        if (!cancelled) applyMarket(marketResult);
       })
       .catch(() => {
         if (!cancelled) setLoadError('Could not load this market. Please try again.');
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
+      });
+    // A draft market has no outcomes/order book yet — that 404 is expected,
+    // not fatal, so it's fetched independently and just leaves orderBook
+    // null on failure instead of taking down the whole page.
+    fetchOrderBook(marketId)
+      .then((orderBookResult) => {
+        if (!cancelled) setOrderBook(orderBookResult);
+      })
+      .catch(() => {
+        /* no order book yet — leave it null */
       });
     return () => {
       cancelled = true;
@@ -256,6 +265,7 @@ function MarketDetailPage() {
   const canReopen = market.status === 'Suspended';
   const yesOutcome = market.outcomes.find((outcome) => outcome.id === 'YES')!;
   const noOutcome = market.outcomes.find((outcome) => outcome.id === 'NO')!;
+  const payout = payoutPill(market.status, market.isSettled, market.isRefunded);
 
   return (
     <AdminLayout>
@@ -267,6 +277,11 @@ function MarketDetailPage() {
         <div className="mdp-head">
           <div>
             <span className={statusPillClass(market.status)}>{market.status}</span>
+            {payout && (
+              <span className={`mdp-status-pill mdp-status-pill--${payout.variant}`}>
+                {payout.label}
+              </span>
+            )}
             <h1>{market.eventLabel}</h1>
             <p>{market.question}</p>
           </div>

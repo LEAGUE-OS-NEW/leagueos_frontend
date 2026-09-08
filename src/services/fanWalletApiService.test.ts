@@ -159,6 +159,86 @@ describe(
 
 
     it(
+      'treats settlement payouts and void refunds as credits',
+      async () => {
+        vi.mocked(
+          apiClient.get,
+        ).mockResolvedValue({
+          data: {
+            count: 2,
+            next: null,
+            previous: null,
+            results: [
+              {
+                id: 'ledger-settlement',
+                entry_type: 'CREDIT',
+                debit_account: 'REVENUE',
+                credit_account: 'USER_WALLET',
+                amount: '9600.0000',
+                currency: 'UGX',
+                available_balance_before: '10000.0000',
+                available_balance_after: '19600.0000',
+                reserved_balance_before: '0.0000',
+                reserved_balance_after: '0.0000',
+                idempotency_reference: null,
+                market: 'market-1',
+                market_question: 'Will KCCA win?',
+                order: null,
+                fill: null,
+                transaction_reference: 'SETTLE-1',
+                created_at: '2026-08-19T12:00:00Z',
+              },
+              {
+                id: 'ledger-refund',
+                entry_type: 'CREDIT',
+                debit_account: 'REVENUE',
+                credit_account: 'USER_WALLET',
+                amount: '2000.0000',
+                currency: 'UGX',
+                available_balance_before: '19600.0000',
+                available_balance_after: '21600.0000',
+                reserved_balance_before: '0.0000',
+                reserved_balance_after: '0.0000',
+                idempotency_reference: null,
+                market: 'market-2',
+                market_question: 'Voided market',
+                order: null,
+                fill: null,
+                transaction_reference: 'REFUND-1',
+                created_at: '2026-08-19T12:05:00Z',
+              },
+            ],
+          },
+        });
+
+        await expect(
+          fetchFanWalletTransactions(),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            type: 'credit',
+            amount: 9_600,
+          }),
+          expect.objectContaining({
+            type: 'credit',
+            amount: 2_000,
+          }),
+        ]);
+
+        expect(
+          apiClient.get,
+        ).toHaveBeenCalledWith(
+          '/wallets/UGX/ledger/',
+          {
+            params: {
+              page_size: 100,
+            },
+          },
+        );
+      },
+    );
+
+
+    it(
       'creates a Pesapal Sandbox wallet deposit through the backend',
       async () => {
         vi.mocked(

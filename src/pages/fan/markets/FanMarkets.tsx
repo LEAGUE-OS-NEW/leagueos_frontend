@@ -82,6 +82,13 @@ function CrestOrPlaceholder({ src, name }: { src?: string; name: string }) {
   return <img className="market-row-crest" src={src} alt="" aria-hidden="true" />;
 }
 
+function statusLabel(market: MarketListItem): string {
+  if (market.status === 'upcoming') return market.scheduleLabel ?? 'UPCOMING';
+  if (market.status === 'resolved') return market.isSettled ? 'RESOLVED · PAID OUT' : 'RESOLVED · PAYOUT PENDING';
+  if (market.status === 'voided') return market.isRefunded ? 'VOIDED · REFUNDED' : 'VOIDED · REFUND PENDING';
+  return market.status.toUpperCase();
+}
+
 function StatusChip({ market }: { market: MarketListItem }) {
   if (market.status === 'live') {
     return (
@@ -92,14 +99,9 @@ function StatusChip({ market }: { market: MarketListItem }) {
     );
   }
 
-  const label =
-    market.status === 'upcoming'
-      ? market.scheduleLabel ?? 'UPCOMING'
-      : market.status.toUpperCase();
-
   return (
     <span className="market-status-badge market-status-badge--upcoming">
-      {label}
+      {statusLabel(market)}
     </span>
   );
 }
@@ -546,7 +548,7 @@ function Markets() {
                 </div>
                 <div>
                   <dt>Status</dt>
-                  <dd>{selectedMarket.status === 'live' ? `Live \u00b7 ${selectedMarket.liveMinute ?? ''}` : selectedMarket.scheduleLabel ?? 'Upcoming'}</dd>
+                  <dd>{selectedMarket.status === 'live' ? `Live \u00b7 ${selectedMarket.liveMinute ?? ''}` : statusLabel(selectedMarket)}</dd>
                 </div>
                 <div>
                   <dt>Ends In</dt>

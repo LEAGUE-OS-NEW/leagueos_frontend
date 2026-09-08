@@ -21,7 +21,7 @@ export interface NotificationSummary {
   unreadCount: number;
 }
 
-// Backend (snake_case) shapes — adjust field names here if they differ.
+// Backend (snake_case) shape — matches notifications.serializers.NotificationSerializer.
 interface NotificationApi {
   id: string;
   title: string;
@@ -54,6 +54,8 @@ function adaptNotification(notification: NotificationApi): NotificationItem {
   };
 }
 
+// GET /notifications/ (paginated list) + GET /notifications/unread-count/ —
+// there is no combined "summary" endpoint on the backend.
 export async function fetchFanNotificationSummary(): Promise<NotificationSummary> {
   try {
     const [notificationsResponse, unreadResponse] = await Promise.all([
@@ -81,11 +83,9 @@ export async function markFanNotificationRead(id: string): Promise<NotificationI
   }
 }
 
-export async function markAllFanNotificationsRead(): Promise<NotificationItem[]> {
+export async function markAllFanNotificationsRead(): Promise<void> {
   try {
     await apiClient.post(NOTIFICATIONS_READ_ALL_PATH);
-    const response = await apiClient.get(NOTIFICATIONS_PATH);
-    return normalizeApiList<NotificationApi>(response.data).map(adaptNotification);
   } catch (error) {
     throw apiError(error);
   }

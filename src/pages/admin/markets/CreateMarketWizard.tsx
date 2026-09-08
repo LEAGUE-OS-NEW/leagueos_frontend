@@ -11,6 +11,7 @@ import {
   fetchMarketCatalogueOptions,
 
   publishMarket,
+  revertMarketToDraft,
   setParameters as saveParameters,
   updateOutcomes,
   updateMarketResolution,
@@ -290,6 +291,20 @@ function CreateMarketWizard() {
     }
   };
 
+  const handleRevertToDraft = async () => {
+    if (!market) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await revertMarketToDraft(market.id, `Publish failed: ${saveError ?? 'reverted for editing'}`);
+      setMarket(updated);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not revert this market to draft.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="wiz-root">
@@ -318,6 +333,11 @@ function CreateMarketWizard() {
           <div className="wiz-error-banner">
             <FiAlertTriangle aria-hidden="true" />
             <span>{saveError}</span>
+            {market?.status === 'Upcoming' && (
+              <button type="button" className="wiz-btn wiz-btn--outline" disabled={isSaving} onClick={() => void handleRevertToDraft()}>
+                Revert to Draft
+              </button>
+            )}
           </div>
         )}
 
@@ -677,7 +697,7 @@ function CreateMarketWizard() {
                   </div>
                   <div className="wiz-kv-item">
                     <span className="wiz-kv-item__key">Fixture kickoff</span>
-                    <span className="wiz-kv-item__value">{formatDateTime(details.kickoff)}</span>
+                    <span className="wiz-kv-item__value">{details.kickoff ? formatDateTime(details.kickoff) : 'No kickoff recorded'}</span>
                   </div>
                   <div className="wiz-kv-item">
                     <span className="wiz-kv-item__key">Resolution</span>

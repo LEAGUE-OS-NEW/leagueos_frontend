@@ -5,7 +5,7 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 import DashboardNotice from '../../../components/fan/dashboard/DashboardNotice';
 import DashboardSkeleton from '../../../components/fan/dashboard/DashboardSkeleton';
-import { fetchFanPositions, type Position } from '../../../services/fanMarketsServices';
+import { fetchFanPositions, fetchMyOpenOrders, cancelOrder, type Position, type OpenOrder } from '../../../services/fanMarketsServices';
 import '../sections/FanDashboard.css';
 import './MyPositions.css';
 
@@ -372,6 +372,11 @@ function MyPositions() {
   const [sparklineRangeKey, setSparklineRangeKey] = useState('30');
   const [pageState, setPageState] = useState({ filterKey: '', page: 1 });
   const [currentTimeMs, setCurrentTimeMs] = useState(INITIAL_TIME_MS);
+  const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [ordersError, setOrdersError] = useState('');
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -396,6 +401,34 @@ function MyPositions() {
       cancelled = true;
     };
   }, []);
+
+  const loadOpenOrders = () => {
+    setIsLoadingOrders(true);
+    setOrdersError('');
+    return fetchMyOpenOrders()
+      .then((result) => setOpenOrders(result))
+      .catch(() => setOrdersError("Couldn't load your open orders."))
+      .finally(() => setIsLoadingOrders(false));
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadOpenOrders();
+  }, []);
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm('Cancel this order? Any reserved funds will be released back to your wallet.')) return;
+    setCancellingOrderId(orderId);
+    setCancelError('');
+    try {
+      await cancelOrder(orderId);
+      await loadOpenOrders();
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : 'Could not cancel this order.');
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
 
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
@@ -644,6 +677,80 @@ function MyPositions() {
                 <h1>My Positions</h1>
                 <p>Track your markets, active positions and settlement history.</p>
               </div>
+
+              {!isLoadingOrders && openOrders.length > 0 && (
+                <section className="my-positions-section mp-table-section mp-open-orders-section">
+                  <div className="mp-table-header-row">
+                    <h2>Open Orders ({openOrders.length})</h2>
+                  </div>
+                  {ordersError && <p className="mp-empty-filtered">{ordersError}</p>}
+                  {cancelError && <p className="mp-empty-filtered" role="alert">{cancelError}</p>}
+                  <div className="mp-table-scroll">
+                    <table className="mp-open-table">
+                      <thead>
+                        <tr>
+                          <th>Market</th>
+                          <th>Outcome</th>
+                          <th>Limit Price</th>
+                          <th>Amount</th>
+                          <th>Filled</th>
+                          <th>Placed</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {openOrders.map((order) => (
+                          <tr key={order.id}>
+                            <td className="mp-col-market">
+                              <Link to={`/fan/markets/${order.marketId}`} className="my-positions-market">
+                                <span className="mp-market-copy">
+                                  <strong>{order.marketQuestion}</strong>
+                                </span>
+                              </Link>
+                            </td>
+                            <td className="mp-cell mp-col-side">
+                              <span className="mp-cell-label">Outcome</span>
+                              <OutcomeBadge outcomeId={order.outcomeId} />
+                            </td>
+                            <td className="mp-cell mp-cell--num">
+                              <span className="mp-cell-label">Limit Price</span>
+                              {order.limitPriceUgx.toFixed(2)}
+                            </td>
+                            <td className="mp-cell mp-cell--num">
+                              <span className="mp-cell-label">Amount</span>
+                              {formatUgx(order.amountUgx)}
+                            </td>
+                            <td className="mp-cell mp-cell--num">
+                              <span className="mp-cell-label">Filled</span>
+                              {order.filledQuantityShares.toFixed(2)} / {order.quantityShares.toFixed(2)}
+                            </td>
+                            <td className="mp-cell mp-col-placed">
+                              <span className="mp-cell-label">Placed</span>
+                              <span className="my-positions-time">{formatDateTime(order.createdAt)}</span>
+                            </td>
+                            <td className="mp-cell mp-col-status">
+                              <span className="mp-cell-label">Status</span>
+                              {order.status}
+                            </td>
+                            <td className="mp-cell mp-cell--action mp-col-action">
+                              <button
+                                type="button"
+                                className="mp-row-action-btn"
+                                aria-label="Cancel order"
+                                disabled={cancellingOrderId === order.id}
+                                onClick={() => void handleCancelOrder(order.id)}
+                              >
+                                <IconClose />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
 
               {isLoading ? (
                 <DashboardSkeleton rows={4} />

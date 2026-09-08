@@ -71,6 +71,8 @@ const openMarket: Market = {
   createdBy: "Test Admin",
   createdAt: "2026-08-01T00:00:00Z",
   auditHistory: [],
+  isSettled: false,
+  isRefunded: false,
 };
 
 function renderMarkets() {

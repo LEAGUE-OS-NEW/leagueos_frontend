@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from './apiClient.ts';
-import { fetchMarket, fetchMarketFeePreview, fetchMarketOrderBook, fetchMarkets, placeOrder, sellPosition } from './fanMarketsServices.ts';
+import {
+  fetchMarket,
+  fetchMarketFeePreview,
+  fetchMarketOrderBook,
+  fetchMarkets,
+  fetchSettledActivity,
+  placeOrder,
+  sellPosition,
+} from './fanMarketsServices.ts';
+
 
 vi.mock('./apiClient.ts', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const market = { id:'market-1', question:'Question?', face_value_ugx:1000, outcomes:[{id:'outcome-1',side:'YES',label:'Yes'}], status:'OPEN', is_featured:false, created_at:'2026-01-01T00:00:00Z', sport:{name:'Football'}, category:{name:'Match Result'} };
@@ -46,6 +55,20 @@ describe('genuine market order integration', () => {
       openingLiquidityAvailable: false,
       liquidityActivationStatus: 'ACTIVE',
     });
+  });
+
+  it('maps settlement and refund visibility from the backend booleans', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { ...market, status: 'RESOLVED', is_settled: true, is_refunded: false } });
+    const result = await fetchMarket('market-1');
+    expect(result.isSettled).toBe(true);
+    expect(result.isRefunded).toBe(false);
+  });
+
+  it('defaults settlement/refund visibility to false when the backend omits them', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { ...market, status: 'VOIDED' } });
+    const result = await fetchMarket('market-1');
+    expect(result.isSettled).toBe(false);
+    expect(result.isRefunded).toBe(false);
   });
 
   it('returns the backend best ask without inventing a price', async () => {
@@ -127,5 +150,27 @@ describe('genuine market order integration', () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-2',market:'market-1',outcome:'outcome-1',side:'SELL',quantity:'2500.0000',limit_price:'0.55000',filled_quantity:'0',average_fill_price:null,status:'OPEN',created_at:'2026-01-01T00:00:00Z'} });
     await sellPosition({marketId:'market-1',backendOutcomeId:'outcome-1',outcomeId:'YES',shares:2.5,limitPrice:0.55});
     expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/', expect.objectContaining({side:'SELL',quantity:'2500.0000',limit_price:'0.55000'}));
+  });
+  it('surfaces settled positions with real WON/LOST/VOIDED status and net payout, filtering out non-settlement activity', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: {
+        count: 4,
+        next: null,
+        previous: null,
+        results: [
+          { id:'position-settlement:1:win', event_type:'SETTLEMENT_WIN', occurred_at:'2026-01-05T00:00:00Z', currency:'UGX', market_id:'market-1', outcome_id:'outcome-1', market_question:'Will KCCA win?', outcome_label:'Yes', quantity:'10.0000', wallet_amount:'9.6000' },
+          { id:'position-settlement:2:loss', event_type:'SETTLEMENT_LOSS', occurred_at:'2026-01-05T00:05:00Z', currency:'UGX', market_id:'market-1', outcome_id:'outcome-2', market_question:'Will KCCA win?', outcome_label:'No', quantity:'5.0000', wallet_amount:'0.0000' },
+          { id:'position-void-refund:3:refund', event_type:'VOID_REFUND', occurred_at:'2026-01-05T00:10:00Z', currency:'UGX', market_id:'market-2', outcome_id:'outcome-3', market_question:'Match postponed?', outcome_label:'Yes', quantity:'2.0000', wallet_amount:'1.5000' },
+          { id:'market-fill:4:buy', event_type:'BUY_FILL', occurred_at:'2026-01-05T00:15:00Z', currency:'UGX', market_id:'market-3', outcome_id:'outcome-4', market_question:'Unrelated open market?', outcome_label:'Yes', quantity:'1.0000', wallet_amount:null },
+        ],
+      },
+    });
+
+    const result = await fetchSettledActivity();
+
+    expect(result).toHaveLength(3);
+    expect(result).toContainEqual(expect.objectContaining({ outcome:'WON', payoutUgx:9.6, marketQuestion:'Will KCCA win?' }));
+    expect(result).toContainEqual(expect.objectContaining({ outcome:'LOST', payoutUgx:0 }));
+    expect(result).toContainEqual(expect.objectContaining({ outcome:'VOIDED', payoutUgx:1.5 }));
   });
 });

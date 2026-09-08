@@ -35,6 +35,8 @@ describe('Fan market category filters', () => {
     faceValueUgx: 10000, changePct: null, tradersCount: 8,
     totalContractsLabel: null, createdAt: '2026-09-08T08:00:00Z', isTradeable: true,
     ...overrides,
+    isSettled: overrides.isSettled ?? false,
+    isRefunded: overrides.isRefunded ?? false,
   });
 
   it('separates tradeable featured and active markets from archived records', async () => {
@@ -65,5 +67,34 @@ describe('Fan market category filters', () => {
     expect(screen.queryByLabelText('Over/Under')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Combo Markets')).not.toBeInTheDocument();
     expect(fetchMarketCategories).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Fan market status display', () => {
+  beforeEach(() => {
+    vi.mocked(fetchMyPositions).mockResolvedValue([]);
+    vi.mocked(fetchMarketCategories).mockResolvedValue([]);
+  });
+
+  it('shows real settlement status instead of a stale Upcoming label for a resolved market', async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchMarkets).mockResolvedValue([{
+      id: 'market-1', teamA: 'Lions', teamB: 'Stars', league: 'League OS', status: 'resolved',
+      liquidityLabel: 'No active liquidity',
+      isTradeable: false,
+      isSettled: false, isRefunded: false, isTrending: false, marketType: 'Football',
+      endsInLabel: 'Closed', volumeLabel: '0', question: 'Will Lions win?', yesPrice: null, noPrice: null,
+      yesBestAsk: null, noBestAsk: null, faceValueUgx: 1000, changePct: null, tradersCount: null,
+      totalContractsLabel: null, createdAt: '2026-01-01T00:00:00Z',
+    }]);
+
+    render(<MemoryRouter><FanMarkets /></MemoryRouter>);
+    await user.click(await screen.findByRole('button', { name: 'View Record' }));
+    await user.click(await screen.findByRole('tab', { name: 'Market Info' }));
+
+    const statusTerm = await screen.findByText('Status');
+    const statusRow = statusTerm.closest('div');
+    expect(statusRow).toHaveTextContent('RESOLVED · PAYOUT PENDING');
+    expect(statusRow).not.toHaveTextContent('Upcoming');
   });
 });

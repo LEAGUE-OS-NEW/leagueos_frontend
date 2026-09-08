@@ -31,7 +31,9 @@ export interface WalletTransactionApi {
   transaction_type:
     | 'DEPOSIT'
     | 'WITHDRAWAL'
-    | 'ADJUSTMENT';
+    | 'ADJUSTMENT'
+    | 'SETTLEMENT_PAYOUT'
+    | 'VOID_REFUND';
   amount: string;
   currency: string;
   status: string;
@@ -190,7 +192,9 @@ export async function fetchFanWalletTransactions(): Promise<
               ? 'credit'
               : 'debit';
 
+
           let label: string;
+
 
           if (entry.market) {
             if (

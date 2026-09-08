@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   decideCanonicalAdminKyc,
   fetchCanonicalAdminKyc,
   fetchCanonicalAdminKycDetail,
+  fetchCanonicalAdminKycDocumentBlob,
   type AdminKycRecord,
   type AdminKycStatus,
 } from '../../../services/canonicalKycAdminService';
@@ -64,6 +65,16 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   const [error,    setError]    = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
   const [decideError, setDecideError] = useState('');
+  const [documentImageUrl, setDocumentImageUrl] = useState<string | null>(null);
+  const [selfieImageUrl, setSelfieImageUrl] = useState<string | null>(null);
+  const [evidenceError, setEvidenceError] = useState('');
+  const [isLoadingEvidence, setIsLoadingEvidence] = useState(false);
+  const objectUrlsRef = useRef<string[]>([]);
+
+  const revokeEvidenceUrls = () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current = [];
+  };
 
   const load = async () => {
     try {
@@ -76,6 +87,7 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    return () => revokeEvidenceUrls();
   }, []);
 
   const visible = useMemo(() => rows.filter((row) => inTab(row, tab)), [rows, tab]);
@@ -84,11 +96,39 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
     setError('');
     setDecideError('');
     setNotes('');
+    revokeEvidenceUrls();
+    setDocumentImageUrl(null);
+    setSelfieImageUrl(null);
+    setEvidenceError('');
     try {
-      setSelected(await fetchCanonicalAdminKycDetail(row.id));
+      const detail = await fetchCanonicalAdminKycDetail(row.id);
+      setSelected(detail);
+      setIsLoadingEvidence(true);
+      try {
+        const [documentBlob, selfieBlob] = await Promise.all([
+          fetchCanonicalAdminKycDocumentBlob(detail.id, 'document'),
+          fetchCanonicalAdminKycDocumentBlob(detail.id, 'selfie'),
+        ]);
+        const documentUrl = URL.createObjectURL(documentBlob);
+        const selfieUrl = URL.createObjectURL(selfieBlob);
+        objectUrlsRef.current = [documentUrl, selfieUrl];
+        setDocumentImageUrl(documentUrl);
+        setSelfieImageUrl(selfieUrl);
+      } catch (e) {
+        setEvidenceError(e instanceof Error ? e.message : 'Could not load submitted document images.');
+      } finally {
+        setIsLoadingEvidence(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load KYC details.');
     }
+  };
+
+  const closeDrawer = () => {
+    revokeEvidenceUrls();
+    setDocumentImageUrl(null);
+    setSelfieImageUrl(null);
+    setSelected(null);
   };
 
   const decide = async (decision: 'VERIFIED' | 'REJECTED') => {
@@ -101,7 +141,7 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
     setIsDeciding(true);
     try {
       await decideCanonicalAdminKyc(selected.id, decision, notes.trim());
-      setSelected(null);
+      closeDrawer();
       setNotes('');
       await load();
     } catch (e) {
@@ -199,10 +239,33 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
               </h2>
               <StatusBadge status={selected.status} />
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => setSelected(null)}>
+            <button className="btn btn-outline btn-sm" onClick={closeDrawer}>
               Close
             </button>
           </div>
+
+          {/* submitted evidence */}
+          <h3 style={{ margin: '4px 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+            Submitted Evidence
+          </h3>
+          {isLoadingEvidence && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading document and selfie…</p>}
+          {evidenceError && <p style={{ fontSize: 13, color: 'var(--red-primary)' }} role="alert">{evidenceError}</p>}
+          {!isLoadingEvidence && !evidenceError && (documentImageUrl || selfieImageUrl) && (
+            <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div>
+                <span className="kyc-detail-label" style={{ display: 'block', marginBottom: 6 }}>ID Document</span>
+                {documentImageUrl
+                  ? <img src={documentImageUrl} alt="Submitted ID document" style={{ maxWidth: 280, maxHeight: 200, borderRadius: 8, border: '1px solid var(--border-color, #ddd)' }} />
+                  : <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Not available</span>}
+              </div>
+              <div>
+                <span className="kyc-detail-label" style={{ display: 'block', marginBottom: 6 }}>Selfie</span>
+                {selfieImageUrl
+                  ? <img src={selfieImageUrl} alt="Submitted selfie" style={{ maxWidth: 280, maxHeight: 200, borderRadius: 8, border: '1px solid var(--border-color, #ddd)' }} />
+                  : <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Not available</span>}
+              </div>
+            </div>
+          )}
 
           {/* personal / document details */}
           <div className="kyc-detail-grid">
