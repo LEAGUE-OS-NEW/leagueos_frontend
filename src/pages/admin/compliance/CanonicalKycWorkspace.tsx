@@ -23,8 +23,8 @@ function inTab(row: AdminKycRecord, tab: Tab) {
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString() : '—');
 
-/** Statuses where an admin may force a VERIFIED or REJECTED decision. */
-const DECIDABLE: AdminKycStatus[] = ['REVIEW', 'PENDING', 'PROCESSING', 'RETRY_REQUIRED'];
+/** The manual review endpoint deliberately accepts decisions only from REVIEW. */
+const DECIDABLE: AdminKycStatus[] = ['REVIEW'];
 
 const STATUS_COLORS: Partial<Record<AdminKycStatus, string>> = {
   NOT_STARTED:   '#6b7595',
@@ -362,16 +362,14 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
             </>
           )}
 
-          {/* decision panel — shown for all decidable statuses */}
+          {/* decision panel — only canonical human-review records are decidable */}
           {canDecide && (
             <div className="case-decision-panel">
               <h3 style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
                 Admin Decision
               </h3>
               <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                {selected.status === 'REVIEW'
-                  ? 'This submission is awaiting manual review. Verify or reject below.'
-                  : `Current status is ${selected.status}. You can override this with an admin decision.`}
+                This submission is awaiting manual review. Verify or reject below.
               </p>
 
               <label style={{ display: 'block', marginBottom: 12 }}>

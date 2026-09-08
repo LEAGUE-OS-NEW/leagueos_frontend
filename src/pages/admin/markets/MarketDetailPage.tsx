@@ -364,7 +364,7 @@ function MarketDetailPage() {
               </div>
               <div className="mdp-kv-item">
                 <span className="mdp-kv-item__key">Fee</span>
-                <span className="mdp-kv-item__value">{market.parameters.feePct}%</span>
+                <span className="mdp-kv-item__value">Authoritative fee schedule</span>
               </div>
               <div className="mdp-kv-item">
                 <span className="mdp-kv-item__key">Full winning share value</span>

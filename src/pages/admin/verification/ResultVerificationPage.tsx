@@ -42,6 +42,7 @@ function stagePillClass(stage: ResultVerification['stage']): string {
     case 'Provisional Result':
     case 'Dispute Window':
     case 'Ready to Resolve':
+    case 'Waiting to Settle':
     case 'Ready to Settle':
     case 'Ready to Refund':
       return 'rv-stage-pill rv-stage-pill--verified';
@@ -565,6 +566,7 @@ function ResultVerificationPage() {
                 </div>
                 {selected.tradingClose && <div className="rv-kv-item"><span className="rv-kv-item__key">Trading Close</span><span className="rv-kv-item__value">{formatDateTime(selected.tradingClose)}</span></div>}
                 {selected.settlementTarget && <div className="rv-kv-item"><span className="rv-kv-item__key">Settlement Target</span><span className="rv-kv-item__value">{formatDateTime(selected.settlementTarget)}</span></div>}
+                {selected.settlementBlockReason && <div className="rv-kv-item"><span className="rv-kv-item__key">Settlement Status</span><span className="rv-kv-item__value">{selected.settlementBlockReason}</span></div>}
                 <div className="rv-kv-item">
                   <span className="rv-kv-item__key">Resolution source / rules</span>
                   <span className="rv-kv-item__value">{selected.officialSource}</span>

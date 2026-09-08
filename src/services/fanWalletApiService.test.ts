@@ -78,44 +78,51 @@ describe(
 
 
     it(
-      'loads canonical wallet transactions',
+      'loads canonical ledger-backed wallet activity',
       async () => {
         vi.mocked(
           apiClient.get,
         ).mockResolvedValue({
           data: {
-            count:
-              1,
-            next:
-              null,
-            previous:
-              null,
+            count: 1,
+            next: null,
+            previous: null,
             results: [
               {
                 id:
-                  'tx-1',
-                reference:
-                  'DEP-1',
-                transaction_type:
-                  'DEPOSIT',
+                  'ledger-1',
+                entry_type:
+                  'CREDIT',
+                debit_account:
+                  'REVENUE',
+                credit_account:
+                  'USER_WALLET',
                 amount:
-                  '50000.0000',
+                  '16528.9256',
                 currency:
                   'UGX',
-                status:
-                  'COMPLETED',
-                provider_code:
-                  'PESAPAL_SANDBOX',
-                provider_reference:
-                  '',
-                description:
-                  'Pesapal wallet deposit',
-                completed_at:
-                  '2026-08-15T12:00:00Z',
+                available_balance_before:
+                  '179834.7107',
+                available_balance_after:
+                  '196363.6363',
+                reserved_balance_before:
+                  '0.0000',
+                reserved_balance_after:
+                  '0.0000',
+                idempotency_reference:
+                  '941dbc7c-f5e5-5a29-92a2-5fe216d94713',
+                market:
+                  '71b0bcb3-f1f0-4da3-97ae-3b3c1d54e7c4',
+                market_question:
+                  'LOCAL QA: Will City Oilers beat Namuwongo Blazers?',
+                order:
+                  null,
+                fill:
+                  null,
+                transaction_reference:
+                  null,
                 created_at:
-                  '2026-08-15T12:00:00Z',
-                updated_at:
-                  '2026-08-15T12:00:00Z',
+                  '2026-09-07T17:01:18Z',
               },
             ],
           },
@@ -127,8 +134,10 @@ describe(
           expect.objectContaining({
             type:
               'credit',
+            label:
+              'Market winnings · LOCAL QA: Will City Oilers beat Namuwongo Blazers?',
             amount:
-              50_000,
+              16528.9256,
             status:
               'COMPLETED',
           }),
@@ -137,7 +146,7 @@ describe(
         expect(
           apiClient.get,
         ).toHaveBeenCalledWith(
-          '/wallets/transactions/',
+          '/wallets/UGX/ledger/',
           {
             params: {
               page_size:
@@ -156,64 +165,47 @@ describe(
           apiClient.get,
         ).mockResolvedValue({
           data: {
-            count:
-              2,
-            next:
-              null,
-            previous:
-              null,
+            count: 2,
+            next: null,
+            previous: null,
             results: [
               {
-                id:
-                  'tx-2',
-                reference:
-                  'SETTLE-1',
-                transaction_type:
-                  'SETTLEMENT_PAYOUT',
-                amount:
-                  '9600.0000',
-                currency:
-                  'UGX',
-                status:
-                  'COMPLETED',
-                provider_code:
-                  null,
-                provider_reference:
-                  '',
-                description:
-                  'Market settlement payout — Will KCCA win?',
-                completed_at:
-                  '2026-08-19T12:00:00Z',
-                created_at:
-                  '2026-08-19T12:00:00Z',
-                updated_at:
-                  '2026-08-19T12:00:00Z',
+                id: 'ledger-settlement',
+                entry_type: 'CREDIT',
+                debit_account: 'REVENUE',
+                credit_account: 'USER_WALLET',
+                amount: '9600.0000',
+                currency: 'UGX',
+                available_balance_before: '10000.0000',
+                available_balance_after: '19600.0000',
+                reserved_balance_before: '0.0000',
+                reserved_balance_after: '0.0000',
+                idempotency_reference: null,
+                market: 'market-1',
+                market_question: 'Will KCCA win?',
+                order: null,
+                fill: null,
+                transaction_reference: 'SETTLE-1',
+                created_at: '2026-08-19T12:00:00Z',
               },
               {
-                id:
-                  'tx-3',
-                reference:
-                  'REFUND-1',
-                transaction_type:
-                  'VOID_REFUND',
-                amount:
-                  '2000.0000',
-                currency:
-                  'UGX',
-                status:
-                  'COMPLETED',
-                provider_code:
-                  null,
-                provider_reference:
-                  '',
-                description:
-                  '',
-                completed_at:
-                  '2026-08-19T12:05:00Z',
-                created_at:
-                  '2026-08-19T12:05:00Z',
-                updated_at:
-                  '2026-08-19T12:05:00Z',
+                id: 'ledger-refund',
+                entry_type: 'CREDIT',
+                debit_account: 'REVENUE',
+                credit_account: 'USER_WALLET',
+                amount: '2000.0000',
+                currency: 'UGX',
+                available_balance_before: '19600.0000',
+                available_balance_after: '21600.0000',
+                reserved_balance_before: '0.0000',
+                reserved_balance_after: '0.0000',
+                idempotency_reference: null,
+                market: 'market-2',
+                market_question: 'Voided market',
+                order: null,
+                fill: null,
+                transaction_reference: 'REFUND-1',
+                created_at: '2026-08-19T12:05:00Z',
               },
             ],
           },
@@ -223,22 +215,25 @@ describe(
           fetchFanWalletTransactions(),
         ).resolves.toEqual([
           expect.objectContaining({
-            type:
-              'credit',
-            amount:
-              9_600,
-            label:
-              'Market settlement payout — Will KCCA win?',
+            type: 'credit',
+            amount: 9_600,
           }),
           expect.objectContaining({
-            type:
-              'credit',
-            amount:
-              2_000,
-            label:
-              'Void refund',
+            type: 'credit',
+            amount: 2_000,
           }),
         ]);
+
+        expect(
+          apiClient.get,
+        ).toHaveBeenCalledWith(
+          '/wallets/UGX/ledger/',
+          {
+            params: {
+              page_size: 100,
+            },
+          },
+        );
       },
     );
 

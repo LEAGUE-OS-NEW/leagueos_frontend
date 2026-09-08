@@ -98,7 +98,6 @@ function makePosition(overrides: {
       liquidityActivationStatus: 'ACTIVE',
       minTradeUgx: 1000,
       maxTradeUgx: 500000,
-      feePct: 2,
       featured: false,
       trending: false,
       recommended: false,
@@ -264,7 +263,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 70000,
         matchedAt: '2026-08-10T08:26:00.000Z',
-        status: 'SETTLED',
+        status: 'WON',
         outcomeId: 'YES',
         payoutUgx: 112000,
       },
@@ -279,7 +278,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 30000,
         matchedAt: '2026-08-05T11:04:00.000Z',
-        status: 'SETTLED',
+        status: 'LOST',
         outcomeId: 'NO',
         payoutUgx: 0,
       },
@@ -308,7 +307,7 @@ describe('MyPositions', () => {
       contract: {
         quantityUgx: 10000,
         matchedAt: '2026-08-01T12:00:00.000Z',
-        status: 'CANCELLED',
+        status: 'REFUNDED',
         outcomeId: 'NO',
       },
       market: {
@@ -322,6 +321,18 @@ describe('MyPositions', () => {
 
     beforeEach(() => {
       vi.mocked(fetchFanPositions).mockResolvedValue(basePositions);
+    });
+
+    it('shows a completely sold position as exited rather than open', async () => {
+      vi.mocked(fetchFanPositions).mockResolvedValue([
+        makePosition({ contract: { quantityUgx: 0, matchedAt: '2026-08-20T12:00:00.000Z', status: 'EXITED', outcomeId: 'YES' } }),
+      ]);
+      const user = userEvent.setup();
+      renderPositions();
+      await user.click(await screen.findByRole('button', { name: 'Exited' }));
+      expect(screen.getAllByText('Exited', { selector: '.mp-result-badge' }).length).toBeGreaterThan(0);
+      await user.click(screen.getByRole('button', { name: /^Open/ }));
+      expect(screen.getByText(/No positions match/)).toBeInTheDocument();
     });
 
     it('computes the summary stat cards from live data', async () => {
@@ -525,7 +536,7 @@ describe('MyPositions', () => {
     it('reports win rate and treats zero losses as an infinite profit factor', async () => {
       vi.mocked(fetchFanPositions).mockResolvedValue([
         makePosition({
-          contract: { status: 'SETTLED', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
+          contract: { status: 'WON', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
           market: { eventLabel: 'Only Win', question: 'Q?', status: 'Resolved' },
         }),
       ]);
@@ -543,7 +554,7 @@ describe('MyPositions', () => {
     it('only renders the P&L history chart once there are 2+ settled positions', async () => {
       vi.mocked(fetchFanPositions).mockResolvedValue([
         makePosition({
-          contract: { status: 'SETTLED', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
+          contract: { status: 'WON', outcomeId: 'YES', quantityUgx: 20000, payoutUgx: 40000 },
           market: { eventLabel: 'Settled One', question: 'Q?', status: 'Resolved' },
         }),
       ]);

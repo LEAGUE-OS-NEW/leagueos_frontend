@@ -65,6 +65,7 @@ describe('clubStoreService', () => {
     });
 
     const payload = {
+      idempotency_key: '11111111-1111-4111-8111-111111111111',
       category: null,
       name: 'Home Jersey',
       description: '',
@@ -140,6 +141,7 @@ describe('clubStoreService', () => {
 
   it('creates a public fan store order', async () => {
     const payload = {
+      idempotency_key: '22222222-2222-4222-8222-222222222222',
       items: [
         {
           product: '22222222-2222-2222-2222-222222222222',
@@ -154,8 +156,7 @@ describe('clubStoreService', () => {
 
     vi.mocked(apiClient.post).mockResolvedValue({
       data: {
-        id: 'order-1',
-        status: 'PAID',
+        orders: [{ id: 'order-1', status: 'PAID' }],
       },
     });
 
@@ -165,6 +166,6 @@ describe('clubStoreService', () => {
       '/store/orders/',
       payload,
     );
-    expect(order.id).toBe('order-1');
+    expect(order[0].id).toBe('order-1');
   });
 });

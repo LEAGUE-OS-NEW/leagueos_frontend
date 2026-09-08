@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiTrendingUp, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings, FiX } from 'react-icons/fi';
+import { FiHome, FiTrendingUp, FiLayers, FiShield, FiTag, FiAward, FiShoppingCart, FiFileText, FiCreditCard, FiUser, FiSettings, FiX } from 'react-icons/fi';
 import { GiTrophyCup } from 'react-icons/gi';
 import HomeLogo from '../landing/HomeLogo';
 import { useCartStore } from '../../store/cartStore';
@@ -22,6 +22,7 @@ type SidebarProps = {
 const PRIMARY_LINKS: SidebarLink[] = [
   { label: 'Home', route: '/dashboard/fan', icon: <FiHome /> },
   { label: 'Markets', route: '/fan/markets', icon: <FiTrendingUp /> },
+  { label: 'My Positions', route: '/positions', icon: <FiLayers /> },
   { label: 'Fantasy', route: '/fan/fantasy', icon: <GiTrophyCup /> },
   { label: 'Clubs', route: '/fan/clubs', icon: <FiShield /> },
   { label: 'Tickets', route: '/fan/tickets', icon: <FiTag /> },

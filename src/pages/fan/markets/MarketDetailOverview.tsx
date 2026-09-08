@@ -211,7 +211,7 @@ function MarketDetailOverview() {
                     </div>
                     <div>
                       <span>Platform Fee</span>
-                      <b>{market.parameters.feePct}%</b>
+                          <b>Confirmed at order review</b>
                     </div>
                     <div>
                       <span>Trading Closes</span>

@@ -1,9 +1,9 @@
-// Referee / Resolution Officer — service layer (US-17.4, rebranded from
+// Referee / Resolution Officer â€” service layer (US-17.4, rebranded from
 // Result Verification Admin per the partners' meeting). Backs the admin
 // approval funnel for the market result lifecycle (close -> provisional
 // result -> dispute window -> resolve -> settle) plus the void/refund path,
 // against the real market-admin/result-verification queue endpoint and its
-// per-action endpoints — no in-memory store involved.
+// per-action endpoints â€” no in-memory store involved.
 //
 // Flow (per the reference diagram): Event Happens -> Referee Verifies
 // Result -> Market Resolved -> Payouts Sent. "Verify" records the proposed
@@ -17,11 +17,21 @@ import { normalizeApiList } from './apiUtils.ts';
 import {
   fetchMarket,
   fetchMarkets,
-  resolveMarket,
   type OutcomeId,
 } from './marketAdminService';
 
-export type VerificationStage = 'Ready to Close' | 'Awaiting Result' | 'Provisional Result' | 'Dispute Window' | 'Disputed' | 'Ready to Resolve' | 'Ready to Settle' | 'Settled' | 'Ready to Refund' | 'Refunded';
+export type VerificationStage =
+  | 'Ready to Close'
+  | 'Awaiting Result'
+  | 'Provisional Result'
+  | 'Dispute Window'
+  | 'Disputed'
+  | 'Ready to Resolve'
+  | 'Waiting to Settle'
+  | 'Ready to Settle'
+  | 'Settled'
+  | 'Ready to Refund'
+  | 'Refunded';
 export type DisputeStatus = 'Open' | 'Escalated' | 'Resolved' | 'Unavailable';
 
 export interface AuditEvent {
@@ -41,13 +51,18 @@ export interface ResultVerification {
   tradingClose?: string;
   settlementTarget?: string;
   officialSource: string;
-  outcomes: { id: OutcomeId; label: string }[];
+  outcomes: {
+    id: OutcomeId;
+    label: string;
+    backendOutcomeId?: string;
+  }[];
   stage: VerificationStage;
   proposedWinningOutcomeId?: OutcomeId;
   evidenceNote?: string;
   canPublishProvisional: boolean;
   canResolve: boolean;
   canSettle: boolean;
+  settlementBlockReason?: string;
   canClose: boolean;
   canVoid: boolean;
   canRefund: boolean;
@@ -87,9 +102,19 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
   const response = await apiClient.get('/market-admin/result-verification/');
   const records = normalizeApiList<Record<string, unknown>>(response.data);
   const stageMap: Record<string, VerificationStage> = {
-    READY_TO_CLOSE: 'Ready to Close', AWAITING_RESULT: 'Awaiting Result', PROVISIONAL_RESULT: 'Provisional Result', DISPUTE_WINDOW: 'Dispute Window',
-    DISPUTED: 'Disputed', READY_TO_RESOLVE: 'Ready to Resolve', READY_TO_SETTLE: 'Ready to Settle',
-    SETTLED: 'Settled', VOIDED: 'Ready to Refund', REFUNDED: 'Refunded',
+    READY_TO_CLOSE: 'Ready to Close',
+    AWAITING_RESULT: 'Awaiting Result',
+    PROVISIONAL_RESULT: 'Provisional Result',
+    DISPUTE_WINDOW: 'Dispute Window',
+    DISPUTED: 'Disputed',
+    READY_TO_RESOLVE: 'Ready to Resolve',
+    SETTLEMENT_PENDING: 'Waiting to Settle',
+    WAITING_TO_SETTLE: 'Waiting to Settle',
+    READY_TO_SETTLE: 'Ready to Settle',
+    SETTLED: 'Settled',
+    VOIDED: 'Ready to Refund',
+    REFUNDED: 'Refunded',
+    VOIDED_REFUNDED: 'Refunded',
   };
   return records.map((record) => {
         const adapted = (record as { id: string }).id;
@@ -106,7 +131,11 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
           tradingClose: record.closes_at ? String(record.closes_at) : undefined,
           settlementTarget: record.settles_by ? String(record.settles_by) : undefined,
           officialSource: String(record.resolution_source ?? record.resolution_criteria ?? 'No resolution source recorded on the market.'),
-          outcomes: outcomes.map((outcome) => ({ id: outcome.side, label: outcome.label })),
+          outcomes: outcomes.map((outcome) => ({
+            id: outcome.side,
+            label: outcome.label,
+            backendOutcomeId: outcome.id,
+          })),
           stage: stageMap[String(record.workflow_state)] ?? 'Awaiting Result',
           proposedWinningOutcomeId: proposed,
           evidenceNote: Array.isArray(provisional?.evidence_items)
@@ -115,6 +144,9 @@ export async function fetchAwaitingResult(): Promise<ResultVerification[]> {
           canPublishProvisional: record.can_publish_provisional === true,
           canResolve: record.can_resolve === true,
           canSettle: record.can_settle === true,
+          settlementBlockReason: record.settlement_block_reason
+            ? String(record.settlement_block_reason)
+            : undefined,
           canClose: record.can_close === true,
           canVoid: record.can_void === true,
           canRefund: record.can_refund === true,
@@ -145,38 +177,105 @@ export async function verifyResult(
   marketId: string,
   input: { winningOutcomeId: OutcomeId; evidenceNote: string },
 ): Promise<ResultVerification> {
-  if (!input.evidenceNote.trim()) fail('Cite the official source or evidence used to verify this result.');
-  const market = await fetchMarket(marketId);
-  const outcome = market.outcomes.find((item) => item.id === input.winningOutcomeId);
-  if (!outcome?.backendOutcomeId) fail('Winning outcome not found.');
-  await apiClient.post(`/market-admin/markets/${encodeURIComponent(marketId)}/provisional-result/`, {
-    winning_outcome_id: outcome.backendOutcomeId,
-    notes: input.evidenceNote.trim(),
-    evidence_items: [{ evidence_type: 'OFFICIAL_SOURCE', label: 'Official result source', reference: input.evidenceNote.trim() }],
-  });
+  if (!input.evidenceNote.trim()) {
+    fail('Cite the official source or evidence used to verify this result.');
+  }
+
+  const verification = (await fetchAwaitingResult()).find(
+    (item) => item.marketId === marketId,
+  );
+
+  if (!verification) {
+    fail('This market is not in the result workflow queue.');
+  }
+
+  const outcome = verification.outcomes.find(
+    (item) => item.id === input.winningOutcomeId,
+  );
+
+  if (!outcome?.backendOutcomeId) {
+    fail('Winning outcome not found.');
+  }
+
+  await apiClient.post(
+    `/market-admin/markets/${encodeURIComponent(
+      marketId,
+    )}/provisional-result/`,
+    {
+      winning_outcome_id: outcome.backendOutcomeId,
+      notes: input.evidenceNote.trim(),
+      evidence_items: [
+        {
+          evidence_type: 'OFFICIAL_SOURCE',
+          label: 'Official result source',
+          reference: input.evidenceNote.trim(),
+        },
+      ],
+    },
+  );
+
   return {
-    marketId: market.id,
-    eventLabel: market.eventLabel,
-    question: market.question,
-    competition: market.competition,
-    kickoff: market.kickoff,
-    officialSource: market.description || 'No resolution source recorded on the market.',
-    outcomes: market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label })),
-    stage: 'Dispute Window', proposedWinningOutcomeId: input.winningOutcomeId,
-    evidenceNote: input.evidenceNote.trim(), verifiedAt: new Date().toISOString(),
-    canPublishProvisional: false, canResolve: false, canSettle: false,
-    canClose: false, canVoid: false, canRefund: false,
+    ...verification,
+    stage: 'Dispute Window',
+    proposedWinningOutcomeId: input.winningOutcomeId,
+    evidenceNote: input.evidenceNote.trim(),
+    verifiedAt: new Date().toISOString(),
+    canPublishProvisional: false,
+    canResolve: false,
+    canSettle: false,
+    settlementBlockReason: undefined,
+    canClose: false,
+    canVoid: false,
+    canRefund: false,
     openDisputeCount: 0,
-    auditHistory: market.auditHistory,
   };
 }
 
-export async function resolveResult(marketId: string): Promise<void> {
-  const verification = (await fetchAwaitingResult()).find((item) => item.marketId === marketId);
-  if (!verification) fail('This market is not in the result workflow queue.');
-  if (!verification.canResolve || !verification.proposedWinningOutcomeId) fail('The backend has not made this result available to resolve.');
-  if (!verification.evidenceNote?.trim()) fail('The provisional result evidence is required to resolve this market.');
-  await resolveMarket(marketId, verification.proposedWinningOutcomeId, verification.evidenceNote);
+export async function resolveResult(
+  marketId: string,
+): Promise<void> {
+  const verification = (await fetchAwaitingResult()).find(
+    (item) => item.marketId === marketId,
+  );
+
+  if (!verification) {
+    fail('This market is not in the result workflow queue.');
+  }
+
+  if (
+    !verification.canResolve ||
+    !verification.proposedWinningOutcomeId
+  ) {
+    fail(
+      'The backend has not made this result available to resolve.',
+    );
+  }
+
+  if (!verification.evidenceNote?.trim()) {
+    fail(
+      'The provisional result evidence is required to resolve this market.',
+    );
+  }
+
+  const outcome = verification.outcomes.find(
+    (item) =>
+      item.id === verification.proposedWinningOutcomeId,
+  );
+
+  if (!outcome?.backendOutcomeId) {
+    fail('Winning outcome not found.');
+  }
+
+  await apiClient.post(
+    `/market-admin/markets/${encodeURIComponent(
+      marketId,
+    )}/resolve/`,
+    {
+      winning_outcome_id: outcome.backendOutcomeId,
+      notes: `Resolved ${verification.question}`,
+      evidence: verification.evidenceNote.trim(),
+    },
+  );
 }
 
 export async function settleResult(marketId: string): Promise<{ reference: string; status: string; totalPositionCount?: number; totalPayoutAmount?: string }> {
@@ -238,7 +337,7 @@ export interface MarketExposure {
   outcomes: MarketOutcomeExposure[];
 }
 
-// Live, unsettled exposure only — positions are zeroed on settlement, so
+// Live, unsettled exposure only â€” positions are zeroed on settlement, so
 // this is meaningless (and the backend excludes them) once a market has
 // actually been settled. Fetched on demand for the selected market only,
 // not embedded in the queue list, to avoid an aggregate query per row.
@@ -261,7 +360,7 @@ export async function fetchMarketExposure(marketId: string): Promise<MarketExpos
    ============================================================ */
 
 // A market's result decision (Confirm/Correct/Void/Extend Review) covers
-// every open dispute on that market at once — there is no per-dispute
+// every open dispute on that market at once â€” there is no per-dispute
 // decision endpoint. So fetchDisputes() derives each dispute's status from
 // whether its market already has a final decision, via the public
 // per-market decision list (no admin permission required to read).
@@ -301,7 +400,7 @@ export async function fetchDisputes(): Promise<Dispute[]> {
 
   return disputes.map((dispute) => {
     const decisions = decisionsByMarket.get(dispute.marketId);
-    if (!decisions) return dispute; // lookup failed — leave status 'Unavailable'
+    if (!decisions) return dispute; // lookup failed â€” leave status 'Unavailable'
     const finalDecision = decisions.find((decision) => decision.is_final === true);
     if (finalDecision) {
       return { ...dispute, status: 'Resolved', resolutionNote: String(finalDecision.notes ?? '') };
@@ -322,7 +421,7 @@ export async function fetchDisputeMarketOutcomes(marketId: string): Promise<Disp
   return market.outcomes.map((outcome) => ({ id: outcome.id, label: outcome.label }));
 }
 
-// Decides the market's provisional result — this is the only real action
+// Decides the market's provisional result â€” this is the only real action
 // the backend exposes for a dispute (there's no "escalate" or per-dispute
 // "resolve" endpoint). Confirm/Correct require the winning outcome; Extend
 // Review requires an extension window; Void needs neither. One decision

@@ -9,8 +9,8 @@ import { fetchFanPositions, fetchMyOpenOrders, cancelOrder, type Position, type 
 import '../sections/FanDashboard.css';
 import './MyPositions.css';
 
-type ResultBucket = 'open' | 'won' | 'lost' | 'pending' | 'cancelled';
-type TabKey = 'all' | 'open' | 'won' | 'lost' | 'pending' | 'cancelled';
+type ResultBucket = 'open' | 'exited' | 'won' | 'lost' | 'pending' | 'cancelled';
+type TabKey = 'all' | 'open' | 'exited' | 'won' | 'lost' | 'pending' | 'cancelled';
 type SideFilter = 'all' | 'yes' | 'no';
 type SortKey = 'newest' | 'oldest' | 'stake_desc' | 'stake_asc';
 
@@ -21,6 +21,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'lost', label: 'Lost' },
   { key: 'pending', label: 'Pending Settlement' },
   { key: 'cancelled', label: 'Cancelled / Refunded' },
+  { key: 'exited', label: 'Exited' },
 ];
 
 const PAGE_SIZE = 8;
@@ -124,12 +125,11 @@ function getMarketType(position: Position): string {
 
 function classify(position: Position): ResultBucket {
   const status = position.contract.status.toUpperCase();
-  if (status.includes('CANCEL') || status.includes('REFUND')) return 'cancelled';
-  if (status.includes('PENDING')) return 'pending';
-  if (status.includes('CLOSED')) return 'pending';
-  if (status === 'SETTLED' || position.market.status === 'Resolved') {
-    return getRealizedPnl(position) > 0 ? 'won' : 'lost';
-  }
+  if (status === 'REFUNDED') return 'cancelled';
+  if (status === 'EXITED') return 'exited';
+  if (status === 'PENDING_SETTLEMENT') return 'pending';
+  if (status === 'WON') return 'won';
+  if (status === 'LOST') return 'lost';
   return 'open';
 }
 
@@ -317,7 +317,7 @@ function OutcomeBadge({ outcomeId }: { outcomeId: string }) {
 
 function ResultBadge({ bucket }: { bucket: ResultBucket }) {
   const label =
-    bucket === 'won' ? 'Won' : bucket === 'lost' ? 'Lost' : bucket === 'pending' ? 'Pending' : bucket === 'cancelled' ? 'Cancelled' : 'Open';
+    bucket === 'won' ? 'Won' : bucket === 'lost' ? 'Lost' : bucket === 'pending' ? 'Pending' : bucket === 'cancelled' ? 'Cancelled' : bucket === 'exited' ? 'Exited' : 'Open';
   return <span className={`mp-result-badge mp-result-badge--${bucket}`}>{label}</span>;
 }
 

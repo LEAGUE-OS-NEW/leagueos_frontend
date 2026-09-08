@@ -77,6 +77,7 @@ import ReportsPage from './pages/admin/reports/ReportsPage';
 import SystemSettingsPage from './pages/admin/settings/SystemSettingsPage';
 import ComplianceAdmin from './pages/admin/compliance/ComplianceAdmin';
 import FinanceAdmin from "./pages/admin/finance/FinanceAdmin";
+import AdminStorePage from './pages/admin/store/AdminStorePage';
 import PayoutsPage from "./pages/admin/finance/PayoutsPage";
 import LegalPolicy from './pages/landing/leagueospolicies/LegalPolicy';
 import TermsConditions from './pages/landing/leagueospolicies/TermsConditions';
@@ -154,6 +155,7 @@ function App() {
           <Route path="/settings" element={authenticated(<FanSettings />)} />
           <Route path="/wallet" element={authenticated(<FanWallet />)} />
           <Route path="/positions" element={authenticated(<MyPositions />)} />
+          <Route path="/fan/positions" element={<Navigate to="/positions" replace />} />
           <Route path="/memberships" element={<FanMembershipsPage />} />
           <Route path="/fan/clubs" element={<FanClubsPage />} />
           <Route path="/fan/clubs/:clubSlug" element={<FanClubProfile />} />
@@ -202,20 +204,6 @@ function App() {
         <Route path="/club-admin/settings" element={<ClubAdminRoute><ClubSettingsPage /></ClubAdminRoute>} />
         <Route path="/club-admin/notifications" element={<Navigate to="/club-admin/settings?tab=notifications" replace />} />
 
-          {/* Club Admin — requires CLUB_ADMIN entitlement */}
-          <Route path="/dashboard/club-admin" element={<Navigate to="/club-admin" replace />} />
-          <Route path="/club-admin" element={<ClubAdminRoute><ClubAdminDashboard /></ClubAdminRoute>} />
-          <Route path="/club-admin/profile" element={<ClubAdminRoute><ClubProfilePage /></ClubAdminRoute>} />
-          <Route path="/club-admin/fixtures" element={<ClubAdminRoute><ClubFixturesPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/squad" element={<ClubAdminRoute><ClubSquadPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/news" element={<ClubAdminRoute><ClubNewsPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/tickets" element={<ClubAdminRoute><ClubTicketsAdminPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/store" element={<ClubAdminRoute><ClubStorePage /></ClubAdminRoute>} />
-          <Route path="/club-admin/orders" element={<ClubAdminRoute><ClubOrdersPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/analytics" element={<ClubAdminRoute><ClubAnalyticsPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/staff" element={<ClubAdminRoute><ClubStaffPage /></ClubAdminRoute>} />
-          <Route path="/club-admin/compliance" element={<ClubAdminRoute><ClubCompliancePage /></ClubAdminRoute>} />
-
           {/* Access denied */}
           <Route path="/unauthorized" element={<Unauthorized />} />
         {/* Cart */}
@@ -255,6 +243,7 @@ function App() {
           <Route path="/dashboard/admin/news" element={admin(<NewsAdmin />)} />
           <Route path="/dashboard/admin/compliance" element={admin(<ComplianceAdmin />)} />
           <Route path="/dashboard/admin/payments" element={admin(<FinanceAdmin />)} />
+          <Route path="/dashboard/admin/store" element={admin(<AdminStorePage />)} />
           <Route path="/dashboard/admin/payouts" element={admin(<PayoutsPage />)} />
           <Route path="/dashboard/admin/support" element={admin(<CustomerSupportAdmin />)} />
           <Route path="/dashboard/admin/support/case-queues" element={admin(<CustomerSupportAdmin />)} />

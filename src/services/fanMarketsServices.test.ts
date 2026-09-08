@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import apiClient from './apiClient.ts';
-import { fetchMarket, fetchMarketOrderBook, fetchSettledActivity, placeOrder, sellPosition } from './fanMarketsServices.ts';
+import {
+  fetchMarket,
+  fetchMarketFeePreview,
+  fetchMarketOrderBook,
+  fetchMarkets,
+  fetchSettledActivity,
+  placeOrder,
+  sellPosition,
+} from './fanMarketsServices.ts';
+
 
 vi.mock('./apiClient.ts', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const market = { id:'market-1', question:'Question?', face_value_ugx:1000, outcomes:[{id:'outcome-1',side:'YES',label:'Yes'}], status:'OPEN', is_featured:false, created_at:'2026-01-01T00:00:00Z', sport:{name:'Football'}, category:{name:'Match Result'} };
@@ -71,6 +80,56 @@ describe('genuine market order integration', () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data:{id:'order-1',market:'market-1',outcome:'outcome-1',side:'BUY',quantity:'16129.0323',limit_price:'0.62000',filled_quantity:'0',average_fill_price:null,status:'OPEN',created_at:'2026-01-01T00:00:00Z'} });
     await placeOrder({marketId:'market-1',outcomeId:'YES',quantityUgx:10000,limitPrice:0.62});
     expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/', expect.objectContaining({side:'BUY',limit_price:'0.62000'}));
+  });
+
+  it('marks only in-window OPEN markets with active liquidity and asks as tradeable', async () => {
+    const outcomePair = [
+      { id: 'yes', side: 'YES', label: 'Yes', opening_price: '0.62000' },
+      { id: 'no', side: 'NO', label: 'No', opening_price: '0.38000' },
+    ];
+    const openRecords = [
+      {
+        ...market, id: 'liquid', question: 'Liquid', outcomes: outcomePair,
+        opens_at: '2026-01-01T00:00:00Z', closes_at: '2099-01-01T00:00:00Z',
+        opening_liquidity_available: true,
+        opening_liquidity: { initial_liquidity_ugx: '400000', activation_status: 'ACTIVE', opening_spread_bps: 0 },
+        trading_snapshot: { volume: '12000', trader_count: 3, outcomes: { yes: { best_bid: null, best_ask: '0.62000', last_trade: null, mark_price: '0.62000', mark_source: 'BEST_QUOTE' }, no: { best_bid: null, best_ask: '0.38000', last_trade: null, mark_price: '0.38000', mark_source: 'BEST_QUOTE' } } },
+      },
+      {
+        ...market, id: 'unfunded', question: 'Unfunded', outcomes: outcomePair,
+        opens_at: '2026-01-01T00:00:00Z', closes_at: '2099-01-01T00:00:00Z',
+        opening_liquidity_available: false,
+      },
+      {
+        ...market, id: 'expired', question: 'Expired', outcomes: outcomePair,
+        opens_at: '2020-01-01T00:00:00Z', closes_at: '2020-02-01T00:00:00Z',
+        opening_liquidity_available: true,
+      },
+    ];
+    vi.mocked(apiClient.get).mockImplementation((_url, config) => Promise.resolve({
+      data: { results: (config as { params?: { status?: string } })?.params?.status === 'OPEN' ? openRecords : [], next: null },
+    }));
+
+    const result = await fetchMarkets();
+
+    expect(result.find((item) => item.id === 'liquid')).toMatchObject({ isTradeable: true, liquidityLabel: '400,000', volumeLabel: '12,000', tradersCount: 3 });
+    expect(result.find((item) => item.id === 'unfunded')).toMatchObject({ status: 'live', isTradeable: false });
+    expect(result.find((item) => item.id === 'expired')).toMatchObject({ status: 'closed', isTradeable: false });
+  });
+  it('uses authoritative decimal fee-preview values without sending a client fee', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: market });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {
+      estimated_order_notional: '10000.0000', effective_fee_bps: 0,
+      estimated_fee: '0.0000', estimated_total_debit: '10000.0000',
+      estimated_net_proceeds: '0.0000', currency: 'UGX',
+    } });
+
+    const preview = await fetchMarketFeePreview({
+      marketId: 'market-1', outcomeId: 'YES', quantityUgx: 10000, limitPrice: 0.5,
+    });
+
+    expect(preview).toMatchObject({ effectiveFeeBps: 0, estimatedFee: '0.0000', estimatedTotalDebit: '10000.0000' });
+    expect(apiClient.post).toHaveBeenCalledWith('/markets/market-1/orders/fee-preview/', expect.not.objectContaining({ fee: expect.anything() }));
   });
   it('submits an OPEN GTC limit BUY without requesting an order book', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: market });

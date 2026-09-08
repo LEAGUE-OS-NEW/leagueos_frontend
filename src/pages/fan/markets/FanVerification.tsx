@@ -54,7 +54,10 @@ const STEPS: { key: StepKey; label: string; description: string }[] = [
 ];
 
 const ID_TYPE_OPTIONS = ["National ID", 'Passport', "Driver's License"];
-const NATIONALITY_OPTIONS = ['Ugandan', 'Kenyan', 'Tanzanian', 'Rwandan', 'Other'];
+const NATIONALITY_OPTIONS = ['Uganda', 'Kenya', 'Tanzania', 'Rwanda'];
+const PROFILE_COUNTRY_CODES: Record<string, string> = {
+  Uganda: 'UG', Kenya: 'KE', Tanzania: 'TZ', Rwanda: 'RW',
+};
 const OCCUPATION_OPTIONS = ['Student', 'Employed', 'Self-Employed', 'Unemployed', 'Other'];
 const PROFILE_UPDATED_EVENT = 'leagueos:profile-updated';
 
@@ -296,6 +299,10 @@ function FanVerification() {
         documentCountry: 'UGA',
         documentImage: form.idFront,
         selfieImage: form.selfie,
+        legalName: form.fullLegalName,
+        identityNumber: form.nin,
+        dateOfBirth: form.dob,
+        profileCountry: PROFILE_COUNTRY_CODES[form.nationality] ?? '',
       });
       await refreshCanonicalStatus();
       await refreshEligibility();
@@ -609,7 +616,7 @@ function FanVerification() {
                   {age !== null && <small className="verify-age-hint">Age: {age}</small>}
 
                   <label className="verify-field-label" htmlFor="verify-nationality">
-                    Nationality
+                    Country of residence
                   </label>
                   <select
                     id="verify-nationality"
@@ -738,7 +745,7 @@ function FanVerification() {
                       <dd>{form.dob ? `${form.dob}${age !== null ? ` (age ${age})` : ''}` : '\u2014'}</dd>
                     </div>
                     <div>
-                      <dt>Nationality</dt>
+                      <dt>Country of residence</dt>
                       <dd>{form.nationality}</dd>
                     </div>
                     <div>

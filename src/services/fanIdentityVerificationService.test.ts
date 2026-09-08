@@ -15,6 +15,8 @@ describe('canonical fan KYC service', () => {
 
     await submitCanonicalKyc({
       documentType: 'NATIONAL_ID', documentCountry: 'UGA', documentImage, selfieImage,
+      legalName: 'Normal Fan', identityNumber: 'CM12345678',
+      dateOfBirth: '1990-01-01', profileCountry: 'UG',
     });
 
     const body = vi.mocked(apiClient.post).mock.calls[0][1] as FormData;

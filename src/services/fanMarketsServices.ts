@@ -7,6 +7,7 @@ import {
   sharesToBackendQuantity,
   stakeUgxToBackendQuantity,
 } from '../utils/marketPricing.ts';
+import { marketDisplayStatus } from '../utils/marketDisplayState.ts';
 
 export type MarketStatus = 'live' | 'upcoming' | 'suspended' | 'closed' | 'resolved' | 'voided';
 export type AdminMarketStatus = 'Draft' | 'Pending Approval' | 'Upcoming' | 'Live' | 'Suspended' | 'Closed' | 'Resolved' | 'Voided' | 'Cancelled';
@@ -17,7 +18,6 @@ export const MARKET_CATEGORIES = ['Football', 'Rugby', 'Basketball', 'Cricket', 
 
 const DEFAULT_MIN_TRADE_UGX = 1_000;
 const DEFAULT_MAX_TRADE_UGX = 500_000;
-const DEFAULT_FEE_PCT = 2;
 
 export interface MarketListItem {
   id: string;
@@ -35,6 +35,7 @@ export interface MarketListItem {
   marketType: string;
   endsInLabel: string;
   volumeLabel: string | null;
+  liquidityLabel: string | null;
   question: string;
   yesPrice: number | null;
   noPrice: number | null;
@@ -45,6 +46,7 @@ export interface MarketListItem {
   tradersCount: number | null;
   totalContractsLabel: string | null;
   createdAt: string; // ISO string — used to sort newest-first
+  isTradeable: boolean;
 }
 
 export interface MarketCategory {
@@ -80,7 +82,6 @@ export interface MarketParameters {
   maxTradeUgx: number;
   positionLimitUgx?: number;
   dailyLimitUgx?: number;
-  feePct: number;
   featured: boolean;
   trending: boolean;
   recommended: boolean;
@@ -110,6 +111,8 @@ export interface Market {
   resolvedAt?: string;
   winningOutcomeId?: OutcomeId;
   auditHistory: Array<{ id: string; timestamp: string; adminUser: string; action: string; note?: string }>;
+  totalVolumeUgx?: number | null;
+  tradersCount?: number | null;
 }
 
 export interface UserPosition {
@@ -213,6 +216,24 @@ export interface PortfolioPositionApi {
   open_sell_order_count: number;
   reserved_sell_order_quantity: string;
   created_at: string;
+}
+
+export interface MarketFeePreview {
+  estimatedOrderNotional: string;
+  effectiveFeeBps: number;
+  estimatedFee: string;
+  estimatedTotalDebit: string;
+  estimatedNetProceeds: string;
+  currency: string;
+}
+
+interface ParticipationHistoryApi {
+  id: string; market_id: string; market_question: string; market_state: string;
+  outcome: 'YES' | 'NO'; outcome_id: string; outcome_label: string;
+  participation_status: 'OPEN' | 'EXITED' | 'PENDING_SETTLEMENT' | 'WON' | 'LOST' | 'REFUNDED';
+  participated_quantity: string; current_open_quantity: string; total_cost: string;
+  average_price: string; gross_payout: string; fees: string; net_payout: string;
+  realized_pnl: string; settled_at: string | null; created_at: string;
 }
 
 interface MarketOrderApi {
@@ -321,46 +342,7 @@ function formatDurationUntil(iso?: string | null): string {
 function statusFromApi(
   market: ApiMarket,
 ): AdminMarketStatus {
-  if (
-    market.status === 'DRAFT' ||
-    market.status === 'REJECTED'
-  ) {
-    return 'Draft';
-  }
-
-  if (market.status === 'PENDING_APPROVAL') {
-    return 'Pending Approval';
-  }
-
-  if (market.status === 'APPROVED') {
-    return 'Upcoming';
-  }
-
-  if (market.status === 'OPEN') {
-    return 'Live';
-  }
-
-  if (market.status === 'SUSPENDED') {
-    return 'Suspended';
-  }
-
-  if (market.status === 'CLOSED') {
-    return 'Closed';
-  }
-
-  if (market.status === 'RESOLVED') {
-    return 'Resolved';
-  }
-
-  if (market.status === 'VOIDED') {
-    return 'Voided';
-  }
-
-  if (market.status === 'CANCELLED') {
-    return 'Cancelled';
-  }
-
-  return 'Draft';
+  return marketDisplayStatus(market.status, market.opens_at, market.closes_at) as AdminMarketStatus;
 }
 
 function listStatusFromMarket(
@@ -444,7 +426,6 @@ function adaptMarket(market: ApiMarket): Market {
         market.opening_liquidity?.activation_status ?? 'UNCONFIGURED',
       minTradeUgx: DEFAULT_MIN_TRADE_UGX,
       maxTradeUgx: DEFAULT_MAX_TRADE_UGX,
-      feePct: DEFAULT_FEE_PCT,
       featured: market.is_featured,
       trending: market.is_featured,
       recommended: market.is_featured,
@@ -458,6 +439,10 @@ function adaptMarket(market: ApiMarket): Market {
     publishedAt: market.opens_at,
     winningOutcomeId: market.winning_outcome === yesApi?.id ? 'YES' : market.winning_outcome === noApi?.id ? 'NO' : undefined,
     auditHistory: [],
+    totalVolumeUgx: market.trading_snapshot?.volume == null
+      ? null
+      : Number(market.trading_snapshot.volume),
+    tradersCount: market.trading_snapshot?.trader_count ?? null,
   };
 }
 
@@ -465,6 +450,12 @@ function adaptListItem(market: Market): MarketListItem {
   const [teamA, teamB] = splitSubject(market.eventLabel);
   const yes = market.outcomes.find((outcome) => outcome.id === 'YES');
   const no = market.outcomes.find((outcome) => outcome.id === 'NO');
+  const withinWindow = market.status === 'Live';
+  const hasUsableBook = yes?.bestAsk != null && no?.bestAsk != null;
+  const isTradeable = withinWindow
+    && market.parameters.openingLiquidityAvailable
+    && market.parameters.liquidityActivationStatus === 'ACTIVE'
+    && hasUsableBook;
   return {
     id: market.id,
     teamA,
@@ -477,7 +468,12 @@ function adaptListItem(market: Market): MarketListItem {
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
     marketType: market.category,
     endsInLabel: formatDurationUntil(market.parameters.closesAt),
-    volumeLabel: null,
+    volumeLabel: market.totalVolumeUgx == null
+      ? null
+      : market.totalVolumeUgx.toLocaleString(),
+    liquidityLabel: market.parameters.initialLiquidityUgx > 0
+      ? market.parameters.initialLiquidityUgx.toLocaleString()
+      : null,
     question: market.question,
     yesPrice: yes?.price ?? null,
     noPrice: no?.price ?? null,
@@ -485,9 +481,10 @@ function adaptListItem(market: Market): MarketListItem {
     noBestAsk: no?.bestAsk ?? null,
     faceValueUgx: market.faceValueUgx,
     changePct: null,
-    tradersCount: null,
+    tradersCount: market.tradersCount ?? null,
     totalContractsLabel: null,
     createdAt: market.createdAt,
+    isTradeable,
   };
 }
 
@@ -551,7 +548,7 @@ export async function fetchMarketPriceHistory(
   } catch (error) { throw apiError(error); }
 }
 
-async function fetchPositionMarkets(positions: PortfolioPositionApi[]): Promise<Map<string, Market>> {
+async function fetchPositionMarkets(positions: Array<{ market_id: string }>): Promise<Map<string, Market>> {
   const ids = [...new Set(positions.map((position) => position.market_id))];
   const entries = await Promise.all(
     ids.map((id) => fetchMarket(id).then((market) => [id, market] as const).catch(() => null)),
@@ -608,8 +605,8 @@ export async function fetchMyPositions(): Promise<UserPosition[]> {
 
 export async function fetchFanPositions(): Promise<Position[]> {
   try {
-    const response = await apiClient.get('/markets/portfolio/positions/');
-    const positions = normalizeApiList<PortfolioPositionApi>(response.data);
+    const response = await apiClient.get('/market-participations/history/');
+    const positions = normalizeApiList<ParticipationHistoryApi>(response.data);
     const marketsById = await fetchPositionMarkets(positions);
     return positions
       .map((position) => {
@@ -617,10 +614,7 @@ export async function fetchFanPositions(): Promise<Position[]> {
         if (!market) return null;
         const outcome = market.outcomes.find((item) => item.backendOutcomeId === position.outcome_id);
         const backendQuantity =
-          Number(
-            position.available_quantity ||
-            position.quantity,
-          );
+          Number(position.current_open_quantity);
 
         const shares =
           backendQuantityToShares(
@@ -628,19 +622,17 @@ export async function fetchFanPositions(): Promise<Position[]> {
             market.faceValueUgx,
           );
 
-        const price = normalizedPriceToUgxSharePrice(Number(position.average_entry_price), market.faceValueUgx);
+        const price = normalizedPriceToUgxSharePrice(Number(position.average_price), market.faceValueUgx);
         const portfolio: PortfolioPosition = {
           id: position.id, marketId: position.market_id, backendOutcomeId: position.outcome_id,
-          outcomeLabel: position.outcome_label, marketStatus: position.market_status,
-          quantity: backendQuantityToShares(Number(position.quantity), market.faceValueUgx), availableQuantity: shares,
-          reservedQuantity: backendQuantityToShares(Number(position.reserved_quantity), market.faceValueUgx), averageEntryPrice: price,
-          totalCostBasis: Number(position.total_cost_basis), realizedPnl: Number(position.realized_pnl),
-          markPrice: position.mark_price === null ? null : normalizedPriceToUgxSharePrice(Number(position.mark_price), market.faceValueUgx),
-          markSource: position.mark_source, marketValue: position.market_value === null ? null : Number(position.market_value),
-          unrealizedPnl: position.unrealized_pnl === null ? null : Number(position.unrealized_pnl),
-          totalPositionPnl: position.total_position_pnl === null ? null : Number(position.total_position_pnl),
-          valuationComplete: position.valuation_complete, openSellOrderCount: position.open_sell_order_count,
-          reservedSellOrderQuantity: backendQuantityToShares(Number(position.reserved_sell_order_quantity), market.faceValueUgx),
+          outcomeLabel: position.outcome_label, marketStatus: position.market_state,
+          quantity: backendQuantityToShares(Number(position.participated_quantity), market.faceValueUgx), availableQuantity: shares,
+          reservedQuantity: 0, averageEntryPrice: price,
+          totalCostBasis: Number(position.total_cost), realizedPnl: Number(position.realized_pnl),
+          markPrice: null, markSource: position.participation_status,
+          marketValue: position.participation_status === 'OPEN' ? Number(position.total_cost) : Number(position.net_payout),
+          unrealizedPnl: null, totalPositionPnl: Number(position.realized_pnl),
+          valuationComplete: true, openSellOrderCount: 0, reservedSellOrderQuantity: 0,
         };
 
         return {
@@ -658,15 +650,13 @@ export async function fetchFanPositions(): Promise<Position[]> {
               ),
             price,
             quantityUgx:
-              Number(position.total_cost_basis),
+              Number(position.total_cost),
             buyer: 'You',
             seller: 'Market',
             matchedAt: position.created_at,
-            status: position.market_status,
-            payoutUgx:
-              position.market_status === 'RESOLVED'
-                ? Number(position.total_cost_basis) + Number(position.realized_pnl)
-                : undefined,
+            status: position.participation_status,
+            payoutUgx: ['WON', 'REFUNDED'].includes(position.participation_status)
+              ? Number(position.net_payout) : undefined,
           },
           market,
           portfolio,
@@ -784,6 +774,40 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Contract> {
   }
 }
 
+
+export async function fetchMarketFeePreview(input: PlaceOrderInput): Promise<MarketFeePreview> {
+  try {
+    const market = await fetchMarket(input.marketId);
+    const outcome = market.outcomes.find((item) => item.id === input.outcomeId);
+    if (!outcome) throw new Error('Select YES or NO.');
+    const quantity = stakeUgxToBackendQuantity(input.quantityUgx, input.limitPrice);
+    const response = await apiClient.post(
+      `/markets/${encodeURIComponent(input.marketId)}/orders/fee-preview/`,
+      {
+        outcome_id: outcome.backendOutcomeId,
+        side: 'BUY',
+        quantity: quantity.toFixed(4),
+        limit_price: input.limitPrice.toFixed(5),
+        time_in_force: 'GTC',
+      },
+    );
+    const data = response.data as Record<string, string | number>;
+    return {
+      estimatedOrderNotional: String(data.estimated_order_notional),
+      effectiveFeeBps: Number(data.effective_fee_bps),
+      estimatedFee: String(data.estimated_fee),
+      estimatedTotalDebit: String(data.estimated_total_debit),
+      estimatedNetProceeds: String(data.estimated_net_proceeds),
+      currency: String(data.currency),
+    };
+  } catch (error) {
+    if (error instanceof Error && !('response' in error)) throw error;
+
+    throw apiError(error);
+  }
+}
+
+
 export interface OpenOrder {
   id: string;
   marketId: string;
@@ -862,6 +886,7 @@ export async function cancelOrder(orderId: string): Promise<void> {
   try {
     await apiClient.post(`/market-orders/${encodeURIComponent(orderId)}/cancel/`);
   } catch (error) {
+
     throw apiError(error);
   }
 }
