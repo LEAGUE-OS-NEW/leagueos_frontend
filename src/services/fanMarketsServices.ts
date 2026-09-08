@@ -33,6 +33,7 @@ export interface MarketListItem {
   marketType: string;
   endsInLabel: string;
   volumeLabel: string | null;
+  liquidityLabel: string | null;
   question: string;
   yesPrice: number | null;
   noPrice: number | null;
@@ -43,6 +44,7 @@ export interface MarketListItem {
   tradersCount: number | null;
   totalContractsLabel: string | null;
   createdAt: string; // ISO string — used to sort newest-first
+  isTradeable: boolean;
 }
 
 export interface MarketCategory {
@@ -105,6 +107,8 @@ export interface Market {
   resolvedAt?: string;
   winningOutcomeId?: OutcomeId;
   auditHistory: Array<{ id: string; timestamp: string; adminUser: string; action: string; note?: string }>;
+  totalVolumeUgx?: number | null;
+  tradersCount?: number | null;
 }
 
 export interface UserPosition {
@@ -429,6 +433,10 @@ function adaptMarket(market: ApiMarket): Market {
     publishedAt: market.opens_at,
     winningOutcomeId: market.winning_outcome === yesApi?.id ? 'YES' : market.winning_outcome === noApi?.id ? 'NO' : undefined,
     auditHistory: [],
+    totalVolumeUgx: market.trading_snapshot?.volume == null
+      ? null
+      : Number(market.trading_snapshot.volume),
+    tradersCount: market.trading_snapshot?.trader_count ?? null,
   };
 }
 
@@ -436,6 +444,12 @@ function adaptListItem(market: Market): MarketListItem {
   const [teamA, teamB] = splitSubject(market.eventLabel);
   const yes = market.outcomes.find((outcome) => outcome.id === 'YES');
   const no = market.outcomes.find((outcome) => outcome.id === 'NO');
+  const withinWindow = market.status === 'Live';
+  const hasUsableBook = yes?.bestAsk != null && no?.bestAsk != null;
+  const isTradeable = withinWindow
+    && market.parameters.openingLiquidityAvailable
+    && market.parameters.liquidityActivationStatus === 'ACTIVE'
+    && hasUsableBook;
   return {
     id: market.id,
     teamA,
@@ -446,7 +460,12 @@ function adaptListItem(market: Market): MarketListItem {
     scheduleLabel: market.status === 'Upcoming' ? formatDateTime(market.parameters.opensAt) : undefined,
     marketType: market.category,
     endsInLabel: formatDurationUntil(market.parameters.closesAt),
-    volumeLabel: null,
+    volumeLabel: market.totalVolumeUgx == null
+      ? null
+      : market.totalVolumeUgx.toLocaleString(),
+    liquidityLabel: market.parameters.initialLiquidityUgx > 0
+      ? market.parameters.initialLiquidityUgx.toLocaleString()
+      : null,
     question: market.question,
     yesPrice: yes?.price ?? null,
     noPrice: no?.price ?? null,
@@ -454,9 +473,10 @@ function adaptListItem(market: Market): MarketListItem {
     noBestAsk: no?.bestAsk ?? null,
     faceValueUgx: market.faceValueUgx,
     changePct: null,
-    tradersCount: null,
+    tradersCount: market.tradersCount ?? null,
     totalContractsLabel: null,
     createdAt: market.createdAt,
+    isTradeable,
   };
 }
 

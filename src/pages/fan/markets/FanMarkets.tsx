@@ -47,10 +47,6 @@ const LIST_TABS: { key: ListTab; label: string }[] = [
   { key: 'live', label: 'Live' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'trending', label: 'Trending' },
-  { key: 'suspended', label: 'Suspended' },
-  { key: 'closed', label: 'Closed' },
-  { key: 'resolved', label: 'Resolved' },
-  { key: 'voided', label: 'Voided' },
   { key: 'all', label: 'All Markets' },
 ];
 
@@ -223,17 +219,33 @@ function Markets() {
             : market.status === status,
         );
 
-      return matchesType && matchesStatus;
+      const belongsInTrading = market.status === 'upcoming' || market.isTradeable;
+      return matchesType && matchesStatus && belongsInTrading;
     });
   }, [markets, selectedStatuses, selectedTypes, tab]);
 
-  // All Markets table: sort newest-first
+  const featuredMarkets = useMemo(
+    () => visibleMarkets.filter((market) => market.isTradeable).slice(0, 4),
+    [visibleMarkets],
+  );
+
+  // The active board deliberately excludes lifecycle history and untradeable OPEN rows.
   const allMarketsDisplay = useMemo(() => {
     if (!markets) return [];
-    return [...markets].sort(
+    return markets.filter((market) => market.status === 'upcoming' || market.isTradeable).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }, [markets]);
+
+  const archivedMarkets = useMemo(
+    () => (markets ?? []).filter((market) => ['closed', 'resolved', 'voided'].includes(market.status)),
+    [markets],
+  );
+
+  const activeLiquidity = useMemo(
+    () => allMarketsDisplay.reduce((sum, market) => sum + Number((market.liquidityLabel ?? '0').replaceAll(',', '')), 0),
+    [allMarketsDisplay],
+  );
 
   useEffect(() => {
     if (!marketCategories) return;
@@ -774,6 +786,18 @@ function Markets() {
       <div className="fan-dashboard-main">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
         <div className="fan-dashboard-content markets-terminal-content">
+          <header className="fan-markets-intro">
+            <div>
+              <span>FAN MARKETS</span>
+              <h1>TRADE WHAT YOU BELIEVE</h1>
+              <p>Real fans. Real opinions. Real markets.</p>
+            </div>
+            <div className="market-summary-strip" aria-label="Market summary">
+              <span><b>{allMarketsDisplay.length}</b> Active Markets</span>
+              <span><b>{formatUgx(activeLiquidity)}</b> Opening Liquidity</span>
+              <span><b>{archivedMarkets.length}</b> Archived Records</span>
+            </div>
+          </header>
           <div className="markets-list-heading">
             <div className="markets-list-tabs" role="tablist" aria-label="Filter markets">
               {LIST_TABS.map((item) => (
@@ -876,17 +900,18 @@ function Markets() {
               <DashboardNotice tone="empty" title="No markets yet" message="Check back soon." />
             </div>
           ) : (
-            /* --------------------------- browse: live strip + all markets, as two distinct panels --------------------------- */
+            /* Authoritative trading catalogue and lifecycle archive. */
             <div className="markets-browse-stack">
               <section className="markets-terminal-col live-markets-panel">
-                <h2 className="section-title live-markets-title">
-                  {LIST_TABS.find((item) => item.key === tab)?.label ?? 'Markets'}
-                </h2>
-                {visibleMarkets.length === 0 ? (
-                  <DashboardNotice tone="empty" title="No markets here yet" message="Check back soon or browse another tab." />
+                <div className="market-section-heading">
+                  <div><span>FEATURED</span><h2 className="section-title live-markets-title">Live Markets</h2></div>
+                  <small>Only markets with active opening liquidity and a usable order book</small>
+                </div>
+                {featuredMarkets.length === 0 ? (
+                  <DashboardNotice tone="empty" title="No tradeable markets here yet" message="Try another filter or check back soon." />
                 ) : (
                   <div className="live-cards-row">
-                    {visibleMarkets.map((market) => (
+                    {featuredMarkets.map((market) => (
                       <button
                         key={market.id}
                         type="button"
@@ -914,10 +939,11 @@ function Markets() {
                           </span>
                         </span>
                         <span className="market-mini-footer">
-                          <span>Volume: {market.volumeLabel === null ? '—' : `UGX ${market.volumeLabel}`}</span>
-                          <span>Traders: {market.tradersCount?.toLocaleString() ?? '—'}</span>
-                          <span className="up">Change: {market.changePct === null ? '—' : `${market.changePct}%`}</span>
+                          <span>Liquidity: {market.liquidityLabel === null ? '—' : `UGX ${market.liquidityLabel}`}</span>
+                          {market.volumeLabel !== null && <span>Volume: UGX {market.volumeLabel}</span>}
+                          <span>Closes in {market.endsInLabel}</span>
                         </span>
+                        <span className="market-card-trade">Trade Market</span>
                       </button>
                     ))}
                   </div>
@@ -926,15 +952,15 @@ function Markets() {
 
               <section className="dashboard-card markets-terminal-col all-markets-panel">
                 <div className="all-markets-header">
-                  <h2 className="section-title all-markets-title">All Markets</h2>
+                  <div><span>MARKET BOARD</span><h2 className="section-title all-markets-title">Active Markets</h2></div>
                 </div>
-                <div className="all-markets-simple-table" role="table" aria-label="All markets">
+                <div className="all-markets-simple-table" role="table" aria-label="Active markets">
                   <div className="all-markets-simple-row all-markets-simple-labels" role="row">
                     <span>Market</span>
-                    <span>Type</span>
+                    <span>Sport / Type</span>
+                    <span>Yes / No</span>
+                    <span>Liquidity</span>
                     <span>Ends In</span>
-                    <span>Volume (UGX)</span>
-                    <span>Price / Share</span>
                     <span aria-hidden="true" />
                   </div>
                   {allMarketsDisplay.length === 0 ? (
@@ -950,23 +976,44 @@ function Markets() {
                           </small>
                         </span>
                       </span>
-                      <span role="cell">{market.marketType}</span>
-                      <span role="cell" className={`markets-row-ends markets-row-ends--${market.status}`}>
-                        {market.endsInLabel}
-                      </span>
-                      <span role="cell">{market.volumeLabel}</span>
+                      <span role="cell">{market.marketType}<small>{market.league}</small></span>
                       <span role="cell">
                         {formatMarketSharePrice(market.yesPrice)} /{' '}
                         {formatMarketSharePrice(market.noPrice)}
                       </span>
+                      <span role="cell">{market.liquidityLabel ? `UGX ${market.liquidityLabel}` : '—'}</span>
+                      <span role="cell" className={`markets-row-ends markets-row-ends--${market.status}`}>
+                        {market.endsInLabel}
+                      </span>
                       <span role="cell">
                         <button type="button" className="all-markets-view-btn" onClick={() => openMarketDetail(market.id)}>
-                          View
+                          {market.isTradeable ? 'Trade' : 'View'}
                         </button>
                       </span>
                     </div>
                   ))}
                 </div>
+              </section>
+
+              <section className="dashboard-card markets-terminal-col archived-markets-panel">
+                <div className="all-markets-header">
+                  <div><span>HISTORY</span><h2 className="section-title all-markets-title">Archived Records</h2></div>
+                  <small>Resolved, closed and voided markets</small>
+                </div>
+                {archivedMarkets.length === 0 ? (
+                  <p className="all-markets-empty">No archived records yet.</p>
+                ) : (
+                  <div className="archive-grid">
+                    {archivedMarkets.map((market) => (
+                      <article className="archive-market-card" key={market.id}>
+                        <span className={`archive-status archive-status--${market.status}`}>{market.status}</span>
+                        <h3>{market.question}</h3>
+                        <p>{market.marketType} · {market.endsInLabel}</p>
+                        <button type="button" onClick={() => openMarketDetail(market.id)}>View Record</button>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
           )}
