@@ -1201,7 +1201,8 @@ select { cursor: pointer; }
 /* --------------------------------------------------------------- responsive */
 @media (max-width: 980px) {
   .sb-layout, .my-team-layout, .transfers-layout, .comp-detail-grid, .sb-review-grid { grid-template-columns: 1fr; }
-  .topnav { display: none; }
+  .topnav { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .topnav button { white-space: nowrap; font-size: 13px; }
 }
 @media (max-width: 640px) {
   .topbar { padding: 12px 16px; }
@@ -1905,4 +1906,149 @@ select { cursor: pointer; }
   .gw-fixture-team { font-size: 0.78rem; }
   .hub-fixtures-panel { padding: 14px; }
   .gw-points-bar { gap: 10px; }
+}
+
+/* ── Mobile (≤ 768px) ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Shell & layout */
+  .fantasy-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .app-shell { flex-direction: column; }
+  .app-main { padding: 14px; }
+
+  /* Topbar */
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .topbar-profile-name { display: none; }
+  .topbar-profile-btn { padding: 5px 8px 5px 5px; }
+
+  /* Hub headings */
+  .hub-heading h1 { font-size: 22px; }
+  .hub-heading p { font-size: 13px; }
+
+  /* Stats row — 2 columns on small mobile */
+  .stat-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat-value { font-size: 22px; }
+
+  /* Active team cards — single column */
+  .hub-team-cards {
+    grid-template-columns: 1fr;
+  }
+  .hub-team-card-stats { gap: 12px; flex-wrap: wrap; }
+
+  /* Competition rows — stack actions below main info */
+  .hub-comp-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .hub-comp-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* Sport filter — scrollable row */
+  .sport-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  /* Search + filter header — stack */
+  .hub-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .hub-section-head .search-bar { width: 100%; }
+
+  /* Squad builder steps — scrollable */
+  .sb-steps {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .sb-step { white-space: nowrap; }
+
+  /* Squad builder summary bar */
+  .sb-summary-bar { flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px; }
+  .sb-actions { width: 100%; justify-content: flex-end; }
+
+  /* Layouts already collapse at 980px via the existing rule; add tighter padding */
+  .sb-layout,
+  .my-team-layout,
+  .transfers-layout,
+  .sb-review-grid,
+  .comp-detail-grid { gap: 12px; }
+
+  /* Market table tighter columns */
+  .market-row { grid-template-columns: 1.6fr 0.5fr 0.5fr 28px; gap: 4px; font-size: 12px; }
+  .market-list { max-height: 320px; }
+
+  /* Pitch slot — smaller on narrow screens */
+  .pitch-slot { width: 56px; }
+  .pitch-slot-name { font-size: 9px; max-width: 56px; }
+
+  /* Leagues tabs — scrollable row */
+  .leagues-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    gap: 4px;
+  }
+  .leagues-tabs button { white-space: nowrap; padding: 7px 12px; font-size: 12px; }
+
+  /* League card share grid — 2 columns */
+  .league-share-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Modal — full width, max-height already set */
+  .modal { width: calc(100vw - 24px); max-width: calc(100vw - 24px); }
+  .overlay { padding: 12px; }
+
+  /* Drawer — full width on mobile */
+  .drawer { width: 100vw !important; max-width: 100vw !important; }
+
+  /* Transfer locked notice — compact */
+  .transfer-locked-notice { padding: 20px 14px; }
+
+  /* Topbar profile menu — right-align */
+  .topbar-profile-menu { right: 0; }
+
+  /* Hub view buttons — compact */
+  .hub-view-btn { padding: 7px 12px; font-size: 12px; }
+
+  /* Comp detail head */
+  .comp-detail-head h1 { font-size: 20px; }
+  .comp-detail-meta { gap: 10px; font-size: 12px; }
+
+  /* Points breakdown — full width stat cards */
+  .breakdown-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .breakdown-stat-value { font-size: 18px; }
+
+  /* Player drawer — full width */
+  .player-drawer { width: 100vw !important; }
+
+  /* Tables with horizontal scroll */
+  .standings-table-wrap, .league-table-wrap { overflow-x: auto; }
+  .standings-table { min-width: 340px; }
+}
+
+/* ── Very narrow (≤ 400px) ─────────────────────────────────────── */
+@media (max-width: 400px) {
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .hub-team-card { padding: 10px 12px; }
+  .hub-view-btn { padding: 6px 10px; font-size: 11px; }
+  .leagues-tabs button { padding: 6px 10px; font-size: 11.5px; }
+  .topnav button { font-size: 12px; padding: 6px 10px; }
+  .modal { width: calc(100vw - 12px); }
+  .overlay { padding: 6px; }
+  .pitch-slot { width: 48px; }
+  .pitch-slot-name { font-size: 8px; max-width: 48px; }
 }
