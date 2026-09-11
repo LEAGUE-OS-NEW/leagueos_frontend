@@ -282,6 +282,7 @@ function FanVerification() {
 
     setSubmitError(null);
     setIsVerifyingDocument(true);
+    const previousAttempts = canonicalKyc?.attempts_count ?? 0;
     try {
       if (!form.selfie) throw new Error('Take or upload a live selfie to continue.');
       const documentType = form.idType === 'Passport'
@@ -308,6 +309,16 @@ function FanVerification() {
       await refreshEligibility();
       goToStep('status');
     } catch (submitException) {
+      // A client-side timeout/abort doesn't mean the submission never
+      // landed — the backend commits the attempt before it starts
+      // processing, so check the canonical status before assuming failure.
+      const latest = await refreshCanonicalStatus();
+      if (latest && latest.attempts_count > previousAttempts) {
+        dispatchProfileUpdated();
+        await refreshEligibility();
+        goToStep('status');
+        return;
+      }
       setSubmitError(
         submitException instanceof Error
           ? submitException.message
