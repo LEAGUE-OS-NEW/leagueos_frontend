@@ -15,8 +15,6 @@ import Topbar from '../sections/Topbar';
 import Footer from '../../../components/landing/Footer';
 
 import { calculateAge } from '../../../utils/rules.ts';
-import { updateProfile } from '../../../services/authServices.ts';
-import { getCountries } from '../../../services/onboardingService.ts';
 import {
   fetchCanonicalKycStatus,
   bypassCanonicalKycForDevelopment,
@@ -285,22 +283,16 @@ function FanVerification() {
     setSubmitError(null);
     setIsVerifyingDocument(true);
     try {
-      // Eligibility (markets/services/eligibility_service.py) reads
-      // date_of_birth and country off the profile, not off the KYC session —
-      // this step collects both, so they must actually be saved here, or an
-      // approved KYC session still leaves the fan blocked with no visible
-      // cause. profile.country is a PrimaryKeyRelatedField (Country row id),
-      // not the ISO code this form works with, so it has to be resolved
-      // against the real catalogue before the PATCH.
-      const isoCode = PROFILE_COUNTRY_CODES[form.nationality];
-      const countries = isoCode ? await getCountries() : [];
-      const countryId = countries.find((c) => c.iso_code === isoCode)?.id;
-      await updateProfile({ date_of_birth: form.dob, ...(countryId ? { country: countryId } : {}) });
-      dispatchProfileUpdated();
       if (!form.selfie) throw new Error('Take or upload a live selfie to continue.');
       const documentType = form.idType === 'Passport'
         ? 'PASSPORT'
         : form.idType === "Driver's License" ? 'DRIVING_LICENCE' : 'NATIONAL_ID';
+      // Eligibility (markets/services/eligibility_service.py) reads
+      // date_of_birth and country off the profile, not off the KYC session —
+      // the backend now saves both onto the profile itself as part of this
+      // submission (kyc/views.py's FanKYCSubmitView), resolving profile_country
+      // against the real Country catalogue server-side, so this form no
+      // longer needs its own separate profile PATCH beforehand.
       await submitCanonicalKyc({
         documentType,
         documentCountry: 'UGA',
@@ -309,7 +301,9 @@ function FanVerification() {
         legalName: form.fullLegalName,
         identityNumber: form.nin,
         dateOfBirth: form.dob,
+        profileCountry: PROFILE_COUNTRY_CODES[form.nationality] ?? '',
       });
+      dispatchProfileUpdated();
       await refreshCanonicalStatus();
       await refreshEligibility();
       goToStep('status');
