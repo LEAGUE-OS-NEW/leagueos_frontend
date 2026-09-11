@@ -47,6 +47,10 @@ axiosInstance.interceptors.request.use((config) => {
     const token = getToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
+  // The instance sets a default JSON Content-Type, which axios otherwise
+  // leaves untouched for FormData bodies — the browser then can't attach
+  // the multipart boundary. Let the browser set it instead.
+  if (config.data instanceof FormData) delete config.headers["Content-Type"];
   return config;
 });
 

@@ -46,7 +46,6 @@ export async function submitCanonicalKyc(input: {
   legalName: string;
   identityNumber: string;
   dateOfBirth: string;
-  profileCountry: string;
 }): Promise<void> {
   const body = new FormData();
   body.append('document_type', input.documentType);
@@ -56,9 +55,8 @@ export async function submitCanonicalKyc(input: {
   body.append('legal_name', input.legalName);
   body.append('identity_number', input.identityNumber);
   body.append('date_of_birth', input.dateOfBirth);
-  body.append('profile_country', input.profileCountry);
   try {
-    await apiClient.post('/fans/kyc/', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+    await apiClient.post('/fans/kyc/', body);
   } catch (error) {
     throw apiError(error);
   }
