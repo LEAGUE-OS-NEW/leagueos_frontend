@@ -132,11 +132,7 @@ export const uploadAvatar = (file: File) => {
   const formData = new FormData();
   formData.append("avatar", file);
 
-  return axiosInstance.post("/profile/avatar/", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  return axiosInstance.post("/profile/avatar/", formData);
 };
 
 export const removeAvatar = () => axiosInstance.delete("/profile/avatar/");

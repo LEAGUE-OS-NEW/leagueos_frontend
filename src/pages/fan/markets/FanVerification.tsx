@@ -16,6 +16,7 @@ import Footer from '../../../components/landing/Footer';
 
 import { calculateAge } from '../../../utils/rules.ts';
 import { updateProfile } from '../../../services/authServices.ts';
+import { getCountries } from '../../../services/onboardingService.ts';
 import {
   fetchCanonicalKycStatus,
   bypassCanonicalKycForDevelopment,
@@ -285,10 +286,16 @@ function FanVerification() {
     setIsVerifyingDocument(true);
     try {
       // Eligibility (markets/services/eligibility_service.py) reads
-      // date_of_birth off the profile, not off the KYC session — this step
-      // collects it, so it must actually be saved here, or an approved KYC
-      // session still leaves the fan blocked with no visible cause.
-      await updateProfile({ date_of_birth: form.dob });
+      // date_of_birth and country off the profile, not off the KYC session —
+      // this step collects both, so they must actually be saved here, or an
+      // approved KYC session still leaves the fan blocked with no visible
+      // cause. profile.country is a PrimaryKeyRelatedField (Country row id),
+      // not the ISO code this form works with, so it has to be resolved
+      // against the real catalogue before the PATCH.
+      const isoCode = PROFILE_COUNTRY_CODES[form.nationality];
+      const countries = isoCode ? await getCountries() : [];
+      const countryId = countries.find((c) => c.iso_code === isoCode)?.id;
+      await updateProfile({ date_of_birth: form.dob, ...(countryId ? { country: countryId } : {}) });
       dispatchProfileUpdated();
       if (!form.selfie) throw new Error('Take or upload a live selfie to continue.');
       const documentType = form.idType === 'Passport'
@@ -302,7 +309,6 @@ function FanVerification() {
         legalName: form.fullLegalName,
         identityNumber: form.nin,
         dateOfBirth: form.dob,
-        profileCountry: PROFILE_COUNTRY_CODES[form.nationality] ?? '',
       });
       await refreshCanonicalStatus();
       await refreshEligibility();

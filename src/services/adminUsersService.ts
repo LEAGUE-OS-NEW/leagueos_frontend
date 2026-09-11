@@ -346,9 +346,7 @@ export async function createRealClub(input: { name: string; sportId: string }): 
 export async function uploadClubLogo(clubId: string, file: File): Promise<string> {
   const formData = new FormData();
   formData.append('logo', file);
-  const response = await apiClient.post(`/${encodeURIComponent(clubId)}/logo/`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await apiClient.post(`/${encodeURIComponent(clubId)}/logo/`, formData);
   const raw = response.data as Record<string, unknown>;
   return String(raw.logo_url ?? '');
 }
