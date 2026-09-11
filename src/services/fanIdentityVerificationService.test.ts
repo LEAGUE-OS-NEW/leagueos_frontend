@@ -16,7 +16,7 @@ describe('canonical fan KYC service', () => {
     await submitCanonicalKyc({
       documentType: 'NATIONAL_ID', documentCountry: 'UGA', documentImage, selfieImage,
       legalName: 'Normal Fan', identityNumber: 'CM12345678',
-      dateOfBirth: '1990-01-01',
+      dateOfBirth: '1990-01-01', profileCountry: 'UG',
     });
 
     const body = vi.mocked(apiClient.post).mock.calls[0][1] as FormData;
@@ -24,6 +24,7 @@ describe('canonical fan KYC service', () => {
     expect(body.get('document_country')).toBe('UGA');
     expect(body.get('document_image')).toBe(documentImage);
     expect(body.get('selfie_image')).toBe(selfieImage);
+    expect(body.get('profile_country')).toBe('UG');
   });
 
   it('uses the server-authoritative status response', async () => {
