@@ -114,6 +114,15 @@ function toDisplay(p: StoreProduct): DisplayProduct {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+function uniqueById(products: StoreProduct[]): StoreProduct[] {
+  const seen = new Set<string>();
+  return products.filter((product) => {
+    if (seen.has(product.id)) return false;
+    seen.add(product.id);
+    return true;
+  });
+}
+
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // Snapshot time at module load — products created before this are not "new"
 const MODULE_LOAD_TIME = Date.now();
@@ -128,7 +137,7 @@ function ProductShowcase({
   const allProducts = useClubProductStore((s) => s.products);
 
   // Filter by category
-  const filtered = (activeCategory === 'all'
+  const filtered = uniqueById(activeCategory === 'all'
     ? allProducts
     : allProducts.filter((p) => p.category === activeCategory)
   ).filter((p) => p.stock > 0); // only in-stock products
