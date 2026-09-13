@@ -1,6 +1,7 @@
 import axiosInstance from "./apiClient.ts";
 import type { AuthenticatedUser } from "../types/dashboardAccess.ts";
 import type { ApiEnvelope } from "../types/api.ts";
+import type { BackendProfile } from "../data/currentUser.ts";
 import { unwrapApiData } from "./apiUtils.ts";
 
 export type AuthPayload = Record<string, unknown>;
@@ -93,7 +94,13 @@ export const completeAccountSetup = async (payload: AccountSetupPayload) => {
   return { ...response, data: unwrapApiData(response.data) };
 };
 
-export const fetchProfile = () => axiosInstance.get("/profile/");
+export const fetchProfile = async () => {
+  const response = await axiosInstance.get<BackendProfile | ApiEnvelope<BackendProfile>>(
+    "/profile/",
+  );
+
+  return { ...response, data: unwrapApiData(response.data) };
+};
 
 export interface GenderOption {
   id: string;
@@ -125,14 +132,35 @@ export const fetchCurrentUser = async () => {
   };
 };
 
-export const updateProfile = (payload: AuthPayload) =>
-  axiosInstance.patch("/profile/", payload);
+export const updateProfile = async (payload: AuthPayload) => {
+  const response = await axiosInstance.patch<
+    BackendProfile | ApiEnvelope<BackendProfile>
+  >("/profile/", payload);
 
-export const uploadAvatar = (file: File) => {
+  return { ...response, data: unwrapApiData(response.data) };
+};
+
+export interface AvatarMutationResponse {
+  avatar_url: string | null;
+  updated_at?: string | null;
+  avatar_updated_at?: string | null;
+}
+
+export const uploadAvatar = async (file: File) => {
   const formData = new FormData();
   formData.append("avatar", file);
 
-  return axiosInstance.post("/profile/avatar/", formData);
+  const response = await axiosInstance.post<
+    AvatarMutationResponse | ApiEnvelope<AvatarMutationResponse>
+  >("/profile/avatar/", formData);
+
+  return { ...response, data: unwrapApiData(response.data) };
 };
 
-export const removeAvatar = () => axiosInstance.delete("/profile/avatar/");
+export const removeAvatar = async () => {
+  const response = await axiosInstance.delete<
+    AvatarMutationResponse | ApiEnvelope<AvatarMutationResponse>
+  >("/profile/avatar/");
+
+  return { ...response, data: unwrapApiData(response.data) };
+};

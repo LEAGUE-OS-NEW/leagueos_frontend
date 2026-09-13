@@ -20,6 +20,7 @@ export type BackendProfile = {
     | null;
   avatar?: string | null;
   avatar_url?: string | null;
+  avatar_updated_at?: string | null;
   is_email_verified?: boolean;
   is_phone_verified?: boolean;
   date_joined?: string;
@@ -140,12 +141,20 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
+function versionedUrl(url: string | null, version?: string | null) {
+  if (!url || !version) return url;
+
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}v=${encodeURIComponent(version)}`;
+}
+
 export function mapProfileToCurrentUser(profile?: BackendProfile | null): CurrentUser {
   if (!profile) return currentUser;
 
   const name = getName(profile);
   const roleLabel = clean(profile.role_display || profile.role, currentUser.membership);
   const clubName = getClubName(profile.club);
+  const avatarUrl = clean(profile.avatar_url || profile.avatar) || null;
 
   const isVerified = Boolean(
     profile?.is_verified ??
@@ -158,11 +167,11 @@ export function mapProfileToCurrentUser(profile?: BackendProfile | null): Curren
     email: clean(profile.email, currentUser.email),
     phoneNumber: clean(profile.phone_number, currentUser.phoneNumber),
     fanId: profile.id ? `LOS-FAN-${String(profile.id).padStart(6, '0')}` : currentUser.fanId,
-    location: clean(profile.location, currentUser.location),
+    location: clean(profile.city || profile.location, currentUser.location),
     favoriteSport: clean(profile.favourite_sport || profile.favorite_sport, currentUser.favoriteSport),
     membership: roleLabel,
     avatarInitials: getInitials(name),
-    avatarUrl: clean(profile.avatar_url || profile.avatar) || null,
+    avatarUrl: versionedUrl(avatarUrl, profile.avatar_updated_at),
     memberSince: formatDate(profile.date_joined),
     isEmailVerified: Boolean(profile.is_email_verified),
     isPhoneVerified: Boolean(profile.is_phone_verified),
