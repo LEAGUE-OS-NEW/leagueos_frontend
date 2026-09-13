@@ -51,4 +51,43 @@ describe('ProductShowcase', () => {
 
     expect(screen.getAllByText('Official Home Jersey')).toHaveLength(1);
   });
+
+  it('collapses variant rows that share the same product identity', () => {
+    useClubProductStore.setState({
+      products: [
+        {
+          id: 'home-jersey-small',
+          clubSlug: 'fan-alpha',
+          clubName: 'Fan Alpha',
+          name: 'Official Home Jersey',
+          category: 'jerseys',
+          price: 'UGX 90,000',
+          priceValue: 90000,
+          stock: 8,
+          accentColor: '#991b1b',
+          createdAt: oldTimestamp,
+        },
+        {
+          id: 'home-jersey-medium',
+          clubSlug: 'fan-alpha',
+          clubName: 'Fan Alpha',
+          name: 'Official Home Jersey',
+          category: 'jerseys',
+          price: 'UGX 90,000',
+          priceValue: 90000,
+          stock: 8,
+          accentColor: '#991b1b',
+          createdAt: oldTimestamp,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ProductShowcase activeCategory="all" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByText('Official Home Jersey')).toHaveLength(1);
+  });
 });

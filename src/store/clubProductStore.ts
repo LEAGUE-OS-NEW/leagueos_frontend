@@ -41,7 +41,7 @@ export const useClubProductStore = create<ClubProductStore>()(
       products: [],
 
       addProduct: (product) =>
-        set((state) => ({ products: [product, ...state.products] })),
+        set((state) => ({ products: dedupeStoreProducts([product, ...state.products]) })),
 
       updateProduct: (id, updates) =>
         set((state) => ({
@@ -53,11 +53,36 @@ export const useClubProductStore = create<ClubProductStore>()(
       removeProduct: (id) =>
         set((state) => ({ products: state.products.filter((p) => p.id !== id) })),
 
-      replaceAll: (products) => set(() => ({ products })),
+      replaceAll: (products) => set(() => ({ products: dedupeStoreProducts(products) })),
     }),
     { name: 'leagueos-club-products' },
   ),
 );
+
+function normalizeProductIdentityPart(value: string | undefined) {
+  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function getStoreProductIdentity(product: StoreProduct) {
+  return [
+    'product',
+    product.clubSlug,
+    normalizeProductIdentityPart(product.name),
+    product.category,
+    product.priceValue,
+  ].join(':');
+}
+
+export function dedupeStoreProducts(products: StoreProduct[]): StoreProduct[] {
+  const seen = new Set<string>();
+
+  return products.filter((product) => {
+    const key = getStoreProductIdentity(product);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 /** Map the club admin category name → CategorySlug */
 export function toCategorySlug(cat: string): CategorySlug {
