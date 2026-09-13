@@ -1,3 +1,5 @@
+import { versionedApiAssetUrl } from '../utils/apiAssetUrl';
+
 export type BackendProfile = {
   id?: number;
   email?: string;
@@ -141,13 +143,6 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
-function versionedUrl(url: string | null, version?: string | null) {
-  if (!url || !version) return url;
-
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}v=${encodeURIComponent(version)}`;
-}
-
 export function mapProfileToCurrentUser(profile?: BackendProfile | null): CurrentUser {
   if (!profile) return currentUser;
 
@@ -171,7 +166,7 @@ export function mapProfileToCurrentUser(profile?: BackendProfile | null): Curren
     favoriteSport: clean(profile.favourite_sport || profile.favorite_sport, currentUser.favoriteSport),
     membership: roleLabel,
     avatarInitials: getInitials(name),
-    avatarUrl: versionedUrl(avatarUrl, profile.avatar_updated_at),
+    avatarUrl: versionedApiAssetUrl(avatarUrl, profile.avatar_updated_at),
     memberSince: formatDate(profile.date_joined),
     isEmailVerified: Boolean(profile.is_email_verified),
     isPhoneVerified: Boolean(profile.is_phone_verified),

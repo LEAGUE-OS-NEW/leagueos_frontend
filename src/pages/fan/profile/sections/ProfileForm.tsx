@@ -5,6 +5,7 @@ import { fetchGenders, removeAvatar, updateProfile, uploadAvatar } from '../../.
 import type { GenderOption } from '../../../../services/authServices';
 import { extractApiError } from '../../../../services/apiUtils.ts';
 import type { BackendProfile } from '../../../../data/currentUser';
+import { versionedApiAssetUrl } from '../../../../utils/apiAssetUrl';
 import AvatarCropModal from './AvatarCropModal';
 import './ProfileForm.css';
 
@@ -79,13 +80,6 @@ function dispatchProfileUpdated() {
   window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 }
 
-function versionedAvatarUrl(url: string | null | undefined, version?: string | null) {
-  if (!url) return null;
-
-  const separator = url.includes('?') ? '&' : '?';
-  return version ? `${url}${separator}v=${encodeURIComponent(version)}` : url;
-}
-
 function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; isLoading: boolean }) {
   const initialValues = toFormValues(profile);
   const [values, setValues] = useState<FormValues>(initialValues);
@@ -95,7 +89,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
   const [banner, setBanner] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    versionedAvatarUrl(profile?.avatar_url ?? profile?.avatar, profile?.avatar_updated_at),
+    versionedApiAssetUrl(profile?.avatar_url ?? profile?.avatar, profile?.avatar_updated_at),
   );
   const [pendingCropSrc, setPendingCropSrc] = useState<string | null>(null);
   const [isAvatarBusy, setIsAvatarBusy] = useState(false);
@@ -129,7 +123,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
       const nextValues = toFormValues(profile);
       setValues(nextValues);
       setSavedValues(nextValues);
-      setAvatarPreview(versionedAvatarUrl(profile.avatar_url ?? profile.avatar, profile.avatar_updated_at));
+      setAvatarPreview(versionedApiAssetUrl(profile.avatar_url ?? profile.avatar, profile.avatar_updated_at));
     }
   }, [profile]);
 
@@ -213,7 +207,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
       const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
       const response = await uploadAvatar(file);
       setAvatarPreview(
-        versionedAvatarUrl(
+        versionedApiAssetUrl(
           response.data.avatar_url,
           response.data.updated_at ?? response.data.avatar_updated_at,
         ),
