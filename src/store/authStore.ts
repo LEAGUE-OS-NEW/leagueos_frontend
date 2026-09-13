@@ -10,6 +10,7 @@ import {
   getDefaultDashboardRoute as getRoleDefaultDashboardRoute,
 } from '../utils/roleRoutes.ts';
 import { useClubWorkspaceStore } from './clubWorkspaceStore.ts';
+import { useCartStore } from './cartStore.ts';
 import {
   clearAuthStorage,
   getRefreshToken,
@@ -255,6 +256,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     const sanitized = sanitizeUser(user);
 
     useClubWorkspaceStore.getState().clearSelection();
+    useCartStore.getState().setCartOwner(sanitized.user);
     setToken(access);
     setRefreshToken(refresh);
     setStoredUser(sanitized.user);
@@ -275,6 +277,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     const sanitized = sanitizeUser(user);
 
     setStoredUser(sanitized.user);
+    useCartStore.getState().setCartOwner(sanitized.user);
     set({
       user: sanitized.user,
       accessStatus: getAccessStatus(
@@ -296,6 +299,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
 
   clearAuth: () => {
     useClubWorkspaceStore.getState().clearSelection();
+    useCartStore.getState().setCartOwner(null);
     clearAuthStorage();
 
     set({
@@ -307,3 +311,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     });
   },
 }));
+
+useCartStore.getState().setCartOwner(
+  (initialAccessToken || initialRefreshToken) ? initialUser.user : null,
+);
