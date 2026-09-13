@@ -25,4 +25,16 @@ describe('mapProfileToCurrentUser', () => {
       'https://cdn.leagueos.test/avatar.jpg?v=2026-09-14T00%3A00%3A00Z',
     );
   });
+
+  it('resolves API media avatar URLs against the backend origin', () => {
+    const currentUser = mapProfileToCurrentUser({
+      first_name: 'Amina',
+      avatar_url: '/media/avatars/fan/avatar.jpg',
+      avatar_updated_at: '2026-09-14T00:00:00Z',
+    });
+
+    expect(currentUser.avatarUrl).toBe(
+      'http://localhost:8000/media/avatars/fan/avatar.jpg?v=2026-09-14T00%3A00%3A00Z',
+    );
+  });
 });
