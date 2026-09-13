@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileForm from './ProfileForm';
@@ -104,5 +104,50 @@ describe('ProfileForm avatar updates', () => {
       'src',
       'http://localhost:8000/media/avatars/fan/avatar.jpg?v=2026-09-14T00%3A00%3A00Z',
     );
+  });
+
+  it('falls back to the freshly cropped image when the persisted avatar URL fails to load', async () => {
+    const user = userEvent.setup();
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:selected-avatar')
+      .mockReturnValueOnce('blob:cropped-avatar');
+
+    vi.mocked(uploadAvatar).mockResolvedValue({
+      data: {
+        avatar_url: 'https://cdn.leagueos.test/missing-avatar.jpg',
+        updated_at: '2026-09-14T00:00:00Z',
+      },
+    } as never);
+
+    render(
+      <ProfileForm
+        isLoading={false}
+        profile={{
+          first_name: 'Amina',
+          last_name: 'Okello',
+          email: 'amina@example.com',
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /change photo/i }));
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+
+    await user.upload(
+      input as HTMLInputElement,
+      new File(['avatar'], 'avatar.jpg', { type: 'image/jpeg' }),
+    );
+    await user.click(screen.getByRole('button', { name: /save cropped photo/i }));
+
+    const avatar = await screen.findByAltText('Your avatar');
+    expect(avatar).toHaveAttribute(
+      'src',
+      'https://cdn.leagueos.test/missing-avatar.jpg?v=2026-09-14T00%3A00%3A00Z',
+    );
+
+    fireEvent.error(avatar);
+
+    expect(screen.getByAltText('Your avatar')).toHaveAttribute('src', 'blob:cropped-avatar');
   });
 });
