@@ -79,6 +79,13 @@ function dispatchProfileUpdated() {
   window.dispatchEvent(new Event(PROFILE_UPDATED_EVENT));
 }
 
+function versionedAvatarUrl(url: string | null | undefined, version?: string | null) {
+  if (!url) return null;
+
+  const separator = url.includes('?') ? '&' : '?';
+  return version ? `${url}${separator}v=${encodeURIComponent(version)}` : url;
+}
+
 function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; isLoading: boolean }) {
   const initialValues = toFormValues(profile);
   const [values, setValues] = useState<FormValues>(initialValues);
@@ -87,7 +94,9 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
   const [isSaving, setIsSaving] = useState(false);
   const [banner, setBanner] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatar_url ?? profile?.avatar ?? null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    versionedAvatarUrl(profile?.avatar_url ?? profile?.avatar, profile?.avatar_updated_at),
+  );
   const [pendingCropSrc, setPendingCropSrc] = useState<string | null>(null);
   const [isAvatarBusy, setIsAvatarBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,7 +129,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
       const nextValues = toFormValues(profile);
       setValues(nextValues);
       setSavedValues(nextValues);
-      setAvatarPreview(profile.avatar_url ?? profile.avatar ?? null);
+      setAvatarPreview(versionedAvatarUrl(profile.avatar_url ?? profile.avatar, profile.avatar_updated_at));
     }
   }, [profile]);
 
@@ -202,8 +211,13 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
 
     try {
       const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-      await uploadAvatar(file);
-      setAvatarPreview(URL.createObjectURL(blob));
+      const response = await uploadAvatar(file);
+      setAvatarPreview(
+        versionedAvatarUrl(
+          response.data.avatar_url,
+          response.data.updated_at ?? response.data.avatar_updated_at,
+        ),
+      );
       setBanner({ tone: 'success', message: 'Your photo has been updated.' });
       dispatchProfileUpdated();
     } catch {

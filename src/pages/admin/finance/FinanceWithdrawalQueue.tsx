@@ -607,6 +607,12 @@ function FinanceWithdrawalQueue({
               actionDraft.withdrawalId,
               value,
             );
+          updated = {
+            ...updated,
+            providerReference:
+              updated.providerReference ||
+              value,
+          };
           break;
 
         case 'fail':

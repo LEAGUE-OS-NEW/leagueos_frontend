@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import apiClient from "./apiClient.ts";
 import {
   fetchCurrentUser,
+  fetchProfile,
   login,
   requestPasswordReset,
   resetPassword,
   resendOtp,
+  updateProfile,
+  uploadAvatar,
   verifyOtp,
   verifyPasswordReset,
 } from "./authServices.ts";
@@ -14,16 +17,21 @@ vi.mock("./apiClient.ts", () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
 const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
+const patch = vi.mocked(apiClient.patch);
 
 describe("authentication service contracts", () => {
   beforeEach(() => {
     get.mockReset();
     post.mockReset();
+    patch.mockReset();
+    vi.mocked(apiClient.delete).mockReset();
   });
 
   it("maps a login identifier to the backend email field and unwraps the response", async () => {
@@ -66,6 +74,70 @@ describe("authentication service contracts", () => {
       id: "admin-1",
       email: "admin@leagueos.com",
       roles: ["Super Admin"],
+    });
+  });
+
+  it("unwraps the profile API envelope when fetching profile details", async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          id: 7,
+          first_name: "Amina",
+          city: "Kampala",
+        },
+      },
+    });
+
+    const response = await fetchProfile();
+
+    expect(get).toHaveBeenCalledWith("/profile/");
+    expect(response.data).toMatchObject({
+      id: 7,
+      first_name: "Amina",
+      city: "Kampala",
+    });
+  });
+
+  it("unwraps profile update responses so the form reflects persisted values", async () => {
+    patch.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          first_name: "Amina",
+          last_name: "Okello",
+          city: "Entebbe",
+          biography: "Season ticket holder",
+        },
+      },
+    });
+
+    const response = await updateProfile({ city: "Entebbe" });
+
+    expect(patch).toHaveBeenCalledWith("/profile/", { city: "Entebbe" });
+    expect(response.data).toMatchObject({
+      city: "Entebbe",
+      biography: "Season ticket holder",
+    });
+  });
+
+  it("unwraps avatar upload responses so the UI can show the stored image URL", async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          avatar_url: "https://cdn.leagueos.test/avatar.jpg",
+          updated_at: "2026-09-14T00:00:00Z",
+        },
+      },
+    });
+
+    const response = await uploadAvatar(new File(["avatar"], "avatar.jpg", { type: "image/jpeg" }));
+
+    expect(post).toHaveBeenCalledWith("/profile/avatar/", expect.any(FormData));
+    expect(response.data).toEqual({
+      avatar_url: "https://cdn.leagueos.test/avatar.jpg",
+      updated_at: "2026-09-14T00:00:00Z",
     });
   });
 
