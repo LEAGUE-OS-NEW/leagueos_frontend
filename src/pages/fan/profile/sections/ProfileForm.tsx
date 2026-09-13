@@ -95,7 +95,21 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
   const [isAvatarBusy, setIsAvatarBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasSyncedRealProfile = useRef(false);
+  const localAvatarPreviewRef = useRef<string | null>(null);
   const [genders, setGenders] = useState<GenderOption[]>([]);
+
+  const replaceLocalAvatarPreview = (url: string | null) => {
+    if (localAvatarPreviewRef.current) {
+      URL.revokeObjectURL(localAvatarPreviewRef.current);
+    }
+    localAvatarPreviewRef.current = url;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (localAvatarPreviewRef.current) URL.revokeObjectURL(localAvatarPreviewRef.current);
+    };
+  }, []);
 
   // Fetch-on-mount for the Gender dropdown's real options — mirrors the
   // fetch-in-effect shape used elsewhere (e.g. useMarketEligibility).
@@ -205,13 +219,14 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
 
     try {
       const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      const localPreviewUrl = URL.createObjectURL(blob);
       const response = await uploadAvatar(file);
-      setAvatarPreview(
-        versionedApiAssetUrl(
-          response.data.avatar_url,
-          response.data.updated_at ?? response.data.avatar_updated_at,
-        ),
+      replaceLocalAvatarPreview(localPreviewUrl);
+      const persistedAvatarUrl = versionedApiAssetUrl(
+        response.data.avatar_url,
+        response.data.updated_at ?? response.data.avatar_updated_at,
       );
+      setAvatarPreview(persistedAvatarUrl ?? localPreviewUrl);
       setBanner({ tone: 'success', message: 'Your photo has been updated.' });
       dispatchProfileUpdated();
     } catch {
@@ -227,6 +242,7 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
 
     try {
       await removeAvatar();
+      replaceLocalAvatarPreview(null);
       setAvatarPreview(null);
       setBanner({ tone: 'success', message: 'Your photo has been removed.' });
       dispatchProfileUpdated();
@@ -248,7 +264,15 @@ function ProfileForm({ profile, isLoading }: { profile: BackendProfile | null; i
 
       <div className="profile-avatar-row">
         <div className="profile-avatar">
-          {avatarPreview ? <img src={avatarPreview} alt="Your avatar" /> : <span>{initials.toUpperCase()}</span>}
+          {avatarPreview ? (
+            <img
+              src={avatarPreview}
+              alt="Your avatar"
+              onError={() => setAvatarPreview(localAvatarPreviewRef.current)}
+            />
+          ) : (
+            <span>{initials.toUpperCase()}</span>
+          )}
         </div>
 
         <div className="profile-avatar-actions">
