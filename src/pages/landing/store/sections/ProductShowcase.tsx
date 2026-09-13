@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight, FiShoppingCart, FiCheck, FiImage } from 'react-icons/fi';
 import type { CategorySlug } from './shopCategories';
 import { useCartStore } from '../../../../store/cartStore';
-import { useClubProductStore, type StoreProduct } from '../../../../store/clubProductStore';
+import { useClubProductStore, dedupeStoreProducts, type StoreProduct } from '../../../../store/clubProductStore';
 import './ProductShowcase.css';
 
 // ── Unified product shape for display ────────────────────────────────────────
@@ -114,15 +114,6 @@ function toDisplay(p: StoreProduct): DisplayProduct {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-function uniqueById(products: StoreProduct[]): StoreProduct[] {
-  const seen = new Set<string>();
-  return products.filter((product) => {
-    if (seen.has(product.id)) return false;
-    seen.add(product.id);
-    return true;
-  });
-}
-
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // Snapshot time at module load — products created before this are not "new"
 const MODULE_LOAD_TIME = Date.now();
@@ -137,7 +128,7 @@ function ProductShowcase({
   const allProducts = useClubProductStore((s) => s.products);
 
   // Filter by category
-  const filtered = uniqueById(activeCategory === 'all'
+  const filtered = dedupeStoreProducts(activeCategory === 'all'
     ? allProducts
     : allProducts.filter((p) => p.category === activeCategory)
   ).filter((p) => p.stock > 0); // only in-stock products

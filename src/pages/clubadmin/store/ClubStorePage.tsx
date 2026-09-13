@@ -144,7 +144,10 @@ export default function ClubStorePage() {
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEnt = getClubAdminEntitlements(user);
   const current = getSelectedClubAdminEntitlement(rawEnt, selectedEntitlementId);
-  const canManage = canAccessClubSection(current, 'club.admin.manage');
+  const canManageStore =
+    canAccessClubSection(current, 'club.admin.manage') ||
+    canAccessClubSection(current, 'club.store.manage') ||
+    canAccessClubSection(current, 'club.merchandise.manage');
 
   // Real club UUID — only available when the backend issued a real entitlement
   const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
@@ -494,7 +497,7 @@ export default function ClubStorePage() {
         </div>
         <div className="ca-page-actions">
           <button type="button" className="ca-btn ca-btn-secondary" onClick={() => exportCSV(products as unknown as Record<string, unknown>[], 'products.csv')}><FiDownload /> Export</button>
-          {canManage && activeTab === 'Products' && (
+          {canManageStore && activeTab === 'Products' && (
             <button type="button" className="ca-btn ca-btn-primary" onClick={openNewProduct}><FiPlus /> Add Product</button>
           )}
         </div>
@@ -559,7 +562,7 @@ export default function ClubStorePage() {
                         <td style={{ fontWeight: p.stock < 20 ? 800 : undefined, color: p.stock === 0 ? '#ef4444' : p.stock < 20 ? '#f97316' : undefined }}>{p.stock}</td>
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>
-                          {canManage && (
+                          {canManageStore && (
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button type="button" className="ca-icon-btn" title="Edit" onClick={() => openEditProduct(p)}><FiEdit2 /></button>
                               <button type="button" className="ca-icon-btn" title="Delete" style={{ color: '#ef4444' }} onClick={() => { setDeleteProductId(p.id); setModal('confirm-delete'); }}><FiTrash2 /></button>
@@ -586,7 +589,7 @@ export default function ClubStorePage() {
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Stock: {s.stock}</p>
                     </div>
                   </div>
-                  {canManage && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}><FiRefreshCw /></button>}
+                  {canManageStore && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}><FiRefreshCw /></button>}
                 </div>
               ))}
             </div>
@@ -697,8 +700,8 @@ export default function ClubStorePage() {
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>{p.price}</td>
                         <td>
-                          {canManage && p.status !== 'active' && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}><FiRefreshCw /> Restock</button>}
-                          {canManage && p.status === 'active' && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
+                          {canManageStore && p.status !== 'active' && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}><FiRefreshCw /> Restock</button>}
+                          {canManageStore && p.status === 'active' && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
                         </td>
                       </tr>
                     ))}
