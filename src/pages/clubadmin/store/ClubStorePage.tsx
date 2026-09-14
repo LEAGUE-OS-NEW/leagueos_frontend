@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiPlus, FiDownload, FiEdit2, FiAlertTriangle, FiX, FiTrash2,
   FiPackage, FiCheck, FiEye, FiRefreshCw, FiShoppingCart, FiImage,
@@ -93,6 +93,25 @@ function fromApiProduct(p: ClubMerchandiseProduct): Product {
     description: p.description || undefined,
     image,
   };
+}
+
+function mergeFetchedProducts(
+  fetched: Product[],
+  current: Product[],
+  locallyChangedIds: Set<string>,
+  locallyDeletedIds: Set<string>,
+) {
+  const fetchedIds = new Set(fetched.map(product => product.id));
+  const localOnlyProducts = current.filter(product => (
+    locallyChangedIds.has(product.id) &&
+    !locallyDeletedIds.has(product.id) &&
+    !fetchedIds.has(product.id)
+  ));
+
+  return [
+    ...fetched.filter(product => !locallyDeletedIds.has(product.id)),
+    ...localOnlyProducts,
+  ];
 }
 
 function toStoreProduct(
@@ -202,6 +221,8 @@ export default function ClubStorePage() {
   // refresh the same way they would via a real backend fetch. Lazy-initialized
   // (not an effect) since this is a pure sync read, no fetch involved.
   const [products, setProducts] = useState<Product[]>([]);
+  const locallyChangedProductIds = useRef(new Set<string>());
+  const locallyDeletedProductIds = useRef(new Set<string>());
 
   // Derived: show loading only while the real club fetch is in flight
   const isLoadingData = !!clubId && !hasFetched;
@@ -216,7 +237,12 @@ export default function ClubStorePage() {
     let cancelled = false;
     Promise.all([fetchClubProducts(clubId), fetchClubStoreOrders(clubId)]).then(([apiProducts, apiOrders]) => {
       if (cancelled) return;
-      setProducts(apiProducts.map(fromApiProduct));
+      setProducts(prev => mergeFetchedProducts(
+        apiProducts.map(fromApiProduct),
+        prev,
+        locallyChangedProductIds.current,
+        locallyDeletedProductIds.current,
+      ));
       apiProducts.forEach(product => addStoreProduct(toStoreProduct(product, fallbackClubName)));
       setOrders(apiOrders.map(fromApiOrder));
     }).catch((reason: unknown) => {
@@ -275,12 +301,16 @@ export default function ClubStorePage() {
       if (editProductId) {
         const updated = await apiUpdateClubProduct(clubId, editProductId, payload);
         const display = fromApiProduct(updated);
+        locallyChangedProductIds.current.add(display.id);
+        locallyDeletedProductIds.current.delete(display.id);
         setProducts(prev => prev.map(p => p.id === editProductId ? display : p));
         updateStoreProduct(editProductId, toStoreProduct(updated, fallbackClubName));
         showToast('Product updated');
       } else {
         const created = await createClubProduct(clubId, payload);
         const display = fromApiProduct(created);
+        locallyChangedProductIds.current.add(display.id);
+        locallyDeletedProductIds.current.delete(display.id);
         setProducts(prev => [display, ...prev]);
         addStoreProduct(toStoreProduct(created, fallbackClubName));
         showToast(`${display.name} added to catalog`);
@@ -306,6 +336,8 @@ export default function ClubStorePage() {
         });
         updateStoreProduct(restockProduct.id, toStoreProduct(updated, fallbackClubName));
       }
+      locallyChangedProductIds.current.add(restockProduct.id);
+      locallyDeletedProductIds.current.delete(restockProduct.id);
       setProducts(prev => prev.map(p => p.id === restockProduct.id ? { ...p, stock: newStock, status: getStatus(newStock) } : p));
       showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
       setModal(null);
@@ -323,6 +355,8 @@ export default function ClubStorePage() {
       if (clubId) {
         await deleteClubProduct(clubId, deleteProductId);
       }
+      locallyDeletedProductIds.current.add(deleteProductId);
+      locallyChangedProductIds.current.delete(deleteProductId);
       setProducts(prev => prev.filter(p => p.id !== deleteProductId));
       removeStoreProduct(deleteProductId);
       showToast('Product deleted');
