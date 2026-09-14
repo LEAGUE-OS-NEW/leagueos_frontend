@@ -10,8 +10,16 @@ import {
   canAccessClubSection,
   getClubAdminEntitlements,
   getSelectedClubAdminEntitlement,
+  getUserClub,
 } from '../../../utils/clubAdminAccess';
 import { parseUGX } from '../../../store/cartStore';
+import {
+  CATEGORY_COLORS,
+  nameToSlug,
+  toCategorySlug,
+  useClubProductStore,
+  type StoreProduct,
+} from '../../../store/clubProductStore';
 import {
   fetchClubProducts,
   createClubProduct,
@@ -86,6 +94,38 @@ function fromApiProduct(p: ClubMerchandiseProduct): Product {
   };
 }
 
+function toStoreProduct(
+  product: ClubMerchandiseProduct,
+  fallbackClubName: string,
+): StoreProduct {
+  const catName = (product.metadata?.cat as string) ?? 'Other';
+  const category = toCategorySlug(catName);
+  const priceValue = Math.round(Number(product.price));
+  const clubName = product.club_name ?? fallbackClubName;
+  const clubSlug = product.club_slug ?? (clubName ? nameToSlug(clubName) : product.club);
+
+  return {
+    id: product.id,
+    clubSlug,
+    clubName,
+    name: product.name,
+    category,
+    price: formatPrice(product.price, product.currency),
+    priceValue,
+    description: product.description || undefined,
+    sku: product.sku || undefined,
+    stock: product.available_stock ?? product.stock ?? 0,
+    image: (product.metadata?.image as string) || undefined,
+    originalPrice: (product.metadata?.originalPrice as string) || undefined,
+    badge: (product.metadata?.badge as string) || undefined,
+    sizes: Array.isArray(product.metadata?.sizes)
+      ? product.metadata.sizes.filter((size): size is string => typeof size === 'string')
+      : undefined,
+    accentColor: CATEGORY_COLORS[category] ?? '#7c3aed',
+    createdAt: product.published_at ? new Date(product.published_at).getTime() : Date.now(),
+  };
+}
+
 const BACKEND_TO_LOCAL_ORDER: Record<string, OrderStatus> = {
   PENDING: 'pending', PAID: 'processing', PROCESSING: 'processing',
   READY_FOR_COLLECTION: 'ready', SHIPPED: 'shipped', DELIVERED: 'fulfilled',
@@ -141,9 +181,14 @@ export default function ClubStorePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const user = useAuthStore(s => s.user);
+  const addStoreProduct = useClubProductStore(s => s.addProduct);
+  const updateStoreProduct = useClubProductStore(s => s.updateProduct);
+  const removeStoreProduct = useClubProductStore(s => s.removeProduct);
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEnt = getClubAdminEntitlements(user);
   const current = getSelectedClubAdminEntitlement(rawEnt, selectedEntitlementId);
+  const realClub = getUserClub(user);
+  const fallbackClubName = realClub?.name ?? 'Club Store';
   const canManageStore =
     canAccessClubSection(current, 'club.admin.manage') ||
     canAccessClubSection(current, 'club.store.manage') ||
@@ -172,6 +217,7 @@ export default function ClubStorePage() {
     Promise.all([fetchClubProducts(clubId), fetchClubStoreOrders(clubId)]).then(([apiProducts, apiOrders]) => {
       if (cancelled) return;
       setProducts(apiProducts.map(fromApiProduct));
+      apiProducts.forEach(product => addStoreProduct(toStoreProduct(product, fallbackClubName)));
       setOrders(apiOrders.map(fromApiOrder));
     }).catch((reason: unknown) => {
       if (!cancelled) setLoadError(reason instanceof Error ? reason.message : 'Could not load Store data.');
@@ -180,7 +226,7 @@ export default function ClubStorePage() {
       setHasFetched(true);
     });
     return () => { cancelled = true; };
-  }, [clubId]);
+  }, [addStoreProduct, clubId, fallbackClubName]);
 
   const openNewProduct = () => { setProductForm(BLANK_PRODUCT); setEditProductId(null); setModal('product'); };
   const openEditProduct = (p: Product) => {
@@ -230,11 +276,13 @@ export default function ClubStorePage() {
         const updated = await apiUpdateClubProduct(clubId, editProductId, payload);
         const display = fromApiProduct(updated);
         setProducts(prev => prev.map(p => p.id === editProductId ? display : p));
+        updateStoreProduct(editProductId, toStoreProduct(updated, fallbackClubName));
         showToast('Product updated');
       } else {
         const created = await createClubProduct(clubId, payload);
         const display = fromApiProduct(created);
         setProducts(prev => [display, ...prev]);
+        addStoreProduct(toStoreProduct(created, fallbackClubName));
         showToast(`${display.name} added to catalog`);
       }
       setModal(null);
@@ -252,7 +300,11 @@ export default function ClubStorePage() {
     setIsSaving(true);
     try {
       if (clubId) {
-        await apiUpdateClubProduct(clubId, restockProduct.id, { stock: newStock });
+        const updated = await apiUpdateClubProduct(clubId, restockProduct.id, {
+          stock: newStock,
+          status: newStock > 0 ? 'ACTIVE' : 'OUT_OF_STOCK',
+        });
+        updateStoreProduct(restockProduct.id, toStoreProduct(updated, fallbackClubName));
       }
       setProducts(prev => prev.map(p => p.id === restockProduct.id ? { ...p, stock: newStock, status: getStatus(newStock) } : p));
       showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
@@ -272,6 +324,7 @@ export default function ClubStorePage() {
         await deleteClubProduct(clubId, deleteProductId);
       }
       setProducts(prev => prev.filter(p => p.id !== deleteProductId));
+      removeStoreProduct(deleteProductId);
       showToast('Product deleted');
       setDeleteProductId(null);
       setModal(null);
