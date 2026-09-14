@@ -60,4 +60,40 @@ describe('specialist admin legacy auth hydration', () => {
       expect(entitlement?.route).toBe('/dashboard/admin');
     },
   );
+
+  it('repairs null-scoped full club admin entitlements for store access', () => {
+    useAuthStore.getState().setAuth({
+      user: {
+        id: 'club-user',
+        email: 'clubadmin@leagueos.test',
+        roles: ['Club Admin'],
+        club: { id: 'club-uuid-1', name: 'KCCA FC' },
+        dashboard_access: {
+          version: 1,
+          entitlements: [
+            {
+              id: 'club-admin-null-scope',
+              dashboard: 'CLUB_ADMIN',
+              route: '/dashboard/club-admin',
+              scope_type: null,
+              scope_id: null,
+              workspace_role: null,
+              permissions: [],
+            },
+          ],
+          default_entitlement_id: 'club-admin-null-scope',
+        },
+      },
+      access: 'test-access',
+      refresh: 'test-refresh',
+      requiresEmailVerification: false,
+    });
+
+    const entitlement = useAuthStore.getState().user?.dashboard_access?.entitlements[0];
+
+    expect(entitlement?.scope_type).toBe('CLUB');
+    expect(entitlement?.scope_id).toBe('club-uuid-1');
+    expect(entitlement?.workspace_role).toBe('CLUB_ADMIN');
+    expect(entitlement?.permissions).toContain('club.admin.manage');
+  });
 });
