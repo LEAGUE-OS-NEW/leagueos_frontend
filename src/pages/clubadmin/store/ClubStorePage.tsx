@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../store/authStore';
 import {
   canAccessClubSection,
   getClubAdminEntitlements,
+  getSelectedClubId,
   getSelectedClubAdminEntitlement,
   getUserClub,
 } from '../../../utils/clubAdminAccess';
@@ -194,8 +195,7 @@ export default function ClubStorePage() {
     canAccessClubSection(current, 'club.store.manage') ||
     canAccessClubSection(current, 'club.merchandise.manage');
 
-  // Real club UUID — only available when the backend issued a real entitlement
-  const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
+  const clubId = getSelectedClubId(current, user) || null;
 
   // No real club UUID (demo/mock session) — seed straight from the persisted
   // local store instead of an empty array, so products added here survive a
