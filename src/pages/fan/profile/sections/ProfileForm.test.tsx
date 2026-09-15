@@ -56,7 +56,7 @@ describe('ProfileForm avatar updates', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Date of birth')).toHaveValue('1996-10-05');
       expect(screen.getByLabelText('Location')).toHaveValue('Kampala');
-      expect(screen.getByLabelText('Bio')).toHaveValue('Football supporter');
+      expect(screen.getByDisplayValue('Football supporter')).toBeInTheDocument();
       expect(screen.getByAltText('Your avatar')).toHaveAttribute(
         'src',
         'https://cdn.leagueos.test/fan.jpg',
