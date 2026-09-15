@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileForm from './ProfileForm';
@@ -28,6 +28,40 @@ describe('ProfileForm avatar updates', () => {
     vi.mocked(uploadAvatar).mockReset();
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:preview');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  });
+
+  it('displays persisted profile fields when the complete profile arrives', async () => {
+    const { rerender } = render(
+      <ProfileForm
+        isLoading
+        profile={null}
+      />,
+    );
+
+    rerender(
+      <ProfileForm
+        isLoading={false}
+        profile={{
+          first_name: 'Fan',
+          last_name: 'Alpha',
+          email: 'fan@example.com',
+          date_of_birth: '1996-10-05',
+          city: 'Kampala',
+          biography: 'Football supporter',
+          avatar_url: 'https://cdn.leagueos.test/fan.jpg',
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Date of birth')).toHaveValue('1996-10-05');
+      expect(screen.getByLabelText('Location')).toHaveValue('Kampala');
+      expect(screen.getByDisplayValue('Football supporter')).toBeInTheDocument();
+      expect(screen.getByAltText('Your avatar')).toHaveAttribute(
+        'src',
+        'https://cdn.leagueos.test/fan.jpg',
+      );
+    });
   });
 
   it('shows the persisted avatar URL returned by the backend after upload', async () => {
