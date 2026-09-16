@@ -89,6 +89,8 @@ export default function ClubTicketsAdminPage() {
 
   // Ticket types for the selected match
   const [ticketTypes, setTicketTypes] = useState<AdminTicketType[]>([]);
+  const [ticketTypesByMatch, setTicketTypesByMatch] = useState<Record<string, AdminTicketType[]>>({});
+  const [fixtureTicketTypesLoading, setFixtureTicketTypesLoading] = useState(false);
   const [typesLoading, setTypesLoading] = useState(false);
   const [typesError, setTypesError] = useState('');
 
@@ -103,6 +105,13 @@ export default function ClubTicketsAdminPage() {
   const [toast, setToast] = useState('');
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
+  const setMatchTicketTypes = useCallback((matchId: string | number, types: AdminTicketType[]) => {
+    setTicketTypesByMatch((prev) => ({
+      ...prev,
+      [String(matchId)]: types,
+    }));
+  }, []);
+
   // Scanner
   const [scanInput, setScanInput] = useState('');
   const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -116,6 +125,8 @@ export default function ClubTicketsAdminPage() {
       if (!clubId) {
         setFixtures([]);
         setSelectedMatchId(null);
+        setTicketTypes([]);
+        setTicketTypesByMatch({});
         setFixturesError('Select an authorized club workspace to manage ticket types.');
         setFixturesLoading(false);
         return;
@@ -129,14 +140,40 @@ export default function ClubTicketsAdminPage() {
           setFixtures(rows);
           setSelectedMatchId(rows[0]?.id ?? null);
         }
+
+        if (rows.length > 0) {
+          if (!cancelled) setFixtureTicketTypesLoading(true);
+          const ticketRows = await Promise.all(
+            rows.map(async (fixture) => {
+              try {
+                const types = await fetchMatchTicketTypesAdmin(fixture.id);
+                return [fixture.id, types] as const;
+              } catch {
+                return [fixture.id, []] as const;
+              }
+            }),
+          );
+
+          if (!cancelled) {
+            setTicketTypesByMatch(Object.fromEntries(ticketRows));
+          }
+        } else if (!cancelled) {
+          setTicketTypes([]);
+          setTicketTypesByMatch({});
+        }
       } catch (err) {
         if (!cancelled) {
           setFixtures([]);
           setSelectedMatchId(null);
+          setTicketTypes([]);
+          setTicketTypesByMatch({});
           setFixturesError(err instanceof Error ? err.message : 'Could not load matches.');
         }
       } finally {
-        if (!cancelled) setFixturesLoading(false);
+        if (!cancelled) {
+          setFixturesLoading(false);
+          setFixtureTicketTypesLoading(false);
+        }
       }
     };
     void load();
@@ -150,6 +187,7 @@ export default function ClubTicketsAdminPage() {
     try {
       const types = await fetchMatchTicketTypesAdmin(matchId);
       setTicketTypes(types);
+      setMatchTicketTypes(matchId, types);
       setTypesError('');
     } catch (err) {
       setTypesError(err instanceof Error ? err.message : 'Could not load ticket types.');
@@ -157,7 +195,7 @@ export default function ClubTicketsAdminPage() {
     } finally {
       setTypesLoading(false);
     }
-  }, []);
+  }, [setMatchTicketTypes]);
 
   useEffect(() => {
     if (selectedMatchId === null) return;
@@ -214,10 +252,19 @@ export default function ClubTicketsAdminPage() {
       if (modal === 'edit' && editTypeId !== null) {
         const updated = await updateTicketType(editTypeId, input);
         setTicketTypes((prev) => prev.map((t) => (t.id === editTypeId ? updated : t)));
+        setTicketTypesByMatch((prev) => ({
+          ...prev,
+          [String(selectedMatchId)]: (prev[String(selectedMatchId)] ?? ticketTypes)
+            .map((t) => (t.id === editTypeId ? updated : t)),
+        }));
         showToast(`"${updated.name}" updated`);
       } else {
         const created = await createTicketType(selectedMatchId, input);
         setTicketTypes((prev) => [...prev, created]);
+        setTicketTypesByMatch((prev) => ({
+          ...prev,
+          [String(selectedMatchId)]: [...(prev[String(selectedMatchId)] ?? []), created],
+        }));
         showToast(`"${created.name}" created — fans can now buy this ticket`);
       }
       setModal(null);
@@ -233,6 +280,13 @@ export default function ClubTicketsAdminPage() {
     try {
       await deleteTicketType(typeId);
       setTicketTypes((prev) => prev.filter((t) => t.id !== typeId));
+      if (selectedMatchId !== null) {
+        setTicketTypesByMatch((prev) => ({
+          ...prev,
+          [String(selectedMatchId)]: (prev[String(selectedMatchId)] ?? [])
+            .filter((t) => t.id !== typeId),
+        }));
+      }
       showToast(`"${name}" deleted`);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not delete ticket type.');
@@ -441,29 +495,60 @@ export default function ClubTicketsAdminPage() {
             <div className="ca-table-wrap">
               <table className="ca-table">
                 <thead>
-                  <tr><th>Match</th><th>Date</th><th>Competition</th><th>Status</th><th></th></tr>
+                  <tr><th>Match</th><th>Date</th><th>Competition</th><th>Ticket Types</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
-                  {fixtures.map((f) => (
-                    <tr
-                      key={f.id}
-                      className={selectedMatchId === f.id ? 'ca-row-selected' : 'ca-row-static'}
-                      onClick={() => setSelectedMatchId(f.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                        {f.homeClubName} vs {f.awayClubName}
-                      </td>
-                      <td>{formatDate(f.matchDate)}</td>
-                      <td>{f.competitionName}</td>
-                      <td>{f.status}</td>
-                      <td>
-                        {selectedMatchId === f.id && (
-                          <span className="ca-pill ca-pill-green" style={{ fontSize: '0.65rem' }}>Selected</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {fixtures.map((f) => {
+                    const fixtureTypes = ticketTypesByMatch[f.id] ?? [];
+                    const visibleTypes = fixtureTypes.slice(0, 2);
+                    const totalRemaining = fixtureTypes.reduce((sum, t) => sum + Math.max(0, t.remaining), 0);
+
+                    return (
+                      <tr
+                        key={f.id}
+                        className={selectedMatchId === f.id ? 'ca-row-selected' : 'ca-row-static'}
+                        onClick={() => setSelectedMatchId(f.id)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          {f.homeClubName} vs {f.awayClubName}
+                        </td>
+                        <td>{formatDate(f.matchDate)}</td>
+                        <td>{f.competitionName}</td>
+                        <td>
+                          {fixtureTicketTypesLoading ? (
+                            <span className="ca-ticket-summary-muted">Loading...</span>
+                          ) : fixtureTypes.length > 0 ? (
+                            <div className="ca-ticket-summary">
+                              <div className="ca-ticket-chip-row">
+                                {visibleTypes.map((type) => (
+                                  <span key={type.id} className="ca-ticket-type-chip">
+                                    {type.name}
+                                  </span>
+                                ))}
+                                {fixtureTypes.length > visibleTypes.length && (
+                                  <span className="ca-ticket-type-chip ca-ticket-type-chip-more">
+                                    +{fixtureTypes.length - visibleTypes.length}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="ca-ticket-summary-muted">
+                                {totalRemaining.toLocaleString()} remaining
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="ca-ticket-summary-muted">No ticket types</span>
+                          )}
+                        </td>
+                        <td>{f.status}</td>
+                        <td>
+                          {selectedMatchId === f.id && (
+                            <span className="ca-pill ca-pill-green" style={{ fontSize: '0.65rem' }}>Selected</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
