@@ -3,11 +3,13 @@ import { FiGlobe, FiInstagram, FiTwitter, FiYoutube, FiLinkedin, FiDownload, FiS
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useAuthStore } from '../../../store/authStore';
 import { deleteClubLogo, uploadClubLogo } from '../../../services/adminUsersService';
+import { extractApiError } from '../../../services/apiUtils';
 import '../../../components/clubadmin/ClubAdminLayout.css';
 import './ClubProfilePage.css';
 
 const TABS = ['Profile', 'Venues', 'Media Assets'];
 const PALETTE = ['#FFD700', '#1A1A1A', '#7C3AED', '#FFFFFF', '#22C55E'];
+const MIN_LOGO_DIMENSION = 256;
 
 const RECENT_BRANDING: { text: string; time: string }[] = [];
 
@@ -29,6 +31,39 @@ const MEDIA_CATEGORIES = ['Crest / Logo', 'Kit', 'Banner', 'Photo', 'Video', 'Do
 
 let seq = 10;
 function nextId() { return `prof-${seq++}`; }
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not read image dimensions.'));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+function getLogoUploadErrorMessage(error: unknown): string {
+  const details = extractApiError(error);
+
+  if (details.status || Object.keys(details.fields).length > 0) {
+    return details.message;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return details.message || 'Could not upload logo. Please try a different image.';
+}
 
 export default function ClubProfilePage() {
   const [activeTab, setActiveTab] = useState('Profile');
@@ -72,13 +107,25 @@ export default function ClubProfilePage() {
     setIsSavingLogo(true);
     setLogoError(null);
     try {
+      const { width, height } = await readImageDimensions(file);
+
+      if (width < MIN_LOGO_DIMENSION || height < MIN_LOGO_DIMENSION) {
+        setLogoError(
+          `Logo must be at least ${MIN_LOGO_DIMENSION}x${MIN_LOGO_DIMENSION}px. This image is ${width}x${height}px.`,
+        );
+        return;
+      }
+
       const url = await uploadClubLogo(realClub.id, file);
       setLogoUrl(url);
       showToast('Club logo updated');
-    } catch {
-      setLogoError('Could not upload logo. Please try a different image.');
+    } catch (error) {
+      setLogoError(getLogoUploadErrorMessage(error));
     } finally {
       setIsSavingLogo(false);
+      if (logoFileRef.current) {
+        logoFileRef.current.value = '';
+      }
     }
   };
   const handleLogoRemove = async () => {
@@ -297,7 +344,7 @@ export default function ClubProfilePage() {
                       )}
                     </div>
                     {logoError && <p style={{ margin: 0, fontSize: '0.76rem', color: '#ef4444' }}>{logoError}</p>}
-                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>JPG, PNG or WebP</p>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>JPG, PNG or WebP · Minimum 256x256px</p>
                   </div>
                 </div>
               )}
