@@ -1,15 +1,15 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FiGlobe, FiInstagram, FiTwitter, FiYoutube, FiLinkedin, FiDownload, FiSave, FiPlus, FiX, FiUpload, FiImage, FiTrash2 } from 'react-icons/fi';
 import ClubAdminLayout from '../../../components/clubadmin/ClubAdminLayout';
 import { useAuthStore } from '../../../store/authStore';
 import { deleteClubLogo, uploadClubLogo } from '../../../services/adminUsersService';
 import { extractApiError } from '../../../services/apiUtils';
 import '../../../components/clubadmin/ClubAdminLayout.css';
+import ClubLogoCropModal from './ClubLogoCropModal';
 import './ClubProfilePage.css';
 
 const TABS = ['Profile', 'Venues', 'Media Assets'];
 const PALETTE = ['#FFD700', '#1A1A1A', '#7C3AED', '#FFFFFF', '#22C55E'];
-const MIN_LOGO_DIMENSION = 256;
 
 const RECENT_BRANDING: { text: string; time: string }[] = [];
 
@@ -31,25 +31,6 @@ const MEDIA_CATEGORIES = ['Crest / Logo', 'Kit', 'Banner', 'Photo', 'Video', 'Do
 
 let seq = 10;
 function nextId() { return `prof-${seq++}`; }
-
-function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Could not read image dimensions.'));
-    };
-
-    image.src = objectUrl;
-  });
-}
 
 function getLogoUploadErrorMessage(error: unknown): string {
   const details = extractApiError(error);
@@ -81,6 +62,7 @@ export default function ClubProfilePage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isSavingLogo, setIsSavingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [pendingLogoCropSrc, setPendingLogoCropSrc] = useState<string | null>(null);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
   // Profile tab
@@ -101,21 +83,37 @@ export default function ClubProfilePage() {
   const [toast, setToast] = useState('');
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
+  useEffect(() => {
+    return () => {
+      if (pendingLogoCropSrc) URL.revokeObjectURL(pendingLogoCropSrc);
+    };
+  }, [pendingLogoCropSrc]);
+
   // Logo handlers — the one real piece of this page.
-  const handleLogoPick = async (file: File | null) => {
+  const handleLogoPick = (file: File | null) => {
     if (!file || !realClub) return;
+    if (pendingLogoCropSrc) URL.revokeObjectURL(pendingLogoCropSrc);
+    setPendingLogoCropSrc(URL.createObjectURL(file));
+    setLogoError(null);
+    if (logoFileRef.current) {
+      logoFileRef.current.value = '';
+    }
+  };
+
+  const handleLogoCropCancel = () => {
+    if (pendingLogoCropSrc) URL.revokeObjectURL(pendingLogoCropSrc);
+    setPendingLogoCropSrc(null);
+  };
+
+  const handleLogoCropConfirm = async (blob: Blob) => {
+    if (!realClub) return;
+    if (pendingLogoCropSrc) URL.revokeObjectURL(pendingLogoCropSrc);
+    setPendingLogoCropSrc(null);
     setIsSavingLogo(true);
     setLogoError(null);
+
     try {
-      const { width, height } = await readImageDimensions(file);
-
-      if (width < MIN_LOGO_DIMENSION || height < MIN_LOGO_DIMENSION) {
-        setLogoError(
-          `Logo must be at least ${MIN_LOGO_DIMENSION}x${MIN_LOGO_DIMENSION}px. This image is ${width}x${height}px.`,
-        );
-        return;
-      }
-
+      const file = new File([blob], 'club-logo.png', { type: 'image/png' });
       const url = await uploadClubLogo(realClub.id, file);
       setLogoUrl(url);
       showToast('Club logo updated');
@@ -123,9 +121,6 @@ export default function ClubProfilePage() {
       setLogoError(getLogoUploadErrorMessage(error));
     } finally {
       setIsSavingLogo(false);
-      if (logoFileRef.current) {
-        logoFileRef.current.value = '';
-      }
     }
   };
   const handleLogoRemove = async () => {
@@ -202,6 +197,14 @@ export default function ClubProfilePage() {
   return (
     <ClubAdminLayout>
       {toast && <div className="ca-toast">{toast}</div>}
+
+      {pendingLogoCropSrc && (
+        <ClubLogoCropModal
+          imageSrc={pendingLogoCropSrc}
+          onCancel={handleLogoCropCancel}
+          onConfirm={(blob) => void handleLogoCropConfirm(blob)}
+        />
+      )}
 
       {/* Venue modal */}
       {showVenueModal && (
@@ -300,21 +303,15 @@ export default function ClubProfilePage() {
                   No club is linked to this account yet.
                 </p>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div
-                    style={{
-                      width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',
-                      background: 'var(--color-surface-alt, rgba(255,255,255,0.06))',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}
-                  >
+                <div className="ca-logo-uploader">
+                  <div className="ca-logo-preview">
                     {logoUrl ? (
-                      <img src={logoUrl} alt={`${realClub.name} crest`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={logoUrl} alt={`${realClub.name} crest`} />
                     ) : (
-                      <FiImage style={{ fontSize: '1.6rem', color: 'var(--color-text-muted)' }} />
+                      <FiImage />
                     )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="ca-logo-controls">
                     <input
                       ref={logoFileRef}
                       type="file"
@@ -322,7 +319,7 @@ export default function ClubProfilePage() {
                       style={{ display: 'none' }}
                       onChange={(e) => void handleLogoPick(e.target.files?.[0] ?? null)}
                     />
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="ca-logo-actions">
                       <button
                         type="button"
                         className="ca-btn ca-btn-secondary ca-btn-sm"
@@ -344,7 +341,7 @@ export default function ClubProfilePage() {
                       )}
                     </div>
                     {logoError && <p style={{ margin: 0, fontSize: '0.76rem', color: '#ef4444' }}>{logoError}</p>}
-                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>JPG, PNG or WebP · Minimum 256x256px</p>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>JPG, PNG or WebP. Crop is saved as a 512x512 square.</p>
                   </div>
                 </div>
               )}
