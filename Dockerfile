@@ -3,6 +3,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# The production host's Nginx routes /api/ to Django over the same HTTPS origin.
+ARG VITE_API_BASE_URL=/api/v1
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 COPY package*.json ./
 RUN npm ci
 

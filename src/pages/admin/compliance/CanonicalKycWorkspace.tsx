@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   decideCanonicalAdminKyc,
   fetchCanonicalAdminKyc,
   fetchCanonicalAdminKycDetail,
+  fetchCanonicalAdminKycDocumentBlob,
   type AdminKycRecord,
   type AdminKycStatus,
 } from '../../../services/canonicalKycAdminService';
@@ -22,8 +23,8 @@ function inTab(row: AdminKycRecord, tab: Tab) {
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString() : '—');
 
-/** Statuses where an admin may force a VERIFIED or REJECTED decision. */
-const DECIDABLE: AdminKycStatus[] = ['REVIEW', 'PENDING', 'PROCESSING', 'RETRY_REQUIRED'];
+/** The manual review endpoint deliberately accepts decisions only from REVIEW. */
+const DECIDABLE: AdminKycStatus[] = ['REVIEW'];
 
 const STATUS_COLORS: Partial<Record<AdminKycStatus, string>> = {
   NOT_STARTED:   '#6b7595',
@@ -64,6 +65,17 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   const [error,    setError]    = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
   const [decideError, setDecideError] = useState('');
+  const [documentImageUrl, setDocumentImageUrl] = useState<string | null>(null);
+  const [selfieImageUrl, setSelfieImageUrl] = useState<string | null>(null);
+  const [evidenceError, setEvidenceError] = useState('');
+  const [isLoadingEvidence, setIsLoadingEvidence] = useState(false);
+  const objectUrlsRef = useRef<string[]>([]);
+  const evidenceRequestRef = useRef(0);
+
+  const revokeEvidenceUrls = () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current = [];
+  };
 
   const load = async () => {
     try {
@@ -76,23 +88,64 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    return () => {
+      evidenceRequestRef.current += 1;
+      revokeEvidenceUrls();
+    };
   }, []);
 
   const visible = useMemo(() => rows.filter((row) => inTab(row, tab)), [rows, tab]);
 
   const open = async (row: AdminKycRecord) => {
+    const request = ++evidenceRequestRef.current;
     setError('');
     setDecideError('');
     setNotes('');
+    revokeEvidenceUrls();
+    setDocumentImageUrl(null);
+    setSelfieImageUrl(null);
+    setEvidenceError('');
+    setSelected(null);
+    setIsLoadingEvidence(true);
     try {
-      setSelected(await fetchCanonicalAdminKycDetail(row.id));
+      const detail = await fetchCanonicalAdminKycDetail(row.id);
+      if (request !== evidenceRequestRef.current) return;
+      setSelected(detail);
+      try {
+        const [documentBlob, selfieBlob] = await Promise.all([
+          fetchCanonicalAdminKycDocumentBlob(detail.id, 'document'),
+          fetchCanonicalAdminKycDocumentBlob(detail.id, 'selfie'),
+        ]);
+        if (request !== evidenceRequestRef.current) return;
+        const documentUrl = URL.createObjectURL(documentBlob);
+        const selfieUrl = URL.createObjectURL(selfieBlob);
+        objectUrlsRef.current = [documentUrl, selfieUrl];
+        setDocumentImageUrl(documentUrl);
+        setSelfieImageUrl(selfieUrl);
+      } catch (e) {
+        if (request !== evidenceRequestRef.current) return;
+        setEvidenceError(e instanceof Error ? e.message : 'Could not load submitted document images.');
+      } finally {
+        if (request === evidenceRequestRef.current) setIsLoadingEvidence(false);
+      }
     } catch (e) {
+      if (request !== evidenceRequestRef.current) return;
+      setIsLoadingEvidence(false);
       setError(e instanceof Error ? e.message : 'Could not load KYC details.');
     }
   };
 
+  const closeDrawer = () => {
+    evidenceRequestRef.current += 1;
+    revokeEvidenceUrls();
+    setDocumentImageUrl(null);
+    setSelfieImageUrl(null);
+    setSelected(null);
+    setIsLoadingEvidence(false);
+  };
+
   const decide = async (decision: 'VERIFIED' | 'REJECTED') => {
-    if (!selected) return;
+    if (!selected || isLoadingEvidence || (decision === 'VERIFIED' && evidenceError)) return;
     if (decision === 'REJECTED' && !notes.trim()) {
       setDecideError('A rejection reason is required.');
       return;
@@ -101,7 +154,7 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
     setIsDeciding(true);
     try {
       await decideCanonicalAdminKyc(selected.id, decision, notes.trim());
-      setSelected(null);
+      closeDrawer();
       setNotes('');
       await load();
     } catch (e) {
@@ -199,10 +252,33 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
               </h2>
               <StatusBadge status={selected.status} />
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => setSelected(null)}>
+            <button className="btn btn-outline btn-sm" onClick={closeDrawer}>
               Close
             </button>
           </div>
+
+          {/* submitted evidence */}
+          <h3 style={{ margin: '4px 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+            Submitted Evidence
+          </h3>
+          {isLoadingEvidence && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading document and selfie…</p>}
+          {evidenceError && <p style={{ fontSize: 13, color: 'var(--red-primary)' }} role="alert">{evidenceError}</p>}
+          {!isLoadingEvidence && !evidenceError && (documentImageUrl || selfieImageUrl) && (
+            <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div>
+                <span className="kyc-detail-label" style={{ display: 'block', marginBottom: 6 }}>ID Document</span>
+                {documentImageUrl
+                  ? <img src={documentImageUrl} alt="Submitted ID document" style={{ maxWidth: 280, maxHeight: 200, borderRadius: 8, border: '1px solid var(--border-color, #ddd)' }} />
+                  : <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Not available</span>}
+              </div>
+              <div>
+                <span className="kyc-detail-label" style={{ display: 'block', marginBottom: 6 }}>Selfie</span>
+                {selfieImageUrl
+                  ? <img src={selfieImageUrl} alt="Submitted selfie" style={{ maxWidth: 280, maxHeight: 200, borderRadius: 8, border: '1px solid var(--border-color, #ddd)' }} />
+                  : <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Not available</span>}
+              </div>
+            </div>
+          )}
 
           {/* personal / document details */}
           <div className="kyc-detail-grid">
@@ -299,16 +375,14 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
             </>
           )}
 
-          {/* decision panel — shown for all decidable statuses */}
+          {/* decision panel — only canonical human-review records are decidable */}
           {canDecide && (
             <div className="case-decision-panel">
               <h3 style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
                 Admin Decision
               </h3>
               <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                {selected.status === 'REVIEW'
-                  ? 'This submission is awaiting manual review. Verify or reject below.'
-                  : `Current status is ${selected.status}. You can override this with an admin decision.`}
+                This submission is awaiting manual review. Verify or reject below.
               </p>
 
               <label style={{ display: 'block', marginBottom: 12 }}>
@@ -333,14 +407,14 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
               <div className="case-actions">
                 <button
                   className="btn btn-gradient"
-                  disabled={isDeciding}
+                  disabled={isDeciding || isLoadingEvidence || Boolean(evidenceError)}
                   onClick={() => void decide('VERIFIED')}
                 >
                   {isDeciding ? 'Saving…' : '✓ Verify'}
                 </button>
                 <button
                   className="btn btn-danger"
-                  disabled={isDeciding}
+                  disabled={isDeciding || isLoadingEvidence}
                   onClick={() => void decide('REJECTED')}
                 >
                   {isDeciding ? 'Saving…' : '✕ Reject'}
