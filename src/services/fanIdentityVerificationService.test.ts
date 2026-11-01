@@ -31,6 +31,20 @@ describe('canonical fan KYC service', () => {
     await expect(fetchCanonicalKycStatus()).resolves.toMatchObject({ status: 'REVIEW' });
   });
 
+  it('sends the collected identity details with the uploaded evidence', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true } });
+    await submitCanonicalKyc({
+      documentType: 'NATIONAL_ID', documentCountry: 'UGA',
+      documentImage: new File(['id'], 'id.jpg', { type: 'image/jpeg' }),
+      selfieImage: new File(['selfie'], 'selfie.jpg', { type: 'image/jpeg' }),
+      legalName: 'Synthetic Fan', identityNumber: 'AB12CD34EF5678', dateOfBirth: '1990-01-01',
+    });
+    const body = vi.mocked(apiClient.post).mock.calls[0][1] as FormData;
+    expect(body.get('legal_name')).toBe('Synthetic Fan');
+    expect(body.get('identity_number')).toBe('AB12CD34EF5678');
+    expect(body.get('date_of_birth')).toBe('1990-01-01');
+  });
+
   it('requests retry through the canonical retry endpoint', async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: { success: true } });
     await requestCanonicalKycRetry();
