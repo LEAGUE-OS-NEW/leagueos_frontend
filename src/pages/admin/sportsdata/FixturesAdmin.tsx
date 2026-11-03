@@ -3,23 +3,34 @@ import {
   FiCalendar,
   FiCheckCircle,
   FiChevronDown,
+  FiEdit2,
   FiList,
   FiPause,
   FiPlay,
   FiPlus,
+  FiRefreshCw,
   FiRotateCcw,
+  FiSearch,
   FiShield,
   FiSlash,
   FiClock,
+  FiTrash2,
   FiX,
 } from 'react-icons/fi';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { extractApiError } from '../../../services/apiUtils';
-import { createRealClub, uploadClubLogo } from '../../../services/adminUsersService';
+import {
+  createRealClub,
+  deleteRealClub,
+  deleteClubLogo,
+  fetchRealClubs,
+  updateRealClub,
+  uploadClubLogo,
+  type RealClubSummary,
+} from '../../../services/adminUsersService';
 import {
   completeFixture,
   createFixture,
-  createParticipant,
   fetchAdminFixtures,
   fetchCompetitions,
   fetchFixtureStatistics,
@@ -94,6 +105,15 @@ function toLocalDatetimeInputValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function formatRegisteredDate(iso: string | null): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
 function FixturesAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -113,6 +133,29 @@ function FixturesAdmin() {
   const [createClubLogo, setCreateClubLogo] = useState<File | null>(null);
   const [isCreatingClub, setIsCreatingClub] = useState(false);
   const [createClubError, setCreateClubError] = useState('');
+
+  // ── Registered Clubs section ──────────────────────────────────────────
+  const [clubsExpanded, setClubsExpanded] = useState(false);
+  const [registeredClubs, setRegisteredClubs] = useState<RealClubSummary[]>([]);
+  const [clubsLoading, setClubsLoading] = useState(false);
+  const [clubsError, setClubsError] = useState<string | null>(null);
+
+  // Edit club modal
+  const [editClub, setEditClub] = useState<RealClubSummary | null>(null);
+  const [editClubForm, setEditClubForm] = useState({ name: '', sportId: '' });
+  const [editClubLogo, setEditClubLogo] = useState<File | null>(null);
+  const [editClubDeleteLogo, setEditClubDeleteLogo] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editClubError, setEditClubError] = useState('');
+
+  // Delete club confirmation
+  const [deleteClub, setDeleteClub] = useState<RealClubSummary | null>(null);
+  const [isDeletingClub, setIsDeletingClub] = useState(false);
+  const [deleteClubError, setDeleteClubError] = useState('');
+
+  // ── Club list filters ─────────────────────────────────────────────────
+  const [clubSportFilter, setClubSportFilter] = useState('ALL');
+  const [clubNameSearch, setClubNameSearch] = useState('');
 
   const [scoreEditor, setScoreEditor] = useState<ScoreEditorState>(null);
   const [isSavingScore, setIsSavingScore] = useState(false);
@@ -137,6 +180,26 @@ function FixturesAdmin() {
   const [pendingValues, setPendingValues] = useState<Record<string, Record<string, string>>>({});
 
   const refreshFixtures = () => fetchAdminFixtures().then(setFixtures);
+
+  const loadRegisteredClubs = async () => {
+    setClubsLoading(true);
+    setClubsError(null);
+    try {
+      const clubs = await fetchRealClubs();
+      // Newest first — backend returns alphabetically; sort by createdAt desc
+      const sorted = [...clubs].sort((a, b) => {
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      setRegisteredClubs(sorted);
+    } catch (err) {
+      setClubsError(extractApiError(err).message);
+    } finally {
+      setClubsLoading(false);
+    }
+  };
 
   // ── Match Statistics Panel handlers ───────────────────────────────────
 
@@ -310,6 +373,9 @@ function FixturesAdmin() {
     setIsCreatingClub(true);
     setCreateClubError('');
     try {
+      // The backend now atomically creates both the Club and its linked
+      // TEAM Participant in a single transaction — no separate
+      // /participants/ call needed.
       const club = await createRealClub({ name: createClubForm.name.trim(), sportId: createClubForm.sportId });
       if (createClubLogo) {
         try {
@@ -320,17 +386,129 @@ function FixturesAdmin() {
           // Invite-Admin "New club" flow's convention.
         }
       }
-      const participant = await createParticipant({ name: club.name, sportId: createClubForm.sportId });
-      setParticipants((current) => [...current, participant]);
+
+      // Re-fetch participants for the current sport so the new team
+      // appears in the fixture home/away dropdowns immediately.
+      if (createForm.sportId) {
+        try {
+          const refreshed = await fetchParticipants(createForm.sportId);
+          setParticipants(refreshed);
+        } catch {
+          // Best-effort — the dropdown refreshes when the sport changes.
+        }
+      }
+
+      // Always refresh the clubs list so the new entry appears at the top.
+      await loadRegisteredClubs();
+      setClubsExpanded(true);
+
       setShowCreateClub(false);
       setCreateClubForm({ name: '', sportId: createClubForm.sportId });
       setCreateClubLogo(null);
-      setCreateMessage(`"${club.name}" created and ready to use as a team below.`);
+      setCreateMessage(`"${club.name}" registered and ready to use as a team in fixtures.`);
     } catch (err) {
       setCreateClubError(extractApiError(err).message);
     } finally {
       setIsCreatingClub(false);
     }
+  };
+
+  const openEditClub = (club: RealClubSummary) => {
+    setEditClub(club);
+    setEditClubForm({ name: club.name, sportId: club.sportId ?? '' });
+    setEditClubLogo(null);
+    setEditClubDeleteLogo(false);
+    setEditClubError('');
+  };
+
+  const handleSaveEditClub = async () => {
+    if (!editClub) return;
+    if (!editClubForm.name.trim()) {
+      setEditClubError('Club name is required.');
+      return;
+    }
+    if (!editClubForm.sportId) {
+      setEditClubError('Sport is required.');
+      return;
+    }
+    setIsSavingEdit(true);
+    setEditClubError('');
+    try {
+      await updateRealClub(editClub.id, { name: editClubForm.name.trim(), sportId: editClubForm.sportId });
+
+      // Logo changes: delete first if flagged, then upload new file if provided.
+      // Best-effort — a logo failure does not roll back the name/sport update.
+      if (editClubDeleteLogo && !editClubLogo) {
+        try { await deleteClubLogo(editClub.id); } catch { /* best-effort */ }
+      }
+      if (editClubLogo) {
+        try { await uploadClubLogo(editClub.id, editClubLogo); } catch { /* best-effort */ }
+      }
+
+      setEditClub(null);
+      await loadRegisteredClubs();
+
+      // Re-fetch participants so the fixture dropdown reflects the
+      // updated name/sport. The backend syncs the linked Participant
+      // atomically with the Club update.
+      if (createForm.sportId) {
+        try {
+          const refreshed = await fetchParticipants(createForm.sportId);
+          setParticipants(refreshed);
+        } catch {
+          // Best-effort — the dropdown refreshes when the sport changes.
+        }
+      }
+    } catch (err) {
+      setEditClubError(extractApiError(err).message);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const openDeleteClub = (club: RealClubSummary) => {
+    setDeleteClub(club);
+    setDeleteClubError('');
+  };
+
+  const handleConfirmDeleteClub = async () => {
+    if (!deleteClub) return;
+    setIsDeletingClub(true);
+    setDeleteClubError('');
+    try {
+      await deleteRealClub(deleteClub.id);
+      setDeleteClub(null);
+      await loadRegisteredClubs();
+
+      // Re-fetch participants so the deactivated team disappears from
+      // the fixture dropdowns. The backend deactivates the linked
+      // Participant atomically with the Club soft-delete.
+      if (createForm.sportId) {
+        try {
+          const refreshed = await fetchParticipants(createForm.sportId);
+          setParticipants(refreshed);
+        } catch {
+          // Best-effort — the dropdown refreshes when the sport changes.
+        }
+      }
+    } catch (err) {
+      setDeleteClubError(extractApiError(err).message);
+    } finally {
+      setIsDeletingClub(false);
+    }
+  };
+
+  const handleToggleClubs = () => {
+    const opening = !clubsExpanded;
+    setClubsExpanded(opening);
+    // Fetch on first open, or whenever re-opened after collapse
+    if (opening && registeredClubs.length === 0 && !clubsLoading) {
+      void loadRegisteredClubs();
+    }
+  };
+
+  const handleRefreshClubs = () => {
+    void loadRegisteredClubs();
   };
 
   const handleGoLive = async (fixtureId: string) => {
@@ -481,14 +659,36 @@ function FixturesAdmin() {
       (sportFilter === 'ALL' || fixture.sportName === selectedSportName),
   );
 
+  // ── Registered Clubs derived values ──────────────────────────────────
+  // Use the full sports catalog (already loaded for the fixture form) as
+  // the source for filter options. Building options only from club.sportId
+  // causes sports to vanish when their clubs have a null sportId on the
+  // backend. The `sports` array from fetchSports() is always complete.
+  const availableSportOptions = sports; // SportOption[] — already sorted by backend
+
+  const clubSearchTerm = clubNameSearch.trim().toLowerCase();
+  const visibleClubs = registeredClubs.filter((club) => {
+    // Match by sportId (not sportName) so clubs whose sportName is null
+    // but whose sportId matches the selected filter are still shown.
+    const matchesSport = clubSportFilter === 'ALL' || club.sportId === clubSportFilter;
+    const matchesName = clubSearchTerm === '' || club.name.toLowerCase().includes(clubSearchTerm);
+    return matchesSport && matchesName;
+  });
+
+  const hasActiveClubFilter = clubSportFilter !== 'ALL' || clubNameSearch.trim() !== '';
+
+  const clearClubFilters = () => {
+    setClubSportFilter('ALL');
+    setClubNameSearch('');
+  };
+
   return (
     <AdminLayout>
       <div className="fxa-content">
         <div className="fxa-header">
           <div>
             <p className="fxa-header__eyebrow">Sports Data &amp; Statistics</p>
-            <h1>Fixtures</h1>
-            <p>Create fixtures, go live, and keep the score and clock up to date for the public site.</p>
+            <h1>Registered Clubs</h1>
           </div>
           <div className="fxa-header__actions">
             <button type="button" className="fxa-btn fxa-btn--primary" onClick={openCreateClub}>
@@ -502,6 +702,154 @@ function FixturesAdmin() {
         ) : (
           <>
             {actionError && <div className="fxa-error-banner">{actionError}</div>}
+
+            {/* ── Registered Clubs ── */}
+            <section className="fxa-panel fxa-clubs-panel">
+              <button
+                type="button"
+                className="fxa-clubs-toggle"
+                aria-expanded={clubsExpanded}
+                onClick={handleToggleClubs}
+              >
+                <span className="fxa-clubs-toggle__label">
+                  <FiShield aria-hidden="true" className="fxa-clubs-toggle__icon" />
+                  View Registered Clubs
+                  {registeredClubs.length > 0 && (
+                    <span className="fxa-clubs-badge">{registeredClubs.length}</span>
+                  )}
+                </span>
+                <FiChevronDown
+                  aria-hidden="true"
+                  className={`fxa-clubs-chevron${clubsExpanded ? ' fxa-clubs-chevron--open' : ''}`}
+                />
+              </button>
+
+              {clubsExpanded && (
+                <div className="fxa-clubs-body">
+                  {/* ── Toolbar: count + refresh ── */}
+                  <div className="fxa-clubs-body__toolbar">
+                    <span className="fxa-panel__count">
+                      {clubsLoading
+                        ? 'Loading…'
+                        : hasActiveClubFilter
+                          ? `${visibleClubs.length} of ${registeredClubs.length} club${registeredClubs.length !== 1 ? 's' : ''}`
+                          : `${registeredClubs.length} club${registeredClubs.length !== 1 ? 's' : ''}`}
+                    </span>
+                    <button
+                      type="button"
+                      className="fxa-icon-btn"
+                      title="Refresh clubs list"
+                      disabled={clubsLoading}
+                      onClick={handleRefreshClubs}
+                    >
+                      <FiRefreshCw aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  {/* ── Filter row: search + sport ── */}
+                  {!clubsLoading && registeredClubs.length > 0 && (
+                    <div className="fxa-clubs-filters">
+                      <div className="fxa-clubs-search">
+                        <FiSearch aria-hidden="true" className="fxa-clubs-search__icon" />
+                        <input
+                          type="search"
+                          className="fxa-clubs-search__input"
+                          placeholder="Search by club name…"
+                          value={clubNameSearch}
+                          onChange={(e) => setClubNameSearch(e.target.value)}
+                          aria-label="Search clubs by name"
+                        />
+                      </div>
+                      <select
+                        className="fxa-clubs-sport-select"
+                        value={clubSportFilter}
+                        onChange={(e) => setClubSportFilter(e.target.value)}
+                        aria-label="Filter by sport"
+                      >
+                        <option value="ALL">All Sports</option>
+                        {availableSportOptions.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {clubsError && (
+                    <div className="fxa-error-banner" role="alert">{clubsError}</div>
+                  )}
+
+                  {clubsLoading ? (
+                    <p className="fxa-empty">Loading registered clubs…</p>
+                  ) : registeredClubs.length === 0 ? (
+                    <p className="fxa-empty">No clubs registered yet. Use the Create Club button to add one.</p>
+                  ) : visibleClubs.length === 0 ? (
+                    <div className="fxa-clubs-empty-filtered">
+                      <p className="fxa-empty">No clubs match the current filters.</p>
+                      <button type="button" className="fxa-btn fxa-btn--ghost fxa-clubs-clear-btn" onClick={clearClubFilters}>
+                        Clear filters
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="fxa-clubs-grid">
+                      {visibleClubs.map((club) => (
+                        <div key={club.id} className="fxa-club-card">
+                          <div className="fxa-club-card__logo-wrap">
+                            {club.logoUrl ? (
+                              <img
+                                src={club.logoUrl}
+                                alt={`${club.name} logo`}
+                                className="fxa-club-card__logo"
+                              />
+                            ) : (
+                              <div className="fxa-club-card__logo-placeholder" aria-hidden="true">
+                                {club.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="fxa-club-card__body">
+                            <p className="fxa-club-card__name">{club.name}</p>
+                            {club.sportName && (
+                              <p className="fxa-club-card__meta">{club.sportName}</p>
+                            )}
+                            {club.createdAt && (
+                              <p className="fxa-club-card__date">
+                                Registered {formatRegisteredDate(club.createdAt)}
+                              </p>
+                            )}
+                          </div>
+                          <div className="fxa-club-card__actions">
+                            <button
+                              type="button"
+                              className="fxa-icon-btn"
+                              title={`Edit ${club.name}`}
+                              onClick={() => openEditClub(club)}
+                            >
+                              <FiEdit2 aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className="fxa-icon-btn fxa-icon-btn--danger"
+                              title={`Delete ${club.name}`}
+                              onClick={() => openDeleteClub(club)}
+                            >
+                              <FiTrash2 aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* ── Fixtures heading (copy) ── */}
+            <div className="fxa-header">
+              <div>
+                <h1>Fixtures</h1>
+                <p>Create fixtures, go live, and keep the score and clock up to date for the public site.</p>
+              </div>
+            </div>
 
             {/* ── Create Fixture ── */}
             <section className="fxa-panel">
@@ -661,41 +1009,49 @@ function FixturesAdmin() {
 
             {/* ── Fixtures table ── */}
             <section className="fxa-panel">
-              <div className="fxa-panel__header fxa-panel__header--fixtures">
-                <h2>All Fixtures</h2>
-                <div className="fxa-sport-filter">
-                  <button
-                    type="button"
-                    className={`fxa-sport-chip${sportFilter === 'ALL' ? ' fxa-sport-chip--active' : ''}`}
-                    onClick={() => setSportFilter('ALL')}
-                  >
-                    All Sports
-                  </button>
-                  {sports.map((sport) => (
-                    <button
-                      key={sport.id}
-                      type="button"
-                      className={`fxa-sport-chip${sportFilter === sport.id ? ' fxa-sport-chip--active' : ''}`}
-                      onClick={() => setSportFilter(sport.id)}
-                    >
-                      {sport.name}
-                    </button>
-                  ))}
-                </div>
-                <div className="fxa-panel__header-right">
-                  <div className="fxa-status-tabs">
-                    {(['ALL', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED'] as StatusFilter[]).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        className={`fxa-status-tab${statusFilter === tab ? ' fxa-status-tab--active' : ''}`}
-                        onClick={() => setStatusFilter(tab)}
-                      >
-                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-                      </button>
-                    ))}
-                  </div>
+              <div className="fxa-fixtures-header">
+                <div className="fxa-fixtures-header__top">
+                  <h2 className="fxa-fixtures-header__title">All Fixtures</h2>
                   <span className="fxa-panel__count">{visibleFixtures.length} shown</span>
+                </div>
+                <div className="fxa-fixtures-header__filters">
+                  <div className="fxa-filter-group">
+                    <span className="fxa-filter-group__label">Sport</span>
+                    <div className="fxa-sport-filter">
+                      <button
+                        type="button"
+                        className={`fxa-sport-chip${sportFilter === 'ALL' ? ' fxa-sport-chip--active' : ''}`}
+                        onClick={() => setSportFilter('ALL')}
+                      >
+                        All Sports
+                      </button>
+                      {sports.map((sport) => (
+                        <button
+                          key={sport.id}
+                          type="button"
+                          className={`fxa-sport-chip${sportFilter === sport.id ? ' fxa-sport-chip--active' : ''}`}
+                          onClick={() => setSportFilter(sport.id)}
+                        >
+                          {sport.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="fxa-filter-group">
+                    <span className="fxa-filter-group__label">Status</span>
+                    <div className="fxa-status-tabs">
+                      {(['ALL', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED'] as StatusFilter[]).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          className={`fxa-status-tab${statusFilter === tab ? ' fxa-status-tab--active' : ''}`}
+                          onClick={() => setStatusFilter(tab)}
+                        >
+                          {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -710,11 +1066,11 @@ function FixturesAdmin() {
                   <table className="fxa-table">
                     <thead>
                       <tr>
-                        <th>Match</th>
-                        <th>Kickoff</th>
-                        <th>Status</th>
-                        <th>Score</th>
-                        <th></th>
+                        <th className="fxa-col-match">Match</th>
+                        <th className="fxa-col-kickoff">Kickoff</th>
+                        <th className="fxa-col-status">Status</th>
+                        <th className="fxa-col-score">Score</th>
+                        <th className="fxa-col-actions">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -902,6 +1258,149 @@ function FixturesAdmin() {
               </button>
               <button type="button" className="fxa-btn fxa-btn--primary" disabled={isCreatingClub} onClick={() => void handleCreateClub()}>
                 {isCreatingClub ? 'Creating…' : 'Create club'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Club modal ── */}
+      {editClub && (
+        <div className="fxa-modal-overlay" role="dialog" aria-modal="true" aria-label={`Edit ${editClub.name}`} onClick={() => setEditClub(null)}>
+        <div className="fxa-modal fxa-modal--edit-club" onClick={(event) => event.stopPropagation()}>
+            <h3>Edit club</h3>
+            <label className="fxa-field">
+              Club name
+              <input
+                type="text"
+                value={editClubForm.name}
+                onChange={(event) => setEditClubForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="e.g. Busoga United FC"
+              />
+            </label>
+            <label className="fxa-field">
+              Sport
+              <select
+                value={editClubForm.sportId}
+                onChange={(event) => setEditClubForm((current) => ({ ...current, sportId: event.target.value }))}
+              >
+                <option value="">Select a sport…</option>
+                {sports.map((sport) => (
+                  <option key={sport.id} value={sport.id}>
+                    {sport.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {/* Logo section */}
+            <div className="fxa-field">
+              <span className="fxa-edit-logo__label">Logo</span>
+              <div className="fxa-edit-logo">
+                {/* Current logo preview (unless flagged for deletion or replaced) */}
+                {editClub.logoUrl && !editClubDeleteLogo && !editClubLogo && (
+                  <div className="fxa-edit-logo__current">
+                    <img
+                      src={editClub.logoUrl}
+                      alt="Current logo"
+                      className="fxa-edit-logo__preview"
+                    />
+                    <button
+                      type="button"
+                      className="fxa-edit-logo__remove"
+                      onClick={() => setEditClubDeleteLogo(true)}
+                      title="Remove logo"
+                    >
+                      <FiTrash2 aria-hidden="true" /> Remove
+                    </button>
+                  </div>
+                )}
+                {/* New file chosen preview */}
+                {editClubLogo && (
+                  <div className="fxa-edit-logo__current">
+                    <img
+                      src={URL.createObjectURL(editClubLogo)}
+                      alt="New logo preview"
+                      className="fxa-edit-logo__preview"
+                    />
+                    <button
+                      type="button"
+                      className="fxa-edit-logo__remove"
+                      onClick={() => setEditClubLogo(null)}
+                      title="Cancel logo change"
+                    >
+                      <FiX aria-hidden="true" /> Cancel
+                    </button>
+                  </div>
+                )}
+                {/* Deletion pending notice */}
+                {editClubDeleteLogo && !editClubLogo && (
+                  <p className="fxa-edit-logo__pending-delete">
+                    Logo will be removed on save.{' '}
+                    <button type="button" className="fxa-edit-logo__undo" onClick={() => setEditClubDeleteLogo(false)}>
+                      Undo
+                    </button>
+                  </p>
+                )}
+                {/* Upload input */}
+                <label className="fxa-edit-logo__upload-label">
+                  {editClub.logoUrl && !editClubDeleteLogo ? 'Replace logo' : 'Upload logo (optional)'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="fxa-edit-logo__file-input"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setEditClubLogo(file);
+                      if (file) setEditClubDeleteLogo(false);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {editClubError && <p className="fxa-error-banner" role="alert">{editClubError}</p>}
+            <div className="fxa-modal__footer">
+              <button type="button" className="fxa-btn fxa-btn--ghost" onClick={() => setEditClub(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="fxa-btn fxa-btn--primary"
+                disabled={isSavingEdit}
+                onClick={() => void handleSaveEditClub()}
+              >
+                {isSavingEdit ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Club confirmation modal ── */}
+      {deleteClub && (
+        <div className="fxa-modal-overlay" role="dialog" aria-modal="true" aria-label={`Delete ${deleteClub.name}`} onClick={() => setDeleteClub(null)}>
+          <div className="fxa-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Delete club</h3>
+            <p className="fxa-modal__confirm-text">
+              Are you sure you want to delete <strong>{deleteClub.name}</strong>?
+            </p>
+            <p className="fxa-modal__confirm-subtext">
+              The club will be deactivated. Any fan profiles that selected it as a favourite club, and any existing
+              Club Admin workspaces, will be preserved.
+            </p>
+            {deleteClubError && <p className="fxa-error-banner" role="alert">{deleteClubError}</p>}
+            <div className="fxa-modal__footer">
+              <button type="button" className="fxa-btn fxa-btn--ghost" onClick={() => setDeleteClub(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="fxa-btn fxa-btn--danger"
+                disabled={isDeletingClub}
+                onClick={() => void handleConfirmDeleteClub()}
+              >
+                {isDeletingClub ? 'Deleting…' : 'Delete club'}
               </button>
             </div>
           </div>

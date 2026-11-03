@@ -296,6 +296,12 @@ export interface RealClubSummary {
   id: string;
   name: string;
   slug: string;
+  sportId: string | null;
+  sportName: string | null;
+  logoUrl: string | null;
+  founded: number | null;
+  createdAt: string | null;
+  participantId: string | null;
 }
 
 // Real — GET /admin/clubs/ (platform_admin, reuses profiles.ClubListView).
@@ -307,6 +313,12 @@ export async function fetchRealClubs(): Promise<RealClubSummary[]> {
     id: String(raw.id),
     name: String(raw.name ?? ''),
     slug: String(raw.slug ?? ''),
+    sportId: raw.sport_id ? String(raw.sport_id) : null,
+    sportName: raw.sport_name ? String(raw.sport_name) : null,
+    logoUrl: raw.logo ? String(raw.logo) : null,
+    founded: raw.founded != null ? Number(raw.founded) : null,
+    createdAt: raw.created_at ? String(raw.created_at) : null,
+    participantId: raw.participant_id ? String(raw.participant_id) : null,
   }));
 }
 
@@ -336,7 +348,48 @@ export async function createRealClub(input: { name: string; sportId: string }): 
     sport: input.sportId,
   });
   const raw = response.data as Record<string, unknown>;
-  return { id: String(raw.id), name: String(raw.name ?? ''), slug: String(raw.slug ?? '') };
+  return {
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+    slug: String(raw.slug ?? ''),
+    sportId: raw.sport_id ? String(raw.sport_id) : null,
+    sportName: raw.sport_name ? String(raw.sport_name) : null,
+    logoUrl: raw.logo ? String(raw.logo) : null,
+    founded: raw.founded != null ? Number(raw.founded) : null,
+    createdAt: raw.created_at ? String(raw.created_at) : null,
+    participantId: raw.participant_id ? String(raw.participant_id) : null,
+  };
+}
+
+// Real — PATCH /admin/clubs/<id>/ (profiles.ClubDetailView,
+// gated on admin.clubs.manage).
+export async function updateRealClub(clubId: string, input: { name: string; sportId: string }): Promise<RealClubSummary> {
+  if (!input.name.trim()) throw new Error('Enter a club name.');
+  if (!input.sportId) throw new Error('Select a sport.');
+  const response = await apiClient.patch(`/admin/clubs/${encodeURIComponent(clubId)}/`, {
+    name: input.name.trim(),
+    sport: input.sportId,
+  });
+  const raw = response.data as Record<string, unknown>;
+  return {
+    id: String(raw.id),
+    name: String(raw.name ?? ''),
+    slug: String(raw.slug ?? ''),
+    sportId: raw.sport_id ? String(raw.sport_id) : null,
+    sportName: raw.sport_name ? String(raw.sport_name) : null,
+    logoUrl: raw.logo ? String(raw.logo) : null,
+    founded: raw.founded != null ? Number(raw.founded) : null,
+    createdAt: raw.created_at ? String(raw.created_at) : null,
+    participantId: raw.participant_id ? String(raw.participant_id) : null,
+  };
+}
+
+// Real — DELETE /admin/clubs/<id>/ (profiles.ClubDetailView,
+// gated on admin.clubs.manage). Soft-delete only: sets is_active=False on
+// the backend, preserving favourite_club profile references and any
+// ClubWorkspace records. Returns 204 No Content on success.
+export async function deleteRealClub(clubId: string): Promise<void> {
+  await apiClient.delete(`/admin/clubs/${encodeURIComponent(clubId)}/`);
 }
 
 // Real — POST /<club_pk>/logo/ (clubs app, IsClubAdmin — Super Admin can
