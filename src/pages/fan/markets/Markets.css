@@ -1958,7 +1958,7 @@
 }
 
 /* Presentation catalogue hierarchy */
-.fan-markets-intro { display:flex; align-items:end; justify-content:space-between; gap:24px; padding:22px 24px; border:1px solid rgba(182,76,255,.25); border-radius:18px; background:linear-gradient(120deg,rgba(12,20,48,.96),rgba(57,18,77,.78)); }
+.fan-markets-intro { position:relative; z-index:1; display:flex; align-items:end; justify-content:space-between; gap:24px; padding:22px 24px; border:1px solid rgba(182,76,255,.25); border-radius:18px; background:linear-gradient(120deg,rgba(12,20,48,.96),rgba(57,18,77,.78)); }
 .fan-markets-intro > div:first-child > span,.market-section-heading span,.all-markets-header > div > span { color:#dd64ff; font-size:.72rem; font-weight:800; letter-spacing:.16em; }
 .fan-markets-intro h1 { margin:3px 0; color:#fff; font-size:clamp(1.55rem,3vw,2.45rem); font-style:italic; line-height:1; }
 .fan-markets-intro p { margin:6px 0 0; color:#b9c2dc; }

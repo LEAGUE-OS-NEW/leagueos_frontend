@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight, FiShoppingCart, FiCheck, FiImage } from 'react-icons/fi';
 import type { CategorySlug } from './shopCategories';
 import { useCartStore } from '../../../../store/cartStore';
-import { useClubProductStore, type StoreProduct } from '../../../../store/clubProductStore';
+import { useClubProductStore, dedupeStoreProducts, type StoreProduct } from '../../../../store/clubProductStore';
 import './ProductShowcase.css';
 
 // ── Unified product shape for display ────────────────────────────────────────
@@ -128,7 +128,7 @@ function ProductShowcase({
   const allProducts = useClubProductStore((s) => s.products);
 
   // Filter by category
-  const filtered = (activeCategory === 'all'
+  const filtered = dedupeStoreProducts(activeCategory === 'all'
     ? allProducts
     : allProducts.filter((p) => p.category === activeCategory)
   ).filter((p) => p.stock > 0); // only in-stock products

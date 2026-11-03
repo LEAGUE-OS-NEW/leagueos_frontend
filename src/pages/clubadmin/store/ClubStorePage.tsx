@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiPlus, FiDownload, FiEdit2, FiAlertTriangle, FiX, FiTrash2,
   FiPackage, FiCheck, FiEye, FiRefreshCw, FiShoppingCart, FiImage,
@@ -9,9 +9,18 @@ import { useAuthStore } from '../../../store/authStore';
 import {
   canAccessClubSection,
   getClubAdminEntitlements,
+  getSelectedClubId,
   getSelectedClubAdminEntitlement,
+  getUserClub,
 } from '../../../utils/clubAdminAccess';
 import { parseUGX } from '../../../store/cartStore';
+import {
+  CATEGORY_COLORS,
+  nameToSlug,
+  toCategorySlug,
+  useClubProductStore,
+  type StoreProduct,
+} from '../../../store/clubProductStore';
 import {
   fetchClubProducts,
   createClubProduct,
@@ -86,6 +95,57 @@ function fromApiProduct(p: ClubMerchandiseProduct): Product {
   };
 }
 
+function mergeFetchedProducts(
+  fetched: Product[],
+  current: Product[],
+  locallyChangedIds: Set<string>,
+  locallyDeletedIds: Set<string>,
+) {
+  const fetchedIds = new Set(fetched.map(product => product.id));
+  const localOnlyProducts = current.filter(product => (
+    locallyChangedIds.has(product.id) &&
+    !locallyDeletedIds.has(product.id) &&
+    !fetchedIds.has(product.id)
+  ));
+
+  return [
+    ...fetched.filter(product => !locallyDeletedIds.has(product.id)),
+    ...localOnlyProducts,
+  ];
+}
+
+function toStoreProduct(
+  product: ClubMerchandiseProduct,
+  fallbackClubName: string,
+): StoreProduct {
+  const catName = (product.metadata?.cat as string) ?? 'Other';
+  const category = toCategorySlug(catName);
+  const priceValue = Math.round(Number(product.price));
+  const clubName = product.club_name ?? fallbackClubName;
+  const clubSlug = product.club_slug ?? (clubName ? nameToSlug(clubName) : product.club);
+
+  return {
+    id: product.id,
+    clubSlug,
+    clubName,
+    name: product.name,
+    category,
+    price: formatPrice(product.price, product.currency),
+    priceValue,
+    description: product.description || undefined,
+    sku: product.sku || undefined,
+    stock: product.available_stock ?? product.stock ?? 0,
+    image: (product.metadata?.image as string) || undefined,
+    originalPrice: (product.metadata?.originalPrice as string) || undefined,
+    badge: (product.metadata?.badge as string) || undefined,
+    sizes: Array.isArray(product.metadata?.sizes)
+      ? product.metadata.sizes.filter((size): size is string => typeof size === 'string')
+      : undefined,
+    accentColor: CATEGORY_COLORS[category] ?? '#7c3aed',
+    createdAt: product.published_at ? new Date(product.published_at).getTime() : Date.now(),
+  };
+}
+
 const BACKEND_TO_LOCAL_ORDER: Record<string, OrderStatus> = {
   PENDING: 'pending', PAID: 'processing', PROCESSING: 'processing',
   READY_FOR_COLLECTION: 'ready', SHIPPED: 'shipped', DELIVERED: 'fulfilled',
@@ -141,19 +201,28 @@ export default function ClubStorePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const user = useAuthStore(s => s.user);
+  const addStoreProduct = useClubProductStore(s => s.addProduct);
+  const updateStoreProduct = useClubProductStore(s => s.updateProduct);
+  const removeStoreProduct = useClubProductStore(s => s.removeProduct);
   const { selectedEntitlementId } = useClubWorkspaceStore();
   const rawEnt = getClubAdminEntitlements(user);
   const current = getSelectedClubAdminEntitlement(rawEnt, selectedEntitlementId);
-  const canManage = canAccessClubSection(current, 'club.admin.manage');
+  const realClub = getUserClub(user);
+  const fallbackClubName = realClub?.name ?? 'Club Store';
+  const canManageStore =
+    canAccessClubSection(current, 'club.admin.manage') ||
+    canAccessClubSection(current, 'club.store.manage') ||
+    canAccessClubSection(current, 'club.merchandise.manage');
 
-  // Real club UUID — only available when the backend issued a real entitlement
-  const clubId = typeof current?.scope_id === 'string' ? current.scope_id : null;
+  const clubId = getSelectedClubId(current, user) || null;
 
   // No real club UUID (demo/mock session) — seed straight from the persisted
   // local store instead of an empty array, so products added here survive a
   // refresh the same way they would via a real backend fetch. Lazy-initialized
   // (not an effect) since this is a pure sync read, no fetch involved.
   const [products, setProducts] = useState<Product[]>([]);
+  const locallyChangedProductIds = useRef(new Set<string>());
+  const locallyDeletedProductIds = useRef(new Set<string>());
 
   // Derived: show loading only while the real club fetch is in flight
   const isLoadingData = !!clubId && !hasFetched;
@@ -168,7 +237,13 @@ export default function ClubStorePage() {
     let cancelled = false;
     Promise.all([fetchClubProducts(clubId), fetchClubStoreOrders(clubId)]).then(([apiProducts, apiOrders]) => {
       if (cancelled) return;
-      setProducts(apiProducts.map(fromApiProduct));
+      setProducts(prev => mergeFetchedProducts(
+        apiProducts.map(fromApiProduct),
+        prev,
+        locallyChangedProductIds.current,
+        locallyDeletedProductIds.current,
+      ));
+      apiProducts.forEach(product => addStoreProduct(toStoreProduct(product, fallbackClubName)));
       setOrders(apiOrders.map(fromApiOrder));
     }).catch((reason: unknown) => {
       if (!cancelled) setLoadError(reason instanceof Error ? reason.message : 'Could not load Store data.');
@@ -177,7 +252,7 @@ export default function ClubStorePage() {
       setHasFetched(true);
     });
     return () => { cancelled = true; };
-  }, [clubId]);
+  }, [addStoreProduct, clubId, fallbackClubName]);
 
   const openNewProduct = () => { setProductForm(BLANK_PRODUCT); setEditProductId(null); setModal('product'); };
   const openEditProduct = (p: Product) => {
@@ -226,12 +301,18 @@ export default function ClubStorePage() {
       if (editProductId) {
         const updated = await apiUpdateClubProduct(clubId, editProductId, payload);
         const display = fromApiProduct(updated);
+        locallyChangedProductIds.current.add(display.id);
+        locallyDeletedProductIds.current.delete(display.id);
         setProducts(prev => prev.map(p => p.id === editProductId ? display : p));
+        updateStoreProduct(editProductId, toStoreProduct(updated, fallbackClubName));
         showToast('Product updated');
       } else {
         const created = await createClubProduct(clubId, payload);
         const display = fromApiProduct(created);
+        locallyChangedProductIds.current.add(display.id);
+        locallyDeletedProductIds.current.delete(display.id);
         setProducts(prev => [display, ...prev]);
+        addStoreProduct(toStoreProduct(created, fallbackClubName));
         showToast(`${display.name} added to catalog`);
       }
       setModal(null);
@@ -249,8 +330,14 @@ export default function ClubStorePage() {
     setIsSaving(true);
     try {
       if (clubId) {
-        await apiUpdateClubProduct(clubId, restockProduct.id, { stock: newStock });
+        const updated = await apiUpdateClubProduct(clubId, restockProduct.id, {
+          stock: newStock,
+          status: newStock > 0 ? 'ACTIVE' : 'OUT_OF_STOCK',
+        });
+        updateStoreProduct(restockProduct.id, toStoreProduct(updated, fallbackClubName));
       }
+      locallyChangedProductIds.current.add(restockProduct.id);
+      locallyDeletedProductIds.current.delete(restockProduct.id);
       setProducts(prev => prev.map(p => p.id === restockProduct.id ? { ...p, stock: newStock, status: getStatus(newStock) } : p));
       showToast(`Restocked ${restockProduct.name} (+${restockQty})`);
       setModal(null);
@@ -268,7 +355,10 @@ export default function ClubStorePage() {
       if (clubId) {
         await deleteClubProduct(clubId, deleteProductId);
       }
+      locallyDeletedProductIds.current.add(deleteProductId);
+      locallyChangedProductIds.current.delete(deleteProductId);
       setProducts(prev => prev.filter(p => p.id !== deleteProductId));
+      removeStoreProduct(deleteProductId);
       showToast('Product deleted');
       setDeleteProductId(null);
       setModal(null);
@@ -494,7 +584,7 @@ export default function ClubStorePage() {
         </div>
         <div className="ca-page-actions">
           <button type="button" className="ca-btn ca-btn-secondary" onClick={() => exportCSV(products as unknown as Record<string, unknown>[], 'products.csv')}><FiDownload /> Export</button>
-          {canManage && activeTab === 'Products' && (
+          {canManageStore && activeTab === 'Products' && (
             <button type="button" className="ca-btn ca-btn-primary" onClick={openNewProduct}><FiPlus /> Add Product</button>
           )}
         </div>
@@ -559,7 +649,7 @@ export default function ClubStorePage() {
                         <td style={{ fontWeight: p.stock < 20 ? 800 : undefined, color: p.stock === 0 ? '#ef4444' : p.stock < 20 ? '#f97316' : undefined }}>{p.stock}</td>
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>
-                          {canManage && (
+                          {canManageStore && (
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button type="button" className="ca-icon-btn" title="Edit" onClick={() => openEditProduct(p)}><FiEdit2 /></button>
                               <button type="button" className="ca-icon-btn" title="Delete" style={{ color: '#ef4444' }} onClick={() => { setDeleteProductId(p.id); setModal('confirm-delete'); }}><FiTrash2 /></button>
@@ -586,7 +676,7 @@ export default function ClubStorePage() {
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Stock: {s.stock}</p>
                     </div>
                   </div>
-                  {canManage && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}><FiRefreshCw /></button>}
+                  {canManageStore && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(s)}><FiRefreshCw /></button>}
                 </div>
               ))}
             </div>
@@ -697,8 +787,8 @@ export default function ClubStorePage() {
                         <td><span className={`ca-pill ${STATUS_CLASS[p.status]}`}>{p.status}</span></td>
                         <td>{p.price}</td>
                         <td>
-                          {canManage && p.status !== 'active' && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}><FiRefreshCw /> Restock</button>}
-                          {canManage && p.status === 'active' && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
+                          {canManageStore && p.status !== 'active' && <button type="button" className="ca-btn ca-btn-secondary ca-btn-sm" onClick={() => openRestock(p)}><FiRefreshCw /> Restock</button>}
+                          {canManageStore && p.status === 'active' && <button type="button" className="ca-icon-btn" onClick={() => openEditProduct(p)}><FiEdit2 /></button>}
                         </td>
                       </tr>
                     ))}

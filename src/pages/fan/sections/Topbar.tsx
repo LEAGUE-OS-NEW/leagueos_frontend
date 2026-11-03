@@ -51,9 +51,14 @@ function Topbar({ onMenuClick }: TopbarProps) {
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const { currentUser } = useCurrentUser();
   const displayName = currentUser?.name?.trim() || 'Fan';
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const unreadCount = useNotificationsStore((state) => state.unreadCount);
   const hasLoadedNotifications = useNotificationsStore((state) => state.hasLoaded);
   const loadNotifications = useNotificationsStore((state) => state.load);
+  const avatarUrl =
+    currentUser?.avatarUrl && currentUser.avatarUrl !== failedAvatarUrl
+      ? currentUser.avatarUrl
+      : null;
 
   useEffect(() => {
     if (!hasLoadedNotifications) loadNotifications();
@@ -253,8 +258,13 @@ function Topbar({ onMenuClick }: TopbarProps) {
             aria-haspopup="menu"
             aria-expanded={isMenuOpen}
           >
-            {currentUser?.avatarUrl ? (
-              <img src={currentUser.avatarUrl} alt="" className="fan-topbar-user-avatar" />
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="fan-topbar-user-avatar"
+                onError={() => setFailedAvatarUrl(avatarUrl)}
+              />
             ) : (
               <img src="/players/player-avatar.png" alt="" className="fan-topbar-user-avatar" />
             )}

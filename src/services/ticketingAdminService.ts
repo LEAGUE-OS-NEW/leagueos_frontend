@@ -8,7 +8,7 @@ import { normalizeApiList } from './apiUtils';
 
 export interface AdminTicketTypeApi {
   id: number;
-  match: number;
+  match: number | string;
   match_label: string;
   name: string;
   description: string;
@@ -25,7 +25,7 @@ export interface AdminTicketTypeApi {
 
 export interface AdminTicketType {
   id: number;
-  matchId: number;
+  matchId: number | string;
   matchLabel: string;
   name: string;
   description: string;
@@ -50,6 +50,26 @@ export interface CreateTicketTypeInput {
   status?: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
 }
 
+export interface ClubTicketFixtureApi {
+  id: string;
+  name: string;
+  starts_at: string | null;
+  status: string;
+  competition: string | null;
+  home_team: string | null;
+  away_team: string | null;
+}
+
+export interface ClubTicketFixture {
+  id: string;
+  name: string;
+  matchDate: string | null;
+  status: string;
+  competitionName: string;
+  homeClubName: string;
+  awayClubName: string;
+}
+
 function mapTicketType(raw: AdminTicketTypeApi): AdminTicketType {
   return {
     id: raw.id,
@@ -66,6 +86,30 @@ function mapTicketType(raw: AdminTicketTypeApi): AdminTicketType {
     saleEndAt: raw.sale_end_at,
     status: raw.status ?? 'DRAFT',
   };
+}
+
+function mapClubTicketFixture(raw: ClubTicketFixtureApi): ClubTicketFixture {
+  const fallbackName = raw.name || 'Scheduled match';
+  return {
+    id: raw.id,
+    name: fallbackName,
+    matchDate: raw.starts_at,
+    status: raw.status,
+    competitionName: raw.competition ?? 'Competition',
+    homeClubName: raw.home_team ?? fallbackName,
+    awayClubName: raw.away_team ?? 'Opponent',
+  };
+}
+
+export async function fetchClubTicketFixtures(
+  clubId: string,
+): Promise<ClubTicketFixture[]> {
+  const response = await apiClient.get(
+    `/${encodeURIComponent(clubId)}/match-data/fixtures/`,
+  );
+  return normalizeApiList<ClubTicketFixtureApi>(response.data).map(
+    mapClubTicketFixture,
+  );
 }
 
 export async function fetchMatchTicketTypesAdmin(

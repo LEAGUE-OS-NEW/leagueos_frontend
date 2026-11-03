@@ -26,6 +26,7 @@ const ALL_PERMISSIONS: Permission[] = [
   { key: 'club.matches.manage',  label: 'Manage Fixtures',          description: 'Submit fixture information and corrections to League OS.',                  group: 'Operations',   risk: 'normal' },
   // Members & Ticketing
   { key: 'club.ticketing.manage',label: 'Manage Ticketing',         description: 'Create match events, configure ticket types and operate match-day scanner.', group: 'Revenue',      risk: 'normal' },
+  { key: 'club.store.manage',     label: 'Manage Store',            description: 'Create merchandise, edit catalog items and manage store inventory.',       group: 'Revenue',      risk: 'normal' },
   // Reports
   { key: 'club.reports.view',    label: 'View Analytics & Reports', description: 'Access club revenue, attendance and financial summary reports.',             group: 'Finance',      risk: 'normal' },
   // Admin (high-risk)
@@ -41,7 +42,7 @@ const ROLE_PERMISSION_MAP: Record<string, string[]> = {
   'Communications':     ['club.profile.view', 'club.communications.manage'],
   'Finance Officer':    ['club.profile.view', 'club.reports.view', 'club.finance.manage'],
   'Ticketing Manager':  ['club.profile.view', 'club.ticketing.manage', 'club.reports.view'],
-  'Store Manager':      ['club.profile.view'],
+  'Store Manager':      ['club.profile.view', 'club.store.manage', 'club.reports.view'],
   'Team Manager':       ['club.profile.view', 'club.squad.manage', 'club.matches.manage'],
   'Club Doctor':        ['club.profile.view', 'club.squad.manage'],
   'Content Creator':    ['club.profile.view', 'club.communications.manage'],

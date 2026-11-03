@@ -55,6 +55,7 @@ export function extractApiError(error: unknown): ApiErrorDetails {
       if (messages.length) fields[key] = messages;
     });
   }
+  const firstFieldMessage = Object.values(fields)[0]?.[0];
   const message =
     fields.non_field_errors?.[0] ||
     fields.detail?.[0] ||
@@ -68,8 +69,9 @@ export function extractApiError(error: unknown): ApiErrorDetails {
           ? "This conflicts with an existing record."
           : status === 429
             ? "Too many requests. Please wait and try again."
-            : status
-              ? `The request failed (${status}). Please try again.`
-              : "Unable to reach League OS. Please try again.");
+            : firstFieldMessage ||
+              (status
+                ? `The request failed (${status}). Please try again.`
+                : "Unable to reach League OS. Please try again."));
   return { status, message, fields };
 }

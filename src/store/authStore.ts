@@ -10,6 +10,7 @@ import {
   getDefaultDashboardRoute as getRoleDefaultDashboardRoute,
 } from '../utils/roleRoutes.ts';
 import { useClubWorkspaceStore } from './clubWorkspaceStore.ts';
+import { useCartStore } from './cartStore.ts';
 import {
   clearAuthStorage,
   getRefreshToken,
@@ -58,6 +59,16 @@ function normalizeRole(value: unknown) {
   return typeof value === 'string'
     ? value.trim().toUpperCase().replace(/[\s-]+/g, '_')
     : '';
+}
+
+function hasFullClubAdminRole(user: AuthenticatedUser) {
+  return [
+    user.role,
+    ...(Array.isArray(user.roles) ? user.roles : []),
+  ].some((role) => {
+    const normalized = normalizeRole(role);
+    return normalized === 'CLUB_ADMIN' || normalized === 'CLUB_OWNER';
+  });
 }
 
 function getLegacyClubId(user: AuthenticatedUser) {
@@ -195,17 +206,26 @@ function sanitizeUser(value: unknown) {
     buildGenericLegacyDashboardAccess(value);
 
   // If the backend sent a real dashboard_access contract but the CLUB_ADMIN
-  // entitlement only has the coarse 'dashboard.club_admin' permission (i.e.
-  // no granular club.* permissions), enrich it with the full permission set
-  // so sidebar/dashboard canAccess checks work correctly.
+  // entitlement is missing granular club.* permissions or workspace scope,
+  // enrich it so existing sessions keep working after auth-contract fixes.
   if (dashboardAccess) {
+    const isFullClubAdminUser = hasFullClubAdminRole(value);
+
     const enriched = dashboardAccess.entitlements.map(e => {
       if (
         e.dashboard === 'CLUB_ADMIN' &&
-        e.permissions.includes('dashboard.club_admin') &&
-        !e.permissions.includes('club.profile.view')
+        (
+          isFullClubAdminUser ||
+          e.permissions.includes('dashboard.club_admin')
+        )
       ) {
-        return { ...e, permissions: [...new Set([...e.permissions, ...CLUB_ADMIN_PERMISSIONS])] };
+        return {
+          ...e,
+          scope_type: e.scope_type ?? 'CLUB',
+          scope_id: e.scope_id ?? getLegacyClubId(value),
+          workspace_role: e.workspace_role ?? 'CLUB_ADMIN',
+          permissions: [...new Set([...e.permissions, ...CLUB_ADMIN_PERMISSIONS])],
+        };
       }
       return e;
     });
@@ -255,6 +275,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     const sanitized = sanitizeUser(user);
 
     useClubWorkspaceStore.getState().clearSelection();
+    useCartStore.getState().setCartOwner(sanitized.user);
     setToken(access);
     setRefreshToken(refresh);
     setStoredUser(sanitized.user);
@@ -275,6 +296,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     const sanitized = sanitizeUser(user);
 
     setStoredUser(sanitized.user);
+    useCartStore.getState().setCartOwner(sanitized.user);
     set({
       user: sanitized.user,
       accessStatus: getAccessStatus(
@@ -296,6 +318,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
 
   clearAuth: () => {
     useClubWorkspaceStore.getState().clearSelection();
+    useCartStore.getState().setCartOwner(null);
     clearAuthStorage();
 
     set({
@@ -307,3 +330,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     });
   },
 }));
+
+useCartStore.getState().setCartOwner(
+  (initialAccessToken || initialRefreshToken) ? initialUser.user : null,
+);

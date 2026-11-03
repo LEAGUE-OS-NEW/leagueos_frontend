@@ -74,3 +74,45 @@
   padding: 0 5px;
   margin-left: 6px;
 }
+
+.ca-ticket-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 160px;
+}
+
+.ca-ticket-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ca-ticket-type-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 120px;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  background: rgba(139, 53, 255, 0.12);
+  color: var(--color-text-primary);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ca-ticket-type-chip-more {
+  color: var(--color-primary-light);
+}
+
+.ca-ticket-summary-muted {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}

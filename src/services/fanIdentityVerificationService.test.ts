@@ -24,6 +24,7 @@ describe('canonical fan KYC service', () => {
     expect(body.get('document_country')).toBe('UGA');
     expect(body.get('document_image')).toBe(documentImage);
     expect(body.get('selfie_image')).toBe(selfieImage);
+    expect(body.get('profile_country')).toBe('UG');
   });
 
   it('uses the server-authoritative status response', async () => {

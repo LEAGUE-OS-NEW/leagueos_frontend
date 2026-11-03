@@ -33,7 +33,7 @@ export { extractApiError };
 export interface OnboardingCountry {
   id: string;
   name: string;
-  code: string;         // ISO 3166-1 alpha-2
+  iso_code: string;     // ISO 3166-1 alpha-2
   flag?: string | null; // URL to flag image, if provided by backend
 }
 

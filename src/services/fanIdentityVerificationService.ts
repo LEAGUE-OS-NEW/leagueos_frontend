@@ -58,7 +58,7 @@ export async function submitCanonicalKyc(input: {
   body.append('date_of_birth', input.dateOfBirth);
   body.append('profile_country', input.profileCountry);
   try {
-    await apiClient.post('/fans/kyc/', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+    await apiClient.post('/fans/kyc/', body);
   } catch (error) {
     throw apiError(error);
   }

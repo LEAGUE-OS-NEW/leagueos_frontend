@@ -77,7 +77,7 @@ export function useCurrentUser() {
 
   return {
     currentUser: currentUser ?? fallbackCurrentUser,
-    profile: profile ?? authUser,
+    profile,
     isLoading,
     errorMessage,
     refreshProfile,

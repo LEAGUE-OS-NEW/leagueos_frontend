@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FanVerification from './FanVerification';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../store/authStore.ts';
 import {
   bypassCanonicalKycForDevelopment,
   fetchCanonicalKycStatus,
+  submitCanonicalKyc,
   type CanonicalKycState,
 } from '../../../services/fanIdentityVerificationService.ts';
 
@@ -275,5 +276,89 @@ describe('KYC status → Identity Verification UI', () => {
       expect(screen.getByText('Another Attempt Is Required')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Retry Verification' })).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Submission recovers from a client-side abort when the attempt landed anyway
+// ---------------------------------------------------------------------------
+// A KYC submission can fail on the client (timeout/abort) while the backend
+// has already committed the attempt and is processing it in the background —
+// e.g. a one-time model cold-start that outruns the client's request timeout.
+// These tests drive the full wizard to confirm the UI checks the canonical
+// status before deciding whether the submission actually failed.
+
+describe('KYC submission recovers from a client-side abort', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ user: { email: 'fan@example.com', role: 'FAN' }, accessToken: 'token' });
+    refreshEligibility.mockResolvedValue({ eligible: false });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useAuthStore.setState({ user: null, accessToken: null, refreshToken: null });
+  });
+
+  async function fillWizardThroughReview(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByRole('heading', { name: 'Verification Required' });
+    await user.click(screen.getByRole('button', { name: 'Yes, Verify Now' }));
+
+    await screen.findByRole('heading', { name: 'Tell us more about you' });
+    await user.type(screen.getByLabelText(/Full Legal Name/), 'Followup Fan');
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1994-04-04' } });
+    await user.type(screen.getByLabelText(/NIN/), 'CM9944556677Z');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByRole('heading', { name: 'Verify your identity' });
+    const idFront = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+    await user.upload(idFront, new File(['doc'], 'doc.jpg', { type: 'image/jpeg' }));
+    await user.click(screen.getByRole('button', { name: 'Continue to Selfie' }));
+
+    await screen.findByRole('heading', { name: 'Live Selfie' });
+    const selfie = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+    await user.upload(selfie, new File(['selfie'], 'selfie.jpg', { type: 'image/jpeg' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await screen.findByRole('heading', { name: 'Review your information' });
+    await user.click(screen.getByRole('checkbox', { name: /I confirm/ }));
+  }
+
+  it('shows the Status step instead of an error when the canonical status proves a new attempt landed', async () => {
+    vi.mocked(fetchCanonicalKycStatus)
+      .mockRejectedValueOnce(new Error('No KYC session'))
+      .mockResolvedValue(kycState('REVIEW', { attempts_count: 1 }));
+    vi.mocked(submitCanonicalKyc).mockRejectedValue(
+      new Error('Unable to reach League OS. Please try again.'),
+    );
+
+    const user = userEvent.setup();
+    renderPage();
+    await fillWizardThroughReview(user);
+    await user.click(screen.getByRole('button', { name: 'Submit for Verification' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Compliance Review Required')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Unable to reach League OS. Please try again.')).not.toBeInTheDocument();
+  });
+
+  it('still shows the real error when no new attempt was recorded', async () => {
+    vi.mocked(fetchCanonicalKycStatus)
+      .mockRejectedValueOnce(new Error('No KYC session'))
+      .mockResolvedValue(kycState('NOT_STARTED', { attempts_count: 0 }));
+    vi.mocked(submitCanonicalKyc).mockRejectedValue(
+      new Error('Your legal name does not match your account records.'),
+    );
+
+    const user = userEvent.setup();
+    renderPage();
+    await fillWizardThroughReview(user);
+    await user.click(screen.getByRole('button', { name: 'Submit for Verification' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Your legal name does not match your account records.'),
+      ).toBeInTheDocument();
+    });
   });
 });
