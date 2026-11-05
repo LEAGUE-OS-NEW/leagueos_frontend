@@ -12,19 +12,9 @@ import {
 } from '../../../services/fanIdentityVerificationService.ts';
 
 const refreshEligibility = vi.fn();
-
+const eligibilityState = { isPending: false, status: 'NOT_STARTED' };
 vi.mock('../../../hooks/useMarketEligibility.ts', () => ({
-  useMarketEligibility: () => ({
-    eligibility: null,
-    refresh: refreshEligibility,
-    isEligible: false,
-    isLoading: false,
-    isPending: false,
-    isRejected: false,
-    needsKyc: true,
-    needsProfile: false,
-    status: 'NOT_STARTED',
-  }),
+  useMarketEligibility: () => ({ eligibility: null, refresh: refreshEligibility, isEligible: false, isLoading: false, isPending: eligibilityState.isPending, isRejected: false, needsKyc: true, needsProfile: false, status: eligibilityState.status }),
 }));
 vi.mock('../../../services/fanIdentityVerificationService.ts', () => ({
   bypassCanonicalKycForDevelopment: vi.fn(),
@@ -76,6 +66,8 @@ function kycState(
 
 describe('staging KYC review control', () => {
   beforeEach(() => {
+    eligibilityState.isPending = false;
+    eligibilityState.status = 'NOT_STARTED';
     vi.stubEnv('VITE_REVIEW_WORKFLOW_TOOLS_ENABLED', 'true');
     refreshEligibility.mockResolvedValue({ eligible: true });
     vi.mocked(bypassCanonicalKycForDevelopment).mockResolvedValue({} as never);
@@ -100,6 +92,21 @@ describe('staging KYC review control', () => {
       expect(screen.getByRole('heading', { name: 'Verification Required' })).toBeInTheDocument(),
     );
     expect(screen.queryByRole('button', { name: 'Skip verification for staging review' })).not.toBeInTheDocument();
+  });
+
+  it('refreshes the signed-in account permissions when KYC is approved', async () => {
+    eligibilityState.isPending = true;
+    eligibilityState.status = 'REVIEW';
+    useAuthStore.setState({ user: { email: 'fan@example.com', role: 'FAN' }, accessToken: 'token' });
+    vi.mocked(fetchCanonicalKycStatus).mockReset().mockResolvedValue(kycState('VERIFIED', {
+      verification_source: 'MANUAL',
+      user: { email: 'fan@example.com', role: 'FAN', kyc_status: 'VERIFIED',
+        roles: ['Fan', 'Verified Market User'], permissions: ['participate_market'] },
+    }));
+    render(<MemoryRouter><FanVerification /></MemoryRouter>);
+    await waitFor(() => expect(useAuthStore.getState().user).toMatchObject({
+      kyc_status: 'VERIFIED', permissions: ['participate_market'],
+    }));
   });
 
   it('shows it to a synthetic account and returns to the safe intended trade flow after canonical refresh', async () => {

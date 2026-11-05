@@ -1,5 +1,6 @@
 import apiClient from './apiClient.ts';
 import { extractApiError } from './apiUtils.ts';
+import type { AuthenticatedUser } from '../types/dashboardAccess.ts';
 
 export type CanonicalKycStatus =
   | 'NOT_STARTED'
@@ -25,6 +26,7 @@ export interface CanonicalKycState {
   submitted_at: string;
   completed_at: string | null;
   verified_at: string | null;
+  user?: AuthenticatedUser;
 }
 
 function unwrap<T>(payload: T | { data: T }): T {
@@ -43,20 +45,20 @@ export async function submitCanonicalKyc(input: {
   documentCountry: string;
   documentImage: File;
   selfieImage: File;
-  legalName: string;
-  identityNumber: string;
-  dateOfBirth: string;
-  profileCountry: string;
+  legalName?: string;
+  identityNumber?: string;
+  dateOfBirth?: string;
+  profileCountry?: string;
 }): Promise<void> {
   const body = new FormData();
   body.append('document_type', input.documentType);
   body.append('document_country', input.documentCountry);
   body.append('document_image', input.documentImage);
   body.append('selfie_image', input.selfieImage);
-  body.append('legal_name', input.legalName);
-  body.append('identity_number', input.identityNumber);
-  body.append('date_of_birth', input.dateOfBirth);
-  body.append('profile_country', input.profileCountry);
+  if (input.legalName) body.append('legal_name', input.legalName);
+  if (input.identityNumber) body.append('identity_number', input.identityNumber);
+  if (input.dateOfBirth) body.append('date_of_birth', input.dateOfBirth);
+  if (input.profileCountry) body.append('profile_country', input.profileCountry);
   try {
     await apiClient.post('/fans/kyc/', body);
   } catch (error) {

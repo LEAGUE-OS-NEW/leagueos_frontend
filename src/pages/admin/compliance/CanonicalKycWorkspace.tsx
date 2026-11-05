@@ -70,6 +70,7 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   const [evidenceError, setEvidenceError] = useState('');
   const [isLoadingEvidence, setIsLoadingEvidence] = useState(false);
   const objectUrlsRef = useRef<string[]>([]);
+  const evidenceRequestRef = useRef(0);
 
   const revokeEvidenceUrls = () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -87,12 +88,16 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    return () => revokeEvidenceUrls();
+    return () => {
+      evidenceRequestRef.current += 1;
+      revokeEvidenceUrls();
+    };
   }, []);
 
   const visible = useMemo(() => rows.filter((row) => inTab(row, tab)), [rows, tab]);
 
   const open = async (row: AdminKycRecord) => {
+    const request = ++evidenceRequestRef.current;
     setError('');
     setDecideError('');
     setNotes('');
@@ -100,39 +105,47 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
     setDocumentImageUrl(null);
     setSelfieImageUrl(null);
     setEvidenceError('');
+    setSelected(null);
+    setIsLoadingEvidence(true);
     try {
       const detail = await fetchCanonicalAdminKycDetail(row.id);
+      if (request !== evidenceRequestRef.current) return;
       setSelected(detail);
-      setIsLoadingEvidence(true);
       try {
         const [documentBlob, selfieBlob] = await Promise.all([
           fetchCanonicalAdminKycDocumentBlob(detail.id, 'document'),
           fetchCanonicalAdminKycDocumentBlob(detail.id, 'selfie'),
         ]);
+        if (request !== evidenceRequestRef.current) return;
         const documentUrl = URL.createObjectURL(documentBlob);
         const selfieUrl = URL.createObjectURL(selfieBlob);
         objectUrlsRef.current = [documentUrl, selfieUrl];
         setDocumentImageUrl(documentUrl);
         setSelfieImageUrl(selfieUrl);
       } catch (e) {
+        if (request !== evidenceRequestRef.current) return;
         setEvidenceError(e instanceof Error ? e.message : 'Could not load submitted document images.');
       } finally {
-        setIsLoadingEvidence(false);
+        if (request === evidenceRequestRef.current) setIsLoadingEvidence(false);
       }
     } catch (e) {
+      if (request !== evidenceRequestRef.current) return;
+      setIsLoadingEvidence(false);
       setError(e instanceof Error ? e.message : 'Could not load KYC details.');
     }
   };
 
   const closeDrawer = () => {
+    evidenceRequestRef.current += 1;
     revokeEvidenceUrls();
     setDocumentImageUrl(null);
     setSelfieImageUrl(null);
     setSelected(null);
+    setIsLoadingEvidence(false);
   };
 
   const decide = async (decision: 'VERIFIED' | 'REJECTED') => {
-    if (!selected) return;
+    if (!selected || isLoadingEvidence || (decision === 'VERIFIED' && evidenceError)) return;
     if (decision === 'REJECTED' && !notes.trim()) {
       setDecideError('A rejection reason is required.');
       return;
@@ -394,14 +407,14 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
               <div className="case-actions">
                 <button
                   className="btn btn-gradient"
-                  disabled={isDeciding}
+                  disabled={isDeciding || isLoadingEvidence || Boolean(evidenceError)}
                   onClick={() => void decide('VERIFIED')}
                 >
                   {isDeciding ? 'Saving…' : '✓ Verify'}
                 </button>
                 <button
                   className="btn btn-danger"
-                  disabled={isDeciding}
+                  disabled={isDeciding || isLoadingEvidence}
                   onClick={() => void decide('REJECTED')}
                 >
                   {isDeciding ? 'Saving…' : '✕ Reject'}

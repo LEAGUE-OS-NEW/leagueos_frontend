@@ -167,6 +167,7 @@ function FanVerification() {
     try {
       const next = await fetchCanonicalKycStatus();
       setCanonicalKyc(next);
+      if (next.user) useAuthStore.getState().setHydratedUser(next.user);
       if (next.status === 'VERIFIED') await refreshEligibility();
       return next;
     } catch (error) {
@@ -299,8 +300,8 @@ function FanVerification() {
         documentCountry: 'UGA',
         documentImage: form.idFront,
         selfieImage: form.selfie,
-        legalName: form.fullLegalName,
-        identityNumber: form.nin,
+        legalName: form.fullLegalName.trim() || undefined,
+        identityNumber: form.nin.trim(),
         dateOfBirth: form.dob,
         profileCountry: PROFILE_COUNTRY_CODES[form.nationality] ?? '',
       });
