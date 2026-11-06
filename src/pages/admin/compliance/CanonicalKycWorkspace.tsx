@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   decideCanonicalAdminKyc,
   fetchCanonicalAdminKyc,
@@ -19,6 +19,14 @@ function inTab(row: AdminKycRecord, tab: Tab) {
   if (tab === 'Retry Required') return row.status === 'RETRY_REQUIRED';
   if (tab === 'Verified')       return row.status === 'VERIFIED';
   return ['REJECTED', 'EXPIRED'].includes(row.status);
+}
+
+function tabForStatus(status: AdminKycStatus): Tab {
+  if (status === 'REVIEW') return 'Manual Review';
+  if (status === 'RETRY_REQUIRED') return 'Retry Required';
+  if (status === 'VERIFIED') return 'Verified';
+  if (status === 'REJECTED' || status === 'EXPIRED') return 'Rejected';
+  return 'Pending / Processing';
 }
 
 const fmt = (v: string | null) => (v ? new Date(v).toLocaleString() : '—');
@@ -57,7 +65,10 @@ function StatusBadge({ status }: { status: AdminKycStatus }) {
 
 /* ─── component ───────────────────────────────────────────── */
 
-export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void }) {
+export default function CanonicalKycWorkspace({ onClose, initialRecordId }: {
+  onClose: () => void;
+  initialRecordId?: string;
+}) {
   const [rows,     setRows]     = useState<AdminKycRecord[]>([]);
   const [tab,      setTab]      = useState<Tab>('Pending / Processing');
   const [selected, setSelected] = useState<AdminKycRecord | null>(null);
@@ -71,32 +82,14 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
   const [isLoadingEvidence, setIsLoadingEvidence] = useState(false);
   const objectUrlsRef = useRef<string[]>([]);
   const evidenceRequestRef = useRef(0);
+  const initialRecordIdRef = useRef(initialRecordId);
 
-  const revokeEvidenceUrls = () => {
+  const revokeEvidenceUrls = useCallback(() => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current = [];
-  };
-
-  const load = async () => {
-    try {
-      setRows(await fetchCanonicalAdminKyc());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load KYC records.');
-    }
-  };
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    return () => {
-      evidenceRequestRef.current += 1;
-      revokeEvidenceUrls();
-    };
   }, []);
 
-  const visible = useMemo(() => rows.filter((row) => inTab(row, tab)), [rows, tab]);
-
-  const open = async (row: AdminKycRecord) => {
+  const open = useCallback(async (row: AdminKycRecord) => {
     const request = ++evidenceRequestRef.current;
     setError('');
     setDecideError('');
@@ -133,7 +126,38 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
       setIsLoadingEvidence(false);
       setError(e instanceof Error ? e.message : 'Could not load KYC details.');
     }
-  };
+  }, [revokeEvidenceUrls]);
+
+  const load = useCallback(async (openInitialRecord = false) => {
+    const request = evidenceRequestRef.current;
+    try {
+      const records = await fetchCanonicalAdminKyc();
+      if (request !== evidenceRequestRef.current) return;
+      setRows(records);
+      if (openInitialRecord && initialRecordIdRef.current) {
+        const initial = records.find((record) => record.id === initialRecordIdRef.current);
+        if (initial) {
+          setTab(tabForStatus(initial.status));
+          await open(initial);
+        }
+      }
+    } catch (e) {
+      if (request === evidenceRequestRef.current) {
+        setError(e instanceof Error ? e.message : 'Could not load KYC records.');
+      }
+    }
+  }, [open]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load(true);
+    return () => {
+      evidenceRequestRef.current += 1;
+      revokeEvidenceUrls();
+    };
+  }, [load, revokeEvidenceUrls]);
+
+  const visible = useMemo(() => rows.filter((row) => inTab(row, tab)), [rows, tab]);
 
   const closeDrawer = () => {
     evidenceRequestRef.current += 1;
@@ -171,8 +195,8 @@ export default function CanonicalKycWorkspace({ onClose }: { onClose: () => void
       {/* ── header ── */}
       <div className="panel__header">
         <div>
-          <h2>Canonical KYC Workspace</h2>
-          <p>Identity records from the file-based canonical verification service.</p>
+          <h2>KYC Verification</h2>
+          <p>Review identity documents, selfies, automated checks, and decisions.</p>
         </div>
         <button className="btn btn-outline btn-sm" onClick={onClose}>
           Back to all queues
