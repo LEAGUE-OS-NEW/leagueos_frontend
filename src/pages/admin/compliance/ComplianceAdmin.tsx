@@ -3,9 +3,7 @@ import AdminLayout from "../../../components/admin/AdminLayout";
 import { extractApiError } from "../../../services/apiUtils.ts";
 import {
   decideComplianceProposal,
-  fetchAdminUserSummary,
   fetchComplianceDecisions,
-  fetchKYCSessions,
   fetchRiskAssessments,
   fetchRiskProfiles,
   proposeComplianceDecision,
@@ -16,6 +14,7 @@ import type { ComplianceDecision } from "../../../types/api.ts";
 import "./ComplianceAdmin.css";
 import CanonicalKycWorkspace from './CanonicalKycWorkspace';
 import { fetchMyAdminAccess } from '../../../services/adminUsersService';
+import { fetchCanonicalAdminKyc } from '../../../services/canonicalKycAdminService';
 
 // The backend's ComplianceDecisionProposal only models five specific
 // clear/override actions — that system doesn't touch KYC status at all.
@@ -133,11 +132,7 @@ export interface ComplianceCase {
   auditHistory: AuditEvent[];
   restrictions: Restriction[];
   selfExclusion?: SelfExclusionCase;
-  /** Raw KYCVerificationSession.status, only set for queueType "KYC" —
-   * used to bucket the KYC queue into real Pending/Verified/Rejected
-   * tabs, since the generic 4-value CaseStatus collapses too much for
-   * that (VERIFIED/REJECTED/EXPIRED/CANCELLED/ERROR all map to
-   * "Resolved" there). */
+  /** Identity verification status for the KYC queue's status tabs. */
   kycSessionStatus?: string;
 }
 
@@ -306,17 +301,6 @@ const ComplianceQueueCard: React.FC<{
    ============================================================ */
 
 const PAGE_SIZE = 5;
-
-// Real KYCVerificationSession.status values — "terminal" ones are no
-// longer awaiting a decision. Kept in sync with the status() mapper's
-// handling of the same enum above.
-const KYC_TERMINAL_STATUSES = new Set([
-  "VERIFIED",
-  "REJECTED",
-  "EXPIRED",
-  "CANCELLED",
-  "ERROR",
-]);
 
 type KycTab = "Pending" | "Verified" | "Rejected";
 
@@ -1891,6 +1875,7 @@ const ComplianceAdmin: React.FC = () => {
   const [loadError, setLoadError] = useState("");
   const [selectedCase, setSelectedCase] = useState<ComplianceCase | null>(null);
   const [showKycQueue, setShowKycQueue] = useState(false);
+  const [initialKycRecordId, setInitialKycRecordId] = useState<string>();
 
   useEffect(() => {
     void fetchMyAdminAccess().then((access) => {
@@ -1899,14 +1884,25 @@ const ComplianceAdmin: React.FC = () => {
       }
     });
     let active = true;
-    Promise.all([
-      fetchKYCSessions(),
+    Promise.allSettled([
+      fetchCanonicalAdminKyc(),
       fetchRiskProfiles(),
       fetchRiskAssessments(),
       fetchComplianceDecisions(),
     ])
-      .then(async ([kycPage, profilePage, assessmentPage, decisionPage]) => {
+      .then(([kycResult, profileResult, assessmentResult, decisionResult]) => {
         if (!active) return;
+        const errors: string[] = [];
+        if (kycResult.status === "rejected") {
+          errors.push(`Could not load identity verification records: ${extractApiError(kycResult.reason).message}`);
+        }
+        const riskFailure = [profileResult, assessmentResult, decisionResult].find(
+          (result) => result.status === "rejected",
+        );
+        if (riskFailure) {
+          errors.push(`Could not load risk queues: ${extractApiError(riskFailure.reason).message}`);
+        }
+        setLoadError(errors.join(" "));
         const riskLevel = (score: number): RiskLevel =>
           score >= 90
             ? "Critical"
@@ -1924,32 +1920,33 @@ const ComplianceAdmin: React.FC = () => {
           value === "CANCELLED" ||
           value === "ERROR"
             ? "Resolved"
-            : value === "IN_REVIEW" || value === "PENDING_REVIEW"
+            : value === "REVIEW" || value === "IN_REVIEW" || value === "PENDING_REVIEW"
               ? "Under Review"
               : value === "ESCALATED"
                 ? "Escalated"
                 : "Pending";
-        const kycCases: ComplianceCase[] = kycPage.results.map((item) => ({
+        const kycRecords = kycResult.status === "fulfilled" ? kycResult.value : [];
+        const kycCases: ComplianceCase[] = kycRecords.map((item) => ({
           id: item.id,
-          participantId: item.participant_id,
+          participantId: item.user_id,
           queueType: "KYC",
           user: {
-            fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
-            email: "Unavailable from compliance API",
+            fullName: item.extracted_full_name || item.user_email,
+            email: item.user_email,
             phone: "Unavailable",
-            country: "Unavailable",
-            registrationDate: item.initiated_at,
+            country: item.document_country,
+            registrationDate: item.created_at,
             verificationTier:
-              item.verification_level === "NONE" ? "Unverified" : "Tier 1",
+              item.status === "VERIFIED" ? "Tier 1" : "Unverified",
           },
-          riskLevel: "Low",
-          riskScore: 0,
-          createdAt: item.initiated_at,
+          riskLevel: riskLevel(item.risk_score),
+          riskScore: item.risk_score,
+          createdAt: item.created_at,
           assignedTo: "Unassigned",
           status: status(item.status),
           kycSessionStatus: item.status,
           summary:
-            item.failure_code || `KYC session via ${item.provider_code}.`,
+            item.retry_reason || item.rejection_reason || "Identity verification record.",
           relatedAccounts: [],
           relatedTransactions: [],
           evidence: [],
@@ -1957,81 +1954,58 @@ const ComplianceAdmin: React.FC = () => {
           restrictions: [],
         }));
 
-        // Resolve real name/email for each KYC case where possible.
-        // participant_id is the user's real id, but the lookup needs
-        // admin.users.view — a compliance-only admin may not hold that
-        // separately from manage_compliance, so a per-id failure just keeps
-        // the anonymized fallback already set above rather than erroring
-        // the whole page.
-        const uniqueParticipantIds = [
-          ...new Set(kycPage.results.map((item) => item.participant_id)),
-        ];
-        const identityEntries = await Promise.allSettled(
-          uniqueParticipantIds.map((id) =>
-            fetchAdminUserSummary(id).then((summary) => [id, summary] as const),
-          ),
-        );
-        const identityById = new Map(
-          identityEntries
-            .filter(
-              (entry): entry is PromiseFulfilledResult<readonly [string, Awaited<ReturnType<typeof fetchAdminUserSummary>>]> =>
-                entry.status === "fulfilled",
-            )
-            .map((entry) => entry.value),
-        );
-        kycCases.forEach((kycCase, index) => {
-          const identity = identityById.get(kycPage.results[index].participant_id);
-          if (!identity) return;
-          const fullName = `${identity.first_name} ${identity.last_name}`.trim();
-          kycCase.user.fullName = fullName || kycCase.user.fullName;
-          kycCase.user.email = identity.email || kycCase.user.email;
-        });
-
-        const riskCases: ComplianceCase[] = profilePage.results.map((item) => {
-          const latest = assessmentPage.results.find(
-            (entry) => entry.participant_id === item.participant_id,
-          );
-          const proposal = decisionPage.results.find(
-            (entry) => entry.participant_id === item.participant_id,
-          );
-          return {
-            id: item.id,
-            participantId: item.participant_id,
-            queueType: item.restriction_recommendation
-              ? "Restriction"
-              : "Fraud",
-            user: {
-              fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
-              email: "Unavailable from compliance API",
-              phone: "Unavailable",
-              country: "Unavailable",
-              registrationDate: item.last_assessed_at,
-              verificationTier: "Unverified",
-            },
-            riskLevel: riskLevel(item.current_score),
-            riskScore: item.current_score,
-            createdAt: latest?.created_at || item.last_assessed_at,
-            assignedTo: "Unassigned",
-            status: proposal ? status(proposal.status) : "Pending",
-            summary:
-              item.reason_codes.join(", ") || "No risk reason codes supplied.",
-            relatedAccounts: [],
-            relatedTransactions: [],
-            evidence: [],
-            auditHistory: [],
-            restrictions: item.restriction_recommendation
-              ? [
-                  {
-                    id: `risk-${item.id}`,
-                    type: "Account Restriction",
-                    appliedBy: "Risk service",
-                    appliedAt: item.last_assessed_at,
-                    active: true,
-                  },
-                ]
-              : [],
-          };
-        });
+        // Risk services must not prevent access to identity records and evidence.
+        const profilePage = profileResult.status === "fulfilled" ? profileResult.value : null;
+        const assessmentPage = assessmentResult.status === "fulfilled" ? assessmentResult.value : null;
+        const decisionPage = decisionResult.status === "fulfilled" ? decisionResult.value : null;
+        const riskCases: ComplianceCase[] =
+          profilePage && assessmentPage && decisionPage
+            ? profilePage.results.map((item) => {
+              const latest = assessmentPage.results.find(
+                (entry) => entry.participant_id === item.participant_id,
+              );
+              const proposal = decisionPage.results.find(
+                (entry) => entry.participant_id === item.participant_id,
+              );
+              return {
+                id: item.id,
+                participantId: item.participant_id,
+                queueType: item.restriction_recommendation
+                  ? "Restriction"
+                  : "Fraud",
+                user: {
+                  fullName: `Participant ${item.participant_id.slice(0, 8)}…`,
+                  email: "Unavailable from compliance API",
+                  phone: "Unavailable",
+                  country: "Unavailable",
+                  registrationDate: item.last_assessed_at,
+                  verificationTier: "Unverified",
+                },
+                riskLevel: riskLevel(item.current_score),
+                riskScore: item.current_score,
+                createdAt: latest?.created_at || item.last_assessed_at,
+                assignedTo: "Unassigned",
+                status: proposal ? status(proposal.status) : "Pending",
+                summary:
+                  item.reason_codes.join(", ") || "No risk reason codes supplied.",
+                relatedAccounts: [],
+                relatedTransactions: [],
+                evidence: [],
+                auditHistory: [],
+                restrictions: item.restriction_recommendation
+                  ? [
+                      {
+                        id: `risk-${item.id}`,
+                        type: "Account Restriction",
+                        appliedBy: "Risk service",
+                        appliedAt: item.last_assessed_at,
+                        active: true,
+                      },
+                    ]
+                  : [],
+              };
+            })
+          : [];
         setCases([...kycCases, ...riskCases]);
       })
       .catch((error) => {
@@ -2047,7 +2021,7 @@ const ComplianceAdmin: React.FC = () => {
 
   const kycCases = cases.filter((c) => c.queueType === "KYC");
   const kycPendingCases = kycCases.filter(
-    (c) => !c.kycSessionStatus || !KYC_TERMINAL_STATUSES.has(c.kycSessionStatus),
+    (c) => c.kycSessionStatus === "REVIEW",
   );
   const fraudCases = cases.filter((c) => c.queueType === "Fraud");
   const duplicateCases = cases.filter((c) => c.queueType === "Duplicate");
@@ -2070,7 +2044,7 @@ const ComplianceAdmin: React.FC = () => {
         color: "#a855f7",
         primaryValue: kycPendingCases.length,
         primaryLabel: "Pending reviews",
-        secondaryValue: kycCases.filter(
+        secondaryValue: kycPendingCases.filter(
           (c) => c.riskLevel === "High" || c.riskLevel === "Critical",
         ).length,
         secondaryLabel: "High-risk",
@@ -2163,6 +2137,7 @@ const ComplianceAdmin: React.FC = () => {
     targetQueue: QueueType | "restriction" | "escalated",
   ) => {
     if (targetQueue === "KYC") {
+      setInitialKycRecordId(undefined);
       setShowKycQueue(true);
       return;
     }
@@ -2180,6 +2155,8 @@ const ComplianceAdmin: React.FC = () => {
   const isQueueEmpty = (
     targetQueue: QueueType | "restriction" | "escalated",
   ): boolean => {
+    // Reviewers also need to inspect verified/rejected evidence and empty queues.
+    if (targetQueue === "KYC") return false;
     if (targetQueue === "restriction") return restrictionCases.length === 0;
     if (targetQueue === "escalated") return escalatedCases.length === 0;
     return !cases.some((c) => c.queueType === targetQueue);
@@ -2235,12 +2212,21 @@ const ComplianceAdmin: React.FC = () => {
                   ))}
                 </div>
 
-                <ComplianceRiskQueue cases={cases} onSelect={setSelectedCase} />
+                <ComplianceRiskQueue cases={cases} onSelect={(caseData) => {
+                  if (caseData.queueType === "KYC") {
+                    setInitialKycRecordId(caseData.id);
+                    setShowKycQueue(true);
+                  }
+                  else setSelectedCase(caseData);
+                }} />
               </>
             )}
 
             {showKycQueue && (
-              <CanonicalKycWorkspace onClose={() => setShowKycQueue(false)} />
+              <CanonicalKycWorkspace
+                initialRecordId={initialKycRecordId}
+                onClose={() => setShowKycQueue(false)}
+              />
             )}
         </div>
 

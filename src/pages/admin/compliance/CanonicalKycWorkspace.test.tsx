@@ -73,4 +73,17 @@ describe('compliance evidence review', () => {
     await screen.findByText('Evidence unavailable');
     expect(screen.getByRole('button', { name: /Verify/ })).toBeDisabled();
   });
+
+  it('does not open private evidence if the initial queue finishes loading after unmount', async () => {
+    let resolveRecords!: (value: AdminKycRecord[]) => void;
+    vi.mocked(fetchCanonicalAdminKyc).mockReturnValue(new Promise((resolve) => {
+      resolveRecords = resolve;
+    }));
+    const view = render(<CanonicalKycWorkspace initialRecordId="first" onClose={() => {}} />);
+    view.unmount();
+    await act(async () => { resolveRecords([record('first')]); });
+    expect(fetchCanonicalAdminKycDetail).not.toHaveBeenCalled();
+    expect(fetchCanonicalAdminKycDocumentBlob).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
 });
